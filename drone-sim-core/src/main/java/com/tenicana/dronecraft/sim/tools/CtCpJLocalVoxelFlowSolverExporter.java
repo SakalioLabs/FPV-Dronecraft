@@ -182,6 +182,25 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_source_axial_momentum_energy_j",
 			"cumulative_source_wake_swirl_kinetic_energy_j",
 			"cumulative_source_total_wake_kinetic_energy_j",
+			"source_budget_duration_s",
+			"source_budget_step_count",
+			"source_budget_impulse_residual_world_x_ns",
+			"source_budget_impulse_residual_world_y_ns",
+			"source_budget_impulse_residual_world_z_ns",
+			"source_budget_impulse_residual_fraction",
+			"source_budget_wake_angular_momentum_impulse_residual_world_x_nm_s",
+			"source_budget_wake_angular_momentum_impulse_residual_world_y_nm_s",
+			"source_budget_wake_angular_momentum_impulse_residual_world_z_nm_s",
+			"source_budget_wake_angular_momentum_impulse_residual_fraction",
+			"source_budget_mass_residual_kg",
+			"source_budget_mass_residual_fraction",
+			"source_budget_ideal_momentum_energy_residual_j",
+			"source_budget_ideal_momentum_energy_residual_fraction",
+			"source_budget_wake_swirl_kinetic_energy_residual_j",
+			"source_budget_wake_swirl_kinetic_energy_residual_fraction",
+			"source_budget_total_wake_kinetic_energy_residual_j",
+			"source_budget_total_wake_kinetic_energy_residual_fraction",
+			"source_budget_max_abs_residual_fraction",
 			"cumulative_source_mechanical_work_energy_j",
 			"cumulative_through_flow_mechanical_work_energy_j",
 			"cumulative_combined_mechanical_work_energy_j",
@@ -210,6 +229,20 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_open_boundary_net_outward_angular_impulse_world_x_nm_s",
 			"cumulative_open_boundary_net_outward_angular_impulse_world_y_nm_s",
 			"cumulative_open_boundary_net_outward_angular_impulse_world_z_nm_s",
+			"angular_budget_source_flow_minus_wake_impulse_world_x_nm_s",
+			"angular_budget_source_flow_minus_wake_impulse_world_y_nm_s",
+			"angular_budget_source_flow_minus_wake_impulse_world_z_nm_s",
+			"angular_budget_source_flow_minus_wake_impulse_fraction",
+			"angular_budget_retained_flow_delta_world_x_nm_s",
+			"angular_budget_retained_flow_delta_world_y_nm_s",
+			"angular_budget_retained_flow_delta_world_z_nm_s",
+			"angular_budget_retained_plus_boundary_net_outward_world_x_nm_s",
+			"angular_budget_retained_plus_boundary_net_outward_world_y_nm_s",
+			"angular_budget_retained_plus_boundary_net_outward_world_z_nm_s",
+			"angular_budget_retained_plus_boundary_minus_wake_impulse_world_x_nm_s",
+			"angular_budget_retained_plus_boundary_minus_wake_impulse_world_y_nm_s",
+			"angular_budget_retained_plus_boundary_minus_wake_impulse_world_z_nm_s",
+			"angular_budget_retained_plus_boundary_minus_wake_impulse_fraction",
 			"cumulative_open_boundary_net_outward_kinetic_energy_j",
 			"cumulative_open_boundary_outward_kinetic_energy_j",
 			"cumulative_open_boundary_inward_kinetic_energy_j",
@@ -1060,6 +1093,12 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				cumulativeSourceWakeSwirlKineticEnergy(run, completedSteps);
 		double cumulativeSourceTotalWakeKineticEnergy =
 				cumulativeSourceTotalWakeKineticEnergy(run, completedSteps);
+		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun.SourceBudgetComparison sourceBudget =
+				sourceBudgetComparison(run, completedSteps);
+		Vec3 sourceBudgetImpulseResidual =
+				sourceBudget.sourceImpulseResidualWorldNewtonSeconds();
+		Vec3 sourceBudgetWakeAngularMomentumResidual =
+				sourceBudget.wakeAngularMomentumImpulseResidualWorldNewtonMeterSeconds();
 		double cumulativeSourceMechanicalWorkEnergy =
 				cumulativeSourceMechanicalWorkEnergy(run, completedSteps);
 		double cumulativeThroughFlowMechanicalWorkEnergy =
@@ -1358,6 +1397,16 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 flowAngularImpulseOnSolidBoundary = initial ? zero
 				: iteration.solidBoundaryStep().flowAngularImpulseOnSolidBoundaryWorldNewtonMeterSeconds(
 						angularMomentumReference);
+		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun.AngularMomentumBudgetComparison angularBudget =
+				angularMomentumBudgetComparison(run, completedSteps, angularMomentumReference);
+		Vec3 angularBudgetSourceMinusWake =
+				angularBudget.sourceStepFlowMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds();
+		Vec3 angularBudgetRetainedFlowDelta =
+				angularBudget.retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds();
+		Vec3 angularBudgetRetainedPlusBoundary =
+				angularBudget.retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds();
+		Vec3 angularBudgetRetainedPlusBoundaryMinusWake =
+				angularBudget.retainedPlusBoundaryMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds();
 		return String.join(",",
 				escape(metadata.key().preset()),
 				escape(metadata.key().caseName()),
@@ -1516,6 +1565,25 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeSourceAxialMomentumEnergy),
 				number(cumulativeSourceWakeSwirlKineticEnergy),
 				number(cumulativeSourceTotalWakeKineticEnergy),
+				number(sourceBudget.durationSeconds()),
+				Integer.toString(sourceBudget.completedStepCount()),
+				number(sourceBudgetImpulseResidual.x()),
+				number(sourceBudgetImpulseResidual.y()),
+				number(sourceBudgetImpulseResidual.z()),
+				number(sourceBudget.sourceImpulseResidualFraction()),
+				number(sourceBudgetWakeAngularMomentumResidual.x()),
+				number(sourceBudgetWakeAngularMomentumResidual.y()),
+				number(sourceBudgetWakeAngularMomentumResidual.z()),
+				number(sourceBudget.wakeAngularMomentumImpulseResidualFraction()),
+				number(sourceBudget.sourceMassResidualKilograms()),
+				number(sourceBudget.sourceMassResidualFraction()),
+				number(sourceBudget.idealMomentumEnergyResidualJoules()),
+				number(sourceBudget.idealMomentumEnergyResidualFraction()),
+				number(sourceBudget.wakeSwirlKineticEnergyResidualJoules()),
+				number(sourceBudget.wakeSwirlKineticEnergyResidualFraction()),
+				number(sourceBudget.totalWakeKineticEnergyResidualJoules()),
+				number(sourceBudget.totalWakeKineticEnergyResidualFraction()),
+				number(sourceBudget.maxAbsoluteResidualFraction()),
 				number(cumulativeSourceMechanicalWorkEnergy),
 				number(cumulativeThroughFlowMechanicalWorkEnergy),
 				number(cumulativeCombinedMechanicalWorkEnergy),
@@ -1544,6 +1612,20 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.x()),
 				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.y()),
 				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.z()),
+				number(angularBudgetSourceMinusWake.x()),
+				number(angularBudgetSourceMinusWake.y()),
+				number(angularBudgetSourceMinusWake.z()),
+				number(angularBudget.sourceStepFlowMinusWakeAngularMomentumImpulseFraction()),
+				number(angularBudgetRetainedFlowDelta.x()),
+				number(angularBudgetRetainedFlowDelta.y()),
+				number(angularBudgetRetainedFlowDelta.z()),
+				number(angularBudgetRetainedPlusBoundary.x()),
+				number(angularBudgetRetainedPlusBoundary.y()),
+				number(angularBudgetRetainedPlusBoundary.z()),
+				number(angularBudgetRetainedPlusBoundaryMinusWake.x()),
+				number(angularBudgetRetainedPlusBoundaryMinusWake.y()),
+				number(angularBudgetRetainedPlusBoundaryMinusWake.z()),
+				number(angularBudget.retainedPlusBoundaryMinusWakeAngularMomentumImpulseFraction()),
 				number(cumulativeOpenBoundaryNetOutwardKineticEnergy),
 				number(cumulativeOpenBoundaryOutwardKineticEnergy),
 				number(cumulativeOpenBoundaryInwardKineticEnergy),
@@ -1794,6 +1876,98 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
 			sum = sum.add(run.iterations().get(i).sourceAdvance()
 					.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds());
+		}
+		return sum;
+	}
+
+	private static PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun.SourceBudgetComparison
+			sourceBudgetComparison(
+					PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+					int completedSteps
+			) {
+		int steps = clampedCompletedSteps(run, completedSteps);
+		double durationSeconds = run.config().timeStepSeconds() * steps;
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGrid =
+				run.effectiveSourceGridSample();
+		return new PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun.SourceBudgetComparison(
+				durationSeconds,
+				steps,
+				sourceGrid.integratedBodyForceWorldNewtons().multiply(durationSeconds),
+				cumulativeSourceImpulse(run, steps),
+				sourceGrid.integratedWakeAngularMomentumTorqueWorldNewtonMeters()
+						.multiply(durationSeconds),
+				cumulativeSourceWakeAngularMomentumImpulse(run, steps),
+				sourceGrid.integratedDiskMassFlowKilogramsPerSecond(
+						run.config().sourceThicknessMeters()) * durationSeconds,
+				cumulativeSourceMass(run, steps),
+				sourceGrid.integratedIdealMomentumPowerWatts(
+						run.config().sourceThicknessMeters()) * durationSeconds,
+				cumulativeSourceIdealMomentumEnergy(run, steps),
+				sourceGrid.integratedWakeSwirlKineticPowerWatts(
+						run.config().sourceThicknessMeters()) * durationSeconds,
+				cumulativeSourceWakeSwirlKineticEnergy(run, steps),
+				sourceGrid.integratedTotalWakeKineticPowerWatts(
+						run.config().sourceThicknessMeters()) * durationSeconds,
+				cumulativeSourceTotalWakeKineticEnergy(run, steps)
+		);
+	}
+
+	private static PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun.AngularMomentumBudgetComparison
+			angularMomentumBudgetComparison(
+					PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+					int completedSteps,
+					Vec3 momentReferenceWorldMeters
+			) {
+		int steps = clampedCompletedSteps(run, completedSteps);
+		Vec3 reference = momentReferenceWorldMeters == null || !momentReferenceWorldMeters.isFinite()
+				? run.initialState().gridSpec().gridCenterWorldMeters()
+				: momentReferenceWorldMeters;
+		Vec3 initialAngularMomentum =
+				run.initialAngularMomentumWorldNewtonMeterSeconds(reference);
+		PropellerArchiveCtCpJLocalVoxelFlowState retainedState = steps == 0
+				? run.initialState()
+				: run.iterations().get(steps - 1).stateAfterSolidBoundary();
+		Vec3 retainedFlowAngularMomentumDelta = retainedState
+				.totalAngularMomentumWorldNewtonMeterSeconds(
+						run.config().airDensityKgPerCubicMeter(),
+						reference,
+						run.solidMask())
+				.subtract(initialAngularMomentum);
+		return new PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun.AngularMomentumBudgetComparison(
+				reference,
+				cumulativeSourceWakeAngularMomentumImpulse(run, steps),
+				cumulativeSourceFlowAngularMomentumDelta(run, steps, reference),
+				retainedFlowAngularMomentumDelta,
+				cumulativeOpenBoundaryNetOutwardAngularImpulse(run, steps)
+		);
+	}
+
+	private static int clampedCompletedSteps(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		return Math.max(0, Math.min(completedSteps, run.iterations().size()));
+	}
+
+	private static Vec3 cumulativeSourceFlowAngularMomentumDelta(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps,
+			Vec3 momentReferenceWorldMeters
+	) {
+		int steps = clampedCompletedSteps(run, completedSteps);
+		Vec3 sum = Vec3.ZERO;
+		for (int i = 0; i < steps; i++) {
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverIteration iteration =
+					run.iterations().get(i);
+			Vec3 before = iteration.stateBeforeStep().totalAngularMomentumWorldNewtonMeterSeconds(
+					run.config().airDensityKgPerCubicMeter(),
+					momentReferenceWorldMeters,
+					run.solidMask());
+			Vec3 after = iteration.stateAfterSource().totalAngularMomentumWorldNewtonMeterSeconds(
+					run.config().airDensityKgPerCubicMeter(),
+					momentReferenceWorldMeters,
+					run.solidMask());
+			sum = sum.add(after.subtract(before));
 		}
 		return sum;
 	}

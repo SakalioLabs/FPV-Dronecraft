@@ -71,6 +71,14 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(hoverInitial, "cumulative_source_axial_impulse_ns"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "through_flow_axial_impulse_ns"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "cumulative_through_flow_axial_impulse_ns"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "source_budget_duration_s"), 1.0e-15);
+		assertEquals(0, integer(hoverInitial, "source_budget_step_count"));
+		assertEquals(0.0, number(hoverInitial, "source_budget_max_abs_residual_fraction"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial, "angular_budget_source_flow_minus_wake_impulse_fraction"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial, "angular_budget_retained_plus_boundary_minus_wake_impulse_fraction"),
+				1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "source_mechanical_work_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "source_axial_momentum_thrust_n"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "source_axial_momentum_thrust_residual_n"), 1.0e-15);
@@ -543,6 +551,17 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				number(hoverStep0, "source_wake_angular_momentum_impulse_world_y_nm_s"), 1.0e-14);
 		assertEquals(number(hoverStep2, "source_wake_angular_momentum_torque_world_y_nm") * TIME_STEP * STEPS,
 				number(hoverStep2, "cumulative_source_wake_angular_momentum_impulse_world_y_nm_s"), 1.0e-14);
+		assertEquals(TIME_STEP * STEPS, number(hoverStep2, "source_budget_duration_s"), 1.0e-15);
+		assertEquals(STEPS, integer(hoverStep2, "source_budget_step_count"));
+		assertEquals(0.0, number(hoverStep2, "source_budget_impulse_residual_world_y_ns"), 1.0e-12);
+		assertEquals(0.0,
+				number(hoverStep2,
+						"source_budget_wake_angular_momentum_impulse_residual_world_y_nm_s"),
+				1.0e-12);
+		assertEquals(0.0, number(hoverStep2, "source_budget_mass_residual_kg"), 1.0e-12);
+		assertEquals(0.0,
+				number(hoverStep2, "source_budget_total_wake_kinetic_energy_residual_j"), 1.0e-12);
+		assertEquals(0.0, number(hoverStep2, "source_budget_max_abs_residual_fraction"), 1.0e-12);
 		assertEquals(number(hoverStep2, "cumulative_source_impulse_world_y_ns")
 						+ number(hoverStep2, "cumulative_through_flow_impulse_world_y_ns")
 						+ number(hoverStep2, "cumulative_advection_momentum_residual_world_y_ns")
@@ -590,6 +609,26 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				1.0e-12);
 		assertEquals(0.0,
 				number(hoverStep2, "flow_angular_impulse_on_solid_boundary_world_y_nm_s"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverStep2, "angular_budget_source_flow_minus_wake_impulse_world_y_nm_s"),
+				1.0e-9);
+		assertEquals(
+				number(hoverStep2, "angular_budget_retained_flow_delta_world_y_nm_s")
+						+ number(hoverStep2,
+								"cumulative_open_boundary_net_outward_angular_impulse_world_y_nm_s"),
+				number(hoverStep2,
+						"angular_budget_retained_plus_boundary_net_outward_world_y_nm_s"),
+				1.0e-12);
+		assertEquals(
+				number(hoverStep2,
+						"angular_budget_retained_plus_boundary_net_outward_world_y_nm_s")
+						- number(hoverStep2,
+								"cumulative_source_wake_angular_momentum_impulse_world_y_nm_s"),
+				number(hoverStep2,
+						"angular_budget_retained_plus_boundary_minus_wake_impulse_world_y_nm_s"),
+				1.0e-12);
+		assertTrue(Double.isFinite(number(hoverStep2,
+				"angular_budget_retained_plus_boundary_minus_wake_impulse_fraction")));
 
 		assertEquals("EMPTY_SOURCE_FIELD", blockedStep2.get("grid_status"));
 		assertEquals(0, integer(blockedStep2, "active_cell_count"));
@@ -628,6 +667,14 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(blockedStep2, "target_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_ideal_momentum_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_ideal_momentum_energy_j"), 1.0e-15);
+		assertEquals(TIME_STEP * STEPS, number(blockedStep2, "source_budget_duration_s"), 1.0e-15);
+		assertEquals(STEPS, integer(blockedStep2, "source_budget_step_count"));
+		assertEquals(0.0, number(blockedStep2, "source_budget_max_abs_residual_fraction"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "angular_budget_source_flow_minus_wake_impulse_fraction"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "angular_budget_retained_plus_boundary_minus_wake_impulse_fraction"),
+				1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_axial_momentum_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_axial_momentum_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_wake_swirl_kinetic_power_w"), 1.0e-15);
@@ -1212,6 +1259,12 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("cumulative_source_mechanical_work_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_through_flow_mechanical_work_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_combined_mechanical_work_energy_j"));
+		assertTrue(lines.get(0).contains("source_budget_duration_s"));
+		assertTrue(lines.get(0).contains("source_budget_impulse_residual_world_y_ns"));
+		assertTrue(lines.get(0).contains(
+				"source_budget_wake_angular_momentum_impulse_residual_world_y_nm_s"));
+		assertTrue(lines.get(0).contains("source_budget_total_wake_kinetic_energy_residual_j"));
+		assertTrue(lines.get(0).contains("source_budget_max_abs_residual_fraction"));
 		assertTrue(lines.get(0).contains("cumulative_coupled_source_force_mechanical_work_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_coupled_wake_residence_mechanical_work_energy_j"));
 		assertTrue(lines.get(0).contains(
@@ -1232,6 +1285,16 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("flow_angular_momentum_after_solid_boundary_world_y_nm_s"));
 		assertTrue(lines.get(0).contains("flow_angular_momentum_solid_boundary_delta_world_y_nm_s"));
 		assertTrue(lines.get(0).contains("flow_angular_impulse_on_solid_boundary_world_y_nm_s"));
+		assertTrue(lines.get(0).contains(
+				"angular_budget_source_flow_minus_wake_impulse_world_y_nm_s"));
+		assertTrue(lines.get(0).contains(
+				"angular_budget_retained_flow_delta_world_y_nm_s"));
+		assertTrue(lines.get(0).contains(
+				"angular_budget_retained_plus_boundary_net_outward_world_y_nm_s"));
+		assertTrue(lines.get(0).contains(
+				"angular_budget_retained_plus_boundary_minus_wake_impulse_world_y_nm_s"));
+		assertTrue(lines.get(0).contains(
+				"angular_budget_retained_plus_boundary_minus_wake_impulse_fraction"));
 		assertTrue(lines.get(0).contains("solid_cell_count"));
 		assertTrue(lines.get(0).contains("solid_clamped_cell_count"));
 		assertTrue(lines.get(0).contains("cumulative_solid_boundary_momentum_residual_world_y_ns"));
