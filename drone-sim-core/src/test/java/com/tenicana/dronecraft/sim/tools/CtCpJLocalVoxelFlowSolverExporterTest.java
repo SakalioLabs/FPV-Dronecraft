@@ -68,6 +68,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0, integer(hoverInitial, "completed_steps"));
 		assertEquals(0.0, number(hoverInitial, "source_impulse_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "source_mechanical_work_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "source_axial_momentum_thrust_n"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "source_axial_momentum_thrust_residual_n"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "source_axial_momentum_power_w"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "source_axial_momentum_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "source_wake_swirl_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "source_wake_swirl_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "source_total_wake_kinetic_power_w"), 1.0e-15);
@@ -75,6 +79,7 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(hoverInitial, "through_flow_mechanical_work_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "combined_mechanical_work_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "cumulative_source_wake_swirl_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "cumulative_source_axial_momentum_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "cumulative_source_total_wake_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "cumulative_source_mechanical_work_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "cumulative_through_flow_mechanical_work_energy_j"), 1.0e-15);
@@ -130,6 +135,9 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0, integer(hoverStep2, "solid_box_count"));
 		assertEquals(0.0, number(hoverStep2, "solid_box_minimum_volume_fraction"), 1.0e-15);
 		assertEquals(0, integer(hoverStep2, "solid_occluded_source_cell_count"));
+		assertEquals(0.0, number(hoverStep2, "source_axis_world_x"), 1.0e-15);
+		assertEquals(1.0, number(hoverStep2, "source_axis_world_y"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep2, "source_axis_world_z"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep2, "solid_occluded_source_momentum_rate_world_y_n"), 1.0e-15);
 		assertTrue(number(hoverStep2, "advection_courant_number") > 0.0);
 		assertTrue(number(hoverStep2, "advection_courant_number") <= MAX_ADVECTION_COURANT + 1.0e-12);
@@ -158,6 +166,14 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(number(hoverStep2, "mass_flow_weighted_through_flow_residual_after_residence_mps")
 				< number(hoverStep2, "mass_flow_weighted_wake_residual_after_residence_mps"));
 		assertTrue(number(hoverStep2, "target_ideal_momentum_power_w") > 0.0);
+		assertTrue(number(hoverStep2, "target_axial_momentum_thrust_n") > 0.0);
+		assertEquals(number(hoverStep2, "target_body_force_world_y_n"),
+				number(hoverStep2, "target_axial_momentum_thrust_n"), 1.0e-10);
+		assertEquals(number(hoverStep2, "target_axial_momentum_thrust_n"),
+				number(hoverStep2, "source_axial_momentum_thrust_n"), 1.0e-10);
+		assertEquals(0.0, number(hoverStep2, "solid_occluded_source_axial_momentum_thrust_n"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep2, "source_axial_momentum_thrust_residual_n"), 1.0e-15);
+		assertTrue(number(hoverStep2, "target_axial_momentum_power_w") > 0.0);
 		assertTrue(number(hoverStep2, "target_wake_swirl_kinetic_power_w") > 0.0);
 		assertEquals(number(hoverStep2, "target_ideal_momentum_power_w")
 						+ number(hoverStep2, "target_wake_swirl_kinetic_power_w"),
@@ -165,15 +181,22 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(number(hoverStep2, "source_ideal_momentum_power_w") > 0.0);
 		assertEquals(number(hoverStep2, "target_ideal_momentum_power_w"),
 				number(hoverStep2, "source_ideal_momentum_power_w"), 1.0e-12);
+		assertEquals(number(hoverStep2, "target_axial_momentum_power_w"),
+				number(hoverStep2, "source_axial_momentum_power_w"), 1.0e-12);
+		assertEquals(number(hoverStep2, "source_ideal_momentum_power_w"),
+				number(hoverStep2, "source_axial_momentum_power_w"), 1.0e-12);
 		assertEquals(number(hoverStep2, "target_wake_swirl_kinetic_power_w"),
 				number(hoverStep2, "source_wake_swirl_kinetic_power_w"), 1.0e-12);
 		assertEquals(number(hoverStep2, "target_total_wake_kinetic_power_w"),
 				number(hoverStep2, "source_total_wake_kinetic_power_w"), 1.0e-12);
 		assertEquals(0.0, number(hoverStep2, "solid_occluded_source_ideal_momentum_power_w"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep2, "solid_occluded_source_axial_momentum_power_w"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep2, "solid_occluded_source_wake_swirl_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep2, "solid_occluded_source_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(number(hoverStep2, "source_ideal_momentum_power_w") * TIME_STEP,
 				number(hoverStep2, "source_ideal_momentum_energy_j"), 1.0e-12);
+		assertEquals(number(hoverStep2, "source_axial_momentum_power_w") * TIME_STEP,
+				number(hoverStep2, "source_axial_momentum_energy_j"), 1.0e-12);
 		assertTrue(number(hoverStep2, "source_wake_swirl_kinetic_power_w") > 0.0);
 		assertEquals(number(hoverStep2, "source_wake_swirl_kinetic_power_w") * TIME_STEP,
 				number(hoverStep2, "source_wake_swirl_kinetic_energy_j"), 1.0e-12);
@@ -235,6 +258,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				1.0e-12);
 		assertEquals(number(hoverStep2, "source_ideal_momentum_power_w") * TIME_STEP * STEPS,
 				number(hoverStep2, "cumulative_source_ideal_momentum_energy_j"), 1.0e-12);
+		assertEquals(number(hoverStep2, "source_axial_momentum_power_w") * TIME_STEP * STEPS,
+				number(hoverStep2, "cumulative_source_axial_momentum_energy_j"), 1.0e-12);
 		assertEquals(number(hoverStep2, "source_wake_swirl_kinetic_power_w") * TIME_STEP * STEPS,
 				number(hoverStep2, "cumulative_source_wake_swirl_kinetic_energy_j"), 1.0e-12);
 		assertEquals(number(hoverStep2, "source_total_wake_kinetic_power_w") * TIME_STEP * STEPS,
@@ -485,18 +510,27 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				number(blockedStep2, "mass_flow_weighted_through_flow_residual_after_residence_mps"),
 				1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "target_ideal_momentum_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "target_axial_momentum_thrust_n"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "source_axial_momentum_thrust_n"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "solid_occluded_source_axial_momentum_thrust_n"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "source_axial_momentum_thrust_residual_n"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "target_axial_momentum_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "target_wake_swirl_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "target_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_ideal_momentum_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_ideal_momentum_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "source_axial_momentum_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "source_axial_momentum_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_wake_swirl_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_wake_swirl_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_total_wake_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "solid_occluded_source_ideal_momentum_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "solid_occluded_source_axial_momentum_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "solid_occluded_source_wake_swirl_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "solid_occluded_source_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "cumulative_source_wake_swirl_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "cumulative_source_axial_momentum_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "cumulative_source_total_wake_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_mechanical_work_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_mechanical_work_energy_j"), 1.0e-15);
@@ -741,6 +775,12 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(hoverStep, "source_momentum_rate_world_y_n"), 1.0e-15);
 		assertEquals(number(hoverStep, "target_body_force_world_y_n"),
 				number(hoverStep, "solid_occluded_source_momentum_rate_world_y_n"), 1.0e-9);
+		assertEquals(number(hoverStep, "target_body_force_world_y_n"),
+				number(hoverStep, "target_axial_momentum_thrust_n"), 1.0e-9);
+		assertEquals(0.0, number(hoverStep, "source_axial_momentum_thrust_n"), 1.0e-15);
+		assertEquals(number(hoverStep, "target_axial_momentum_thrust_n"),
+				number(hoverStep, "solid_occluded_source_axial_momentum_thrust_n"), 1.0e-9);
+		assertEquals(0.0, number(hoverStep, "source_axial_momentum_thrust_residual_n"), 1.0e-15);
 		assertEquals(0.0,
 				number(hoverStep, "source_wake_angular_momentum_torque_world_y_nm"), 1.0e-15);
 		assertEquals(number(hoverStep, "target_wake_angular_momentum_torque_world_y_nm"),
@@ -751,17 +791,23 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(hoverStep, "source_ideal_momentum_power_w"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_ideal_momentum_energy_j"), 1.0e-15);
 		assertTrue(number(hoverStep, "target_ideal_momentum_power_w") > 0.0);
+		assertTrue(number(hoverStep, "target_axial_momentum_power_w") > 0.0);
 		assertTrue(number(hoverStep, "target_wake_swirl_kinetic_power_w") > 0.0);
 		assertEquals(number(hoverStep, "target_total_wake_kinetic_power_w"),
 				number(hoverStep, "solid_occluded_source_total_wake_kinetic_power_w"), 1.0e-12);
 		assertEquals(number(hoverStep, "target_ideal_momentum_power_w"),
 				number(hoverStep, "solid_occluded_source_ideal_momentum_power_w"), 1.0e-12);
+		assertEquals(number(hoverStep, "target_axial_momentum_power_w"),
+				number(hoverStep, "solid_occluded_source_axial_momentum_power_w"), 1.0e-12);
 		assertEquals(number(hoverStep, "target_wake_swirl_kinetic_power_w"),
 				number(hoverStep, "solid_occluded_source_wake_swirl_kinetic_power_w"), 1.0e-12);
+		assertEquals(0.0, number(hoverStep, "source_axial_momentum_power_w"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "source_axial_momentum_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_wake_swirl_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_wake_swirl_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_total_wake_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "cumulative_source_axial_momentum_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "flow_kinetic_energy_source_delta_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_mass_flow_kg_s"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_grid_integrated_disk_mass_flow_kg_s"), 1.0e-15);
@@ -881,6 +927,7 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("downstream_wake_length_m"));
 		assertTrue(lines.get(0).contains("initial_flow_mode"));
 		assertTrue(lines.get(0).contains("source_freestream_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("source_axis_world_y"));
 		assertTrue(lines.get(0).contains("initial_flow_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("advection_courant_number"));
 		assertTrue(lines.get(0).contains("advection_substep_count"));
@@ -921,16 +968,25 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("solid_occluded_source_wake_angular_momentum_torque_world_y_nm"));
 		assertTrue(lines.get(0).contains("cumulative_source_wake_angular_momentum_impulse_world_y_nm_s"));
 		assertTrue(lines.get(0).contains("target_ideal_momentum_power_w"));
+		assertTrue(lines.get(0).contains("target_axial_momentum_thrust_n"));
+		assertTrue(lines.get(0).contains("source_axial_momentum_thrust_n"));
+		assertTrue(lines.get(0).contains("solid_occluded_source_axial_momentum_thrust_n"));
+		assertTrue(lines.get(0).contains("source_axial_momentum_thrust_residual_n"));
+		assertTrue(lines.get(0).contains("target_axial_momentum_power_w"));
 		assertTrue(lines.get(0).contains("target_wake_swirl_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("target_total_wake_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("source_ideal_momentum_power_w"));
+		assertTrue(lines.get(0).contains("source_axial_momentum_power_w"));
+		assertTrue(lines.get(0).contains("source_axial_momentum_energy_j"));
 		assertTrue(lines.get(0).contains("source_wake_swirl_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("source_total_wake_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("solid_occluded_source_ideal_momentum_power_w"));
+		assertTrue(lines.get(0).contains("solid_occluded_source_axial_momentum_power_w"));
 		assertTrue(lines.get(0).contains("solid_occluded_source_wake_swirl_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("solid_occluded_source_total_wake_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("flow_kinetic_energy_source_delta_minus_total_wake_kinetic_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_source_wake_swirl_kinetic_energy_j"));
+		assertTrue(lines.get(0).contains("cumulative_source_axial_momentum_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_source_total_wake_kinetic_energy_j"));
 		assertTrue(lines.get(0).contains("source_mechanical_work_power_w"));
 		assertTrue(lines.get(0).contains("source_mechanical_work_energy_j"));

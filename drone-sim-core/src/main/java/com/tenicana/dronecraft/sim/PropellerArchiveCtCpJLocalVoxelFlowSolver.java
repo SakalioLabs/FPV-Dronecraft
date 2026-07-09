@@ -425,6 +425,14 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return energy;
 		}
 
+		public double totalSourceAxialMomentumEnergyJoules(Vec3 axialDirectionWorld) {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += iteration.sourceAdvance().sourceAxialMomentumEnergyJoules(axialDirectionWorld);
+			}
+			return Double.isFinite(energy) ? energy : 0.0;
+		}
+
 		public double totalCoupledSourceForceMechanicalWorkEnergyJoules() {
 			double energy = 0.0;
 			for (SolverIteration iteration : iterations) {

@@ -297,6 +297,39 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			return Double.isFinite(sum) ? sum : 0.0;
 		}
 
+		public double totalSourceAxialMomentumThrustNewtons(Vec3 axialDirectionWorld) {
+			return sourceGridIntegratedAxialMomentumThrustNewtons(axialDirectionWorld);
+		}
+
+		public double sourceGridIntegratedAxialMomentumThrustNewtons(Vec3 axialDirectionWorld) {
+			return sourceMomentumSample.sourceGridSample()
+					.integratedAxialMomentumThrustNewtons(axialDirectionWorld, sourceThicknessMeters);
+		}
+
+		public double sourceAxialMomentumThrustResidualNewtons(Vec3 axialDirectionWorld) {
+			return totalSourceAxialMomentumThrustNewtons(axialDirectionWorld)
+					- sourceGridIntegratedAxialMomentumThrustNewtons(axialDirectionWorld);
+		}
+
+		public double totalSourceAxialMomentumPowerWatts(Vec3 axialDirectionWorld) {
+			return sourceGridIntegratedAxialMomentumPowerWatts(axialDirectionWorld);
+		}
+
+		public double sourceGridIntegratedAxialMomentumPowerWatts(Vec3 axialDirectionWorld) {
+			return sourceMomentumSample.sourceGridSample()
+					.integratedAxialMomentumPowerWatts(axialDirectionWorld, sourceThicknessMeters);
+		}
+
+		public double sourceAxialMomentumPowerResidualWatts(Vec3 axialDirectionWorld) {
+			return totalSourceAxialMomentumPowerWatts(axialDirectionWorld)
+					- sourceGridIntegratedAxialMomentumPowerWatts(axialDirectionWorld);
+		}
+
+		public double sourceAxialMomentumEnergyJoules(Vec3 axialDirectionWorld) {
+			return totalSourceAxialMomentumPowerWatts(axialDirectionWorld)
+					* sourceMomentumSample.timeStepSeconds();
+		}
+
 		public Vec3 totalThroughFlowMomentumRateWorldNewtons() {
 			Vec3 sum = Vec3.ZERO;
 			for (CellMassFluxResidenceStep cell : cells) {

@@ -112,6 +112,34 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return totalWakeKineticPowerWatts() * residenceStep.sourceMomentumSample().timeStepSeconds();
 		}
 
+		public double totalSourceAxialMomentumThrustNewtons(Vec3 axialDirectionWorld) {
+			return residenceStep.totalSourceAxialMomentumThrustNewtons(axialDirectionWorld);
+		}
+
+		public double sourceGridIntegratedAxialMomentumThrustNewtons(Vec3 axialDirectionWorld) {
+			return residenceStep.sourceGridIntegratedAxialMomentumThrustNewtons(axialDirectionWorld);
+		}
+
+		public double sourceAxialMomentumThrustResidualNewtons(Vec3 axialDirectionWorld) {
+			return residenceStep.sourceAxialMomentumThrustResidualNewtons(axialDirectionWorld);
+		}
+
+		public double totalSourceAxialMomentumPowerWatts(Vec3 axialDirectionWorld) {
+			return residenceStep.totalSourceAxialMomentumPowerWatts(axialDirectionWorld);
+		}
+
+		public double sourceGridIntegratedAxialMomentumPowerWatts(Vec3 axialDirectionWorld) {
+			return residenceStep.sourceGridIntegratedAxialMomentumPowerWatts(axialDirectionWorld);
+		}
+
+		public double sourceAxialMomentumPowerResidualWatts(Vec3 axialDirectionWorld) {
+			return residenceStep.sourceAxialMomentumPowerResidualWatts(axialDirectionWorld);
+		}
+
+		public double sourceAxialMomentumEnergyJoules(Vec3 axialDirectionWorld) {
+			return residenceStep.sourceAxialMomentumEnergyJoules(axialDirectionWorld);
+		}
+
 		public double sourceMechanicalWorkEnergyJoules() {
 			return residenceStep.sourceMomentumSample().totalSourceMechanicalWorkEnergyJoules();
 		}

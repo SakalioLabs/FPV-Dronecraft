@@ -174,6 +174,19 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				residence.totalSourceImpulseWorldNewtonSeconds(), 1.0e-12);
 		assertEquals(gridSample.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS),
 				residence.totalIdealMomentumPowerWatts(), 1.0e-12);
+		Vec3 sourceAxisWorld = new Vec3(0.0, 1.0, 0.0);
+		assertEquals(gridSample.integratedAxialMomentumThrustNewtons(sourceAxisWorld, SOURCE_THICKNESS),
+				residence.totalSourceAxialMomentumThrustNewtons(sourceAxisWorld), 1.0e-12);
+		assertEquals(gridSample.integratedAxialMomentumThrustNewtons(sourceAxisWorld, SOURCE_THICKNESS),
+				residence.sourceGridIntegratedAxialMomentumThrustNewtons(sourceAxisWorld), 1.0e-12);
+		assertEquals(0.0, residence.sourceAxialMomentumThrustResidualNewtons(sourceAxisWorld), 1.0e-15);
+		assertEquals(gridSample.integratedAxialMomentumPowerWatts(sourceAxisWorld, SOURCE_THICKNESS),
+				residence.totalSourceAxialMomentumPowerWatts(sourceAxisWorld), 1.0e-12);
+		assertEquals(gridSample.integratedAxialMomentumPowerWatts(sourceAxisWorld, SOURCE_THICKNESS),
+				residence.sourceGridIntegratedAxialMomentumPowerWatts(sourceAxisWorld), 1.0e-12);
+		assertEquals(0.0, residence.sourceAxialMomentumPowerResidualWatts(sourceAxisWorld), 1.0e-15);
+		assertEquals(residence.totalSourceAxialMomentumPowerWatts(sourceAxisWorld) * DT,
+				residence.sourceAxialMomentumEnergyJoules(sourceAxisWorld), 1.0e-12);
 		assertEquals(gridSample.integratedWakeSwirlKineticPowerWatts(SOURCE_THICKNESS),
 				residence.totalWakeSwirlKineticPowerWatts(), 1.0e-12);
 		assertEquals(gridSample.integratedTotalWakeKineticPowerWatts(SOURCE_THICKNESS),

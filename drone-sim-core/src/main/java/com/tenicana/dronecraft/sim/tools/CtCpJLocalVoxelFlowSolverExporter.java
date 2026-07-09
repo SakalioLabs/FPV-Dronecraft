@@ -44,6 +44,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"source_freestream_velocity_world_x_mps",
 			"source_freestream_velocity_world_y_mps",
 			"source_freestream_velocity_world_z_mps",
+			"source_axis_world_x",
+			"source_axis_world_y",
+			"source_axis_world_z",
 			"initial_flow_velocity_world_x_mps",
 			"initial_flow_velocity_world_y_mps",
 			"initial_flow_velocity_world_z_mps",
@@ -117,16 +120,24 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_source_mass_kg",
 			"cumulative_source_grid_integrated_disk_mass_kg",
 			"cumulative_source_mass_residual_kg",
+			"target_axial_momentum_thrust_n",
+			"source_axial_momentum_thrust_n",
+			"solid_occluded_source_axial_momentum_thrust_n",
+			"source_axial_momentum_thrust_residual_n",
 			"target_ideal_momentum_power_w",
+			"target_axial_momentum_power_w",
 			"target_wake_swirl_kinetic_power_w",
 			"target_total_wake_kinetic_power_w",
 			"source_ideal_momentum_power_w",
 			"source_ideal_momentum_energy_j",
+			"source_axial_momentum_power_w",
+			"source_axial_momentum_energy_j",
 			"source_wake_swirl_kinetic_power_w",
 			"source_wake_swirl_kinetic_energy_j",
 			"source_total_wake_kinetic_power_w",
 			"source_total_wake_kinetic_energy_j",
 			"solid_occluded_source_ideal_momentum_power_w",
+			"solid_occluded_source_axial_momentum_power_w",
 			"solid_occluded_source_wake_swirl_kinetic_power_w",
 			"solid_occluded_source_total_wake_kinetic_power_w",
 			"source_mechanical_work_power_w",
@@ -147,6 +158,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"flow_kinetic_energy_source_delta_minus_source_mechanical_work_j",
 			"flow_kinetic_energy_source_delta_minus_combined_mechanical_work_j",
 			"cumulative_source_ideal_momentum_energy_j",
+			"cumulative_source_axial_momentum_energy_j",
 			"cumulative_source_wake_swirl_kinetic_energy_j",
 			"cumulative_source_total_wake_kinetic_energy_j",
 			"cumulative_source_mechanical_work_energy_j",
@@ -927,14 +939,29 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				cumulativeSourceGridIntegratedDiskMass(run, completedSteps);
 		double cumulativeSourceMassResidual =
 				cumulativeSourceMass - cumulativeSourceGridIntegratedDiskMass;
+		Vec3 sourceAxisWorld = metadata.sourceAxisWorld();
+		double targetAxialMomentumThrust = metadata.sourceGridSample()
+				.integratedAxialMomentumThrustNewtons(sourceAxisWorld, run.config().sourceThicknessMeters());
+		double sourceAxialMomentumThrust = initial ? 0.0
+				: iteration.sourceAdvance().totalSourceAxialMomentumThrustNewtons(sourceAxisWorld);
+		double solidOccludedAxialMomentumThrust = initial ? 0.0
+				: targetAxialMomentumThrust - sourceAxialMomentumThrust;
+		double sourceAxialMomentumThrustResidual = initial ? 0.0
+				: iteration.sourceAdvance().sourceAxialMomentumThrustResidualNewtons(sourceAxisWorld);
 		double targetIdealMomentumPower =
 				metadata.sourceGridSample().integratedIdealMomentumPowerWatts(run.config().sourceThicknessMeters());
+		double targetAxialMomentumPower = metadata.sourceGridSample()
+				.integratedAxialMomentumPowerWatts(sourceAxisWorld, run.config().sourceThicknessMeters());
 		double targetWakeSwirlKineticPower = metadata.sourceGridSample()
 				.integratedWakeSwirlKineticPowerWatts(run.config().sourceThicknessMeters());
 		double targetTotalWakeKineticPower = metadata.sourceGridSample()
 				.integratedTotalWakeKineticPowerWatts(run.config().sourceThicknessMeters());
 		double sourceIdealMomentumPower = initial ? 0.0 : iteration.sourceAdvance().totalIdealMomentumPowerWatts();
 		double sourceIdealMomentumEnergy = initial ? 0.0 : iteration.sourceAdvance().idealMomentumEnergyJoules();
+		double sourceAxialMomentumPower = initial ? 0.0
+				: iteration.sourceAdvance().totalSourceAxialMomentumPowerWatts(sourceAxisWorld);
+		double sourceAxialMomentumEnergy = initial ? 0.0
+				: iteration.sourceAdvance().sourceAxialMomentumEnergyJoules(sourceAxisWorld);
 		double sourceWakeSwirlKineticPower = initial ? 0.0
 				: iteration.sourceAdvance().totalWakeSwirlKineticPowerWatts();
 		double sourceWakeSwirlKineticEnergy = initial ? 0.0
@@ -945,6 +972,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.sourceAdvance().totalWakeKineticEnergyJoules();
 		double solidOccludedIdealMomentumPower =
 				occludedPower(initial, targetIdealMomentumPower, sourceIdealMomentumPower);
+		double solidOccludedAxialMomentumPower =
+				occludedPower(initial, targetAxialMomentumPower, sourceAxialMomentumPower);
 		double solidOccludedWakeSwirlKineticPower =
 				occludedPower(initial, targetWakeSwirlKineticPower, sourceWakeSwirlKineticPower);
 		double solidOccludedTotalWakeKineticPower =
@@ -983,6 +1012,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.sourceAdvance().flowKineticEnergyDeltaMinusCombinedMechanicalWorkJoules(run.solidMask());
 		double cumulativeSourceIdealMomentumEnergy =
 				cumulativeSourceIdealMomentumEnergy(run, completedSteps);
+		double cumulativeSourceAxialMomentumEnergy =
+				cumulativeSourceAxialMomentumEnergy(run, completedSteps, sourceAxisWorld);
 		double cumulativeSourceWakeSwirlKineticEnergy =
 				cumulativeSourceWakeSwirlKineticEnergy(run, completedSteps);
 		double cumulativeSourceTotalWakeKineticEnergy =
@@ -1240,6 +1271,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(sourceFreestreamVelocity.x()),
 				number(sourceFreestreamVelocity.y()),
 				number(sourceFreestreamVelocity.z()),
+				number(sourceAxisWorld.x()),
+				number(sourceAxisWorld.y()),
+				number(sourceAxisWorld.z()),
 				number(initialFlowVelocity.x()),
 				number(initialFlowVelocity.y()),
 				number(initialFlowVelocity.z()),
@@ -1313,16 +1347,24 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeSourceMass),
 				number(cumulativeSourceGridIntegratedDiskMass),
 				number(cumulativeSourceMassResidual),
+				number(targetAxialMomentumThrust),
+				number(sourceAxialMomentumThrust),
+				number(solidOccludedAxialMomentumThrust),
+				number(sourceAxialMomentumThrustResidual),
 				number(targetIdealMomentumPower),
+				number(targetAxialMomentumPower),
 				number(targetWakeSwirlKineticPower),
 				number(targetTotalWakeKineticPower),
 				number(sourceIdealMomentumPower),
 				number(sourceIdealMomentumEnergy),
+				number(sourceAxialMomentumPower),
+				number(sourceAxialMomentumEnergy),
 				number(sourceWakeSwirlKineticPower),
 				number(sourceWakeSwirlKineticEnergy),
 				number(sourceTotalWakeKineticPower),
 				number(sourceTotalWakeKineticEnergy),
 				number(solidOccludedIdealMomentumPower),
+				number(solidOccludedAxialMomentumPower),
 				number(solidOccludedWakeSwirlKineticPower),
 				number(solidOccludedTotalWakeKineticPower),
 				number(sourceMechanicalWorkPower),
@@ -1343,6 +1385,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(flowKineticEnergySourceDeltaMinusMechanicalWork),
 				number(flowKineticEnergySourceDeltaMinusCombinedMechanicalWork),
 				number(cumulativeSourceIdealMomentumEnergy),
+				number(cumulativeSourceAxialMomentumEnergy),
 				number(cumulativeSourceWakeSwirlKineticEnergy),
 				number(cumulativeSourceTotalWakeKineticEnergy),
 				number(cumulativeSourceMechanicalWorkEnergy),
@@ -1701,6 +1744,19 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		return energy;
 	}
 
+	private static double cumulativeSourceAxialMomentumEnergy(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps,
+			Vec3 sourceAxisWorld
+	) {
+		double energy = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			energy += run.iterations().get(i).sourceAdvance()
+					.sourceAxialMomentumEnergyJoules(sourceAxisWorld);
+		}
+		return Double.isFinite(energy) ? energy : 0.0;
+	}
+
 	private static double cumulativeSourceWakeSwirlKineticEnergy(
 			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
 			int completedSteps
@@ -1985,11 +2041,20 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 						"target_body_force_world_x_n",
 						"target_body_force_world_y_n",
 						"target_body_force_world_z_n"),
+				sourceAxisWorld(first),
 				sourceGridSample,
 				config,
 				initialFlowMode,
 				solidBoxConfig
 		);
+	}
+
+	private static Vec3 sourceAxisWorld(Map<String, String> first) {
+		Vec3 axis = vector(first, "source_axis_world_x", "source_axis_world_y", "source_axis_world_z");
+		if (axis.isFinite() && axis.lengthSquared() > EPSILON) {
+			return axis.normalized();
+		}
+		return new Vec3(0.0, 1.0, 0.0);
 	}
 
 	private static SolidBoxExportConfig solidBoxExportConfig(String[] args, int firstIndex) {
@@ -2399,6 +2464,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			double downstreamWakeLengthMeters,
 			int subcellSamplesPerAxis,
 			Vec3 targetBodyForceWorldNewtons,
+			Vec3 sourceAxisWorld,
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
 			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config,
 			InitialFlowMode initialFlowMode,
