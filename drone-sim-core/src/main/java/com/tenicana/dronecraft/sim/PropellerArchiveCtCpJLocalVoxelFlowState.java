@@ -956,6 +956,13 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return outwardMomentumFluxWorldNewtons.subtract(inwardMomentumFluxWorldNewtons);
 		}
 
+		public double netOutwardAxialMomentumFluxNewtons(Vec3 axialDirectionWorld) {
+			Vec3 axis = normalizedAxisOrZero(axialDirectionWorld);
+			return axis.lengthSquared() <= EPSILON
+					? 0.0
+					: netOutwardMomentumFluxWorldNewtons().dot(axis);
+		}
+
 		public Vec3 netOutwardAngularMomentumFluxWorldNewtonMeters() {
 			return outwardAngularMomentumFluxWorldNewtonMeters
 					.subtract(inwardAngularMomentumFluxWorldNewtonMeters);
@@ -1933,6 +1940,26 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		return momentum;
 	}
 
+	public double totalAxialMomentumNewtonSeconds(double airDensityKgPerCubicMeter, Vec3 axialDirectionWorld) {
+		return totalAxialMomentumNewtonSeconds(
+				airDensityKgPerCubicMeter,
+				axialDirectionWorld,
+				VoxelSolidMask.open(gridSpec)
+		);
+	}
+
+	public double totalAxialMomentumNewtonSeconds(
+			double airDensityKgPerCubicMeter,
+			Vec3 axialDirectionWorld,
+			VoxelSolidMask solidMask
+	) {
+		Vec3 momentum = totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter, solidMask);
+		Vec3 axis = normalizedAxisOrZero(axialDirectionWorld);
+		return axis.lengthSquared() <= EPSILON
+				? 0.0
+				: momentum.dot(axis);
+	}
+
 	public Vec3 totalAngularMomentumWorldNewtonMeterSeconds(
 			double airDensityKgPerCubicMeter,
 			Vec3 momentReferenceWorldMeters
@@ -2634,6 +2661,11 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {
 		return value == null || !value.isFinite() ? Vec3.ZERO : value;
+	}
+
+	private static Vec3 normalizedAxisOrZero(Vec3 value) {
+		Vec3 axis = finiteVecOrZero(value);
+		return axis.lengthSquared() <= EPSILON ? Vec3.ZERO : axis.normalized();
 	}
 
 	private static double finiteNonnegative(double value) {

@@ -93,18 +93,22 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"source_impulse_world_x_ns",
 			"source_impulse_world_y_ns",
 			"source_impulse_world_z_ns",
+			"source_axial_impulse_ns",
 			"cumulative_source_impulse_world_x_ns",
 			"cumulative_source_impulse_world_y_ns",
 			"cumulative_source_impulse_world_z_ns",
+			"cumulative_source_axial_impulse_ns",
 			"through_flow_momentum_rate_world_x_n",
 			"through_flow_momentum_rate_world_y_n",
 			"through_flow_momentum_rate_world_z_n",
 			"through_flow_impulse_world_x_ns",
 			"through_flow_impulse_world_y_ns",
 			"through_flow_impulse_world_z_ns",
+			"through_flow_axial_impulse_ns",
 			"cumulative_through_flow_impulse_world_x_ns",
 			"cumulative_through_flow_impulse_world_y_ns",
 			"cumulative_through_flow_impulse_world_z_ns",
+			"cumulative_through_flow_axial_impulse_ns",
 			"cumulative_advection_momentum_residual_world_x_ns",
 			"cumulative_advection_momentum_residual_world_y_ns",
 			"cumulative_advection_momentum_residual_world_z_ns",
@@ -179,6 +183,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_open_boundary_net_outward_impulse_world_x_ns",
 			"cumulative_open_boundary_net_outward_impulse_world_y_ns",
 			"cumulative_open_boundary_net_outward_impulse_world_z_ns",
+			"cumulative_open_boundary_net_outward_axial_impulse_ns",
 			"cumulative_open_boundary_net_outward_angular_impulse_world_x_nm_s",
 			"cumulative_open_boundary_net_outward_angular_impulse_world_y_nm_s",
 			"cumulative_open_boundary_net_outward_angular_impulse_world_z_nm_s",
@@ -218,6 +223,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"open_boundary_net_outward_momentum_flux_after_source_world_x_n",
 			"open_boundary_net_outward_momentum_flux_after_source_world_y_n",
 			"open_boundary_net_outward_momentum_flux_after_source_world_z_n",
+			"open_boundary_net_outward_axial_momentum_flux_after_source_n",
 			"open_boundary_net_outward_angular_momentum_flux_after_source_world_x_nm",
 			"open_boundary_net_outward_angular_momentum_flux_after_source_world_y_nm",
 			"open_boundary_net_outward_angular_momentum_flux_after_source_world_z_nm",
@@ -233,6 +239,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"open_boundary_net_outward_momentum_flux_after_projection_world_x_n",
 			"open_boundary_net_outward_momentum_flux_after_projection_world_y_n",
 			"open_boundary_net_outward_momentum_flux_after_projection_world_z_n",
+			"open_boundary_net_outward_axial_momentum_flux_after_projection_n",
 			"open_boundary_net_outward_angular_momentum_flux_after_projection_world_x_nm",
 			"open_boundary_net_outward_angular_momentum_flux_after_projection_world_y_nm",
 			"open_boundary_net_outward_angular_momentum_flux_after_projection_world_z_nm",
@@ -248,6 +255,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"open_boundary_net_outward_momentum_flux_after_solid_boundary_world_x_n",
 			"open_boundary_net_outward_momentum_flux_after_solid_boundary_world_y_n",
 			"open_boundary_net_outward_momentum_flux_after_solid_boundary_world_z_n",
+			"open_boundary_net_outward_axial_momentum_flux_after_solid_boundary_n",
 			"open_boundary_net_outward_angular_momentum_flux_after_solid_boundary_world_x_nm",
 			"open_boundary_net_outward_angular_momentum_flux_after_solid_boundary_world_y_nm",
 			"open_boundary_net_outward_angular_momentum_flux_after_solid_boundary_world_z_nm",
@@ -310,6 +318,13 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"max_speed_after_diffusion_mps",
 			"max_speed_after_projection_mps",
 			"max_speed_after_solid_boundary_mps",
+			"flow_axial_momentum_before_source_ns",
+			"flow_axial_momentum_after_source_ns",
+			"flow_axial_momentum_source_delta_ns",
+			"flow_axial_momentum_source_delta_minus_combined_impulse_ns",
+			"flow_axial_momentum_after_advection_ns",
+			"flow_axial_momentum_after_projection_ns",
+			"flow_axial_momentum_after_solid_boundary_ns",
 			"advection_momentum_before_world_x_ns",
 			"advection_momentum_before_world_y_ns",
 			"advection_momentum_before_world_z_ns",
@@ -940,6 +955,10 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		double cumulativeSourceMassResidual =
 				cumulativeSourceMass - cumulativeSourceGridIntegratedDiskMass;
 		Vec3 sourceAxisWorld = metadata.sourceAxisWorld();
+		double sourceAxialImpulse = sourceImpulse.dot(sourceAxisWorld);
+		double cumulativeSourceAxialImpulse = cumulativeSourceImpulse.dot(sourceAxisWorld);
+		double throughFlowAxialImpulse = throughFlowImpulse.dot(sourceAxisWorld);
+		double cumulativeThroughFlowAxialImpulse = cumulativeThroughFlowImpulse.dot(sourceAxisWorld);
 		double targetAxialMomentumThrust = metadata.sourceGridSample()
 				.integratedAxialMomentumThrustNewtons(sourceAxisWorld, run.config().sourceThicknessMeters());
 		double sourceAxialMomentumThrust = initial ? 0.0
@@ -1050,6 +1069,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				cumulativeOpenBoundaryInwardMass(run, completedSteps);
 		Vec3 cumulativeOpenBoundaryNetOutwardImpulse =
 				cumulativeOpenBoundaryNetOutwardImpulse(run, completedSteps);
+		double cumulativeOpenBoundaryNetOutwardAxialImpulse =
+				cumulativeOpenBoundaryNetOutwardImpulse.dot(sourceAxisWorld);
 		Vec3 cumulativeOpenBoundaryNetOutwardAngularImpulse =
 				cumulativeOpenBoundaryNetOutwardAngularImpulse(run, completedSteps);
 		double cumulativeOpenBoundaryNetOutwardKineticEnergy =
@@ -1100,6 +1121,12 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 boundaryMomentumAfterProjection = boundaryFluxAfterProjection.netOutwardMomentumFluxWorldNewtons();
 		Vec3 boundaryMomentumAfterSolidBoundary =
 				boundaryFluxAfterSolidBoundary.netOutwardMomentumFluxWorldNewtons();
+		double boundaryAxialMomentumAfterSource =
+				boundaryFluxAfterSource.netOutwardAxialMomentumFluxNewtons(sourceAxisWorld);
+		double boundaryAxialMomentumAfterProjection =
+				boundaryFluxAfterProjection.netOutwardAxialMomentumFluxNewtons(sourceAxisWorld);
+		double boundaryAxialMomentumAfterSolidBoundary =
+				boundaryFluxAfterSolidBoundary.netOutwardAxialMomentumFluxNewtons(sourceAxisWorld);
 		Vec3 boundaryAngularMomentumAfterSource =
 				boundaryFluxAfterSource.netOutwardAngularMomentumFluxWorldNewtonMeters();
 		Vec3 boundaryAngularMomentumAfterProjection =
@@ -1165,6 +1192,30 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.solidBoundaryStep().dissipatedKineticEnergyJoules();
 		double cumulativeSolidBoundaryDissipatedEnergy =
 				cumulativeSolidBoundaryDissipatedEnergy(run, completedSteps);
+		PropellerArchiveCtCpJLocalVoxelFlowState stateBeforeSource =
+				initial ? run.initialState() : iteration.stateBeforeStep();
+		PropellerArchiveCtCpJLocalVoxelFlowState stateAfterSource =
+				initial ? stateBeforeSource : iteration.stateAfterSource();
+		PropellerArchiveCtCpJLocalVoxelFlowState stateAfterAdvection =
+				initial ? stateAfterSource : iteration.stateAfterAdvection();
+		PropellerArchiveCtCpJLocalVoxelFlowState stateAfterProjection =
+				initial ? stateAfterAdvection : iteration.stateAfterProjection();
+		PropellerArchiveCtCpJLocalVoxelFlowState stateAfterSolidBoundary =
+				initial ? stateAfterProjection : iteration.stateAfterSolidBoundary();
+		double flowAxialMomentumBeforeSource = stateBeforeSource.totalAxialMomentumNewtonSeconds(
+				run.config().airDensityKgPerCubicMeter(), sourceAxisWorld, run.solidMask());
+		double flowAxialMomentumAfterSource = stateAfterSource.totalAxialMomentumNewtonSeconds(
+				run.config().airDensityKgPerCubicMeter(), sourceAxisWorld, run.solidMask());
+		double flowAxialMomentumAfterAdvection = stateAfterAdvection.totalAxialMomentumNewtonSeconds(
+				run.config().airDensityKgPerCubicMeter(), sourceAxisWorld, run.solidMask());
+		double flowAxialMomentumAfterProjection = stateAfterProjection.totalAxialMomentumNewtonSeconds(
+				run.config().airDensityKgPerCubicMeter(), sourceAxisWorld, run.solidMask());
+		double flowAxialMomentumAfterSolidBoundary = stateAfterSolidBoundary.totalAxialMomentumNewtonSeconds(
+				run.config().airDensityKgPerCubicMeter(), sourceAxisWorld, run.solidMask());
+		double flowAxialMomentumSourceDelta =
+				flowAxialMomentumAfterSource - flowAxialMomentumBeforeSource;
+		double flowAxialMomentumSourceDeltaMinusCombinedImpulse =
+				flowAxialMomentumSourceDelta - sourceAxialImpulse - throughFlowAxialImpulse;
 		Vec3 sourceFreestreamVelocity =
 				metadata.sourceGridSample().massFluxWeightedFreestreamVelocityWorldMetersPerSecond();
 		Vec3 initialFlowVelocity =
@@ -1320,18 +1371,22 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(sourceImpulse.x()),
 				number(sourceImpulse.y()),
 				number(sourceImpulse.z()),
+				number(sourceAxialImpulse),
 				number(cumulativeSourceImpulse.x()),
 				number(cumulativeSourceImpulse.y()),
 				number(cumulativeSourceImpulse.z()),
+				number(cumulativeSourceAxialImpulse),
 				number(throughFlowMomentumRate.x()),
 				number(throughFlowMomentumRate.y()),
 				number(throughFlowMomentumRate.z()),
 				number(throughFlowImpulse.x()),
 				number(throughFlowImpulse.y()),
 				number(throughFlowImpulse.z()),
+				number(throughFlowAxialImpulse),
 				number(cumulativeThroughFlowImpulse.x()),
 				number(cumulativeThroughFlowImpulse.y()),
 				number(cumulativeThroughFlowImpulse.z()),
+				number(cumulativeThroughFlowAxialImpulse),
 				number(cumulativeAdvectionMomentumResidual.x()),
 				number(cumulativeAdvectionMomentumResidual.y()),
 				number(cumulativeAdvectionMomentumResidual.z()),
@@ -1406,6 +1461,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeOpenBoundaryNetOutwardImpulse.x()),
 				number(cumulativeOpenBoundaryNetOutwardImpulse.y()),
 				number(cumulativeOpenBoundaryNetOutwardImpulse.z()),
+				number(cumulativeOpenBoundaryNetOutwardAxialImpulse),
 				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.x()),
 				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.y()),
 				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.z()),
@@ -1452,6 +1508,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(boundaryMomentumAfterSource.x()),
 				number(boundaryMomentumAfterSource.y()),
 				number(boundaryMomentumAfterSource.z()),
+				number(boundaryAxialMomentumAfterSource),
 				number(boundaryAngularMomentumAfterSource.x()),
 				number(boundaryAngularMomentumAfterSource.y()),
 				number(boundaryAngularMomentumAfterSource.z()),
@@ -1470,6 +1527,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(boundaryMomentumAfterProjection.x()),
 				number(boundaryMomentumAfterProjection.y()),
 				number(boundaryMomentumAfterProjection.z()),
+				number(boundaryAxialMomentumAfterProjection),
 				number(boundaryAngularMomentumAfterProjection.x()),
 				number(boundaryAngularMomentumAfterProjection.y()),
 				number(boundaryAngularMomentumAfterProjection.z()),
@@ -1488,6 +1546,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(boundaryMomentumAfterSolidBoundary.x()),
 				number(boundaryMomentumAfterSolidBoundary.y()),
 				number(boundaryMomentumAfterSolidBoundary.z()),
+				number(boundaryAxialMomentumAfterSolidBoundary),
 				number(boundaryAngularMomentumAfterSolidBoundary.x()),
 				number(boundaryAngularMomentumAfterSolidBoundary.y()),
 				number(boundaryAngularMomentumAfterSolidBoundary.z()),
@@ -1550,6 +1609,13 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(maxSpeedAfterDiffusion),
 				number(maxSpeedAfterProjection),
 				number(maxSpeedAfterSolidBoundary),
+				number(flowAxialMomentumBeforeSource),
+				number(flowAxialMomentumAfterSource),
+				number(flowAxialMomentumSourceDelta),
+				number(flowAxialMomentumSourceDeltaMinusCombinedImpulse),
+				number(flowAxialMomentumAfterAdvection),
+				number(flowAxialMomentumAfterProjection),
+				number(flowAxialMomentumAfterSolidBoundary),
 				number(advectionMomentumBefore.x()),
 				number(advectionMomentumBefore.y()),
 				number(advectionMomentumBefore.z()),

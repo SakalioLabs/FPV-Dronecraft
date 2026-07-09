@@ -51,6 +51,21 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertVectorEquals(advance.totalSourceMomentumRateWorldNewtons()
 						.add(advance.totalThroughFlowMomentumRateWorldNewtons()),
 				advance.totalCombinedMomentumRateWorldNewtons(), 1.0e-12);
+		Vec3 sourceAxisWorld = new Vec3(0.0, 1.0, 0.0);
+		double axialMomentumDelta = advance.nextState()
+				.totalAxialMomentumNewtonSeconds(RHO, sourceAxisWorld)
+				- advance.previousState().totalAxialMomentumNewtonSeconds(RHO, sourceAxisWorld);
+		double combinedAxialImpulse = advance.totalSourceImpulseWorldNewtonSeconds().dot(sourceAxisWorld)
+				+ advance.totalThroughFlowImpulseWorldNewtonSeconds().dot(sourceAxisWorld);
+		assertEquals(advance.nextState().totalMomentumWorldNewtonSeconds(RHO).y(),
+				advance.nextState().totalAxialMomentumNewtonSeconds(RHO, sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0,
+				advance.nextState().totalAxialMomentumNewtonSeconds(RHO, Vec3.ZERO), 1.0e-15);
+		assertEquals(combinedAxialImpulse, axialMomentumDelta, 1.0e-12);
+		assertEquals(advance.nextState().openBoundaryFluxMetrics(RHO)
+						.netOutwardMomentumFluxWorldNewtons().y(),
+				advance.nextState().openBoundaryFluxMetrics(RHO)
+						.netOutwardAxialMomentumFluxNewtons(sourceAxisWorld), 1.0e-12);
 		assertTrue(advance.totalSourceMassFlowRateKilogramsPerSecond() > 0.0);
 		assertEquals(gridSample.integratedDiskMassFlowKilogramsPerSecond(SOURCE_THICKNESS),
 				advance.sourceGridIntegratedDiskMassFlowKilogramsPerSecond(), 1.0e-12);
@@ -145,6 +160,9 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertEquals(0.0, advance.coupledWakeResidenceMechanicalWorkEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, advance.coupledWakeResidenceMechanicalWorkPowerWatts(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, advance.totalThroughFlowMomentumRateWorldNewtons(), 1.0e-15);
+		assertEquals(0.0,
+				advance.nextState().totalAxialMomentumNewtonSeconds(RHO, new Vec3(0.0, 1.0, 0.0), solidMask),
+				1.0e-15);
 		assertEquals(0.0, advance.nextState().totalKineticEnergyJoules(RHO), 1.0e-15);
 		assertEquals(0.0, advance.nextState().maxSpeedMetersPerSecond(), 1.0e-15);
 	}
