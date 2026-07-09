@@ -186,6 +186,30 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0, integer(hoverStep2, "solid_cell_count"));
 		assertEquals(0, integer(hoverStep2, "solid_clamped_cell_count"));
 		assertTrue(number(hoverStep2, "source_mass_flow_kg_s") > 0.0);
+		assertEquals(0.0, number(hoverStep2, "source_target_wake_velocity_world_x_mps"), 1.0e-15);
+		assertTrue(number(hoverStep2, "source_target_wake_velocity_world_y_mps") > 0.0);
+		assertEquals(0.0, number(hoverStep2, "source_target_wake_velocity_world_z_mps"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverStep2, "initial_mass_flow_weighted_source_velocity_world_y_mps"), 1.0e-15);
+		assertEquals(number(hoverStep2, "source_target_wake_velocity_world_y_mps")
+						- number(hoverStep2, "initial_mass_flow_weighted_source_velocity_world_y_mps"),
+				number(hoverStep2, "initial_mass_flow_weighted_target_wake_residual_world_y_mps"),
+				1.0e-12);
+		assertEquals(vectorMagnitude(hoverStep2,
+						"initial_mass_flow_weighted_target_wake_residual_world_x_mps",
+						"initial_mass_flow_weighted_target_wake_residual_world_y_mps",
+						"initial_mass_flow_weighted_target_wake_residual_world_z_mps"),
+				number(hoverStep2, "initial_mass_flow_weighted_target_wake_residual_mps"), 1.0e-12);
+		assertTrue(number(hoverStep2, "final_mass_flow_weighted_source_velocity_world_y_mps") > 0.0);
+		assertEquals(number(hoverStep2, "source_target_wake_velocity_world_y_mps")
+						- number(hoverStep2, "final_mass_flow_weighted_source_velocity_world_y_mps"),
+				number(hoverStep2, "final_mass_flow_weighted_target_wake_residual_world_y_mps"),
+				1.0e-12);
+		assertEquals(vectorMagnitude(hoverStep2,
+						"final_mass_flow_weighted_target_wake_residual_world_x_mps",
+						"final_mass_flow_weighted_target_wake_residual_world_y_mps",
+						"final_mass_flow_weighted_target_wake_residual_world_z_mps"),
+				number(hoverStep2, "final_mass_flow_weighted_target_wake_residual_mps"), 1.0e-12);
 		assertEquals(number(hoverStep2, "source_mass_flow_kg_s"),
 				number(hoverStep2, "source_grid_integrated_disk_mass_flow_kg_s"), 1.0e-12);
 		assertEquals(0.0, number(hoverStep2, "source_mass_flow_rate_residual_kg_s"), 1.0e-12);
@@ -836,6 +860,23 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(sourceFreestreamY, number(freestreamInitial, "initial_flow_velocity_world_y_mps"), 1.0e-12);
 		assertEquals(0.0, number(freestreamInitial, "initial_flow_velocity_world_x_mps"), 1.0e-15);
 		assertEquals(0.0, number(freestreamInitial, "initial_flow_velocity_world_z_mps"), 1.0e-15);
+		assertEquals(number(calmInitial, "source_target_wake_velocity_world_y_mps"),
+				number(freestreamInitial, "source_target_wake_velocity_world_y_mps"), 1.0e-12);
+		assertEquals(0.0,
+				number(calmInitial, "initial_mass_flow_weighted_source_velocity_world_y_mps"), 1.0e-15);
+		assertEquals(sourceFreestreamY,
+				number(freestreamInitial, "initial_mass_flow_weighted_source_velocity_world_y_mps"), 1.0e-12);
+		assertEquals(number(freestreamInitial, "source_target_wake_velocity_world_y_mps")
+						- number(freestreamInitial, "initial_mass_flow_weighted_source_velocity_world_y_mps"),
+				number(freestreamInitial,
+						"initial_mass_flow_weighted_target_wake_residual_world_y_mps"),
+				1.0e-12);
+		assertEquals(vectorMagnitude(freestreamInitial,
+						"initial_mass_flow_weighted_target_wake_residual_world_x_mps",
+						"initial_mass_flow_weighted_target_wake_residual_world_y_mps",
+						"initial_mass_flow_weighted_target_wake_residual_world_z_mps"),
+				number(freestreamInitial, "initial_mass_flow_weighted_target_wake_residual_mps"),
+				1.0e-12);
 		assertEquals(0.0, number(calmInitial, "kinetic_energy_before_source_j"), 1.0e-15);
 		assertTrue(number(freestreamInitial, "kinetic_energy_before_source_j") > 0.0);
 		assertEquals(number(freestreamInitial, "kinetic_energy_before_source_j"),
@@ -1058,6 +1099,15 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("source_freestream_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("source_axis_world_y"));
 		assertTrue(lines.get(0).contains("initial_flow_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("source_target_wake_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains(
+				"initial_mass_flow_weighted_source_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains(
+				"initial_mass_flow_weighted_target_wake_residual_mps"));
+		assertTrue(lines.get(0).contains(
+				"final_mass_flow_weighted_source_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains(
+				"final_mass_flow_weighted_target_wake_residual_mps"));
 		assertTrue(lines.get(0).contains("advection_courant_number"));
 		assertTrue(lines.get(0).contains("advection_substep_count"));
 		assertTrue(lines.get(0).contains("cumulative_advection_momentum_residual_world_y_ns"));
@@ -1253,5 +1303,17 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 
 	private static double number(Map<String, String> row, String columnName) {
 		return Double.parseDouble(row.get(columnName));
+	}
+
+	private static double vectorMagnitude(
+			Map<String, String> row,
+			String xColumnName,
+			String yColumnName,
+			String zColumnName
+	) {
+		double x = number(row, xColumnName);
+		double y = number(row, yColumnName);
+		double z = number(row, zColumnName);
+		return Math.sqrt(x * x + y * y + z * z);
 	}
 }

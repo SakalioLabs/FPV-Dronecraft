@@ -50,6 +50,23 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"initial_flow_velocity_world_x_mps",
 			"initial_flow_velocity_world_y_mps",
 			"initial_flow_velocity_world_z_mps",
+			"source_target_wake_velocity_world_x_mps",
+			"source_target_wake_velocity_world_y_mps",
+			"source_target_wake_velocity_world_z_mps",
+			"initial_mass_flow_weighted_source_velocity_world_x_mps",
+			"initial_mass_flow_weighted_source_velocity_world_y_mps",
+			"initial_mass_flow_weighted_source_velocity_world_z_mps",
+			"initial_mass_flow_weighted_target_wake_residual_world_x_mps",
+			"initial_mass_flow_weighted_target_wake_residual_world_y_mps",
+			"initial_mass_flow_weighted_target_wake_residual_world_z_mps",
+			"initial_mass_flow_weighted_target_wake_residual_mps",
+			"final_mass_flow_weighted_source_velocity_world_x_mps",
+			"final_mass_flow_weighted_source_velocity_world_y_mps",
+			"final_mass_flow_weighted_source_velocity_world_z_mps",
+			"final_mass_flow_weighted_target_wake_residual_world_x_mps",
+			"final_mass_flow_weighted_target_wake_residual_world_y_mps",
+			"final_mass_flow_weighted_target_wake_residual_world_z_mps",
+			"final_mass_flow_weighted_target_wake_residual_mps",
 			"solid_box_count",
 			"solid_box_minimum_volume_fraction",
 			"solid_occluded_source_cell_count",
@@ -1245,6 +1262,20 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				metadata.sourceGridSample().massFluxWeightedFreestreamVelocityWorldMetersPerSecond();
 		Vec3 initialFlowVelocity =
 				metadata.initialFlowMode().initialVelocityWorldMetersPerSecond(metadata.sourceGridSample());
+		Vec3 sourceTargetWakeVelocity =
+				run.massFluxWeightedSourceTargetWakeVelocityWorldMetersPerSecond();
+		Vec3 initialSourceVelocity =
+				run.initialMassFluxWeightedSourceVelocityWorldMetersPerSecond();
+		Vec3 initialTargetWakeResidual =
+				run.initialMassFluxWeightedTargetWakeVelocityResidualWorldMetersPerSecond();
+		double initialTargetWakeResidualMagnitude =
+				run.initialMassFluxWeightedTargetWakeVelocityResidualMagnitudeMetersPerSecond();
+		Vec3 finalSourceVelocity =
+				run.finalMassFluxWeightedSourceVelocityWorldMetersPerSecond();
+		Vec3 finalTargetWakeResidual =
+				run.finalMassFluxWeightedTargetWakeVelocityResidualWorldMetersPerSecond();
+		double finalTargetWakeResidualMagnitude =
+				run.finalMassFluxWeightedTargetWakeVelocityResidualMagnitudeMetersPerSecond();
 		double cumulativeOpenBoundaryOutwardMassOverSourceMass =
 				ratio(cumulativeOpenBoundaryOutwardMass, cumulativeSourceMass);
 		double cumulativeOpenBoundaryNetOutwardMassOverSourceMass =
@@ -1353,6 +1384,23 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(initialFlowVelocity.x()),
 				number(initialFlowVelocity.y()),
 				number(initialFlowVelocity.z()),
+				number(sourceTargetWakeVelocity.x()),
+				number(sourceTargetWakeVelocity.y()),
+				number(sourceTargetWakeVelocity.z()),
+				number(initialSourceVelocity.x()),
+				number(initialSourceVelocity.y()),
+				number(initialSourceVelocity.z()),
+				number(initialTargetWakeResidual.x()),
+				number(initialTargetWakeResidual.y()),
+				number(initialTargetWakeResidual.z()),
+				number(initialTargetWakeResidualMagnitude),
+				number(finalSourceVelocity.x()),
+				number(finalSourceVelocity.y()),
+				number(finalSourceVelocity.z()),
+				number(finalTargetWakeResidual.x()),
+				number(finalTargetWakeResidual.y()),
+				number(finalTargetWakeResidual.z()),
+				number(finalTargetWakeResidualMagnitude),
 				Integer.toString(metadata.solidBoxConfig().solidBoxCount()),
 				number(metadata.solidBoxConfig().minimumSolidVolumeFraction()),
 				Integer.toString(solidOccludedSourceCellCount(metadata.sourceGridSample(), run.solidMask())),
