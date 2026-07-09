@@ -119,9 +119,25 @@ class A4mcDiskGradientCalibrationTest {
 				1.0e-15
 		);
 
-		Vec3 tilt = invokeTilt(rotor, adoptedGradient, omega, thrust);
-		assertEquals(Math.toDegrees(tilt.length()), response.flappingTiltDegrees(), 1.0e-15);
-		assertEquals(thrust * tilt.length(), response.lateralFlappingForceNewtonsProxy(), 1.0e-15);
+		RotorFlappingForceModel.RotorFlappingForceSample flappingSample =
+				RotorFlappingForceModel.sampleSteady(
+						rotor,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						adoptedGradient,
+						omega,
+						thrust
+				);
+		assertEquals(
+				Math.toDegrees(flappingSample.flappingTiltMagnitudeRadians()),
+				response.flappingTiltDegrees(),
+				1.0e-15
+		);
+		assertEquals(
+				flappingSample.transverseFlappingForceBodyNewtons().length(),
+				response.lateralFlappingForceNewtonsProxy(),
+				1.0e-15
+		);
 	}
 
 	@Test
@@ -140,20 +156,4 @@ class A4mcDiskGradientCalibrationTest {
 		}
 	}
 
-	private static Vec3 invokeTilt(RotorSpec rotor, Vec3 gradient, double omega, double thrust)
-			throws ReflectiveOperationException {
-		Method method = DronePhysics.class.getDeclaredMethod(
-				"rotorDiskWindGradientTargetTiltBody",
-				RotorSpec.class,
-				Vec3.class,
-				double.class,
-				double.class
-		);
-		method.setAccessible(true);
-		try {
-			return (Vec3) method.invoke(null, rotor, gradient, omega, thrust);
-		} catch (InvocationTargetException exception) {
-			throw new AssertionError(exception.getCause());
-		}
-	}
 }

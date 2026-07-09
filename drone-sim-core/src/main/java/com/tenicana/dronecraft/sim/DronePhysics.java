@@ -17,7 +17,6 @@ public final class DronePhysics {
 	private static final double ROTOR_ARM_FLEX_NATURAL_FREQUENCY_HERTZ = 24.0;
 	private static final double ROTOR_ARM_FLEX_DAMPING_RATIO = 0.42;
 	private static final double ROTOR_ARM_FLEX_MAX_VELOCITY_PER_SECOND = 18.0;
-	private static final double ROTOR_DISK_WIND_GRADIENT_MAX_TILT_RADIANS = Math.toRadians(4.5);
 	private static final double ROTOR_DISK_WIND_GRADIENT_MAX_THRUST_LOSS = 0.045;
 	private static final double A4MC_LOCAL_PRESSURE_CENTER_HOVER_WASH_GATE_SCALE = 0.42;
 	private static final double A4MC_LOCAL_PRESSURE_CENTER_HOVER_DOWNLOAD_GAIN = 0.018;
@@ -1626,8 +1625,18 @@ public final class DronePhysics {
 					aerodynamicRotor,
 					thrust
 			);
-			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, rotorDiskWindGradientBody, aerodynamicOmega, thrust, dtSeconds);
-			Vec3 flappingTorque = rotorArmBody.cross(flappingForceBody);
+			RotorFlappingForceModel.RotorFlappingForceSample flappingSample = updateRotorFlappingForce(
+					i,
+					aerodynamicRotor,
+					rotorArmBody,
+					rotorRelativeAirVelocityBody,
+					rotorDiskWindGradientBody,
+					aerodynamicOmega,
+					thrust,
+					dtSeconds
+			);
+			Vec3 flappingForceBody = flappingSample.flappingForceBodyNewtons();
+			Vec3 flappingTorque = flappingSample.forceMomentBodyNewtonMeters();
 			rotorFlappingTorqueSum = rotorFlappingTorqueSum.add(flappingTorque);
 			Vec3 imbalanceForceBody = updateRotorImbalanceForce(i, aerodynamicRotor, state.rotorHealth(i), omega, thrust, dtSeconds);
 			state.setRotorFlappingForceNewtons(i, Math.hypot(flappingForceBody.x(), flappingForceBody.z()));
@@ -5615,87 +5624,29 @@ public final class DronePhysics {
 		return t * t * (3.0 - 2.0 * t);
 	}
 
-	private Vec3 updateRotorFlappingForce(
+	private RotorFlappingForceModel.RotorFlappingForceSample updateRotorFlappingForce(
 			int index,
 			RotorSpec rotor,
+			Vec3 momentArmBodyMeters,
 			Vec3 relativeAirVelocityBody,
 			Vec3 diskWindGradientBody,
 			double omegaRadiansPerSecond,
 			double thrustNewtons,
 			double dtSeconds
 	) {
-		Vec3 targetTiltBody = rotorFlappingTargetTiltBody(rotor, relativeAirVelocityBody, omegaRadiansPerSecond, thrustNewtons)
-				.add(rotorDiskWindGradientTargetTiltBody(rotor, diskWindGradientBody, omegaRadiansPerSecond, thrustNewtons));
-		Vec3 previousTiltBody = rotorFlappingTiltBody[index];
-		double previousMagnitude = previousTiltBody.length();
-		double targetMagnitude = targetTiltBody.length();
-		double responseTimeConstant = targetMagnitude > previousMagnitude ? 0.026 : 0.050;
-		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
-		responseTimeConstant *= MathUtil.clamp(1.20 - 0.35 * spinRatio, 0.78, 1.20);
-		double alpha = dtSeconds <= 0.0 ? 1.0 : MathUtil.expSmoothing(dtSeconds, responseTimeConstant);
-		Vec3 tiltBody = previousTiltBody.add(targetTiltBody.subtract(previousTiltBody).multiply(alpha));
-		double magnitude = tiltBody.length();
-		double maxTilt = Math.toRadians(18.0);
-		if (magnitude > maxTilt) {
-			tiltBody = tiltBody.multiply(maxTilt / magnitude);
-			magnitude = maxTilt;
-		}
-
-		rotorFlappingTiltBody[index] = tiltBody;
-		state.setRotorFlappingTiltRadians(index, magnitude);
-		if (thrustNewtons <= 1.0e-6 || magnitude <= 1.0e-6) {
-			return Vec3.ZERO;
-		}
-
-		double verticalLoss = thrustNewtons * (1.0 - Math.sqrt(Math.max(0.0, 1.0 - magnitude * magnitude)));
-		return tiltBody.multiply(thrustNewtons)
-				.add(rotorAxisBody(rotor).multiply(-verticalLoss));
-	}
-
-	private static Vec3 rotorFlappingTargetTiltBody(
-			RotorSpec rotor,
-			Vec3 relativeAirVelocityBody,
-			double omegaRadiansPerSecond,
-			double thrustNewtons
-	) {
-		Vec3 transverseVelocityBody = rotorTransverseVelocityBody(rotor, relativeAirVelocityBody);
-		double transverseSpeed = transverseVelocityBody.length();
-		if (transverseSpeed <= 1.0e-6 || thrustNewtons <= 1.0e-6 || rotor.flappingCoefficient() <= 0.0) {
-			return Vec3.ZERO;
-		}
-
-		double advanceRatio = rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
-		double thrustFraction = MathUtil.clamp(thrustNewtons / rotor.maxThrustNewtons(), 0.0, 1.0);
-		double advanceResponse = MathUtil.clamp(advanceRatio / 0.095, 0.0, 1.0);
-		double diskLoadingResponse = MathUtil.clamp(0.72 + 0.28 * Math.sqrt(thrustFraction), 0.0, 1.0);
-		double tilt = rotor.flappingCoefficient()
-				* advanceResponse
-				* diskLoadingResponse;
-		Vec3 transverseUnit = transverseVelocityBody.multiply(1.0 / transverseSpeed);
-		return transverseUnit.multiply(-tilt);
-	}
-
-	private static Vec3 rotorDiskWindGradientTargetTiltBody(
-			RotorSpec rotor,
-			Vec3 diskWindGradientBody,
-			double omegaRadiansPerSecond,
-			double thrustNewtons
-	) {
-		Vec3 gradientInDisk = rotorDiskWindGradientInPlaneBody(rotor, diskWindGradientBody);
-		double gradientSpeed = gradientInDisk.length();
-		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
-		if (gradientSpeed <= 1.0e-6 || thrustNewtons <= 1.0e-6 || spinRatio <= 0.06) {
-			return Vec3.ZERO;
-		}
-
-		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
-		double gradientRatio = MathUtil.clamp(gradientSpeed / Math.max(1.0, tipSpeed * 0.12), 0.0, 1.0);
-		double thrustFraction = MathUtil.clamp(thrustNewtons / rotor.maxThrustNewtons(), 0.0, 1.0);
-		double tilt = ROTOR_DISK_WIND_GRADIENT_MAX_TILT_RADIANS
-				* smoothStep(0.03, 0.42, gradientRatio)
-				* smoothStep(0.10, 0.55, spinRatio)
-				* MathUtil.clamp(0.55 + 0.45 * Math.sqrt(thrustFraction), 0.0, 1.0);
-		return gradientInDisk.multiply(1.0 / gradientSpeed).multiply(tilt);
+		RotorFlappingForceModel.RotorFlappingForceSample sample = RotorFlappingForceModel.sampleTransient(
+				rotor,
+				momentArmBodyMeters,
+				relativeAirVelocityBody,
+				diskWindGradientBody,
+				omegaRadiansPerSecond,
+				thrustNewtons,
+				rotorFlappingTiltBody[index],
+				dtSeconds
+		);
+		rotorFlappingTiltBody[index] = sample.flappingTiltBodyRadians();
+		state.setRotorFlappingTiltRadians(index, sample.flappingTiltMagnitudeRadians());
+		return sample;
 	}
 
 	private static double rotorDiskWindGradientThrustScale(

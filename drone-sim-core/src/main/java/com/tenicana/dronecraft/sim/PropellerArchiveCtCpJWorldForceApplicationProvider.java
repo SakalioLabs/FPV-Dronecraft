@@ -860,6 +860,15 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			return baselineRotorInPlaneForceSample(true);
 		}
 
+		public RotorFlappingForceModel.ConfigurationRotorFlappingForceSample baselineRotorFlappingForceSample() {
+			return baselineRotorFlappingForceSample(false);
+		}
+
+		public RotorFlappingForceModel.ConfigurationRotorFlappingForceSample
+				runtimeReplacementBaselineRotorFlappingForceSample() {
+			return baselineRotorFlappingForceSample(true);
+		}
+
 		public RigidBodyWrenchSample rotorGravityTransientTranslationalDragRigidBodyWrench(
 				DroneConfig config,
 				double[] previousOmegaRadiansPerSecond,
@@ -1048,18 +1057,23 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 				double separatedFlowStateIntensity,
 				double dtSeconds
 		) {
-			return withPassiveAirframeAngularDamping(
-					rotorGravityTransientCrossflowLiftDragRigidBodyWrench(
+			return withBaselineRotorFlappingForces(
+					withPassiveAirframeAngularDamping(
+							rotorGravityTransientCrossflowLiftDragRigidBodyWrench(
+									config,
+									previousOmegaRadiansPerSecond,
+									omegaRadiansPerSecond,
+									angularVelocityBodyRadiansPerSecond,
+									separatedFlowStateIntensity,
+									dtSeconds
+							),
 							config,
-							previousOmegaRadiansPerSecond,
-							omegaRadiansPerSecond,
 							angularVelocityBodyRadiansPerSecond,
-							separatedFlowStateIntensity,
-							dtSeconds
+							separatedFlowStateIntensity
 					),
 					config,
 					angularVelocityBodyRadiansPerSecond,
-					separatedFlowStateIntensity
+					false
 			);
 		}
 
@@ -1071,18 +1085,23 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 				double separatedFlowStateIntensity,
 				double dtSeconds
 		) {
-			return withPassiveAirframeAngularDamping(
-					runtimeReplacementRotorGravityTransientCrossflowLiftDragRigidBodyWrench(
+			return withBaselineRotorFlappingForces(
+					withPassiveAirframeAngularDamping(
+							runtimeReplacementRotorGravityTransientCrossflowLiftDragRigidBodyWrench(
+									config,
+									previousOmegaRadiansPerSecond,
+									omegaRadiansPerSecond,
+									angularVelocityBodyRadiansPerSecond,
+									separatedFlowStateIntensity,
+									dtSeconds
+							),
 							config,
-							previousOmegaRadiansPerSecond,
-							omegaRadiansPerSecond,
 							angularVelocityBodyRadiansPerSecond,
-							separatedFlowStateIntensity,
-							dtSeconds
+							separatedFlowStateIntensity
 					),
 					config,
 					angularVelocityBodyRadiansPerSecond,
-					separatedFlowStateIntensity
+					true
 			);
 		}
 
@@ -1706,6 +1725,28 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			);
 		}
 
+		private RigidBodyWrenchSample withBaselineRotorFlappingForces(
+				RigidBodyWrenchSample baseWrench,
+				DroneConfig config,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				boolean runtimeReplacement
+		) {
+			RotorFlappingForceModel.ConfigurationRotorFlappingForceSample flappingSample = runtimeReplacement
+					? runtimeReplacementBaselineRotorFlappingForceSample()
+					: baselineRotorFlappingForceSample();
+			return rigidBodyWrench(
+					config,
+					baseWrench.totalForceWorldNewtons().add(
+							flappingSample.totalFlappingForceWorldNewtons(bodyToWorldOrientation)
+					),
+					baseWrench.totalTorqueWorldNewtonMeters().add(
+							flappingSample.totalTorqueCorrectionWorldNewtonMeters(bodyToWorldOrientation)
+					),
+					angularVelocityBodyRadiansPerSecond,
+					baseWrench.runtimeReplacement()
+			);
+		}
+
 		private RigidBodyWrenchSample withAirframeLift(
 				RigidBodyWrenchSample baseWrench,
 				DroneConfig config,
@@ -1796,6 +1837,32 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 				));
 			}
 			return RotorInPlaneForceModel.aggregate(samples);
+		}
+
+		private RotorFlappingForceModel.ConfigurationRotorFlappingForceSample baselineRotorFlappingForceSample(
+				boolean runtimeReplacement
+		) {
+			List<RotorFlappingForceModel.RotorFlappingForceSample> samples = new ArrayList<>();
+			for (PropellerArchiveCtCpJRotorForceModel.RotorForceSample rotorSample
+					: aggregate.rotorSamples()) {
+				boolean applied = runtimeReplacement
+						? rotorSample.runtimeForceReplacementAccepted()
+						: !rotorSample.blocked();
+				if (!applied) {
+					continue;
+				}
+				double omegaRadiansPerSecond = rotorSample.query().rpm() * 2.0 * Math.PI / 60.0;
+				samples.add(RotorFlappingForceModel.sampleSteady(
+						rotorSample.query().rotor(),
+						rotorSample.momentArmBodyMeters(),
+						rotorSample.relativeAirVelocityBodyMetersPerSecond(),
+						Vec3.ZERO,
+						omegaRadiansPerSecond,
+						rotorSample.thrustNewtons(),
+						rotorSample.reactionTorqueBodyNewtonMeters()
+				));
+			}
+			return RotorFlappingForceModel.aggregate(samples);
 		}
 
 		private AirframePressureCenterModel.AirframePressureCenterSample airframePressureCenterSample(

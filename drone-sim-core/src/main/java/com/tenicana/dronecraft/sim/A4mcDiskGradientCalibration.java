@@ -3,7 +3,6 @@ package com.tenicana.dronecraft.sim;
 public final class A4mcDiskGradientCalibration {
 	private static final double EPSILON = 1.0e-12;
 	private static final double MAX_DISK_GRADIENT_METERS_PER_SECOND = 12.0;
-	private static final double MAX_DISK_GRADIENT_TILT_RADIANS = Math.toRadians(4.5);
 	private static final double MAX_DISK_GRADIENT_THRUST_LOSS = 0.045;
 	private static final double WALL_SKIM_REFERENCE_RAW_PRESSURE_GRADIENT_METERS_PER_SECOND = 0.33;
 	private static final double WALL_SKIM_REFERENCE_SOURCE_QUALITY = 0.86;
@@ -145,7 +144,16 @@ public final class A4mcDiskGradientCalibration {
 		double loadFactor = diskGradientLoadFactor(rotor, adoptedGradient, omega);
 		double vibration = diskGradientVibration(rotor, adoptedGradient, omega);
 		double stallIntensity = diskGradientStallIntensity(rotor, adoptedGradient, omega);
-		double tiltRadians = diskGradientTiltRadians(rotor, adoptedGradient, omega, thrustNewtons);
+		RotorFlappingForceModel.RotorFlappingForceSample flappingSample =
+				RotorFlappingForceModel.sampleSteady(
+						rotor,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						new Vec3(adoptedGradient, 0.0, 0.0),
+						omega,
+						thrustNewtons
+				);
+		double tiltRadians = flappingSample.flappingTiltMagnitudeRadians();
 		return new DiskGradientResponse(
 				presetName == null || presetName.isBlank() ? "custom" : presetName,
 				spinState == null || spinState.isBlank() ? "custom" : spinState,
@@ -291,26 +299,6 @@ public final class A4mcDiskGradientCalibration {
 		double tipSpeed = tipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
 		double gradientRatio = MathUtil.clamp(adoptedGradient / Math.max(1.0, tipSpeed * 0.10), 0.0, 1.0);
 		return MathUtil.clamp(0.14 * smoothStep(0.10, 0.48, gradientRatio) * smoothStep(0.12, 0.50, spinRatio), 0.0, 0.14);
-	}
-
-	private static double diskGradientTiltRadians(
-			RotorSpec rotor,
-			double adoptedGradient,
-			double omegaRadiansPerSecond,
-			double thrustNewtons
-	) {
-		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
-		if (adoptedGradient <= 1.0e-6 || thrustNewtons <= 1.0e-6 || spinRatio <= 0.06) {
-			return 0.0;
-		}
-
-		double tipSpeed = tipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
-		double gradientRatio = MathUtil.clamp(adoptedGradient / Math.max(1.0, tipSpeed * 0.12), 0.0, 1.0);
-		double thrustFraction = MathUtil.clamp(thrustNewtons / rotor.maxThrustNewtons(), 0.0, 1.0);
-		return MAX_DISK_GRADIENT_TILT_RADIANS
-				* smoothStep(0.03, 0.42, gradientRatio)
-				* smoothStep(0.10, 0.55, spinRatio)
-				* MathUtil.clamp(0.55 + 0.45 * Math.sqrt(thrustFraction), 0.0, 1.0);
 	}
 
 	private static double tipSpeedMetersPerSecond(RotorSpec rotor, double omegaRadiansPerSecond) {

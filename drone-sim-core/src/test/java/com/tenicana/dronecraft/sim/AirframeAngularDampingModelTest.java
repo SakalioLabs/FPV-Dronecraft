@@ -132,7 +132,7 @@ class AirframeAngularDampingModelTest {
 	}
 
 	@Test
-	void ctCpJPassiveAerodynamicWrenchAddsOnlyDampingTorque() {
+	void ctCpJPassiveAerodynamicWrenchAddsRotorFlappingAndDamping() {
 		DroneConfig config = DroneConfig.apDrone()
 				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32));
 		Vec3 relativeAirVelocityBody = new Vec3(5.0, 4.0, 20.0);
@@ -162,6 +162,10 @@ class AirframeAngularDampingModelTest {
 						angularVelocityBody,
 						separatedFlowStateIntensity
 				);
+		RotorFlappingForceModel.ConfigurationRotorFlappingForceSample flapping =
+				worldSample.baselineRotorFlappingForceSample();
+		RotorFlappingForceModel.ConfigurationRotorFlappingForceSample runtimeFlapping =
+				worldSample.runtimeReplacementBaselineRotorFlappingForceSample();
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample base =
 				worldSample.rotorGravityTransientCrossflowLiftDragRigidBodyWrench(
 						config,
@@ -211,13 +215,18 @@ class AirframeAngularDampingModelTest {
 				);
 
 		assertTrue(damping.powerDissipationWatts() > 0.0);
-		assertVectorEquals(base.totalForceWorldNewtons(), passive.totalForceWorldNewtons(), 1.0e-12);
-		assertVectorEquals(base.totalTorqueBodyNewtonMeters().add(damping.dampingTorqueBodyNewtonMeters()),
+		assertVectorEquals(base.totalForceWorldNewtons().add(flapping.totalFlappingForceBodyNewtons()),
+				passive.totalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(base.totalTorqueBodyNewtonMeters()
+						.add(damping.dampingTorqueBodyNewtonMeters())
+						.add(flapping.totalTorqueCorrectionBodyNewtonMeters()),
 				passive.totalTorqueBodyNewtonMeters(), 1.0e-12);
-		assertVectorEquals(runtimeBase.totalForceWorldNewtons(),
+		assertVectorEquals(runtimeBase.totalForceWorldNewtons().add(
+					runtimeFlapping.totalFlappingForceBodyNewtons()),
 				runtimePassive.totalForceWorldNewtons(), 1.0e-12);
-		assertVectorEquals(runtimeBase.totalTorqueBodyNewtonMeters().add(
-					damping.dampingTorqueBodyNewtonMeters()),
+		assertVectorEquals(runtimeBase.totalTorqueBodyNewtonMeters()
+						.add(damping.dampingTorqueBodyNewtonMeters())
+						.add(runtimeFlapping.totalTorqueCorrectionBodyNewtonMeters()),
 				runtimePassive.totalTorqueBodyNewtonMeters(), 1.0e-12);
 		assertVectorEquals(angularVelocityBody.add(
 					passive.angularAccelerationBodyRadiansPerSecondSquared().multiply(dt)),
