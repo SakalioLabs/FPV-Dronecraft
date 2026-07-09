@@ -721,6 +721,56 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			);
 		}
 
+		public RotorInertiaTorqueModel.ConfigurationRotorInertiaTorqueSample rotorInertiaTorqueSample(
+				DroneConfig config,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double dtSeconds
+		) {
+			return RotorInertiaTorqueModel.sampleConfiguration(
+					config,
+					previousOmegaRadiansPerSecond,
+					omegaRadiansPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+		}
+
+		public RigidBodyWrenchSample rotorGravityTransientRigidBodyWrench(
+				DroneConfig config,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double dtSeconds
+		) {
+			return rotorGravityTransientRigidBodyWrench(
+					config,
+					previousOmegaRadiansPerSecond,
+					omegaRadiansPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds,
+					false
+			);
+		}
+
+		public RigidBodyWrenchSample runtimeReplacementRotorGravityTransientRigidBodyWrench(
+				DroneConfig config,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double dtSeconds
+		) {
+			return rotorGravityTransientRigidBodyWrench(
+					config,
+					previousOmegaRadiansPerSecond,
+					omegaRadiansPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds,
+					true
+			);
+		}
+
 		public RotorOnlyStepPreview rotorOnlyStepPreview(
 				DroneConfig config,
 				Vec3 positionWorldMeters,
@@ -833,6 +883,54 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			);
 		}
 
+		public RotorOnlyStepPreview rotorGravityTransientStepPreview(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				double dtSeconds
+		) {
+			return stepPreview(
+					rotorGravityTransientRigidBodyWrench(
+							config,
+							previousOmegaRadiansPerSecond,
+							omegaRadiansPerSecond,
+							angularVelocityBodyRadiansPerSecond,
+							dtSeconds
+					),
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+		}
+
+		public RotorOnlyStepPreview runtimeReplacementRotorGravityTransientStepPreview(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				double dtSeconds
+		) {
+			return stepPreview(
+					runtimeReplacementRotorGravityTransientRigidBodyWrench(
+							config,
+							previousOmegaRadiansPerSecond,
+							omegaRadiansPerSecond,
+							angularVelocityBodyRadiansPerSecond,
+							dtSeconds
+					),
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+		}
+
 		private RotorOnlyStepEnergySample stepEnergySample(
 				RotorOnlyStepPreview preview,
 				DroneConfig config,
@@ -916,6 +1014,40 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 					linearAccelerationWorld,
 					angularAccelerationBody,
 					gyroscopicTorqueBody,
+					runtimeReplacement
+			);
+		}
+
+		private RigidBodyWrenchSample rotorGravityTransientRigidBodyWrench(
+				DroneConfig config,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double dtSeconds,
+				boolean runtimeReplacement
+		) {
+			RotorInertiaTorqueModel.ConfigurationRotorInertiaTorqueSample inertiaSample =
+					rotorInertiaTorqueSample(
+							config,
+							previousOmegaRadiansPerSecond,
+							omegaRadiansPerSecond,
+							angularVelocityBodyRadiansPerSecond,
+							dtSeconds
+					);
+			Vec3 rotorForceWorld = runtimeReplacement
+					? runtimeReplacementTotalThrustForceWorldNewtons()
+					: totalThrustForceWorldNewtons();
+			Vec3 aerodynamicTorqueWorld = runtimeReplacement
+					? runtimeReplacementTotalTorqueWorldNewtonMeters()
+					: totalTorqueWorldNewtonMeters();
+			Vec3 inertiaTorqueWorld = bodyToWorldOrientation.rotate(
+					inertiaSample.totalReactionTorqueBodyNewtonMeters()
+			);
+			return rigidBodyWrench(
+					config,
+					rotorForceWorld.add(gravityForceWorldNewtons(config)),
+					aerodynamicTorqueWorld.add(inertiaTorqueWorld),
+					angularVelocityBodyRadiansPerSecond,
 					runtimeReplacement
 			);
 		}

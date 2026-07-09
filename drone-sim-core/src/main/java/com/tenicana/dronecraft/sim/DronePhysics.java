@@ -1705,13 +1705,22 @@ public final class DronePhysics {
 					motorAerodynamicTorque,
 					commutationRipple.torqueRippleNewtonMeters()
 			);
-			RotorInertiaTorques inertiaTorques = rotorInertiaTorques(rotor, previousOmega, omega, angularVelocityBody, rotorDiskAxisBody, dtSeconds);
-			Vec3 inertiaTorque = inertiaTorques.totalTorque();
+			RotorInertiaTorqueModel.RotorInertiaTorqueSample inertiaTorques = RotorInertiaTorqueModel.sample(
+					rotor,
+					previousOmega,
+					omega,
+					angularVelocityBody,
+					rotorDiskAxisBody,
+					dtSeconds
+			);
+			Vec3 inertiaTorque = inertiaTorques.totalReactionTorqueBodyNewtonMeters();
 			Vec3 activeBrakingTorque = rotorActiveBrakingTorque(rotor, previousOmega, omega, escElectricalOutput, rotorDiskAxisBody, dtSeconds);
 			rotorActiveBrakingTorqueSum = rotorActiveBrakingTorqueSum.add(activeBrakingTorque);
 			rotorInertiaTorqueSum = rotorInertiaTorqueSum.add(inertiaTorque);
-			rotorAccelerationReactionTorqueSum = rotorAccelerationReactionTorqueSum.add(inertiaTorques.accelerationReactionTorque());
-			rotorGyroscopicTorqueSum = rotorGyroscopicTorqueSum.add(inertiaTorques.gyroscopicReactionTorque());
+			rotorAccelerationReactionTorqueSum = rotorAccelerationReactionTorqueSum
+					.add(inertiaTorques.accelerationReactionTorqueBodyNewtonMeters());
+			rotorGyroscopicTorqueSum = rotorGyroscopicTorqueSum
+					.add(inertiaTorques.gyroscopicReactionTorqueBodyNewtonMeters());
 			Vec3 angularDragTorque = rotorAngularDragTorque(
 					aerodynamicRotor,
 					angularVelocityBody,
@@ -2682,38 +2691,6 @@ public final class DronePhysics {
 		}
 		double backEmfVoltage = motorBackEmfVoltage(rotor, omegaRadiansPerSecond);
 		return MathUtil.clamp((driveVoltage - backEmfVoltage) / driveVoltage, 0.0, 1.0);
-	}
-
-	private static RotorInertiaTorques rotorInertiaTorques(
-			RotorSpec rotor,
-			double previousOmega,
-			double omega,
-			Vec3 bodyAngularVelocity,
-			Vec3 rotorDiskAxisBody,
-			double dtSeconds
-	) {
-		if (rotor.rotorInertiaKgMetersSquared() <= 0.0 || dtSeconds <= 0.0) {
-			return RotorInertiaTorques.ZERO;
-		}
-
-		Vec3 diskAxisBody = rotorDiskAxisBody == null || rotorDiskAxisBody.lengthSquared() <= 1.0e-9
-				? BODY_ROTOR_AXIS
-				: rotorDiskAxisBody.normalized();
-		double rotorAngularAcceleration = (omega - previousOmega) / dtSeconds;
-		Vec3 accelerationReactionTorque = diskAxisBody.multiply(
-				-rotor.spinDirection() * rotor.rotorInertiaKgMetersSquared() * rotorAngularAcceleration
-		);
-		Vec3 angularMomentumBody = diskAxisBody.multiply(rotor.spinDirection() * rotor.rotorInertiaKgMetersSquared() * omega);
-		Vec3 gyroscopicReactionTorque = bodyAngularVelocity.cross(angularMomentumBody).multiply(-1.0);
-		return new RotorInertiaTorques(accelerationReactionTorque, gyroscopicReactionTorque);
-	}
-
-	private record RotorInertiaTorques(Vec3 accelerationReactionTorque, Vec3 gyroscopicReactionTorque) {
-		private static final RotorInertiaTorques ZERO = new RotorInertiaTorques(Vec3.ZERO, Vec3.ZERO);
-
-		private Vec3 totalTorque() {
-			return accelerationReactionTorque.add(gyroscopicReactionTorque);
-		}
 	}
 
 	private Vec3 rotorLocalWindDeltaBody(

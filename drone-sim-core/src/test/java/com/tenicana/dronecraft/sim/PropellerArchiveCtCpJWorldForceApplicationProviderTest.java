@@ -124,11 +124,42 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				sample.rotorGravityRigidBodyWrench(config, angularVelocityBody);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample runtimeGravityWrench =
 				sample.runtimeReplacementGravityRigidBodyWrench(config, angularVelocityBody);
+		double[] previousOmegas = omegas.clone();
+		previousOmegas[0] = Math.max(0.0, previousOmegas[0] - 120.0);
+		RotorInertiaTorqueModel.ConfigurationRotorInertiaTorqueSample inertiaSample =
+				sample.rotorInertiaTorqueSample(
+						config,
+						previousOmegas,
+						omegas,
+						angularVelocityBody,
+						dt
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample transientWrench =
+				sample.rotorGravityTransientRigidBodyWrench(
+						config,
+						previousOmegas,
+						omegas,
+						angularVelocityBody,
+						dt
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample runtimeTransientWrench =
+				sample.runtimeReplacementRotorGravityTransientRigidBodyWrench(
+						config,
+						previousOmegas,
+						omegas,
+						angularVelocityBody,
+						dt
+				);
 		Vec3 expectedTorqueBody = bodyToWorld.conjugate().rotate(sample.totalTorqueWorldNewtonMeters());
 		Vec3 expectedGyroscopicTorque =
 				angularVelocityBody.cross(config.inertiaKgMetersSquared().multiply(angularVelocityBody));
 		Vec3 expectedAngularAcceleration =
 				expectedTorqueBody.subtract(expectedGyroscopicTorque).divide(config.inertiaKgMetersSquared());
+		Vec3 expectedTransientTorqueBody = gravityWrench.totalTorqueBodyNewtonMeters()
+				.add(inertiaSample.totalReactionTorqueBodyNewtonMeters());
+		Vec3 expectedTransientAngularAcceleration = expectedTransientTorqueBody
+				.subtract(expectedGyroscopicTorque)
+				.divide(config.inertiaKgMetersSquared());
 		Vec3 gravityForceWorld = new Vec3(
 				0.0,
 				-config.massKg() * config.gravityMetersPerSecondSquared(),
@@ -171,6 +202,23 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				runtimeGravityWrench.linearAccelerationWorldMetersPerSecondSquared(), 1.0e-12);
 		assertVectorEquals(gravityWrench.angularAccelerationBodyRadiansPerSecondSquared(),
 				runtimeGravityWrench.angularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
+		assertTrue(inertiaSample.totalReactionTorqueBodyNewtonMeters().length() > 0.0);
+		assertVectorEquals(Vec3.ZERO,
+				inertiaSample.totalGyroscopicReactionTorqueBodyNewtonMeters(), 1.0e-12);
+		assertFalse(transientWrench.runtimeReplacement());
+		assertTrue(runtimeTransientWrench.runtimeReplacement());
+		assertVectorEquals(gravityWrench.totalForceWorldNewtons(),
+				transientWrench.totalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(expectedTransientTorqueBody,
+				transientWrench.totalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(expectedTransientAngularAcceleration,
+				transientWrench.angularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(transientWrench.totalForceWorldNewtons(),
+				runtimeTransientWrench.totalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(transientWrench.totalTorqueBodyNewtonMeters(),
+				runtimeTransientWrench.totalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(transientWrench.angularAccelerationBodyRadiansPerSecondSquared(),
+				runtimeTransientWrench.angularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview preview =
 				sample.rotorOnlyStepPreview(config, positionWorld, velocityWorld, angularVelocityBody, dt);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview runtimePreview =
@@ -189,6 +237,26 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 						positionWorld,
 						velocityWorld,
 						angularVelocityBody,
+						dt
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview transientPreview =
+				sample.rotorGravityTransientStepPreview(
+						config,
+						positionWorld,
+						velocityWorld,
+						angularVelocityBody,
+						previousOmegas,
+						omegas,
+						dt
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview runtimeTransientPreview =
+				sample.runtimeReplacementRotorGravityTransientStepPreview(
+						config,
+						positionWorld,
+						velocityWorld,
+						angularVelocityBody,
+						previousOmegas,
+						omegas,
 						dt
 				);
 		Vec3 expectedNextVelocity = velocityWorld.add(
@@ -241,6 +309,26 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				runtimeGravityPreview.nextBodyToWorldOrientation(), 1.0e-12);
 		assertVectorEquals(gravityPreview.nextAngularVelocityBodyRadiansPerSecond(),
 				runtimeGravityPreview.nextAngularVelocityBodyRadiansPerSecond(), 1.0e-12);
+		Vec3 expectedTransientNextAngularVelocity = angularVelocityBody.add(
+				expectedTransientAngularAcceleration.multiply(dt)
+		);
+		assertFalse(transientPreview.runtimeReplacement());
+		assertTrue(runtimeTransientPreview.runtimeReplacement());
+		assertVectorEquals(gravityPreview.nextVelocityWorldMetersPerSecond(),
+				transientPreview.nextVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(expectedTransientNextAngularVelocity,
+				transientPreview.nextAngularVelocityBodyRadiansPerSecond(), 1.0e-12);
+		assertQuaternionEquals(
+				bodyToWorld.integrateBodyAngularVelocity(expectedTransientNextAngularVelocity, dt),
+				transientPreview.nextBodyToWorldOrientation(),
+				1.0e-12
+		);
+		assertVectorEquals(transientPreview.nextVelocityWorldMetersPerSecond(),
+				runtimeTransientPreview.nextVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(transientPreview.nextAngularVelocityBodyRadiansPerSecond(),
+				runtimeTransientPreview.nextAngularVelocityBodyRadiansPerSecond(), 1.0e-12);
+		assertQuaternionEquals(transientPreview.nextBodyToWorldOrientation(),
+				runtimeTransientPreview.nextBodyToWorldOrientation(), 1.0e-12);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepEnergySample energy =
 				sample.rotorOnlyStepEnergySample(config, positionWorld, velocityWorld, angularVelocityBody, dt);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepEnergySample runtimeEnergy =
