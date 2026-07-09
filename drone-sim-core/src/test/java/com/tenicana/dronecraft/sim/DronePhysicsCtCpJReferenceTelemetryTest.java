@@ -1070,6 +1070,29 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 						fallbackVelocity
 				),
 				1.0e-15);
+		assertEquals(sample.dimensionalSample().idealInducedVelocityMetersPerSecond(),
+				DronePhysics.rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
+						state,
+						0,
+						rotor,
+						0.0,
+						fallbackVelocity
+				),
+				1.0e-15);
+		double axialAdvanceSpeed = Math.max(0.0, sample.relativeAirVelocityBodyMetersPerSecond()
+				.dot(rotor.thrustAxisBody()));
+		double farWakeExcess = sample.dimensionalSample().farWakeAxialVelocityMetersPerSecond()
+				- axialAdvanceSpeed;
+		assertEquals(farWakeExcess,
+				DronePhysics.rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
+						state,
+						0,
+						rotor,
+						rotor.radiusMeters() * 4.0,
+						fallbackVelocity
+				),
+				1.0e-15);
+		assertTrue(farWakeExcess > sample.dimensionalSample().idealInducedVelocityMetersPerSecond());
 		assertEquals(fallbackVelocity,
 				DronePhysics.rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
 						null,
@@ -1104,6 +1127,8 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				DronePhysics.rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
 						clampedState,
 						0,
+						rotor,
+						rotor.radiusMeters() * 4.0,
 						fallbackVelocity
 				),
 				1.0e-15);

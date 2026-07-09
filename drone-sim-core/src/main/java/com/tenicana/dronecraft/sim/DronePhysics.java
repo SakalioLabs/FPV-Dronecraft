@@ -5317,6 +5317,8 @@ public final class DronePhysics {
 				double sourceInducedVelocity = rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
 						state,
 						sourceIndex,
+						source,
+						downstreamDistance,
 						fallbackSourceInducedVelocity
 				);
 				double axialWakeOverlap = rotorWakeAxisOverlap(source, receiver, downstreamDistance, lateralDistance);
@@ -6358,6 +6360,22 @@ public final class DronePhysics {
 			int sourceRotorIndex,
 			double fallbackSourceInducedVelocityMetersPerSecond
 	) {
+		return rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
+				state,
+				sourceRotorIndex,
+				null,
+				0.0,
+				fallbackSourceInducedVelocityMetersPerSecond
+		);
+	}
+
+	static double rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
+			DroneState state,
+			int sourceRotorIndex,
+			RotorSpec source,
+			double downstreamDistanceMeters,
+			double fallbackSourceInducedVelocityMetersPerSecond
+	) {
 		double fallback = finiteNonnegative(fallbackSourceInducedVelocityMetersPerSecond);
 		if (state == null
 				|| sourceRotorIndex < 0
@@ -6370,7 +6388,28 @@ public final class DronePhysics {
 		if (!Double.isFinite(idealInducedVelocity) || idealInducedVelocity <= 0.0) {
 			return fallback;
 		}
-		return idealInducedVelocity;
+		if (source == null) {
+			return idealInducedVelocity;
+		}
+		double farWakeAxialVelocity =
+				state.rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond(sourceRotorIndex);
+		Vec3 relativeAirVelocityBody =
+				state.rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond(sourceRotorIndex);
+		double axialAdvanceSpeed = relativeAirVelocityBody == null
+				? 0.0
+				: Math.max(0.0, relativeAirVelocityBody.dot(rotorAxisBody(source)));
+		double farWakeExcessVelocity = Double.isFinite(farWakeAxialVelocity)
+				? Math.max(0.0, farWakeAxialVelocity - axialAdvanceSpeed)
+				: idealInducedVelocity;
+		if (farWakeExcessVelocity <= 1.0e-6) {
+			return idealInducedVelocity;
+		}
+		double sourceRadius = Math.max(1.0e-6, source.radiusMeters());
+		double downstream = Math.max(0.0, finiteOrDefault(downstreamDistanceMeters, 0.0));
+		double farWakeBlend = smoothStep(sourceRadius * 0.35, sourceRadius * 4.0, downstream);
+		double wakeExcessVelocity = idealInducedVelocity
+				+ (farWakeExcessVelocity - idealInducedVelocity) * farWakeBlend;
+		return finiteNonnegative(wakeExcessVelocity);
 	}
 
 	static double rotorCtCpJRuntimeWakeCoreRadiusMeters(
