@@ -62,6 +62,11 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				field.integratedBodyForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters(),
 				field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+		assertEquals(sourceTerm.massFluxKilogramsPerSecondSquareMeter()
+						* sourceTerm.diskAreaSquareMeters(),
+				sourceTerm.diskMassFlowKilogramsPerSecond(), 1.0e-12);
+		assertEquals(sourceTerm.diskMassFlowKilogramsPerSecond(),
+				field.integratedDiskMassFlowKilogramsPerSecond(), 1.0e-12);
 		assertEquals(sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter()
 						* sourceTerm.diskAreaSquareMeters(),
 				field.integratedIdealMomentumPowerWatts(), 1.0e-12);
@@ -483,6 +488,8 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				conservative.integratedBodyForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(),
 				conservative.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+		assertEquals(field.integratedDiskMassFlowKilogramsPerSecond(),
+				conservative.integratedDiskMassFlowKilogramsPerSecond(SOURCE_THICKNESS), 1.0e-12);
 		assertEquals(field.integratedIdealMomentumPowerWatts(),
 				conservative.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS), 1.0e-12);
 		assertEquals(field.integratedWakeSwirlKineticPowerWatts(),
@@ -606,6 +613,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertFalse(field.sampleAt(Vec3.ZERO).insideAnySource());
 		assertVectorEquals(Vec3.ZERO, field.integratedBodyForceWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-15);
+		assertEquals(0.0, field.integratedDiskMassFlowKilogramsPerSecond(), 1.0e-15);
 		assertEquals(0.0, field.integratedIdealMomentumPowerWatts(), 1.0e-15);
 		assertEquals(0.0, field.integratedWakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, field.integratedTotalWakeKineticPowerWatts(), 1.0e-15);

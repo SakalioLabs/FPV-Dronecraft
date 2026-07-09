@@ -620,6 +620,10 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return diskAreaSquareMeters * sourceThicknessMeters;
 		}
 
+		public double diskMassFlowKilogramsPerSecond() {
+			return massFluxKilogramsPerSecondSquareMeter * diskAreaSquareMeters;
+		}
+
 		public Vec3 equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(
 				double sourceThicknessMeters
 		) {

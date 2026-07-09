@@ -52,6 +52,11 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 						.add(advance.totalThroughFlowMomentumRateWorldNewtons()),
 				advance.totalCombinedMomentumRateWorldNewtons(), 1.0e-12);
 		assertTrue(advance.totalSourceMassFlowRateKilogramsPerSecond() > 0.0);
+		assertEquals(gridSample.integratedDiskMassFlowKilogramsPerSecond(SOURCE_THICKNESS),
+				advance.sourceGridIntegratedDiskMassFlowKilogramsPerSecond(), 1.0e-12);
+		assertEquals(advance.sourceGridIntegratedDiskMassFlowKilogramsPerSecond(),
+				advance.totalSourceMassFlowRateKilogramsPerSecond(), 1.0e-12);
+		assertEquals(0.0, advance.sourceMassFlowRateResidualKilogramsPerSecond(), 1.0e-12);
 		assertTrue(advance.maxResidenceAlpha() > 0.0);
 		assertTrue(advance.meanActiveWakeResidualAfterResidenceMetersPerSecond() > 0.0);
 		assertEquals(advance.residenceStep().massFlowWeightedWakeResidualAfterResidenceMetersPerSecond(),
@@ -124,6 +129,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertVectorEquals(Vec3.ZERO, advance.totalSourceMomentumRateWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, advance.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(0.0, advance.totalSourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
+		assertEquals(0.0, advance.sourceGridIntegratedDiskMassFlowKilogramsPerSecond(), 1.0e-15);
+		assertEquals(0.0, advance.sourceMassFlowRateResidualKilogramsPerSecond(), 1.0e-15);
 		assertEquals(0.0, advance.totalIdealMomentumPowerWatts(), 1.0e-15);
 		assertEquals(0.0, advance.totalWakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, advance.totalWakeKineticPowerWatts(), 1.0e-15);
@@ -799,6 +806,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertVectorEquals(Vec3.ZERO, advance.totalThroughFlowMomentumRateWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, advance.totalCombinedMomentumRateWorldNewtons(), 1.0e-15);
 		assertEquals(0.0, advance.totalSourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
+		assertEquals(0.0, advance.sourceGridIntegratedDiskMassFlowKilogramsPerSecond(), 1.0e-15);
+		assertEquals(0.0, advance.sourceMassFlowRateResidualKilogramsPerSecond(), 1.0e-15);
 		assertEquals(0.0, advance.sourceMechanicalWorkEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, advance.sourceMechanicalWorkPowerWatts(), 1.0e-15);
 		assertEquals(0.0, advance.throughFlowMechanicalWorkEnergyJoules(), 1.0e-15);

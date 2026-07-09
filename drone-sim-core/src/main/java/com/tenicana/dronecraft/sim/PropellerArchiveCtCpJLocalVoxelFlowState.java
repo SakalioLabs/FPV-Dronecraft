@@ -80,6 +80,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return residenceStep.totalSourceMassFlowRateKilogramsPerSecond();
 		}
 
+		public double sourceGridIntegratedDiskMassFlowKilogramsPerSecond() {
+			return residenceStep.sourceGridIntegratedDiskMassFlowKilogramsPerSecond();
+		}
+
+		public double sourceMassFlowRateResidualKilogramsPerSecond() {
+			return residenceStep.sourceMassFlowRateResidualKilogramsPerSecond();
+		}
+
 		public double totalIdealMomentumPowerWatts() {
 			return residenceStep.totalIdealMomentumPowerWatts();
 		}

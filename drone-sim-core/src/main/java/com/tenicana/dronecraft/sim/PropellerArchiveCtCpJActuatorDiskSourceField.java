@@ -212,6 +212,18 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			return sourceVolumeFraction * cellVolumeCubicMeters;
 		}
 
+		public double projectedCellAreaSquareMeters(double sourceThicknessMeters) {
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				return 0.0;
+			}
+			return cellVolumeCubicMeters / sourceThicknessMeters;
+		}
+
+		public double integratedDiskMassFlowKilogramsPerSecond(double sourceThicknessMeters) {
+			return massFluxKilogramsPerSecondSquareMeter
+					* projectedCellAreaSquareMeters(sourceThicknessMeters);
+		}
+
 		public Vec3 wakeSkewLateralVelocityWorldMetersPerSecond() {
 			return targetWakeVelocityWorldMetersPerSecond
 					.subtract(farWakeAxialVelocityWorldMetersPerSecond)
@@ -263,6 +275,17 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				volume += cell.sampledSourceVolumeCubicMeters();
 			}
 			return volume;
+		}
+
+		public double integratedDiskMassFlowKilogramsPerSecond(double sourceThicknessMeters) {
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				return 0.0;
+			}
+			double sum = 0.0;
+			for (VoxelCellSample cell : cells) {
+				sum += cell.integratedDiskMassFlowKilogramsPerSecond(sourceThicknessMeters);
+			}
+			return Double.isFinite(sum) ? sum : 0.0;
 		}
 
 		public Vec3 integratedBodyForceWorldNewtons() {
@@ -887,6 +910,16 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			}
 		}
 		return sum;
+	}
+
+	public double integratedDiskMassFlowKilogramsPerSecond() {
+		double sum = 0.0;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			if (sourceTerm != null && sourceTerm.applied()) {
+				sum += sourceTerm.diskMassFlowKilogramsPerSecond();
+			}
+		}
+		return Double.isFinite(sum) ? sum : 0.0;
 	}
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {

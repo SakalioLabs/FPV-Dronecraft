@@ -263,6 +263,16 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			return sum;
 		}
 
+		public double sourceGridIntegratedDiskMassFlowKilogramsPerSecond() {
+			return sourceMomentumSample.sourceGridSample()
+					.integratedDiskMassFlowKilogramsPerSecond(sourceThicknessMeters);
+		}
+
+		public double sourceMassFlowRateResidualKilogramsPerSecond() {
+			return totalSourceMassFlowRateKilogramsPerSecond()
+					- sourceGridIntegratedDiskMassFlowKilogramsPerSecond();
+		}
+
 		public double totalIdealMomentumPowerWatts() {
 			double sum = 0.0;
 			for (CellMassFluxResidenceStep cell : cells) {

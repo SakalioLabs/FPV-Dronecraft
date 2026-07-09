@@ -53,6 +53,9 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertTrue(run.finalKineticEnergyJoules() > 0.0);
 		assertTrue(run.finalMaxSpeedMetersPerSecond() > 0.0);
 		assertTrue(run.totalSourceMassKilograms() > 0.0);
+		assertEquals(gridSample.integratedDiskMassFlowKilogramsPerSecond(SOURCE_THICKNESS)
+						* DT * run.completedStepCount(),
+				run.totalSourceMassKilograms(), 1.0e-12);
 		assertTrue(run.maxResidenceAlpha() > 0.0);
 		assertVectorEquals(gridSample.integratedBodyForceWorldNewtons()
 						.multiply(DT * run.completedStepCount()),
