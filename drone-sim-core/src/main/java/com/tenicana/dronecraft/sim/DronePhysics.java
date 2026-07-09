@@ -6239,6 +6239,26 @@ public final class DronePhysics {
 		);
 	}
 
+	static double rotorCtCpJRuntimeDynamicInflowTimeConstantSeconds(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			RotorSpec rotor,
+			double fallbackTimeConstantSeconds
+	) {
+		double fallback = Math.max(0.0, finiteOrDefault(fallbackTimeConstantSeconds, 0.0));
+		if (!ctCpJRuntimeSampleAccepted(sample) || rotor == null || fallback <= 0.0) {
+			return fallback;
+		}
+		double residenceTime = rotorCtCpJRuntimeWakeResidenceTimeSeconds(sample, rotor, 0.0);
+		if (!Double.isFinite(residenceTime) || residenceTime <= 0.0) {
+			return fallback;
+		}
+		double ctCpJTimeConstant = MathUtil.clamp(1.15 * residenceTime, 0.006, 0.220);
+		double lowerBound = Math.max(0.004, fallback * 0.58);
+		double upperBound = Math.max(lowerBound, fallback * 1.42);
+		double blended = fallback + 0.35 * (ctCpJTimeConstant - fallback);
+		return MathUtil.clamp(blended, lowerBound, upperBound);
+	}
+
 	static double rotorCtCpJRuntimeTargetInducedVelocityMetersPerSecond(
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
 			double fallbackTargetInducedVelocityMetersPerSecond,
