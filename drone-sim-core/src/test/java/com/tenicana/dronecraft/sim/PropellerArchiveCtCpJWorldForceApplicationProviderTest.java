@@ -179,6 +179,89 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				runtimePreview.nextBodyToWorldOrientation(), 1.0e-12);
 		assertVectorEquals(preview.nextAngularVelocityBodyRadiansPerSecond(),
 				runtimePreview.nextAngularVelocityBodyRadiansPerSecond(), 1.0e-12);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepEnergySample energy =
+				sample.rotorOnlyStepEnergySample(config, positionWorld, velocityWorld, angularVelocityBody, dt);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepEnergySample runtimeEnergy =
+				sample.runtimeReplacementRotorOnlyStepEnergySample(
+						config,
+						positionWorld,
+						velocityWorld,
+						angularVelocityBody,
+						dt
+				);
+		assertFalse(energy.runtimeReplacement());
+		assertTrue(runtimeEnergy.runtimeReplacement());
+		assertEquals(config.massKg(), energy.massKg(), 1.0e-15);
+		assertVectorEquals(config.inertiaKgMetersSquared(), energy.inertiaKgMetersSquared(), 1.0e-15);
+		assertEquals(dt, energy.dtSeconds(), 1.0e-15);
+		assertEquals(sample.aggregate().totalShaftPowerWatts(), energy.totalShaftPowerWatts(), 1.0e-12);
+		assertEquals(sample.aggregate().totalIdealMomentumPowerWatts(),
+				energy.totalIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(sample.aggregate().totalWakeKineticPowerWatts(),
+				energy.totalWakeKineticPowerWatts(), 1.0e-12);
+		assertEquals(sample.aggregate().totalWakeKineticPowerResidualWatts(),
+				energy.totalWakeKineticPowerResidualWatts(), 1.0e-12);
+		assertEquals(energy.totalShaftPowerWatts() * dt, energy.shaftEnergyJoules(), 1.0e-12);
+		assertEquals(energy.totalIdealMomentumPowerWatts() * dt,
+				energy.idealMomentumEnergyJoules(), 1.0e-12);
+		assertEquals(energy.totalWakeKineticPowerWatts() * dt,
+				energy.wakeKineticEnergyJoules(), 1.0e-12);
+		assertEquals(energy.totalWakeKineticPowerResidualWatts() * dt,
+				energy.wakeKineticEnergyResidualJoules(), 1.0e-12);
+		assertEquals(sample.aggregate().totalIdealMomentumPowerWatts()
+						/ sample.aggregate().totalShaftPowerWatts(),
+				energy.idealMomentumEnergyOverShaftEnergy(), 1.0e-12);
+		assertEquals(sample.aggregate().totalWakeKineticPowerOverShaftPower(),
+				energy.wakeKineticEnergyOverShaftEnergy(), 1.0e-12);
+		assertEquals(translationalEnergy(config.massKg(), velocityWorld),
+				energy.initialTranslationalKineticEnergyJoules(), 1.0e-12);
+		assertEquals(translationalEnergy(config.massKg(), expectedNextVelocity),
+				energy.nextTranslationalKineticEnergyJoules(), 1.0e-12);
+		assertEquals(energy.nextTranslationalKineticEnergyJoules()
+						- energy.initialTranslationalKineticEnergyJoules(),
+				energy.translationalKineticEnergyDeltaJoules(), 1.0e-12);
+		assertEquals(rotationalEnergy(config.inertiaKgMetersSquared(), angularVelocityBody),
+				energy.initialRotationalKineticEnergyJoules(), 1.0e-12);
+		assertEquals(rotationalEnergy(config.inertiaKgMetersSquared(), expectedNextAngularVelocity),
+				energy.nextRotationalKineticEnergyJoules(), 1.0e-12);
+		assertEquals(energy.nextRotationalKineticEnergyJoules()
+						- energy.initialRotationalKineticEnergyJoules(),
+				energy.rotationalKineticEnergyDeltaJoules(), 1.0e-12);
+		assertEquals(energy.translationalKineticEnergyDeltaJoules()
+						+ energy.rotationalKineticEnergyDeltaJoules(),
+				energy.rigidBodyKineticEnergyDeltaJoules(), 1.0e-12);
+		Vec3 expectedAverageVelocity = velocityWorld.add(expectedNextVelocity).multiply(0.5);
+		Vec3 expectedForceWorkDisplacement = expectedAverageVelocity.multiply(dt);
+		Vec3 expectedAverageAngularVelocity =
+				angularVelocityBody.add(expectedNextAngularVelocity).multiply(0.5);
+		Vec3 expectedAngularWorkDisplacement = expectedAverageAngularVelocity.multiply(dt);
+		assertVectorEquals(expectedAverageVelocity, energy.averageVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(expectedForceWorkDisplacement, energy.forceWorkDisplacementWorldMeters(), 1.0e-12);
+		assertVectorEquals(expectedAverageAngularVelocity,
+				energy.averageAngularVelocityBodyRadiansPerSecond(), 1.0e-12);
+		assertVectorEquals(expectedAngularWorkDisplacement,
+				energy.angularWorkDisplacementBodyRadians(), 1.0e-12);
+		assertEquals(wrench.totalForceWorldNewtons().dot(expectedForceWorkDisplacement),
+				energy.forceWorkJoules(), 1.0e-12);
+		assertEquals(wrench.totalTorqueBodyNewtonMeters().dot(expectedAngularWorkDisplacement),
+				energy.bodyTorqueWorkJoules(), 1.0e-12);
+		assertEquals(wrench.gyroscopicTorqueBodyNewtonMeters().dot(expectedAngularWorkDisplacement),
+				energy.gyroscopicTorqueWorkJoules(), 1.0e-12);
+		assertEquals(energy.forceWorkJoules() + energy.bodyTorqueWorkJoules(),
+				energy.rigidBodyWorkJoules(), 1.0e-12);
+		assertEquals(energy.rigidBodyWorkJoules() - energy.rigidBodyKineticEnergyDeltaJoules(),
+				energy.rigidBodyWorkResidualJoules(), 1.0e-12);
+		assertEquals(transitionFraction(
+						Math.abs(energy.rigidBodyWorkResidualJoules()),
+						Math.abs(energy.rigidBodyWorkJoules()),
+						Math.abs(energy.rigidBodyKineticEnergyDeltaJoules())),
+				energy.rigidBodyWorkResidualFraction(), 1.0e-12);
+		assertEquals(energy.rigidBodyKineticEnergyDeltaJoules() / energy.shaftEnergyJoules(),
+				energy.rigidBodyKineticEnergyDeltaOverShaftEnergy(), 1.0e-12);
+		assertEquals(energy.shaftEnergyJoules(), runtimeEnergy.shaftEnergyJoules(), 1.0e-12);
+		assertEquals(energy.wakeKineticEnergyJoules(), runtimeEnergy.wakeKineticEnergyJoules(), 1.0e-12);
+		assertEquals(energy.rigidBodyKineticEnergyDeltaJoules(),
+				runtimeEnergy.rigidBodyKineticEnergyDeltaJoules(), 1.0e-12);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample alignedResidual =
 				preview.residualTo(
 						expectedNextPosition,
@@ -714,6 +797,30 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				runtimePreview.nextPositionWorldMeters(), 1.0e-15);
 		assertQuaternionEquals(Quaternion.IDENTITY, runtimePreview.nextBodyToWorldOrientation(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, runtimePreview.nextAngularVelocityBodyRadiansPerSecond(), 1.0e-15);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepEnergySample runtimeEnergy =
+				sample.runtimeReplacementRotorOnlyStepEnergySample(
+						config,
+						positionWorld,
+						velocityWorld,
+						Vec3.ZERO,
+						dt
+				);
+		assertTrue(runtimeEnergy.runtimeReplacement());
+		assertEquals(0.0, runtimeEnergy.totalShaftPowerWatts(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.totalIdealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.totalWakeKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.shaftEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.idealMomentumEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.wakeKineticEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.translationalKineticEnergyDeltaJoules(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.rotationalKineticEnergyDeltaJoules(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.rigidBodyKineticEnergyDeltaJoules(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.forceWorkJoules(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.bodyTorqueWorkJoules(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.rigidBodyWorkResidualJoules(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.rigidBodyWorkResidualFraction(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.wakeKineticEnergyOverShaftEnergy(), 1.0e-15);
+		assertEquals(0.0, runtimeEnergy.rigidBodyKineticEnergyDeltaOverShaftEnergy(), 1.0e-15);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample runtimeAlignedResidual =
 				runtimePreview.residualTo(
 						runtimePreview.nextPositionWorldMeters(),
@@ -782,6 +889,15 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				+ expected.y() * actual.y()
 				+ expected.z() * actual.z());
 		return 2.0 * Math.acos(MathUtil.clamp(dot, 0.0, 1.0));
+	}
+
+	private static double translationalEnergy(double massKg, Vec3 velocityMetersPerSecond) {
+		return 0.5 * massKg * velocityMetersPerSecond.lengthSquared();
+	}
+
+	private static double rotationalEnergy(Vec3 inertiaKgMetersSquared, Vec3 angularVelocityRadiansPerSecond) {
+		return 0.5 * inertiaKgMetersSquared.multiply(angularVelocityRadiansPerSecond)
+				.dot(angularVelocityRadiansPerSecond);
 	}
 
 	private static void copyReferenceRotorTelemetryIntoState(

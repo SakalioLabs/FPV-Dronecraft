@@ -589,6 +589,54 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			);
 		}
 
+		public RotorOnlyStepEnergySample rotorOnlyStepEnergySample(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double dtSeconds
+		) {
+			RotorOnlyStepPreview preview = rotorOnlyStepPreview(
+					config,
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+			return stepEnergySample(
+					preview,
+					config,
+					aggregate.totalShaftPowerWatts(),
+					aggregate.totalIdealMomentumPowerWatts(),
+					aggregate.totalWakeKineticPowerWatts(),
+					aggregate.totalWakeKineticPowerResidualWatts()
+			);
+		}
+
+		public RotorOnlyStepEnergySample runtimeReplacementRotorOnlyStepEnergySample(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double dtSeconds
+		) {
+			RotorOnlyStepPreview preview = runtimeReplacementRotorOnlyStepPreview(
+					config,
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+			return stepEnergySample(
+					preview,
+					config,
+					aggregate.runtimeForceReplacementShaftPowerWatts(),
+					aggregate.runtimeForceReplacementIdealMomentumPowerWatts(),
+					aggregate.runtimeForceReplacementWakeKineticPowerWatts(),
+					aggregate.runtimeForceReplacementWakeKineticPowerResidualWatts()
+			);
+		}
+
 		public RotorOnlyStepPreview runtimeReplacementRotorOnlyStepPreview(
 				DroneConfig config,
 				Vec3 positionWorldMeters,
@@ -602,6 +650,28 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 					velocityWorldMetersPerSecond,
 					angularVelocityBodyRadiansPerSecond,
 					dtSeconds
+			);
+		}
+
+		private RotorOnlyStepEnergySample stepEnergySample(
+				RotorOnlyStepPreview preview,
+				DroneConfig config,
+				double totalShaftPowerWatts,
+				double totalIdealMomentumPowerWatts,
+				double totalWakeKineticPowerWatts,
+				double totalWakeKineticPowerResidualWatts
+		) {
+			if (config == null) {
+				throw new IllegalArgumentException("config must not be null.");
+			}
+			return new RotorOnlyStepEnergySample(
+					preview,
+					config.massKg(),
+					config.inertiaKgMetersSquared(),
+					totalShaftPowerWatts,
+					totalIdealMomentumPowerWatts,
+					totalWakeKineticPowerWatts,
+					totalWakeKineticPowerResidualWatts
 			);
 		}
 
@@ -1056,6 +1126,149 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		}
 	}
 
+	public record RotorOnlyStepEnergySample(
+			RotorOnlyStepPreview preview,
+			double massKg,
+			Vec3 inertiaKgMetersSquared,
+			double totalShaftPowerWatts,
+			double totalIdealMomentumPowerWatts,
+			double totalWakeKineticPowerWatts,
+			double totalWakeKineticPowerResidualWatts
+	) {
+		public RotorOnlyStepEnergySample {
+			if (preview == null) {
+				throw new IllegalArgumentException("preview must not be null.");
+			}
+			massKg = finitePositiveOrOne(massKg);
+			inertiaKgMetersSquared = finitePositiveVecOrUnit(inertiaKgMetersSquared);
+			totalShaftPowerWatts = finiteNonnegative(totalShaftPowerWatts);
+			totalIdealMomentumPowerWatts = finiteNonnegative(totalIdealMomentumPowerWatts);
+			totalWakeKineticPowerWatts = finiteNonnegative(totalWakeKineticPowerWatts);
+			totalWakeKineticPowerResidualWatts = finiteOrZero(totalWakeKineticPowerResidualWatts);
+		}
+
+		public boolean runtimeReplacement() {
+			return preview.runtimeReplacement();
+		}
+
+		public double dtSeconds() {
+			return preview.dtSeconds();
+		}
+
+		public double shaftEnergyJoules() {
+			return totalShaftPowerWatts * dtSeconds();
+		}
+
+		public double idealMomentumEnergyJoules() {
+			return totalIdealMomentumPowerWatts * dtSeconds();
+		}
+
+		public double wakeKineticEnergyJoules() {
+			return totalWakeKineticPowerWatts * dtSeconds();
+		}
+
+		public double wakeKineticEnergyResidualJoules() {
+			return totalWakeKineticPowerResidualWatts * dtSeconds();
+		}
+
+		public double idealMomentumEnergyOverShaftEnergy() {
+			return ratio(idealMomentumEnergyJoules(), shaftEnergyJoules());
+		}
+
+		public double wakeKineticEnergyOverShaftEnergy() {
+			return ratio(wakeKineticEnergyJoules(), shaftEnergyJoules());
+		}
+
+		public double initialTranslationalKineticEnergyJoules() {
+			return translationalKineticEnergyJoules(preview.initialVelocityWorldMetersPerSecond());
+		}
+
+		public double nextTranslationalKineticEnergyJoules() {
+			return translationalKineticEnergyJoules(preview.nextVelocityWorldMetersPerSecond());
+		}
+
+		public double translationalKineticEnergyDeltaJoules() {
+			return nextTranslationalKineticEnergyJoules() - initialTranslationalKineticEnergyJoules();
+		}
+
+		public double initialRotationalKineticEnergyJoules() {
+			return rotationalKineticEnergyJoules(preview.initialAngularVelocityBodyRadiansPerSecond());
+		}
+
+		public double nextRotationalKineticEnergyJoules() {
+			return rotationalKineticEnergyJoules(preview.nextAngularVelocityBodyRadiansPerSecond());
+		}
+
+		public double rotationalKineticEnergyDeltaJoules() {
+			return nextRotationalKineticEnergyJoules() - initialRotationalKineticEnergyJoules();
+		}
+
+		public double rigidBodyKineticEnergyDeltaJoules() {
+			return translationalKineticEnergyDeltaJoules() + rotationalKineticEnergyDeltaJoules();
+		}
+
+		public Vec3 averageVelocityWorldMetersPerSecond() {
+			return preview.initialVelocityWorldMetersPerSecond()
+					.add(preview.nextVelocityWorldMetersPerSecond())
+					.multiply(0.5);
+		}
+
+		public Vec3 forceWorkDisplacementWorldMeters() {
+			return averageVelocityWorldMetersPerSecond().multiply(dtSeconds());
+		}
+
+		public double forceWorkJoules() {
+			return preview.wrench().totalForceWorldNewtons().dot(forceWorkDisplacementWorldMeters());
+		}
+
+		public Vec3 averageAngularVelocityBodyRadiansPerSecond() {
+			return preview.initialAngularVelocityBodyRadiansPerSecond()
+					.add(preview.nextAngularVelocityBodyRadiansPerSecond())
+					.multiply(0.5);
+		}
+
+		public Vec3 angularWorkDisplacementBodyRadians() {
+			return averageAngularVelocityBodyRadiansPerSecond().multiply(dtSeconds());
+		}
+
+		public double bodyTorqueWorkJoules() {
+			return preview.wrench().totalTorqueBodyNewtonMeters().dot(angularWorkDisplacementBodyRadians());
+		}
+
+		public double gyroscopicTorqueWorkJoules() {
+			return preview.wrench().gyroscopicTorqueBodyNewtonMeters().dot(angularWorkDisplacementBodyRadians());
+		}
+
+		public double rigidBodyWorkJoules() {
+			return forceWorkJoules() + bodyTorqueWorkJoules();
+		}
+
+		public double rigidBodyWorkResidualJoules() {
+			return rigidBodyWorkJoules() - rigidBodyKineticEnergyDeltaJoules();
+		}
+
+		public double rigidBodyWorkResidualFraction() {
+			return stepResidualFraction(
+					Math.abs(rigidBodyWorkResidualJoules()),
+					Math.abs(rigidBodyWorkJoules()),
+					Math.abs(rigidBodyKineticEnergyDeltaJoules())
+			);
+		}
+
+		public double rigidBodyKineticEnergyDeltaOverShaftEnergy() {
+			return ratio(rigidBodyKineticEnergyDeltaJoules(), shaftEnergyJoules());
+		}
+
+		private double translationalKineticEnergyJoules(Vec3 velocityWorldMetersPerSecond) {
+			return 0.5 * massKg * finiteVecOrZero(velocityWorldMetersPerSecond).lengthSquared();
+		}
+
+		private double rotationalKineticEnergyJoules(Vec3 angularVelocityBodyRadiansPerSecond) {
+			Vec3 angularVelocity = finiteVecOrZero(angularVelocityBodyRadiansPerSecond);
+			return 0.5 * inertiaKgMetersSquared.multiply(angularVelocity).dot(angularVelocity);
+		}
+	}
+
 	private static Vec3 sumThrustForce(
 			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> applications
 	) {
@@ -1169,6 +1382,10 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		return Double.isFinite(value) ? value : 0.0;
 	}
 
+	private static double finitePositiveOrOne(double value) {
+		return Double.isFinite(value) && value > 0.0 ? value : 1.0;
+	}
+
 	private static double ratio(double numerator, double denominator) {
 		if (!Double.isFinite(numerator) || !Double.isFinite(denominator) || Math.abs(denominator) <= 1.0e-12) {
 			return 0.0;
@@ -1191,6 +1408,14 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			return Vec3.ZERO;
 		}
 		return value;
+	}
+
+	private static Vec3 finitePositiveVecOrUnit(Vec3 value) {
+		Vec3 vector = finiteVecOrZero(value);
+		if (vector.x() <= 0.0 || vector.y() <= 0.0 || vector.z() <= 0.0) {
+			return new Vec3(1.0, 1.0, 1.0);
+		}
+		return vector;
 	}
 
 	private static Quaternion finiteQuaternionOrIdentity(Quaternion value) {
