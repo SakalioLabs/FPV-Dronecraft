@@ -1038,6 +1038,78 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void acceptedReferenceSampleAnchorsRuntimeWakeAxialExcessVelocity() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double omega = reference.rpm() * 2.0 * Math.PI / 60.0;
+		Vec3 axialFlow = rotor.thrustAxisBody().multiply(reference.advanceRatioJ()
+				* reference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
+		double fallbackVelocity = 7.25;
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		assertTrue(sample.dimensionalSample().idealInducedVelocityMetersPerSecond() > 0.0);
+		DroneState state = new DroneState(1);
+		state.setRotorCtCpJReferenceSample(0, sample);
+
+		assertEquals(sample.dimensionalSample().idealInducedVelocityMetersPerSecond(),
+				DronePhysics.rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
+						state,
+						0,
+						fallbackVelocity
+				),
+				1.0e-15);
+		assertEquals(fallbackVelocity,
+				DronePhysics.rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
+						null,
+						0,
+						fallbackVelocity
+				),
+				1.0e-15);
+
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery highReference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"high_domain_max_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double clampedOmega = highReference.rpm() * 2.0 * Math.PI / 60.0;
+		double clampedJ = highReference.advanceRatioJ() + 0.20;
+		Vec3 clampedAxialFlow = rotor.thrustAxisBody().multiply(clampedJ
+				* highReference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample clampedSample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, clampedAxialFlow, clampedOmega, 1.0);
+		DroneState clampedState = new DroneState(1);
+		clampedState.setRotorCtCpJReferenceSample(0, clampedSample);
+
+		assertNotNull(clampedSample);
+		assertTrue(clampedSample.clamped());
+		assertFalse(clampedState.rotorCtCpJReferenceRuntimeApplied(0));
+		assertEquals(fallbackVelocity,
+				DronePhysics.rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
+						clampedState,
+						0,
+						fallbackVelocity
+				),
+				1.0e-15);
+	}
+
+	@Test
 	void acceptedRuntimeReferenceThrustForceUsesCtCpJBodyVector() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0)
 				.withThrustAxisBody(new Vec3(0.18, 0.96, -0.08));

@@ -5310,9 +5310,14 @@ public final class DronePhysics {
 					continue;
 				}
 
-				double sourceInducedVelocity = Math.max(
+				double fallbackSourceInducedVelocity = Math.max(
 						state.rotorInducedVelocityMetersPerSecond(sourceIndex),
 						sourceSpinRatio * source.maxOmegaRadiansPerSecond() * source.radiusMeters() * 0.10
+				);
+				double sourceInducedVelocity = rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
+						state,
+						sourceIndex,
+						fallbackSourceInducedVelocity
 				);
 				double axialWakeOverlap = rotorWakeAxisOverlap(source, receiver, downstreamDistance, lateralDistance);
 				double axialLateralFactor = 0.0;
@@ -6346,6 +6351,26 @@ public final class DronePhysics {
 			return fallback;
 		}
 		return geometry * wakeTangentialVelocity;
+	}
+
+	static double rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(
+			DroneState state,
+			int sourceRotorIndex,
+			double fallbackSourceInducedVelocityMetersPerSecond
+	) {
+		double fallback = finiteNonnegative(fallbackSourceInducedVelocityMetersPerSecond);
+		if (state == null
+				|| sourceRotorIndex < 0
+				|| sourceRotorIndex >= state.motorCount()
+				|| !state.rotorCtCpJReferenceRuntimeApplied(sourceRotorIndex)) {
+			return fallback;
+		}
+		double idealInducedVelocity =
+				state.rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond(sourceRotorIndex);
+		if (!Double.isFinite(idealInducedVelocity) || idealInducedVelocity <= 0.0) {
+			return fallback;
+		}
+		return idealInducedVelocity;
 	}
 
 	static double rotorCtCpJRuntimeWakeCoreRadiusMeters(
