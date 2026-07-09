@@ -1077,6 +1077,31 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(report.meanCtCpJRuntimeIdealMomentumPowerOverShaftPower() > 0.0);
 		assertTrue(report.maxCtCpJRuntimeIdealMomentumPowerOverShaftPower()
 				>= report.meanCtCpJRuntimeIdealMomentumPowerOverShaftPower());
+		assertFinitePositiveMeanMax(
+				report.meanCtCpJRuntimeDiskMassFlowKilogramsPerSecond(),
+				report.maxCtCpJRuntimeDiskMassFlowKilogramsPerSecond(),
+				"runtime disk mass flow"
+		);
+		assertFinitePositiveMeanMax(
+				report.meanCtCpJRuntimeFarWakeAxialVelocityMetersPerSecond(),
+				report.maxCtCpJRuntimeFarWakeAxialVelocityMetersPerSecond(),
+				"runtime far wake axial velocity"
+		);
+		assertFinitePositiveMeanMax(
+				report.meanCtCpJRuntimeTotalWakeKineticPowerOverShaftPower(),
+				report.maxCtCpJRuntimeTotalWakeKineticPowerOverShaftPower(),
+				"runtime total wake power ratio"
+		);
+		assertFinitePositiveMeanMax(
+				report.meanCtCpJRuntimeAbsTotalWakeKineticPowerResidualWatts(),
+				report.maxCtCpJRuntimeAbsTotalWakeKineticPowerResidualWatts(),
+				"runtime wake power residual"
+		);
+		assertFinitePositiveMeanMax(
+				report.meanCtCpJRuntimeAbsTotalWakeKineticPowerResidualFraction(),
+				report.maxCtCpJRuntimeAbsTotalWakeKineticPowerResidualFraction(),
+				"runtime wake power residual fraction"
+		);
 		assertTrue(sawReferenceState, "apDrone trace should expose available or blocked CT/CP/J reference telemetry");
 		assertTrue(sawPositiveReferenceRpm, "CT/CP/J reference telemetry should preserve lookup RPM for envelope diagnosis");
 		assertTrue(sawStaticReferenceState, "apDrone trace should expose static CT/CP shadow telemetry");
@@ -1380,5 +1405,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(Double.isFinite(max), label + " max should be finite");
 		assertTrue(min <= mean, label + " min should not exceed mean");
 		assertTrue(mean <= max, label + " mean should not exceed max");
+	}
+
+	private static void assertFinitePositiveMeanMax(double mean, double max, String label) {
+		assertTrue(Double.isFinite(mean), label + " mean should be finite");
+		assertTrue(Double.isFinite(max), label + " max should be finite");
+		assertTrue(mean > 0.0, label + " mean should be positive");
+		assertTrue(max >= mean, label + " max should not be below mean");
 	}
 }

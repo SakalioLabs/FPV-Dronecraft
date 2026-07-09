@@ -1823,7 +1823,7 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
-				"Runtime CTCPJ coefficients: samples=%d ct_min_mean_max=%.6f/%.6f/%.6f cp_min_mean_max=%.6f/%.6f/%.6f cq_min_mean_max=%.8f/%.8f/%.8f eta_min_mean_max=%.5f/%.5f/%.5f axial_eta_min_mean_max=%.5f/%.5f/%.5f disk_mean_max=%.2f/%.2f N/m2 momentum_ratio_mean_max=%.4f/%.4f%n",
+				"Runtime CTCPJ coefficients: samples=%d ct_min_mean_max=%.6f/%.6f/%.6f cp_min_mean_max=%.6f/%.6f/%.6f cq_min_mean_max=%.8f/%.8f/%.8f eta_min_mean_max=%.5f/%.5f/%.5f axial_eta_min_mean_max=%.5f/%.5f/%.5f disk_mean_max=%.2f/%.2f N/m2 momentum_ratio_mean_max=%.4f/%.4f wake_mass_flow_mean_max=%.5f/%.5f kg/s far_wake_mean_max=%.5f/%.5f m/s wake_power_ratio_mean_max=%.4f/%.4f wake_residual_mean_max=%.4f/%.4f W wake_residual_fraction_mean_max=%.4f/%.4f%n",
 				report.ctCpJRuntimeCoefficientRotorSampleCount(),
 				report.minCtCpJRuntimeThrustCoefficientCt(),
 				report.meanCtCpJRuntimeThrustCoefficientCt(),
@@ -1843,7 +1843,17 @@ public final class OfflineFlightRecorder {
 				report.meanCtCpJRuntimeDiskLoadingNewtonsPerSquareMeter(),
 				report.maxCtCpJRuntimeDiskLoadingNewtonsPerSquareMeter(),
 				report.meanCtCpJRuntimeIdealMomentumPowerOverShaftPower(),
-				report.maxCtCpJRuntimeIdealMomentumPowerOverShaftPower()
+				report.maxCtCpJRuntimeIdealMomentumPowerOverShaftPower(),
+				report.meanCtCpJRuntimeDiskMassFlowKilogramsPerSecond(),
+				report.maxCtCpJRuntimeDiskMassFlowKilogramsPerSecond(),
+				report.meanCtCpJRuntimeFarWakeAxialVelocityMetersPerSecond(),
+				report.maxCtCpJRuntimeFarWakeAxialVelocityMetersPerSecond(),
+				report.meanCtCpJRuntimeTotalWakeKineticPowerOverShaftPower(),
+				report.maxCtCpJRuntimeTotalWakeKineticPowerOverShaftPower(),
+				report.meanCtCpJRuntimeAbsTotalWakeKineticPowerResidualWatts(),
+				report.maxCtCpJRuntimeAbsTotalWakeKineticPowerResidualWatts(),
+				report.meanCtCpJRuntimeAbsTotalWakeKineticPowerResidualFraction(),
+				report.maxCtCpJRuntimeAbsTotalWakeKineticPowerResidualFraction()
 		);
 		System.out.printf(
 				Locale.ROOT,
@@ -6622,6 +6632,16 @@ public final class OfflineFlightRecorder {
 		private double ctCpJRuntimeMaxDiskLoadingNewtonsPerSquareMeter;
 		private double ctCpJRuntimeIdealMomentumPowerOverShaftPowerSum;
 		private double ctCpJRuntimeMaxIdealMomentumPowerOverShaftPower;
+		private double ctCpJRuntimeDiskMassFlowSumKilogramsPerSecond;
+		private double ctCpJRuntimeMaxDiskMassFlowKilogramsPerSecond;
+		private double ctCpJRuntimeFarWakeAxialVelocitySumMetersPerSecond;
+		private double ctCpJRuntimeMaxFarWakeAxialVelocityMetersPerSecond;
+		private double ctCpJRuntimeTotalWakeKineticPowerOverShaftPowerSum;
+		private double ctCpJRuntimeMaxTotalWakeKineticPowerOverShaftPower;
+		private double ctCpJRuntimeAbsTotalWakeKineticPowerResidualSumWatts;
+		private double ctCpJRuntimeMaxAbsTotalWakeKineticPowerResidualWatts;
+		private double ctCpJRuntimeAbsTotalWakeKineticPowerResidualFractionSum;
+		private double ctCpJRuntimeMaxAbsTotalWakeKineticPowerResidualFraction;
 		private int ctCpJStaticReferenceRotorSampleCount;
 		private double ctCpJStaticReferenceAbsThrustResidualSumNewtons;
 		private double ctCpJStaticReferenceMaxAbsThrustResidualNewtons;
@@ -6895,6 +6915,48 @@ public final class OfflineFlightRecorder {
 					idealMomentumPower,
 					aerodynamicShaftPower
 			);
+			double[] actuatorDiskAxialVelocity = rotorCtCpJRuntimeActuatorDiskAxialVelocity(
+					axialAdvanceSpeed,
+					idealInducedVelocity
+			);
+			double[] diskMassFlow = rotorCtCpJRuntimeDiskMassFlow(
+					config,
+					environment,
+					actuatorDiskAxialVelocity
+			);
+			double[] farWakeAxialVelocity = rotorCtCpJRuntimeFarWakeAxialVelocity(
+					axialAdvanceSpeed,
+					idealInducedVelocity
+			);
+			double[] farWakeContractedArea = rotorCtCpJRuntimeFarWakeContractedArea(
+					environment,
+					diskMassFlow,
+					farWakeAxialVelocity
+			);
+			double[] farWakeEquivalentRadius = rotorCtCpJRuntimeFarWakeEquivalentRadius(farWakeContractedArea);
+			double[] angularMomentumSwirlRadius =
+					rotorCtCpJRuntimeAngularMomentumSwirlRadius(farWakeEquivalentRadius);
+			double[] wakeTangentialVelocity = rotorCtCpJRuntimeWakeTangentialVelocity(
+					state.motorAerodynamicTorqueNewtonMeters(),
+					diskMassFlow,
+					angularMomentumSwirlRadius
+			);
+			double[] wakeSwirlKineticPower = rotorCtCpJRuntimeWakeSwirlKineticPower(
+					diskMassFlow,
+					angularMomentumSwirlRadius,
+					wakeTangentialVelocity,
+					farWakeEquivalentRadius
+			);
+			double[] totalWakeKineticPower = rotorCtCpJRuntimeTotalWakeKineticPower(
+					idealMomentumPower,
+					wakeSwirlKineticPower
+			);
+			double[] totalWakeKineticPowerOverShaftPower =
+					rotorCtCpJRuntimePowerRatio(totalWakeKineticPower, aerodynamicShaftPower);
+			double[] totalWakeKineticPowerResidual =
+					rotorCtCpJRuntimePowerResidual(aerodynamicShaftPower, totalWakeKineticPower);
+			double[] totalWakeKineticPowerResidualFraction =
+					rotorCtCpJRuntimePowerRatio(totalWakeKineticPowerResidual, aerodynamicShaftPower);
 			for (int i = 0; i < available.length; i++) {
 				if (!available[i]) {
 					continue;
@@ -6907,6 +6969,11 @@ public final class OfflineFlightRecorder {
 				double axialEta = valueOrZero(axialPropulsiveEfficiency, i);
 				double loading = valueOrZero(diskLoading, i);
 				double momentumRatio = valueOrZero(idealMomentumPowerOverShaftPower, i);
+				double massFlow = valueOrZero(diskMassFlow, i);
+				double farWakeVelocity = valueOrZero(farWakeAxialVelocity, i);
+				double wakePowerRatio = valueOrZero(totalWakeKineticPowerOverShaftPower, i);
+				double absWakeResidual = Math.abs(valueOrZero(totalWakeKineticPowerResidual, i));
+				double absWakeResidualFraction = Math.abs(valueOrZero(totalWakeKineticPowerResidualFraction, i));
 				ctCpJRuntimeThrustCoefficientCtSum += ct;
 				ctCpJRuntimeMinThrustCoefficientCt = Math.min(ctCpJRuntimeMinThrustCoefficientCt, ct);
 				ctCpJRuntimeMaxThrustCoefficientCt = Math.max(ctCpJRuntimeMaxThrustCoefficientCt, ct);
@@ -6938,6 +7005,22 @@ public final class OfflineFlightRecorder {
 						ctCpJRuntimeMaxIdealMomentumPowerOverShaftPower,
 						momentumRatio
 				);
+				ctCpJRuntimeDiskMassFlowSumKilogramsPerSecond += massFlow;
+				ctCpJRuntimeMaxDiskMassFlowKilogramsPerSecond =
+						Math.max(ctCpJRuntimeMaxDiskMassFlowKilogramsPerSecond, massFlow);
+				ctCpJRuntimeFarWakeAxialVelocitySumMetersPerSecond += farWakeVelocity;
+				ctCpJRuntimeMaxFarWakeAxialVelocityMetersPerSecond =
+						Math.max(ctCpJRuntimeMaxFarWakeAxialVelocityMetersPerSecond, farWakeVelocity);
+				ctCpJRuntimeTotalWakeKineticPowerOverShaftPowerSum += wakePowerRatio;
+				ctCpJRuntimeMaxTotalWakeKineticPowerOverShaftPower =
+						Math.max(ctCpJRuntimeMaxTotalWakeKineticPowerOverShaftPower, wakePowerRatio);
+				ctCpJRuntimeAbsTotalWakeKineticPowerResidualSumWatts += absWakeResidual;
+				ctCpJRuntimeMaxAbsTotalWakeKineticPowerResidualWatts =
+						Math.max(ctCpJRuntimeMaxAbsTotalWakeKineticPowerResidualWatts, absWakeResidual);
+				ctCpJRuntimeAbsTotalWakeKineticPowerResidualFractionSum += absWakeResidualFraction;
+				ctCpJRuntimeMaxAbsTotalWakeKineticPowerResidualFraction =
+						Math.max(ctCpJRuntimeMaxAbsTotalWakeKineticPowerResidualFraction,
+								absWakeResidualFraction);
 			}
 		}
 
@@ -7690,6 +7773,46 @@ public final class OfflineFlightRecorder {
 
 		public double maxCtCpJRuntimeIdealMomentumPowerOverShaftPower() {
 			return ctCpJRuntimeMaxIdealMomentumPowerOverShaftPower;
+		}
+
+		public double meanCtCpJRuntimeDiskMassFlowKilogramsPerSecond() {
+			return meanCtCpJRuntimeValue(ctCpJRuntimeDiskMassFlowSumKilogramsPerSecond);
+		}
+
+		public double maxCtCpJRuntimeDiskMassFlowKilogramsPerSecond() {
+			return ctCpJRuntimeMaxDiskMassFlowKilogramsPerSecond;
+		}
+
+		public double meanCtCpJRuntimeFarWakeAxialVelocityMetersPerSecond() {
+			return meanCtCpJRuntimeValue(ctCpJRuntimeFarWakeAxialVelocitySumMetersPerSecond);
+		}
+
+		public double maxCtCpJRuntimeFarWakeAxialVelocityMetersPerSecond() {
+			return ctCpJRuntimeMaxFarWakeAxialVelocityMetersPerSecond;
+		}
+
+		public double meanCtCpJRuntimeTotalWakeKineticPowerOverShaftPower() {
+			return meanCtCpJRuntimeValue(ctCpJRuntimeTotalWakeKineticPowerOverShaftPowerSum);
+		}
+
+		public double maxCtCpJRuntimeTotalWakeKineticPowerOverShaftPower() {
+			return ctCpJRuntimeMaxTotalWakeKineticPowerOverShaftPower;
+		}
+
+		public double meanCtCpJRuntimeAbsTotalWakeKineticPowerResidualWatts() {
+			return meanCtCpJRuntimeValue(ctCpJRuntimeAbsTotalWakeKineticPowerResidualSumWatts);
+		}
+
+		public double maxCtCpJRuntimeAbsTotalWakeKineticPowerResidualWatts() {
+			return ctCpJRuntimeMaxAbsTotalWakeKineticPowerResidualWatts;
+		}
+
+		public double meanCtCpJRuntimeAbsTotalWakeKineticPowerResidualFraction() {
+			return meanCtCpJRuntimeValue(ctCpJRuntimeAbsTotalWakeKineticPowerResidualFractionSum);
+		}
+
+		public double maxCtCpJRuntimeAbsTotalWakeKineticPowerResidualFraction() {
+			return ctCpJRuntimeMaxAbsTotalWakeKineticPowerResidualFraction;
 		}
 
 		private double meanCtCpJRuntimeValue(double sum) {
