@@ -139,6 +139,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 
 		assertTrue(gridSample.activeCellCount() > 0);
 		assertEquals(gridSample.gridSpec().totalCellCount(), solidMask.solidCellCount());
+		assertTrue(solidMask.hasSolidVolume());
 		assertEquals(0, advance.residenceStep().activeCellCount());
 		assertEquals(0, advance.residenceStep().sourceMomentumSample().activeCellCount());
 		assertVectorEquals(Vec3.ZERO, advance.totalSourceMomentumRateWorldNewtons(), 1.0e-15);
@@ -219,6 +220,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 				state.advanceWithSource(sourceGridSample, RHO, DT, SOURCE_THICKNESS, halfSolidButOpenWall);
 
 		assertEquals(0, halfSolidButOpenWall.solidCellCount());
+		assertTrue(halfSolidButOpenWall.hasSolidVolume());
 		assertEquals(0.5, halfSolidButOpenWall.solidVolumeFraction(0, 0, 0), 1.0e-15);
 		assertEquals(0.5, halfSolidButOpenWall.openVolumeFractionCellIndex(0), 1.0e-15);
 		assertEquals(1, advance.residenceStep().activeCellCount());
@@ -741,6 +743,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertEquals(0.4, unionMask.openVolumeFractionCellIndex(0), 1.0e-15);
 		assertTrue(!unionMask.isSolid(0, 0, 0));
 		assertEquals(0, unionMask.solidCellCount());
+		assertTrue(unionMask.hasSolidVolume());
 	}
 
 	@Test
@@ -761,6 +764,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		PropellerArchiveCtCpJLocalVoxelFlowState.SolidBoundaryStep step =
 				state.applySolidMask(openMask, RHO);
 
+		assertTrue(!openMask.hasSolidVolume());
 		assertEquals(0, step.solidCellCount());
 		assertEquals(0, step.clampedCellCount());
 		assertEquals(state, step.nextState());

@@ -272,7 +272,8 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec,
 			List<Boolean> solidCells,
 			List<Double> solidVolumeFractions,
-			int solidCellCount
+			int solidCellCount,
+			boolean hasSolidVolume
 	) {
 		public record WorldSolidBox(
 				Vec3 minWorldMeters,
@@ -322,6 +323,15 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			this(gridSpec, solidCells, solidVolumeFractions, 0);
 		}
 
+		public VoxelSolidMask(
+				PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec,
+				List<Boolean> solidCells,
+				List<Double> solidVolumeFractions,
+				int solidCellCount
+		) {
+			this(gridSpec, solidCells, solidVolumeFractions, solidCellCount, false);
+		}
+
 		public VoxelSolidMask {
 			if (gridSpec == null) {
 				throw new IllegalArgumentException("gridSpec must not be null.");
@@ -337,6 +347,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			ArrayList<Boolean> sanitized = new ArrayList<>(cells.size());
 			ArrayList<Double> sanitizedFractions = new ArrayList<>(cells.size());
 			int sanitizedSolidCellCount = 0;
+			boolean sanitizedHasSolidVolume = false;
 			for (int cellIndex = 0; cellIndex < cells.size(); cellIndex++) {
 				boolean solid = Boolean.TRUE.equals(cells.get(cellIndex));
 				double fraction = fractions.isEmpty()
@@ -347,10 +358,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				if (solid) {
 					sanitizedSolidCellCount++;
 				}
+				if (fraction > EPSILON) {
+					sanitizedHasSolidVolume = true;
+				}
 			}
 			solidCells = List.copyOf(sanitized);
 			solidVolumeFractions = List.copyOf(sanitizedFractions);
 			solidCellCount = sanitizedSolidCellCount;
+			hasSolidVolume = sanitizedHasSolidVolume;
 		}
 
 		public static VoxelSolidMask open(
@@ -453,15 +468,6 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 
 		public double openVolumeFractionCellIndex(int cellIndex) {
 			return 1.0 - solidVolumeFractionCellIndex(cellIndex);
-		}
-
-		public boolean hasSolidVolume() {
-			for (double fraction : solidVolumeFractions) {
-				if (fraction > EPSILON) {
-					return true;
-				}
-			}
-			return false;
 		}
 
 		private int linearIndex(int xIndex, int yIndex, int zIndex) {
