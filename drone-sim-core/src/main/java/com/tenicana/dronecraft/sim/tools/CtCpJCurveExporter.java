@@ -115,6 +115,12 @@ public final class CtCpJCurveExporter {
 			"far_wake_axial_velocity_body_x_mps",
 			"far_wake_axial_velocity_body_y_mps",
 			"far_wake_axial_velocity_body_z_mps",
+			"axial_momentum_thrust_n",
+			"axial_momentum_thrust_residual_n",
+			"axial_momentum_thrust_residual_fraction",
+			"axial_momentum_power_w",
+			"axial_momentum_power_residual_w",
+			"axial_momentum_power_residual_fraction",
 			"runtime_force_replacement_status"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
@@ -489,6 +495,12 @@ public final class CtCpJCurveExporter {
 				number(farWakeAxialVelocityBodyMetersPerSecond.x()),
 				number(farWakeAxialVelocityBodyMetersPerSecond.y()),
 				number(farWakeAxialVelocityBodyMetersPerSecond.z()),
+				number(sample.axialMomentumThrustNewtons()),
+				number(sample.axialMomentumThrustResidualNewtons()),
+				number(sample.axialMomentumThrustResidualFraction()),
+				number(sample.axialMomentumPowerWatts()),
+				number(sample.axialMomentumPowerResidualWatts()),
+				number(sample.axialMomentumPowerResidualFraction()),
 				escape(runtimeForceReplacementStatus)
 		);
 	}
@@ -526,6 +538,12 @@ public final class CtCpJCurveExporter {
 		Vec3 wakeAngularMomentumTorque =
 				axis.multiply(rotor.spinDirection() * wake.wakeAngularMomentumTorqueNewtonMeters());
 		Vec3 farWakeAxialVelocity = axis.multiply(wake.farWakeAxialVelocityMetersPerSecond());
+		double axialMomentumThrust = wake.diskMassFlowKilogramsPerSecond()
+				* wake.farWakeAxialVelocityMetersPerSecond();
+		double axialMomentumPower = 0.5
+				* wake.diskMassFlowKilogramsPerSecond()
+				* wake.farWakeAxialVelocityMetersPerSecond()
+				* wake.farWakeAxialVelocityMetersPerSecond();
 		return String.join(",",
 				escape(sample.presetName()),
 				escape(sample.caseName()),
@@ -623,6 +641,13 @@ public final class CtCpJCurveExporter {
 				number(farWakeAxialVelocity.x()),
 				number(farWakeAxialVelocity.y()),
 				number(farWakeAxialVelocity.z()),
+				number(axialMomentumThrust),
+				number(axialMomentumThrust - sample.thrustNewtons()),
+				number(ratio(axialMomentumThrust - sample.thrustNewtons(), sample.thrustNewtons())),
+				number(axialMomentumPower),
+				number(axialMomentumPower - sample.idealMomentumPowerWatts()),
+				number(ratio(axialMomentumPower - sample.idealMomentumPowerWatts(),
+						sample.idealMomentumPowerWatts())),
 				escape(staticReferenceEligibilityStatus(sample))
 		);
 	}
