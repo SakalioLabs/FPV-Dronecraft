@@ -1937,6 +1937,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 							0.0,
 							Vec3.ZERO,
 							Vec3.ZERO,
+							Vec3.ZERO,
 							Vec3.ZERO
 					));
 				}
@@ -1988,8 +1989,42 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				vector(row,
 						"target_wake_velocity_world_x_mps",
 						"target_wake_velocity_world_y_mps",
-						"target_wake_velocity_world_z_mps")
+						"target_wake_velocity_world_z_mps"),
+				vectorOrDerivedFreestream(row)
 		);
+	}
+
+	private static Vec3 vectorOrDerivedFreestream(Map<String, String> row) {
+		if (row.containsKey("freestream_velocity_world_x_mps")
+				&& row.containsKey("freestream_velocity_world_y_mps")
+				&& row.containsKey("freestream_velocity_world_z_mps")) {
+			return vector(row,
+					"freestream_velocity_world_x_mps",
+					"freestream_velocity_world_y_mps",
+					"freestream_velocity_world_z_mps");
+		}
+		Vec3 actuatorDiskAxialVelocity = vector(row,
+				"actuator_disk_axial_velocity_world_x_mps",
+				"actuator_disk_axial_velocity_world_y_mps",
+				"actuator_disk_axial_velocity_world_z_mps");
+		Vec3 farWakeAxialVelocity = vector(row,
+				"far_wake_axial_velocity_world_x_mps",
+				"far_wake_axial_velocity_world_y_mps",
+				"far_wake_axial_velocity_world_z_mps");
+		Vec3 wakeSwirlVelocity = vector(row,
+				"wake_swirl_velocity_world_x_mps",
+				"wake_swirl_velocity_world_y_mps",
+				"wake_swirl_velocity_world_z_mps");
+		Vec3 targetWakeVelocity = vector(row,
+				"target_wake_velocity_world_x_mps",
+				"target_wake_velocity_world_y_mps",
+				"target_wake_velocity_world_z_mps");
+		Vec3 wakeSkewLateralVelocity = targetWakeVelocity
+				.subtract(farWakeAxialVelocity)
+				.subtract(wakeSwirlVelocity);
+		return actuatorDiskAxialVelocity.multiply(2.0)
+				.subtract(farWakeAxialVelocity)
+				.add(wakeSkewLateralVelocity);
 	}
 
 	private static Map<SourceGroupKey, List<Map<String, String>>> sourceGroups(

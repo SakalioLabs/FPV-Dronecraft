@@ -11,6 +11,18 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 	private PropellerArchiveCtCpJLocalVoxelFlowSolver() {
 	}
 
+	public static PropellerArchiveCtCpJLocalVoxelFlowState freestreamInitialState(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample
+	) {
+		if (sourceGridSample == null) {
+			throw new IllegalArgumentException("sourceGridSample must not be null.");
+		}
+		return PropellerArchiveCtCpJLocalVoxelFlowState.uniform(
+				sourceGridSample.gridSpec(),
+				sourceGridSample.massFluxWeightedFreestreamVelocityWorldMetersPerSecond()
+		);
+	}
+
 	public record SolverConfig(
 			double airDensityKgPerCubicMeter,
 			double timeStepSeconds,
@@ -626,6 +638,20 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 		);
 	}
 
+	public static SolverRun runFromFreestream(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
+			SolverConfig config
+	) {
+		if (sourceGridSample == null) {
+			throw new IllegalArgumentException("sourceGridSample must not be null.");
+		}
+		return run(
+				freestreamInitialState(sourceGridSample),
+				sourceGridSample,
+				config
+		);
+	}
+
 	public static SolverRun run(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
 			SolverConfig config,
@@ -636,6 +662,22 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 		}
 		return run(
 				PropellerArchiveCtCpJLocalVoxelFlowState.calm(sourceGridSample.gridSpec()),
+				sourceGridSample,
+				config,
+				solidMask
+		);
+	}
+
+	public static SolverRun runFromFreestream(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
+			SolverConfig config,
+			PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask solidMask
+	) {
+		if (sourceGridSample == null) {
+			throw new IllegalArgumentException("sourceGridSample must not be null.");
+		}
+		return run(
+				freestreamInitialState(sourceGridSample),
 				sourceGridSample,
 				config,
 				solidMask

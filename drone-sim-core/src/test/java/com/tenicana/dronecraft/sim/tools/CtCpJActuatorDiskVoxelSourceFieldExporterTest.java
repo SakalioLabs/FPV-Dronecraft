@@ -77,6 +77,10 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertEquals(0.0, number(hover.get(0), "actuator_disk_axial_velocity_world_x_mps"), 1.0e-15);
 		assertTrue(number(hover.get(0), "actuator_disk_axial_velocity_world_y_mps") > 0.0);
 		assertEquals(0.0, number(hover.get(0), "actuator_disk_axial_velocity_world_z_mps"), 1.0e-15);
+		assertTrue(hover.stream().allMatch(row ->
+				Math.abs(number(row, "freestream_velocity_world_x_mps")) <= 1.0e-12
+						&& Math.abs(number(row, "freestream_velocity_world_y_mps")) <= 1.0e-12
+						&& Math.abs(number(row, "freestream_velocity_world_z_mps")) <= 1.0e-12));
 		assertTrue(hover.stream().anyMatch(row -> number(row, "far_wake_axial_velocity_world_y_mps")
 				> number(row, "actuator_disk_axial_velocity_world_y_mps")));
 		assertTrue(number(hover.get(0), "wake_swirl_kinetic_power_loading_w_m2") >= 0.0);
@@ -98,10 +102,19 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertTrue(mid.stream().anyMatch(row ->
 				number(row, "actuator_disk_axial_velocity_world_y_mps") > 0.0));
 		assertTrue(mid.stream().anyMatch(row -> number(row, "far_wake_axial_velocity_world_y_mps") > 0.0));
+		assertTrue(mid.stream().allMatch(row ->
+				number(row, "freestream_velocity_world_y_mps") > 0.0));
+		assertTrue(mid.stream().allMatch(row ->
+				Math.abs(number(row, "freestream_velocity_world_x_mps")) <= 1.0e-15
+						&& Math.abs(number(row, "freestream_velocity_world_z_mps")) <= 1.0e-15));
 
 		assertEquals(0.73152, number(high.get(0), "query_j"), 1.0e-12);
 		assertTrue(number(high.get(0), "target_body_force_world_x_n") < 0.0);
 		assertEquals(0.0, number(high.get(0), "target_body_force_world_y_n"), 1.0e-12);
+		assertTrue(high.stream().allMatch(row -> number(row, "freestream_velocity_world_x_mps") < 0.0));
+		assertTrue(high.stream().allMatch(row ->
+				Math.abs(number(row, "freestream_velocity_world_y_mps")) <= 1.0e-12
+						&& Math.abs(number(row, "freestream_velocity_world_z_mps")) <= 1.0e-12));
 		assertTrue(integer(high.get(0), "grid_count_x") > 1);
 		assertTrue(integer(high.get(0), "grid_count_y") > 1);
 		assertTrue(integer(high.get(0), "grid_count_z") > 1);
@@ -119,6 +132,7 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertEquals(0.0, number(blocked.get(0), "voxel_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blocked.get(0), "integrated_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blocked.get(0), "actuator_disk_axial_velocity_world_y_mps"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "freestream_velocity_world_y_mps"), 1.0e-15);
 	}
 
 	@Test
@@ -139,6 +153,7 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertTrue(lines.get(0).contains("voxel_total_wake_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("integrated_total_wake_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("actuator_disk_axial_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("freestream_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("target_wake_velocity_world_y_mps"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_source_high_j_block,raw_source,")

@@ -1203,6 +1203,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				0.0,
 				Vec3.ZERO,
 				Vec3.ZERO,
+				Vec3.ZERO,
 				Vec3.ZERO
 		);
 	}
@@ -1235,7 +1236,8 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				sourceCell.totalWakeKineticPowerLoadingWattsPerSquareMeter(),
 				sourceCell.farWakeAxialVelocityWorldMetersPerSecond(),
 				sourceCell.wakeSwirlVelocityWorldMetersPerSecond(),
-				sourceCell.targetWakeVelocityWorldMetersPerSecond()
+				sourceCell.targetWakeVelocityWorldMetersPerSecond(),
+				sourceCell.freestreamVelocityWorldMetersPerSecond()
 		);
 	}
 

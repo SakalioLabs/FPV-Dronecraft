@@ -272,7 +272,8 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 						0.0,
 						targetWakeVelocity,
 						Vec3.ZERO,
-						targetWakeVelocity
+						targetWakeVelocity,
+						Vec3.ZERO
 				);
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGrid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
@@ -355,7 +356,8 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 						0.0,
 						farWakeAxialVelocity,
 						wakeSwirlVelocity,
-						targetWakeVelocity
+						targetWakeVelocity,
+						Vec3.ZERO
 				);
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGrid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
@@ -509,7 +511,8 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 						0.0,
 						targetWakeVelocity,
 						Vec3.ZERO,
-						targetWakeVelocity
+						targetWakeVelocity,
+						Vec3.ZERO
 				);
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGrid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
@@ -742,7 +745,8 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				0.0,
 				targetWakeVelocityWorldMetersPerSecond,
 				Vec3.ZERO,
-				targetWakeVelocityWorldMetersPerSecond
+				targetWakeVelocityWorldMetersPerSecond,
+				Vec3.ZERO
 		);
 	}
 

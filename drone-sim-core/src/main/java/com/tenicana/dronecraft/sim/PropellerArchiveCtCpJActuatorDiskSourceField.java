@@ -28,7 +28,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			double totalWakeKineticPowerLoadingWattsPerSquareMeter,
 			Vec3 farWakeAxialVelocityWorldMetersPerSecond,
 			Vec3 wakeSwirlVelocityWorldMetersPerSecond,
-			Vec3 targetWakeVelocityWorldMetersPerSecond
+			Vec3 targetWakeVelocityWorldMetersPerSecond,
+			Vec3 freestreamVelocityWorldMetersPerSecond
 	) {
 		public SourceFieldSample {
 			samplePointWorldMeters = finiteVecOrZero(samplePointWorldMeters);
@@ -53,6 +54,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					finiteVecOrZero(wakeSwirlVelocityWorldMetersPerSecond);
 			targetWakeVelocityWorldMetersPerSecond =
 					finiteVecOrZero(targetWakeVelocityWorldMetersPerSecond);
+			freestreamVelocityWorldMetersPerSecond =
+					finiteVecOrZero(freestreamVelocityWorldMetersPerSecond);
 		}
 
 		public boolean insideAnySource() {
@@ -130,7 +133,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			double totalWakeKineticPowerLoadingWattsPerSquareMeter,
 			Vec3 farWakeAxialVelocityWorldMetersPerSecond,
 			Vec3 wakeSwirlVelocityWorldMetersPerSecond,
-			Vec3 targetWakeVelocityWorldMetersPerSecond
+			Vec3 targetWakeVelocityWorldMetersPerSecond,
+			Vec3 freestreamVelocityWorldMetersPerSecond
 	) {
 		public VoxelCellSample {
 			xIndex = Math.max(0, xIndex);
@@ -161,6 +165,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					finiteVecOrZero(wakeSwirlVelocityWorldMetersPerSecond);
 			targetWakeVelocityWorldMetersPerSecond =
 					finiteVecOrZero(targetWakeVelocityWorldMetersPerSecond);
+			freestreamVelocityWorldMetersPerSecond =
+					finiteVecOrZero(freestreamVelocityWorldMetersPerSecond);
 		}
 
 		public boolean active() {
@@ -205,6 +211,13 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		public double sampledSourceVolumeCubicMeters() {
 			return sourceVolumeFraction * cellVolumeCubicMeters;
 		}
+
+		public Vec3 wakeSkewLateralVelocityWorldMetersPerSecond() {
+			return targetWakeVelocityWorldMetersPerSecond
+					.subtract(farWakeAxialVelocityWorldMetersPerSecond)
+					.subtract(wakeSwirlVelocityWorldMetersPerSecond);
+		}
+
 	}
 
 	public record VoxelGridSample(
@@ -300,6 +313,25 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			}
 			return sum;
 		}
+
+		public Vec3 massFluxWeightedFreestreamVelocityWorldMetersPerSecond() {
+			Vec3 weightedVelocity = Vec3.ZERO;
+			double totalWeight = 0.0;
+			for (VoxelCellSample cell : cells) {
+				if (!cell.active()) {
+					continue;
+				}
+				double weight = cell.massFluxKilogramsPerSecondSquareMeter()
+						* cell.sampledSourceVolumeCubicMeters();
+				if (!Double.isFinite(weight) || weight <= EPSILON) {
+					continue;
+				}
+				weightedVelocity = weightedVelocity.add(
+						cell.freestreamVelocityWorldMetersPerSecond().multiply(weight));
+				totalWeight += weight;
+			}
+			return totalWeight <= EPSILON ? Vec3.ZERO : weightedVelocity.multiply(1.0 / totalWeight);
+		}
 	}
 
 	public SourceFieldSample sampleAt(Vec3 samplePointWorldMeters) {
@@ -315,10 +347,12 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
 		Vec3 targetWakeVelocity = Vec3.ZERO;
+		Vec3 freestreamVelocity = Vec3.ZERO;
 		Vec3 fallbackActuatorDiskAxialVelocity = Vec3.ZERO;
 		Vec3 fallbackFarWakeAxialVelocity = Vec3.ZERO;
 		Vec3 fallbackWakeSwirlVelocity = Vec3.ZERO;
 		Vec3 fallbackTargetWakeVelocity = Vec3.ZERO;
+		Vec3 fallbackFreestreamVelocity = Vec3.ZERO;
 		double wakeVelocityMassFluxWeight = 0.0;
 		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
 			if (!containsActuatorDiskVolume(sourceTerm, point)) {
@@ -333,6 +367,10 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecondAt(point);
 			Vec3 sourceWakeSwirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(point);
 			Vec3 sourceTargetWakeVelocity = sourceFarWakeCenterlineVelocity.add(sourceWakeSwirlVelocity);
+			Vec3 sourceFreestreamVelocity = sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond()
+					.multiply(2.0)
+					.subtract(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond())
+					.add(sourceTerm.wakeSkewLateralVelocityWorldMetersPerSecond());
 			bodyForceDensity = bodyForceDensity.add(
 					sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(sourceThicknessMeters));
 			wakeTorqueDensity = wakeTorqueDensity.add(sourceTerm
@@ -348,6 +386,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			fallbackFarWakeAxialVelocity = fallbackFarWakeAxialVelocity.add(sourceFarWakeAxialVelocity);
 			fallbackWakeSwirlVelocity = fallbackWakeSwirlVelocity.add(sourceWakeSwirlVelocity);
 			fallbackTargetWakeVelocity = fallbackTargetWakeVelocity.add(sourceTargetWakeVelocity);
+			fallbackFreestreamVelocity = fallbackFreestreamVelocity.add(sourceFreestreamVelocity);
 			if (sourceMassFlux > EPSILON) {
 				actuatorDiskAxialVelocity = actuatorDiskAxialVelocity.add(
 						sourceActuatorDiskAxialVelocity.multiply(sourceMassFlux));
@@ -355,6 +394,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 						sourceFarWakeAxialVelocity.multiply(sourceMassFlux));
 				wakeSwirlVelocity = wakeSwirlVelocity.add(sourceWakeSwirlVelocity.multiply(sourceMassFlux));
 				targetWakeVelocity = targetWakeVelocity.add(sourceTargetWakeVelocity.multiply(sourceMassFlux));
+				freestreamVelocity = freestreamVelocity.add(sourceFreestreamVelocity.multiply(sourceMassFlux));
 				wakeVelocityMassFluxWeight += sourceMassFlux;
 			}
 		}
@@ -364,6 +404,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			farWakeAxialVelocity = farWakeAxialVelocity.multiply(inverseWakeVelocityWeight);
 			wakeSwirlVelocity = wakeSwirlVelocity.multiply(inverseWakeVelocityWeight);
 			targetWakeVelocity = targetWakeVelocity.multiply(inverseWakeVelocityWeight);
+			freestreamVelocity = freestreamVelocity.multiply(inverseWakeVelocityWeight);
 		} else if (contributingSources > 0) {
 			double inverseContributingSources = 1.0 / contributingSources;
 			actuatorDiskAxialVelocity =
@@ -371,6 +412,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			farWakeAxialVelocity = fallbackFarWakeAxialVelocity.multiply(inverseContributingSources);
 			wakeSwirlVelocity = fallbackWakeSwirlVelocity.multiply(inverseContributingSources);
 			targetWakeVelocity = fallbackTargetWakeVelocity.multiply(inverseContributingSources);
+			freestreamVelocity = fallbackFreestreamVelocity.multiply(inverseContributingSources);
 		}
 		return new SourceFieldSample(
 				point,
@@ -385,7 +427,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				powerLoading + wakeSwirlPowerLoading,
 				farWakeAxialVelocity,
 				wakeSwirlVelocity,
-				targetWakeVelocity
+				targetWakeVelocity,
+				freestreamVelocity
 		);
 	}
 
@@ -545,10 +588,12 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
 		Vec3 targetWakeVelocity = Vec3.ZERO;
+		Vec3 freestreamVelocity = Vec3.ZERO;
 		Vec3 fallbackActuatorDiskAxialVelocity = Vec3.ZERO;
 		Vec3 fallbackFarWakeAxialVelocity = Vec3.ZERO;
 		Vec3 fallbackWakeSwirlVelocity = Vec3.ZERO;
 		Vec3 fallbackTargetWakeVelocity = Vec3.ZERO;
+		Vec3 fallbackFreestreamVelocity = Vec3.ZERO;
 		double wakeVelocityMassFluxWeight = 0.0;
 		int fallbackActiveSubsamples = 0;
 		for (int sy = 0; sy < subcellSamplesPerAxis; sy++) {
@@ -584,6 +629,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 								sample.targetWakeVelocityWorldMetersPerSecond().multiply(sampleMassFlux));
 						actuatorDiskAxialVelocity = actuatorDiskAxialVelocity.add(
 								sample.actuatorDiskAxialVelocityWorldMetersPerSecond().multiply(sampleMassFlux));
+						freestreamVelocity = freestreamVelocity.add(
+								sample.freestreamVelocityWorldMetersPerSecond().multiply(sampleMassFlux));
 						wakeVelocityMassFluxWeight += sampleMassFlux;
 					} else if (sample.insideAnySource()) {
 						fallbackActiveSubsamples++;
@@ -595,6 +642,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 								fallbackWakeSwirlVelocity.add(sample.wakeSwirlVelocityWorldMetersPerSecond());
 						fallbackTargetWakeVelocity =
 								fallbackTargetWakeVelocity.add(sample.targetWakeVelocityWorldMetersPerSecond());
+						fallbackFreestreamVelocity =
+								fallbackFreestreamVelocity.add(sample.freestreamVelocityWorldMetersPerSecond());
 					}
 				}
 			}
@@ -606,6 +655,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			farWakeAxialVelocity = farWakeAxialVelocity.multiply(inverseWakeVelocityWeight);
 			wakeSwirlVelocity = wakeSwirlVelocity.multiply(inverseWakeVelocityWeight);
 			targetWakeVelocity = targetWakeVelocity.multiply(inverseWakeVelocityWeight);
+			freestreamVelocity = freestreamVelocity.multiply(inverseWakeVelocityWeight);
 		} else if (fallbackActiveSubsamples > 0) {
 			double inverseFallbackActiveSamples = 1.0 / fallbackActiveSubsamples;
 			actuatorDiskAxialVelocity =
@@ -613,6 +663,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			farWakeAxialVelocity = fallbackFarWakeAxialVelocity.multiply(inverseFallbackActiveSamples);
 			wakeSwirlVelocity = fallbackWakeSwirlVelocity.multiply(inverseFallbackActiveSamples);
 			targetWakeVelocity = fallbackTargetWakeVelocity.multiply(inverseFallbackActiveSamples);
+			freestreamVelocity = fallbackFreestreamVelocity.multiply(inverseFallbackActiveSamples);
 		}
 		return new VoxelCellSample(
 				xIndex,
@@ -633,7 +684,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				totalWakePowerLoading * inverseSamples,
 				farWakeAxialVelocity,
 				wakeSwirlVelocity,
-				targetWakeVelocity
+				targetWakeVelocity,
+				freestreamVelocity
 		);
 	}
 
@@ -658,10 +710,12 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
 		Vec3 targetWakeVelocity = Vec3.ZERO;
+		Vec3 freestreamVelocity = Vec3.ZERO;
 		Vec3 fallbackActuatorDiskAxialVelocity = Vec3.ZERO;
 		Vec3 fallbackFarWakeAxialVelocity = Vec3.ZERO;
 		Vec3 fallbackWakeSwirlVelocity = Vec3.ZERO;
 		Vec3 fallbackTargetWakeVelocity = Vec3.ZERO;
+		Vec3 fallbackFreestreamVelocity = Vec3.ZERO;
 		double wakeVelocityMassFluxWeight = 0.0;
 		double fallbackVelocitySampleWeight = 0.0;
 		for (SourceCoverage coverage : coverages) {
@@ -695,6 +749,10 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					cellCoverage.averageFarWakeCenterlineVelocityWorldMetersPerSecond();
 			Vec3 sourceWakeSwirlVelocity = cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond();
 			Vec3 sourceTargetWakeVelocity = sourceFarWakeCenterlineVelocity.add(sourceWakeSwirlVelocity);
+			Vec3 sourceFreestreamVelocity = coverage.sourceTerm().actuatorDiskAxialVelocityWorldMetersPerSecond()
+					.multiply(2.0)
+					.subtract(coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond())
+					.add(coverage.sourceTerm().wakeSkewLateralVelocityWorldMetersPerSecond());
 			double sourceMassFluxWeight =
 					coverage.sourceTerm().massFluxKilogramsPerSecondSquareMeter() * sourceWeight;
 			if (sourceMassFluxWeight > EPSILON) {
@@ -704,6 +762,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 						farWakeAxialVelocity.add(sourceFarWakeAxialVelocity.multiply(sourceMassFluxWeight));
 				wakeSwirlVelocity = wakeSwirlVelocity.add(sourceWakeSwirlVelocity.multiply(sourceMassFluxWeight));
 				targetWakeVelocity = targetWakeVelocity.add(sourceTargetWakeVelocity.multiply(sourceMassFluxWeight));
+				freestreamVelocity = freestreamVelocity.add(sourceFreestreamVelocity.multiply(sourceMassFluxWeight));
 				wakeVelocityMassFluxWeight += sourceMassFluxWeight;
 			} else {
 				double velocitySampleWeight = cellCoverage.activeSubsamples();
@@ -715,6 +774,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 						fallbackWakeSwirlVelocity.add(sourceWakeSwirlVelocity.multiply(velocitySampleWeight));
 				fallbackTargetWakeVelocity =
 						fallbackTargetWakeVelocity.add(sourceTargetWakeVelocity.multiply(velocitySampleWeight));
+				fallbackFreestreamVelocity =
+						fallbackFreestreamVelocity.add(sourceFreestreamVelocity.multiply(velocitySampleWeight));
 				fallbackVelocitySampleWeight += velocitySampleWeight;
 			}
 		}
@@ -724,6 +785,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			farWakeAxialVelocity = farWakeAxialVelocity.multiply(inverseWakeVelocityWeight);
 			wakeSwirlVelocity = wakeSwirlVelocity.multiply(inverseWakeVelocityWeight);
 			targetWakeVelocity = targetWakeVelocity.multiply(inverseWakeVelocityWeight);
+			freestreamVelocity = freestreamVelocity.multiply(inverseWakeVelocityWeight);
 		} else if (fallbackVelocitySampleWeight > EPSILON) {
 			double inverseFallbackVelocityWeight = 1.0 / fallbackVelocitySampleWeight;
 			actuatorDiskAxialVelocity =
@@ -731,6 +793,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			farWakeAxialVelocity = fallbackFarWakeAxialVelocity.multiply(inverseFallbackVelocityWeight);
 			wakeSwirlVelocity = fallbackWakeSwirlVelocity.multiply(inverseFallbackVelocityWeight);
 			targetWakeVelocity = fallbackTargetWakeVelocity.multiply(inverseFallbackVelocityWeight);
+			freestreamVelocity = fallbackFreestreamVelocity.multiply(inverseFallbackVelocityWeight);
 		}
 		return new VoxelCellSample(
 				xIndex,
@@ -751,7 +814,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				powerLoading + wakeSwirlPowerLoading,
 				farWakeAxialVelocity,
 				wakeSwirlVelocity,
-				targetWakeVelocity
+				targetWakeVelocity,
+				freestreamVelocity
 		);
 	}
 

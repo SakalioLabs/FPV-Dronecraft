@@ -175,6 +175,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 								0.0,
 								Vec3.ZERO,
 								Vec3.ZERO,
+								Vec3.ZERO,
 								Vec3.ZERO
 						))
 				);

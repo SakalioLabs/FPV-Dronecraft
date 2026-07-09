@@ -114,6 +114,46 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 	}
 
 	@Test
+	void voxelCellDerivesFreestreamVelocityFromCtCpJDiskAndFarWakeSpeeds() {
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				skewSourceTerm();
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(sourceTerm), SOURCE_THICKNESS);
+		Vec3 samplePoint = sourceTerm.diskCenterWorldMeters();
+		double cellSize = Math.min(SOURCE_THICKNESS, sourceTerm.diskRadiusMeters()) * 0.5;
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						samplePoint.subtract(new Vec3(cellSize * 0.5, cellSize * 0.5, cellSize * 0.5)),
+						cellSize,
+						1,
+						1,
+						1
+				);
+
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
+				field.sampleVoxelGrid(grid, 1);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample voxelSample =
+				gridSample.cells().get(0);
+		Vec3 expectedWakeSkew = sourceTerm.wakeSkewLateralVelocityWorldMetersPerSecond();
+		Vec3 expectedFreestream = sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond()
+				.multiply(2.0)
+				.subtract(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond())
+				.add(expectedWakeSkew);
+
+		assertTrue(voxelSample.active());
+		assertTrue(expectedWakeSkew.length() > 0.0);
+		assertVectorEquals(expectedWakeSkew,
+				voxelSample.wakeSkewLateralVelocityWorldMetersPerSecond(), 1.0e-14);
+		assertVectorEquals(expectedFreestream,
+				voxelSample.freestreamVelocityWorldMetersPerSecond(), 1.0e-14);
+		assertVectorEquals(expectedFreestream,
+				gridSample.massFluxWeightedFreestreamVelocityWorldMetersPerSecond(), 1.0e-14);
+		assertEquals(2.25, expectedFreestream.y(), 1.0e-12);
+		assertTrue(expectedFreestream.x() < 0.0);
+		assertTrue(expectedFreestream.z() > 0.0);
+	}
+
+	@Test
 	void keepsCylindricalDiskBoundaryInclusiveAndRejectsOutsidePoints() {
 		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
 				hoverSourceTerm();

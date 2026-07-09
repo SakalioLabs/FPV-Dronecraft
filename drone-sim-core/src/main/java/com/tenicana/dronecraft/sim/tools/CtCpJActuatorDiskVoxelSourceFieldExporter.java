@@ -128,6 +128,9 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 			"wake_swirl_velocity_world_x_mps",
 			"wake_swirl_velocity_world_y_mps",
 			"wake_swirl_velocity_world_z_mps",
+			"freestream_velocity_world_x_mps",
+			"freestream_velocity_world_y_mps",
+			"freestream_velocity_world_z_mps",
 			"target_wake_velocity_world_x_mps",
 			"target_wake_velocity_world_y_mps",
 			"target_wake_velocity_world_z_mps"
@@ -544,6 +547,9 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 				number(cell.wakeSwirlVelocityWorldMetersPerSecond().x()),
 				number(cell.wakeSwirlVelocityWorldMetersPerSecond().y()),
 				number(cell.wakeSwirlVelocityWorldMetersPerSecond().z()),
+				number(cell.freestreamVelocityWorldMetersPerSecond().x()),
+				number(cell.freestreamVelocityWorldMetersPerSecond().y()),
+				number(cell.freestreamVelocityWorldMetersPerSecond().z()),
 				number(cell.targetWakeVelocityWorldMetersPerSecond().x()),
 				number(cell.targetWakeVelocityWorldMetersPerSecond().y()),
 				number(cell.targetWakeVelocityWorldMetersPerSecond().z())

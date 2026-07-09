@@ -235,6 +235,76 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 	}
 
 	@Test
+	void runFromFreestreamInitializesForwardFlowFromCtCpJSourceKinematics() {
+		double signedAxialSpeed = 2.0;
+		DroneConfig droneConfig = DroneConfig.apDrone();
+		RotorSpec rotor = droneConfig.rotors().get(0);
+		double hoverOmega = hoverRpm(droneConfig, rotor) / RPM_PER_RADIAN_PER_SECOND;
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample rotorSample =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+						"apDrone",
+						"local_voxel_solver_forward_freestream",
+						rotor,
+						signedAxialSpeed,
+						hoverOmega,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				rotorSample.actuatorDiskSourceTerm(
+						0,
+						Vec3.ZERO,
+						Quaternion.IDENTITY
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField sourceField =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(
+						List.of(sourceTerm),
+						SOURCE_THICKNESS
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				sourceField.enclosingVoxelGrid(CELL_SIZE, 1);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
+				sourceField.sampleConservativeVoxelGrid(grid, 3);
+		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config =
+				new PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig(
+						RHO,
+						DT,
+						SOURCE_THICKNESS,
+						0.0,
+						1,
+						PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_MAX_ADVECTION_COURANT_NUMBER,
+						0
+				);
+
+		Vec3 freestream = gridSample.massFluxWeightedFreestreamVelocityWorldMetersPerSecond();
+		Vec3 expectedFreestream = sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond()
+				.multiply(2.0)
+				.subtract(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond())
+				.add(sourceTerm.wakeSkewLateralVelocityWorldMetersPerSecond());
+		PropellerArchiveCtCpJLocalVoxelFlowState freestreamInitial =
+				PropellerArchiveCtCpJLocalVoxelFlowSolver.freestreamInitialState(gridSample);
+		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun calmRun =
+				PropellerArchiveCtCpJLocalVoxelFlowSolver.run(gridSample, config);
+		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun freestreamRun =
+				PropellerArchiveCtCpJLocalVoxelFlowSolver.runFromFreestream(gridSample, config);
+
+		assertTrue(gridSample.activeCellCount() > 0);
+		assertTrue(freestream.length() > 0.0);
+		assertVectorEquals(expectedFreestream, freestream, 1.0e-12);
+		assertEquals(0.0, expectedFreestream.x(), 1.0e-12);
+		assertEquals(signedAxialSpeed, expectedFreestream.y(), 1.0e-12);
+		assertEquals(0.0, expectedFreestream.z(), 1.0e-12);
+		assertTrue(Double.isFinite(freestream.y()));
+		assertVectorEquals(freestream, freestreamInitial.velocityAt(0, 0, 0), 1.0e-15);
+		assertEquals(0.0, calmRun.initialKineticEnergyJoules(), 1.0e-15);
+		assertTrue(freestreamRun.initialKineticEnergyJoules() > 0.0);
+		assertVectorEquals(freestream,
+				freestreamRun.iterations().get(0).stateBeforeStep().velocityAt(0, 0, 0), 1.0e-15);
+		assertEquals(1, freestreamRun.completedStepCount());
+		assertTrue(freestreamRun.finalKineticEnergyJoules() > freestreamRun.initialKineticEnergyJoules());
+	}
+
+	@Test
 	void zeroStepRunKeepsInitialStateAndZeroAccumulators() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
 				conservativeGridForSignedAxialSpeed(
@@ -547,6 +617,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 				0.0,
 				0.0,
 				0.0,
+				Vec3.ZERO,
 				Vec3.ZERO,
 				Vec3.ZERO,
 				Vec3.ZERO
