@@ -1,5 +1,6 @@
 package com.tenicana.dronecraft.sim;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToDoubleFunction;
 
@@ -820,6 +821,15 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			return airframePressureCenterSample(config, dragSample);
 		}
 
+		public RotorInPlaneForceModel.ConfigurationRotorInPlaneForceSample baselineRotorInPlaneForceSample() {
+			return baselineRotorInPlaneForceSample(false);
+		}
+
+		public RotorInPlaneForceModel.ConfigurationRotorInPlaneForceSample
+				runtimeReplacementBaselineRotorInPlaneForceSample() {
+			return baselineRotorInPlaneForceSample(true);
+		}
+
 		public RigidBodyWrenchSample rotorGravityTransientTranslationalDragRigidBodyWrench(
 				DroneConfig config,
 				double[] previousOmegaRadiansPerSecond,
@@ -905,6 +915,52 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 					config,
 					angularVelocityBodyRadiansPerSecond,
 					separatedFlowStateIntensity
+			);
+		}
+
+		public RigidBodyWrenchSample rotorGravityTransientCrossflowDragRigidBodyWrench(
+				DroneConfig config,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double separatedFlowStateIntensity,
+				double dtSeconds
+		) {
+			return withBaselineRotorInPlaneForces(
+					rotorGravityTransientAirframeDragRigidBodyWrench(
+							config,
+							previousOmegaRadiansPerSecond,
+							omegaRadiansPerSecond,
+							angularVelocityBodyRadiansPerSecond,
+							separatedFlowStateIntensity,
+							dtSeconds
+					),
+					config,
+					angularVelocityBodyRadiansPerSecond,
+					false
+			);
+		}
+
+		public RigidBodyWrenchSample runtimeReplacementRotorGravityTransientCrossflowDragRigidBodyWrench(
+				DroneConfig config,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double separatedFlowStateIntensity,
+				double dtSeconds
+		) {
+			return withBaselineRotorInPlaneForces(
+					runtimeReplacementRotorGravityTransientAirframeDragRigidBodyWrench(
+							config,
+							previousOmegaRadiansPerSecond,
+							omegaRadiansPerSecond,
+							angularVelocityBodyRadiansPerSecond,
+							separatedFlowStateIntensity,
+							dtSeconds
+					),
+					config,
+					angularVelocityBodyRadiansPerSecond,
+					true
 			);
 		}
 
@@ -1172,6 +1228,58 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			);
 		}
 
+		public RotorOnlyStepPreview rotorGravityTransientCrossflowDragStepPreview(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				double separatedFlowStateIntensity,
+				double dtSeconds
+		) {
+			return stepPreview(
+					rotorGravityTransientCrossflowDragRigidBodyWrench(
+							config,
+							previousOmegaRadiansPerSecond,
+							omegaRadiansPerSecond,
+							angularVelocityBodyRadiansPerSecond,
+							separatedFlowStateIntensity,
+							dtSeconds
+					),
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+		}
+
+		public RotorOnlyStepPreview runtimeReplacementRotorGravityTransientCrossflowDragStepPreview(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				double separatedFlowStateIntensity,
+				double dtSeconds
+		) {
+			return stepPreview(
+					runtimeReplacementRotorGravityTransientCrossflowDragRigidBodyWrench(
+							config,
+							previousOmegaRadiansPerSecond,
+							omegaRadiansPerSecond,
+							angularVelocityBodyRadiansPerSecond,
+							separatedFlowStateIntensity,
+							dtSeconds
+					),
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+		}
+
 		private RotorOnlyStepEnergySample stepEnergySample(
 				RotorOnlyStepPreview preview,
 				DroneConfig config,
@@ -1348,6 +1456,56 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 					angularVelocityBodyRadiansPerSecond,
 					baseWrench.runtimeReplacement()
 			);
+		}
+
+		private RigidBodyWrenchSample withBaselineRotorInPlaneForces(
+				RigidBodyWrenchSample baseWrench,
+				DroneConfig config,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				boolean runtimeReplacement
+		) {
+			RotorInPlaneForceModel.ConfigurationRotorInPlaneForceSample inPlaneSample = runtimeReplacement
+					? runtimeReplacementBaselineRotorInPlaneForceSample()
+					: baselineRotorInPlaneForceSample();
+			return rigidBodyWrench(
+					config,
+					baseWrench.totalForceWorldNewtons().add(
+							inPlaneSample.totalInPlaneForceWorldNewtons(bodyToWorldOrientation)
+					),
+					baseWrench.totalTorqueWorldNewtonMeters().add(
+							inPlaneSample.totalTorqueWorldNewtonMeters(bodyToWorldOrientation)
+					),
+					angularVelocityBodyRadiansPerSecond,
+					baseWrench.runtimeReplacement()
+			);
+		}
+
+		private RotorInPlaneForceModel.ConfigurationRotorInPlaneForceSample baselineRotorInPlaneForceSample(
+				boolean runtimeReplacement
+		) {
+			List<RotorInPlaneForceModel.RotorInPlaneForceSample> samples = new ArrayList<>();
+			for (PropellerArchiveCtCpJRotorForceModel.RotorForceSample rotorSample
+					: aggregate.rotorSamples()) {
+				boolean applied = runtimeReplacement
+						? rotorSample.runtimeForceReplacementAccepted()
+						: !rotorSample.blocked();
+				if (!applied) {
+					continue;
+				}
+				double omegaRadiansPerSecond = rotorSample.query().rpm() * 2.0 * Math.PI / 60.0;
+				samples.add(RotorInPlaneForceModel.sample(
+						rotorSample.query().rotor(),
+						rotorSample.momentArmBodyMeters(),
+						rotorSample.relativeAirVelocityBodyMetersPerSecond(),
+						omegaRadiansPerSecond,
+						rotorSample.thrustNewtons(),
+						airDensityRatio(),
+						0.0,
+						0.0,
+						0.0
+				));
+			}
+			return RotorInPlaneForceModel.aggregate(samples);
 		}
 
 		private AirframePressureCenterModel.AirframePressureCenterSample airframePressureCenterSample(
