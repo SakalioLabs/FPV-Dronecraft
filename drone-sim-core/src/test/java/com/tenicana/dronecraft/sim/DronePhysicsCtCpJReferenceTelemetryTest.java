@@ -800,6 +800,93 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void acceptedReferenceSampleBlendsRuntimeWakeTargetTowardFarWakeExcess() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double omega = reference.rpm() * 2.0 * Math.PI / 60.0;
+		Vec3 axialFlow = rotor.thrustAxisBody().multiply(reference.advanceRatioJ()
+				* reference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		double activeRotor = 0.85;
+		double fallbackTarget = sample.dimensionalSample().idealInducedVelocityMetersPerSecond() * activeRotor;
+		double axialAdvanceSpeed = Math.max(0.0, sample.dimensionalSample().axialAdvanceSpeedMetersPerSecond());
+		double farWakeExcess = sample.dimensionalSample().farWakeAxialVelocityMetersPerSecond()
+				- axialAdvanceSpeed;
+		double representativeWakeExcess = 0.5 * (
+				sample.dimensionalSample().idealInducedVelocityMetersPerSecond()
+						+ farWakeExcess);
+		double expectedTarget = fallbackTarget + 0.45 * (
+				representativeWakeExcess * activeRotor - fallbackTarget);
+
+		assertEquals(expectedTarget,
+				DronePhysics.rotorCtCpJRuntimeTargetWakeVelocityMetersPerSecond(
+						sample,
+						fallbackTarget,
+						activeRotor
+				),
+				1.0e-15);
+		assertTrue(farWakeExcess > sample.dimensionalSample().idealInducedVelocityMetersPerSecond());
+		assertTrue(expectedTarget > fallbackTarget);
+		assertTrue(expectedTarget < farWakeExcess * activeRotor);
+		assertEquals(fallbackTarget,
+				DronePhysics.rotorCtCpJRuntimeTargetWakeVelocityMetersPerSecond(
+						null,
+						fallbackTarget,
+						activeRotor
+				),
+				1.0e-15);
+		assertEquals(fallbackTarget,
+				DronePhysics.rotorCtCpJRuntimeTargetWakeVelocityMetersPerSecond(
+						sample,
+						fallbackTarget,
+						0.0
+				),
+				1.0e-15);
+
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery highReference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"high_domain_max_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double clampedOmega = highReference.rpm() * 2.0 * Math.PI / 60.0;
+		double clampedJ = highReference.advanceRatioJ() + 0.20;
+		Vec3 clampedAxialFlow = rotor.thrustAxisBody().multiply(clampedJ
+				* highReference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample clampedSample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, clampedAxialFlow, clampedOmega, 1.0);
+
+		assertNotNull(clampedSample);
+		assertTrue(clampedSample.clamped());
+		assertFalse(clampedSample.runtimeForceReplacementAccepted());
+		assertEquals(fallbackTarget,
+				DronePhysics.rotorCtCpJRuntimeTargetWakeVelocityMetersPerSecond(
+						clampedSample,
+						fallbackTarget,
+						activeRotor
+				),
+				1.0e-15);
+	}
+
+	@Test
 	void acceptedReferenceSampleShapesRuntimeWakeResidenceTime() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =

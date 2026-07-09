@@ -6265,6 +6265,11 @@ public final class DronePhysics {
 				inducedVelocityMetersPerSecond,
 				targetInducedVelocityMetersPerSecond * (0.70 + 0.30 * activeRotor)
 		) * activeRotor;
+		targetWakeVelocity = rotorCtCpJRuntimeTargetWakeVelocityMetersPerSecond(
+				ctCpJReferenceSample,
+				targetWakeVelocity,
+				activeRotor
+		);
 		if (dtSeconds <= 0.0) {
 			rotorInducedWakeVelocityMetersPerSecond[index] = targetWakeVelocity;
 			return rotorInducedWakeVelocityMetersPerSecond[index];
@@ -6309,6 +6314,37 @@ public final class DronePhysics {
 		}
 		rotorInducedWakeVelocityMetersPerSecond[index] = wakeVelocity;
 		return wakeVelocity;
+	}
+
+	static double rotorCtCpJRuntimeTargetWakeVelocityMetersPerSecond(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			double fallbackTargetWakeVelocityMetersPerSecond,
+			double activeRotor
+	) {
+		double fallback = finiteNonnegative(fallbackTargetWakeVelocityMetersPerSecond);
+		if (!ctCpJRuntimeSampleAccepted(sample)) {
+			return fallback;
+		}
+		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional =
+				sample.dimensionalSample();
+		double idealInducedVelocity = dimensional.idealInducedVelocityMetersPerSecond();
+		double axialAdvanceSpeed = Math.max(0.0, dimensional.axialAdvanceSpeedMetersPerSecond());
+		double farWakeExcessVelocity = dimensional.farWakeAxialVelocityMetersPerSecond()
+				- axialAdvanceSpeed;
+		if (!Double.isFinite(idealInducedVelocity)
+				|| !Double.isFinite(farWakeExcessVelocity)
+				|| idealInducedVelocity <= 0.0
+				|| farWakeExcessVelocity <= 0.0) {
+			return fallback;
+		}
+		double active = MathUtil.clamp(finiteOrDefault(activeRotor, 1.0), 0.0, 1.0);
+		double representativeWakeExcessVelocity = 0.5 * (idealInducedVelocity + farWakeExcessVelocity);
+		double ctCpJTarget = representativeWakeExcessVelocity * active;
+		if (!Double.isFinite(ctCpJTarget) || ctCpJTarget <= 0.0) {
+			return fallback;
+		}
+		double blendedTarget = fallback + 0.45 * (ctCpJTarget - fallback);
+		return MathUtil.clamp(blendedTarget, 0.0, Math.max(fallback, ctCpJTarget));
 	}
 
 	static double rotorCtCpJRuntimeWakeResidenceTimeSeconds(
