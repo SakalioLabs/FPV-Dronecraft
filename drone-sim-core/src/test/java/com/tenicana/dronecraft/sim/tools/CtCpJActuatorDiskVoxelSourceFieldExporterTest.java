@@ -62,6 +62,9 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertEquals(4, integer(hover.get(0), "applied_source_count"));
 		assertEquals(SUBCELL_SAMPLES * SUBCELL_SAMPLES * SUBCELL_SAMPLES,
 				integer(hover.get(0), "total_subsample_count"));
+		assertEquals(0.0, number(hover.get(0), "source_axis_world_x"), 1.0e-15);
+		assertEquals(1.0, number(hover.get(0), "source_axis_world_y"), 1.0e-15);
+		assertEquals(0.0, number(hover.get(0), "source_axis_world_z"), 1.0e-15);
 		assertTrue(number(hover.get(0), "target_body_force_world_y_n") > 0.0);
 		assertEquals(sourceTermGroupSum("static_anchored_source_hover", "raw_source",
 						"equivalent_body_force_integral_world_y_n"),
@@ -83,6 +86,9 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 						&& Math.abs(number(row, "freestream_velocity_world_z_mps")) <= 1.0e-12));
 		assertTrue(hover.stream().anyMatch(row -> number(row, "far_wake_axial_velocity_world_y_mps")
 				> number(row, "actuator_disk_axial_velocity_world_y_mps")));
+		assertEquals(0.0, number(hover.get(0), "cell_freestream_axial_speed_mps"), 1.0e-15);
+		assertEquals(number(hover.get(0), "far_wake_axial_velocity_world_y_mps"),
+				number(hover.get(0), "cell_far_wake_axial_speed_mps"), 1.0e-12);
 		assertTrue(number(hover.get(0), "wake_swirl_kinetic_power_loading_w_m2") >= 0.0);
 		assertTrue(number(hover.get(0), "total_wake_kinetic_power_loading_w_m2")
 				>= number(hover.get(0), "ideal_momentum_power_loading_w_m2"));
@@ -105,13 +111,23 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertTrue(mid.stream().allMatch(row ->
 				number(row, "freestream_velocity_world_y_mps") > 0.0));
 		assertTrue(mid.stream().allMatch(row ->
+				number(row, "cell_freestream_axial_speed_mps") > 0.0));
+		assertEquals(number(mid.get(0), "freestream_velocity_world_y_mps"),
+				number(mid.get(0), "cell_freestream_axial_speed_mps"), 1.0e-12);
+		assertTrue(mid.stream().allMatch(row ->
 				Math.abs(number(row, "freestream_velocity_world_x_mps")) <= 1.0e-15
 						&& Math.abs(number(row, "freestream_velocity_world_z_mps")) <= 1.0e-15));
 
 		assertEquals(0.73152, number(high.get(0), "query_j"), 1.0e-12);
+		assertEquals(-1.0, number(high.get(0), "source_axis_world_x"), 1.0e-15);
+		assertEquals(0.0, number(high.get(0), "source_axis_world_y"), 1.0e-15);
+		assertEquals(0.0, number(high.get(0), "source_axis_world_z"), 1.0e-15);
 		assertTrue(number(high.get(0), "target_body_force_world_x_n") < 0.0);
 		assertEquals(0.0, number(high.get(0), "target_body_force_world_y_n"), 1.0e-12);
 		assertTrue(high.stream().allMatch(row -> number(row, "freestream_velocity_world_x_mps") < 0.0));
+		assertTrue(high.stream().allMatch(row -> number(row, "cell_freestream_axial_speed_mps") > 0.0));
+		assertEquals(-number(high.get(0), "freestream_velocity_world_x_mps"),
+				number(high.get(0), "cell_freestream_axial_speed_mps"), 1.0e-12);
 		assertTrue(high.stream().allMatch(row ->
 				Math.abs(number(row, "freestream_velocity_world_y_mps")) <= 1.0e-12
 						&& Math.abs(number(row, "freestream_velocity_world_z_mps")) <= 1.0e-12));
@@ -131,7 +147,15 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertEquals(0.0, number(blocked.get(0), "target_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blocked.get(0), "voxel_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blocked.get(0), "integrated_total_wake_kinetic_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "target_axial_momentum_thrust_n"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "voxel_axial_momentum_thrust_n"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "integrated_axial_momentum_thrust_n"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "target_axial_momentum_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "voxel_axial_momentum_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "integrated_axial_momentum_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blocked.get(0), "actuator_disk_axial_velocity_world_y_mps"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "cell_freestream_axial_speed_mps"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "cell_far_wake_axial_speed_mps"), 1.0e-15);
 		assertEquals(0.0, number(blocked.get(0), "freestream_velocity_world_y_mps"), 1.0e-15);
 	}
 
@@ -152,6 +176,11 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertTrue(lines.get(0).contains("target_total_wake_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("voxel_total_wake_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("integrated_total_wake_kinetic_power_w"));
+		assertTrue(lines.get(0).contains("source_axis_world_y"));
+		assertTrue(lines.get(0).contains("target_axial_momentum_thrust_n"));
+		assertTrue(lines.get(0).contains("voxel_axial_momentum_power_w"));
+		assertTrue(lines.get(0).contains("cell_freestream_axial_speed_mps"));
+		assertTrue(lines.get(0).contains("integrated_axial_momentum_power_w"));
 		assertTrue(lines.get(0).contains("actuator_disk_axial_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("freestream_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("target_wake_velocity_world_y_mps"));
@@ -209,12 +238,38 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertEquals(0.0, number(first, "ideal_momentum_power_residual_w"), 1.0e-12);
 		assertEquals(0.0, number(first, "wake_swirl_kinetic_power_residual_w"), 1.0e-12);
 		assertEquals(0.0, number(first, "total_wake_kinetic_power_residual_w"), 1.0e-12);
+		assertEquals(sourceTermGroupSum(first.get("case"), first.get("row_kind"),
+						"source_axial_momentum_thrust_n"),
+				number(first, "target_axial_momentum_thrust_n"), 1.0e-10);
+		assertEquals(sourceTermGroupSum(first.get("case"), first.get("row_kind"),
+						"source_axial_momentum_power_w"),
+				number(first, "target_axial_momentum_power_w"), 1.0e-10);
+		assertEquals(dot(
+						vector(first, "target_body_force_world", "_n"),
+						vector(first, "source_axis_world", "")),
+				number(first, "target_axial_momentum_thrust_n"), 1.0e-10);
+		assertEquals(dot(
+						vector(first, "voxel_body_force_world", "_n"),
+						vector(first, "source_axis_world", "")),
+				number(first, "voxel_axial_momentum_thrust_n"), 1.0e-10);
+		assertEquals(number(first, "target_axial_momentum_thrust_n"),
+				number(first, "voxel_axial_momentum_thrust_n"), 1.0e-10);
+		assertEquals(number(first, "target_axial_momentum_power_w"),
+				number(first, "voxel_axial_momentum_power_w"), 1.0e-10);
+		assertEquals(0.0, number(first, "axial_momentum_thrust_residual_n"), 1.0e-10);
+		assertEquals(0.0, number(first, "axial_momentum_thrust_residual_fraction"), 1.0e-10);
+		assertEquals(0.0, number(first, "axial_momentum_power_residual_w"), 1.0e-10);
+		assertEquals(0.0, number(first, "axial_momentum_power_residual_fraction"), 1.0e-10);
 		assertEquals(number(first, "voxel_ideal_momentum_power_w"),
 				sumScalar(rows, "integrated_ideal_momentum_power_w"), 1.0e-10);
 		assertEquals(number(first, "voxel_wake_swirl_kinetic_power_w"),
 				sumScalar(rows, "integrated_wake_swirl_kinetic_power_w"), 1.0e-10);
 		assertEquals(number(first, "voxel_total_wake_kinetic_power_w"),
 				sumScalar(rows, "integrated_total_wake_kinetic_power_w"), 1.0e-10);
+		assertEquals(number(first, "voxel_axial_momentum_thrust_n"),
+				sumScalar(rows, "integrated_axial_momentum_thrust_n"), 1.0e-10);
+		assertEquals(number(first, "voxel_axial_momentum_power_w"),
+				sumScalar(rows, "integrated_axial_momentum_power_w"), 1.0e-10);
 		assertEquals(sourceTermGroupSum(first.get("case"), first.get("row_kind"),
 						"wake_swirl_kinetic_power_w"),
 				sumCellPower(rows, "wake_swirl_kinetic_power_loading_w_m2"), 1.0e-10);
@@ -306,6 +361,10 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 			sum += number(row, columnName);
 		}
 		return sum;
+	}
+
+	private static double dot(double[] a, double[] b) {
+		return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 	}
 
 	private static void assertVectorClose(double[] expected, double[] actual, double tolerance) {

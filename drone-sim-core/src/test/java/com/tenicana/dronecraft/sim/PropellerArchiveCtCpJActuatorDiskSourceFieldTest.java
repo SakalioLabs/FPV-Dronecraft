@@ -490,6 +490,14 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				conservative.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
 		assertEquals(field.integratedDiskMassFlowKilogramsPerSecond(),
 				conservative.integratedDiskMassFlowKilogramsPerSecond(SOURCE_THICKNESS), 1.0e-12);
+		assertEquals(field.integratedAxialMomentumThrustNewtons(),
+				conservative.integratedAxialMomentumThrustNewtons(
+						sourceTerm.diskNormalWorld(),
+						SOURCE_THICKNESS), 1.0e-12);
+		assertEquals(field.integratedAxialMomentumPowerWatts(),
+				conservative.integratedAxialMomentumPowerWatts(
+						sourceTerm.diskNormalWorld(),
+						SOURCE_THICKNESS), 1.0e-12);
 		assertEquals(field.integratedIdealMomentumPowerWatts(),
 				conservative.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS), 1.0e-12);
 		assertEquals(field.integratedWakeSwirlKineticPowerWatts(),
@@ -500,13 +508,14 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertEquals(geometric.activeCellCount(), conservative.activeCellCount());
 		assertTrue(conservative.cells().get(0).pressureJumpPascals()
 				> geometric.cells().get(0).pressureJumpPascals());
-		assertVectorEquals(geometric.cells().get(0).farWakeAxialVelocityWorldMetersPerSecond(),
+		assertVectorEquals(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(),
 				conservative.cells().get(0).farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVectorEquals(geometric.cells().get(0).actuatorDiskAxialVelocityWorldMetersPerSecond(),
 				conservative.cells().get(0).actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVectorEquals(geometric.cells().get(0).wakeSwirlVelocityWorldMetersPerSecond(),
 				conservative.cells().get(0).wakeSwirlVelocityWorldMetersPerSecond(), 1.0e-12);
-		assertVectorEquals(geometric.cells().get(0).targetWakeVelocityWorldMetersPerSecond(),
+		assertVectorEquals(conservative.cells().get(0).farWakeAxialVelocityWorldMetersPerSecond()
+						.add(conservative.cells().get(0).wakeSwirlVelocityWorldMetersPerSecond()),
 				conservative.cells().get(0).targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
 	}
 

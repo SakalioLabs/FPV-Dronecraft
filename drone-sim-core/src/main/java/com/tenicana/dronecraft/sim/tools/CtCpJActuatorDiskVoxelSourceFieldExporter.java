@@ -22,6 +22,7 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 	public static final int DEFAULT_PADDING_CELLS = 1;
 	public static final int DEFAULT_SUBCELL_SAMPLES_PER_AXIS = 3;
 
+	private static final double EPSILON = 1.0e-9;
 	private static final String ACTIVE_GRID_STATUS = "ACTIVE_SOURCE_FIELD";
 	private static final String EMPTY_GRID_STATUS = "EMPTY_SOURCE_FIELD";
 	private static final String HEADER = String.join(",",
@@ -57,6 +58,9 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 			"grid_cell_count",
 			"active_cell_count",
 			"active_subsample_count",
+			"source_axis_world_x",
+			"source_axis_world_y",
+			"source_axis_world_z",
 			"sampled_source_volume_m3",
 			"target_body_force_world_x_n",
 			"target_body_force_world_y_n",
@@ -79,6 +83,14 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 			"target_ideal_momentum_power_w",
 			"voxel_ideal_momentum_power_w",
 			"ideal_momentum_power_residual_w",
+			"target_axial_momentum_thrust_n",
+			"voxel_axial_momentum_thrust_n",
+			"axial_momentum_thrust_residual_n",
+			"axial_momentum_thrust_residual_fraction",
+			"target_axial_momentum_power_w",
+			"voxel_axial_momentum_power_w",
+			"axial_momentum_power_residual_w",
+			"axial_momentum_power_residual_fraction",
 			"target_wake_swirl_kinetic_power_w",
 			"voxel_wake_swirl_kinetic_power_w",
 			"wake_swirl_kinetic_power_residual_w",
@@ -113,6 +125,8 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 			"integrated_wake_angular_momentum_torque_world_z_nm",
 			"pressure_jump_pa",
 			"mass_flux_kg_s_m2",
+			"cell_freestream_axial_speed_mps",
+			"cell_far_wake_axial_speed_mps",
 			"actuator_disk_axial_velocity_world_x_mps",
 			"actuator_disk_axial_velocity_world_y_mps",
 			"actuator_disk_axial_velocity_world_z_mps",
@@ -122,6 +136,8 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 			"integrated_ideal_momentum_power_w",
 			"integrated_wake_swirl_kinetic_power_w",
 			"integrated_total_wake_kinetic_power_w",
+			"integrated_axial_momentum_thrust_n",
+			"integrated_axial_momentum_power_w",
 			"far_wake_axial_velocity_world_x_mps",
 			"far_wake_axial_velocity_world_y_mps",
 			"far_wake_axial_velocity_world_z_mps",
@@ -382,6 +398,13 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 		Vec3 voxelTorque = sample.integratedWakeAngularMomentumTorqueWorldNewtonMeters();
 		double targetIdealMomentumPower = field.integratedIdealMomentumPowerWatts();
 		double voxelIdealMomentumPower = sample.integratedIdealMomentumPowerWatts(sourceThicknessMeters);
+		Vec3 sourceAxisWorld = sourceGroupAxialDirection(sourceTerms);
+		double targetAxialMomentumThrust = field.integratedAxialMomentumThrustNewtons();
+		double voxelAxialMomentumThrust =
+				sample.integratedAxialMomentumThrustNewtons(sourceAxisWorld, sourceThicknessMeters);
+		double targetAxialMomentumPower = field.integratedAxialMomentumPowerWatts();
+		double voxelAxialMomentumPower =
+				sample.integratedAxialMomentumPowerWatts(sourceAxisWorld, sourceThicknessMeters);
 		double targetWakeSwirlKineticPower = field.integratedWakeSwirlKineticPowerWatts();
 		double voxelWakeSwirlKineticPower = sample.integratedWakeSwirlKineticPowerWatts(sourceThicknessMeters);
 		double targetTotalWakeKineticPower = field.integratedTotalWakeKineticPowerWatts();
@@ -400,6 +423,11 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 				voxelTorque,
 				targetIdealMomentumPower,
 				voxelIdealMomentumPower,
+				sourceAxisWorld,
+				targetAxialMomentumThrust,
+				voxelAxialMomentumThrust,
+				targetAxialMomentumPower,
+				voxelAxialMomentumPower,
 				targetWakeSwirlKineticPower,
 				voxelWakeSwirlKineticPower,
 				targetTotalWakeKineticPower,
@@ -428,6 +456,10 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 				.subtract(summary.targetWakeTorqueWorldNewtonMeters());
 		double idealMomentumPowerResidual =
 				summary.voxelIdealMomentumPowerWatts() - summary.targetIdealMomentumPowerWatts();
+		double axialMomentumThrustResidual =
+				summary.voxelAxialMomentumThrustNewtons() - summary.targetAxialMomentumThrustNewtons();
+		double axialMomentumPowerResidual =
+				summary.voxelAxialMomentumPowerWatts() - summary.targetAxialMomentumPowerWatts();
 		double wakeSwirlKineticPowerResidual =
 				summary.voxelWakeSwirlKineticPowerWatts() - summary.targetWakeSwirlKineticPowerWatts();
 		double totalWakeKineticPowerResidual =
@@ -439,6 +471,18 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 		Vec3 integratedWakeTorque = cell.integratedWakeAngularMomentumTorqueWorldNewtonMeters();
 		double integratedIdealMomentumPower =
 				cell.integratedIdealMomentumPowerWatts(summary.sourceThicknessMeters());
+		double cellFreestreamAxialSpeed =
+				cell.freestreamAxialSpeedMetersPerSecond(summary.sourceAxisWorld());
+		double cellFarWakeAxialSpeed =
+				cell.farWakeAxialSpeedMetersPerSecond(summary.sourceAxisWorld());
+		double integratedAxialMomentumThrust =
+				cell.integratedAxialMomentumThrustNewtons(
+						summary.sourceAxisWorld(),
+						summary.sourceThicknessMeters());
+		double integratedAxialMomentumPower =
+				cell.integratedAxialMomentumPowerWatts(
+						summary.sourceAxisWorld(),
+						summary.sourceThicknessMeters());
 		double integratedWakeSwirlKineticPower =
 				cell.integratedWakeSwirlKineticPowerWatts(summary.sourceThicknessMeters());
 		double integratedTotalWakeKineticPower =
@@ -476,6 +520,9 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 				Integer.toString(grid.totalCellCount()),
 				Integer.toString(sample.activeCellCount()),
 				Integer.toString(sample.activeSubsampleCount()),
+				number(summary.sourceAxisWorld().x()),
+				number(summary.sourceAxisWorld().y()),
+				number(summary.sourceAxisWorld().z()),
 				number(sample.sampledSourceVolumeCubicMeters()),
 				number(summary.targetForceWorldNewtons().x()),
 				number(summary.targetForceWorldNewtons().y()),
@@ -498,6 +545,14 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 				number(summary.targetIdealMomentumPowerWatts()),
 				number(summary.voxelIdealMomentumPowerWatts()),
 				number(idealMomentumPowerResidual),
+				number(summary.targetAxialMomentumThrustNewtons()),
+				number(summary.voxelAxialMomentumThrustNewtons()),
+				number(axialMomentumThrustResidual),
+				number(ratio(axialMomentumThrustResidual, summary.targetAxialMomentumThrustNewtons())),
+				number(summary.targetAxialMomentumPowerWatts()),
+				number(summary.voxelAxialMomentumPowerWatts()),
+				number(axialMomentumPowerResidual),
+				number(ratio(axialMomentumPowerResidual, summary.targetAxialMomentumPowerWatts())),
 				number(summary.targetWakeSwirlKineticPowerWatts()),
 				number(summary.voxelWakeSwirlKineticPowerWatts()),
 				number(wakeSwirlKineticPowerResidual),
@@ -532,6 +587,8 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 				number(integratedWakeTorque.z()),
 				number(cell.pressureJumpPascals()),
 				number(cell.massFluxKilogramsPerSecondSquareMeter()),
+				number(cellFreestreamAxialSpeed),
+				number(cellFarWakeAxialSpeed),
 				number(cell.actuatorDiskAxialVelocityWorldMetersPerSecond().x()),
 				number(cell.actuatorDiskAxialVelocityWorldMetersPerSecond().y()),
 				number(cell.actuatorDiskAxialVelocityWorldMetersPerSecond().z()),
@@ -541,6 +598,8 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 				number(integratedIdealMomentumPower),
 				number(integratedWakeSwirlKineticPower),
 				number(integratedTotalWakeKineticPower),
+				number(integratedAxialMomentumThrust),
+				number(integratedAxialMomentumPower),
 				number(cell.farWakeAxialVelocityWorldMetersPerSecond().x()),
 				number(cell.farWakeAxialVelocityWorldMetersPerSecond().y()),
 				number(cell.farWakeAxialVelocityWorldMetersPerSecond().z()),
@@ -554,6 +613,27 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 				number(cell.targetWakeVelocityWorldMetersPerSecond().y()),
 				number(cell.targetWakeVelocityWorldMetersPerSecond().z())
 		);
+	}
+
+	private static Vec3 sourceGroupAxialDirection(
+			List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> sourceTerms
+	) {
+		Vec3 weightedAxis = Vec3.ZERO;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			if (sourceTerm == null || !sourceTerm.applied()) {
+				continue;
+			}
+			Vec3 axis = sourceTerm.diskNormalWorld();
+			if (!axis.isFinite() || axis.lengthSquared() <= EPSILON) {
+				continue;
+			}
+			double weight = Math.max(
+					Math.abs(sourceTerm.integratedThrustNewtons()),
+					sourceTerm.diskMassFlowKilogramsPerSecond());
+			weightedAxis = weightedAxis.add(axis.normalized().multiply(weight > EPSILON ? weight : 1.0));
+		}
+		Vec3 normalized = weightedAxis.normalized();
+		return normalized.lengthSquared() <= EPSILON ? new Vec3(0.0, 1.0, 0.0) : normalized;
 	}
 
 	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm(
@@ -773,6 +853,15 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 		return Double.isFinite(value) ? String.format(Locale.ROOT, "%.15g", value) : "";
 	}
 
+	private static double ratio(double numerator, double denominator) {
+		if (!Double.isFinite(numerator) || !Double.isFinite(denominator)
+				|| Math.abs(denominator) <= EPSILON) {
+			return 0.0;
+		}
+		double value = numerator / denominator;
+		return Double.isFinite(value) ? value : 0.0;
+	}
+
 	private static String escape(String value) {
 		if (value == null) {
 			return "";
@@ -810,6 +899,11 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 			Vec3 voxelWakeTorqueWorldNewtonMeters,
 			double targetIdealMomentumPowerWatts,
 			double voxelIdealMomentumPowerWatts,
+			Vec3 sourceAxisWorld,
+			double targetAxialMomentumThrustNewtons,
+			double voxelAxialMomentumThrustNewtons,
+			double targetAxialMomentumPowerWatts,
+			double voxelAxialMomentumPowerWatts,
 			double targetWakeSwirlKineticPowerWatts,
 			double voxelWakeSwirlKineticPowerWatts,
 			double targetTotalWakeKineticPowerWatts,
