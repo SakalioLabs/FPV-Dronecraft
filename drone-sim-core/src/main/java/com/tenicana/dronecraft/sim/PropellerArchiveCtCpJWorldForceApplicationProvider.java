@@ -399,15 +399,20 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 	) {
 		Quaternion orientation = finiteQuaternionOrIdentity(bodyToWorldOrientation).normalized();
 		Vec3 momentReference = finiteVecOrZero(momentReferenceWorldMeters);
+		Vec3 vehicleVelocityWorld = finiteVecOrZero(vehicleVelocityWorldMetersPerSecond);
+		Vec3 windVelocityWorld = finiteVecOrZero(windVelocityWorldMetersPerSecond);
+		Vec3 relativeAirVelocityBody = orientation.conjugate().rotate(
+				vehicleVelocityWorld.subtract(windVelocityWorld)
+		);
 		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate =
 				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromWorldKinematics(
 						presetName,
 						caseName,
 						config,
 						orientation,
-						vehicleVelocityWorldMetersPerSecond,
+						vehicleVelocityWorld,
 						angularVelocityBodyRadiansPerSecond,
-						windVelocityWorldMetersPerSecond,
+						windVelocityWorld,
 						rotorWindVelocityWorldMetersPerSecond,
 						omegaRadiansPerSecond,
 						airDensityKgPerCubicMeter,
@@ -419,6 +424,8 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 				aggregate,
 				momentReference,
 				orientation,
+				relativeAirVelocityBody,
+				airDensityKgPerCubicMeter,
 				aggregate.rotorWorldForceApplications(momentReference, orientation),
 				aggregate.runtimeForceReplacementRotorWorldForceApplications(momentReference, orientation),
 				aggregate.rotorActuatorDiskSourceTerms(momentReference, orientation),
@@ -430,6 +437,8 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate,
 			Vec3 momentReferenceWorldMeters,
 			Quaternion bodyToWorldOrientation,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			double airDensityKgPerCubicMeter,
 			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> rotorApplications,
 			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> runtimeReplacementRotorApplications,
 			List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> rotorActuatorDiskSourceTerms,
@@ -442,6 +451,10 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			}
 			momentReferenceWorldMeters = finiteVecOrZero(momentReferenceWorldMeters);
 			bodyToWorldOrientation = finiteQuaternionOrIdentity(bodyToWorldOrientation).normalized();
+			relativeAirVelocityBodyMetersPerSecond = finiteVecOrZero(relativeAirVelocityBodyMetersPerSecond);
+			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= 0.0) {
+				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+			}
 			rotorApplications = List.copyOf(rotorApplications == null ? List.of() : rotorApplications);
 			runtimeReplacementRotorApplications = List.copyOf(runtimeReplacementRotorApplications == null
 					? List.of()
@@ -771,6 +784,75 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			);
 		}
 
+		public double airDensityRatio() {
+			return airDensityKgPerCubicMeter
+					/ PropellerArchiveCtCpJDimensionalRotorResponse.STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER;
+		}
+
+		public AirframeDragForceModel.AirframeDragForceSample steadyAirframeDragSample(
+				DroneConfig config,
+				double separatedFlowStateIntensity
+		) {
+			return AirframeDragForceModel.sampleSteady(
+					config,
+					relativeAirVelocityBodyMetersPerSecond,
+					airDensityRatio(),
+					separatedFlowStateIntensity
+			);
+		}
+
+		public AirframeDragForceModel.AirframeDragForceSample settledAirframeDragSample(DroneConfig config) {
+			return AirframeDragForceModel.sampleSettled(
+					config,
+					relativeAirVelocityBodyMetersPerSecond,
+					airDensityRatio()
+			);
+		}
+
+		public RigidBodyWrenchSample rotorGravityTransientTranslationalDragRigidBodyWrench(
+				DroneConfig config,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double separatedFlowStateIntensity,
+				double dtSeconds
+		) {
+			return withAirframeTranslationalDrag(
+					rotorGravityTransientRigidBodyWrench(
+							config,
+							previousOmegaRadiansPerSecond,
+							omegaRadiansPerSecond,
+							angularVelocityBodyRadiansPerSecond,
+							dtSeconds
+					),
+					config,
+					angularVelocityBodyRadiansPerSecond,
+					separatedFlowStateIntensity
+			);
+		}
+
+		public RigidBodyWrenchSample runtimeReplacementRotorGravityTransientTranslationalDragRigidBodyWrench(
+				DroneConfig config,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double separatedFlowStateIntensity,
+				double dtSeconds
+		) {
+			return withAirframeTranslationalDrag(
+					runtimeReplacementRotorGravityTransientRigidBodyWrench(
+							config,
+							previousOmegaRadiansPerSecond,
+							omegaRadiansPerSecond,
+							angularVelocityBodyRadiansPerSecond,
+							dtSeconds
+					),
+					config,
+					angularVelocityBodyRadiansPerSecond,
+					separatedFlowStateIntensity
+			);
+		}
+
 		public RotorOnlyStepPreview rotorOnlyStepPreview(
 				DroneConfig config,
 				Vec3 positionWorldMeters,
@@ -931,6 +1013,58 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			);
 		}
 
+		public RotorOnlyStepPreview rotorGravityTransientTranslationalDragStepPreview(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				double separatedFlowStateIntensity,
+				double dtSeconds
+		) {
+			return stepPreview(
+					rotorGravityTransientTranslationalDragRigidBodyWrench(
+							config,
+							previousOmegaRadiansPerSecond,
+							omegaRadiansPerSecond,
+							angularVelocityBodyRadiansPerSecond,
+							separatedFlowStateIntensity,
+							dtSeconds
+					),
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+		}
+
+		public RotorOnlyStepPreview runtimeReplacementRotorGravityTransientTranslationalDragStepPreview(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double[] previousOmegaRadiansPerSecond,
+				double[] omegaRadiansPerSecond,
+				double separatedFlowStateIntensity,
+				double dtSeconds
+		) {
+			return stepPreview(
+					runtimeReplacementRotorGravityTransientTranslationalDragRigidBodyWrench(
+							config,
+							previousOmegaRadiansPerSecond,
+							omegaRadiansPerSecond,
+							angularVelocityBodyRadiansPerSecond,
+							separatedFlowStateIntensity,
+							dtSeconds
+					),
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+		}
+
 		private RotorOnlyStepEnergySample stepEnergySample(
 				RotorOnlyStepPreview preview,
 				DroneConfig config,
@@ -1049,6 +1183,27 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 					aerodynamicTorqueWorld.add(inertiaTorqueWorld),
 					angularVelocityBodyRadiansPerSecond,
 					runtimeReplacement
+			);
+		}
+
+		private RigidBodyWrenchSample withAirframeTranslationalDrag(
+				RigidBodyWrenchSample baseWrench,
+				DroneConfig config,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double separatedFlowStateIntensity
+		) {
+			AirframeDragForceModel.AirframeDragForceSample dragSample = steadyAirframeDragSample(
+					config,
+					separatedFlowStateIntensity
+			);
+			return rigidBodyWrench(
+					config,
+					baseWrench.totalForceWorldNewtons().add(
+							dragSample.totalDragForceWorldNewtons(bodyToWorldOrientation)
+					),
+					baseWrench.totalTorqueWorldNewtonMeters(),
+					angularVelocityBodyRadiansPerSecond,
+					baseWrench.runtimeReplacement()
 			);
 		}
 

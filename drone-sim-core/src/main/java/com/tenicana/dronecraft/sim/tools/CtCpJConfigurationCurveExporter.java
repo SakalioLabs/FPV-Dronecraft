@@ -931,6 +931,8 @@ public final class CtCpJConfigurationCurveExporter {
 						aggregate,
 						Vec3.ZERO,
 						bodyToWorld,
+						point.relativeAirVelocityBodyMetersPerSecond(),
+						first.query().airDensityKgPerCubicMeter(),
 						aggregate.rotorWorldForceApplications(Vec3.ZERO, bodyToWorld),
 						aggregate.runtimeForceReplacementRotorWorldForceApplications(Vec3.ZERO, bodyToWorld),
 						aggregate.rotorActuatorDiskSourceTerms(Vec3.ZERO, bodyToWorld),
