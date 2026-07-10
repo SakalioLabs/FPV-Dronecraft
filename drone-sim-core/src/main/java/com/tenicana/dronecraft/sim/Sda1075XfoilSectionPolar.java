@@ -1,26 +1,54 @@
 package com.tenicana.dronecraft.sim;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * Conservative SDA1075 section-polar lookup generated offline with XFOIL 6.99.
  * The airfoil coordinates are Appendix A of Deters, Ananda, and Selig,
  * AIAA 2014-2151. XFOIL was run at Mach 0, Ncrit 9, with 250 iterations.
- * Only the common contiguous converged window is retained; this table is a
- * computational section reference, not wind-tunnel evidence.
+ * The reviewed 40k-100k anchors are retained unchanged. Path-independent
+ * ascending/descending sweep anchors extend the positive-alpha envelope down
+ * to Re 10k; unstable 25k/30k sweep branches are intentionally not anchors.
+ * This table is a computational section reference, not wind-tunnel evidence.
  */
 public final class Sda1075XfoilSectionPolar {
-	public static final String DATA_SOURCE_ID = "sda1075-xfoil-6.99-aiaa-2014-2151-appendix-a";
+	public static final String DATA_SOURCE_ID =
+			"sda1075-xfoil-6.99-ncrit9-reviewed-and-path-independent-low-re";
 	public static final String AIRFOIL_SOURCE_URL =
 			"https://m-selig.ae.illinois.edu/pubs/DetersAnandaSelig-2014-AIAA-2014-2151.pdf";
 	public static final String XFOIL_SOURCE_URL = "https://web.mit.edu/drela/Public/web/xfoil/";
-	public static final double MIN_REYNOLDS_NUMBER = 40_000.0;
+	public static final double MIN_REYNOLDS_NUMBER = 10_000.0;
 	public static final double MAX_REYNOLDS_NUMBER = 100_000.0;
 	public static final double MIN_ANGLE_OF_ATTACK_DEGREES = -5.0;
+	public static final double LOW_RE_MIN_ANGLE_OF_ATTACK_DEGREES = 0.0;
 	public static final double MAX_ANGLE_OF_ATTACK_DEGREES = 12.0;
+	public static final double REVIEWED_MIN_REYNOLDS_NUMBER = 40_000.0;
+
+	private static final String LOW_RE_RESOURCE_ROOT =
+			"/com/tenicana/dronecraft/sim/aero/xfoil-6.99-ncrit9/";
+	private static final double SWEEP_AGREEMENT_TOLERANCE = 1.0e-12;
+	private static final Pattern XFOIL_SETTINGS_PATTERN = Pattern.compile(
+			"Mach\\s*=\\s*([0-9.+\\-Ee]+)\\s+Re\\s*=\\s*([0-9.+\\-Ee]+)"
+					+ "\\s+e\\s*6\\s+Ncrit\\s*=\\s*([0-9.+\\-Ee]+)"
+	);
 
 	private static final double[] REYNOLDS_AXIS = { 40_000.0, 60_000.0, 100_000.0 };
+	private static final double[] LOW_REYNOLDS_AXIS = {
+			10_000.0, 15_000.0, 20_000.0, 40_000.0
+	};
 	private static final double[] ANGLE_AXIS_DEGREES = {
 			-5.0, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0,
 			4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0
+	};
+	private static final double[] LOW_RE_ANGLE_AXIS_DEGREES = {
+			0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
+			7.0, 8.0, 9.0, 10.0, 11.0, 12.0
 	};
 	private static final double[][] LIFT_COEFFICIENT = {
 			{
@@ -73,6 +101,17 @@ public final class Sda1075XfoilSectionPolar {
 					-0.0312, -0.0292, -0.0263, -0.0213, -0.0128, -0.0028
 			}
 	};
+	private static final XfoilPolar[] PATH_INDEPENDENT_LOW_RE_POLARS = {
+			loadPathIndependentLowRePolar(10_000),
+			loadPathIndependentLowRePolar(15_000),
+			loadPathIndependentLowRePolar(20_000)
+	};
+	private static final double[][] LOW_RE_LIFT_COEFFICIENT =
+			extendedLowReTable(Coefficient.LIFT);
+	private static final double[][] LOW_RE_DRAG_COEFFICIENT =
+			extendedLowReTable(Coefficient.DRAG);
+	private static final double[][] LOW_RE_PITCHING_MOMENT_COEFFICIENT =
+			extendedLowReTable(Coefficient.PITCHING_MOMENT);
 
 	private Sda1075XfoilSectionPolar() {
 	}
@@ -118,7 +157,15 @@ public final class Sda1075XfoilSectionPolar {
 
 		boolean reynoldsOutOfEnvelope = reynoldsNumber < MIN_REYNOLDS_NUMBER
 				|| reynoldsNumber > MAX_REYNOLDS_NUMBER;
-		boolean angleOutOfEnvelope = angleOfAttackDegrees < MIN_ANGLE_OF_ATTACK_DEGREES
+		double effectiveReynolds = MathUtil.clamp(
+				reynoldsNumber,
+				MIN_REYNOLDS_NUMBER,
+				MAX_REYNOLDS_NUMBER
+		);
+		double minimumSupportedAngle = effectiveReynolds < REVIEWED_MIN_REYNOLDS_NUMBER
+				? LOW_RE_MIN_ANGLE_OF_ATTACK_DEGREES
+				: MIN_ANGLE_OF_ATTACK_DEGREES;
+		boolean angleOutOfEnvelope = angleOfAttackDegrees < minimumSupportedAngle
 				|| angleOfAttackDegrees > MAX_ANGLE_OF_ATTACK_DEGREES;
 		if ((reynoldsOutOfEnvelope || angleOutOfEnvelope)
 				&& envelopePolicy == EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE) {
@@ -143,34 +190,45 @@ public final class Sda1075XfoilSectionPolar {
 					false,
 					false,
 					true,
-					"query-outside-common-converged-xfoil-envelope"
+					false,
+					false,
+					"query-outside-supported-xfoil-envelope"
 			);
 		}
 
-		double effectiveReynolds = MathUtil.clamp(
-				reynoldsNumber,
-				MIN_REYNOLDS_NUMBER,
-				MAX_REYNOLDS_NUMBER
-		);
 		double effectiveAngle = MathUtil.clamp(
 				angleOfAttackDegrees,
-				MIN_ANGLE_OF_ATTACK_DEGREES,
+				minimumSupportedAngle,
 				MAX_ANGLE_OF_ATTACK_DEGREES
 		);
-		AxisBracket reynoldsBracket = bracket(REYNOLDS_AXIS, effectiveReynolds);
-		AxisBracket angleBracket = bracket(ANGLE_AXIS_DEGREES, effectiveAngle);
+		boolean lowReynoldsExtensionUsed = effectiveReynolds < REVIEWED_MIN_REYNOLDS_NUMBER;
+		double[] reynoldsAxis = lowReynoldsExtensionUsed ? LOW_REYNOLDS_AXIS : REYNOLDS_AXIS;
+		double[] angleAxis = lowReynoldsExtensionUsed
+				? LOW_RE_ANGLE_AXIS_DEGREES
+				: ANGLE_AXIS_DEGREES;
+		double[][] liftTable = lowReynoldsExtensionUsed
+				? LOW_RE_LIFT_COEFFICIENT
+				: LIFT_COEFFICIENT;
+		double[][] dragTable = lowReynoldsExtensionUsed
+				? LOW_RE_DRAG_COEFFICIENT
+				: DRAG_COEFFICIENT;
+		double[][] pitchingMomentTable = lowReynoldsExtensionUsed
+				? LOW_RE_PITCHING_MOMENT_COEFFICIENT
+				: PITCHING_MOMENT_COEFFICIENT;
+		AxisBracket reynoldsBracket = bracket(reynoldsAxis, effectiveReynolds);
+		AxisBracket angleBracket = bracket(angleAxis, effectiveAngle);
 		double liftCoefficient = bilinear(
-				LIFT_COEFFICIENT,
+				liftTable,
 				reynoldsBracket,
 				angleBracket
 		);
 		double dragCoefficient = bilinear(
-				DRAG_COEFFICIENT,
+				dragTable,
 				reynoldsBracket,
 				angleBracket
 		);
 		double pitchingMomentCoefficient = bilinear(
-				PITCHING_MOMENT_COEFFICIENT,
+				pitchingMomentTable,
 				reynoldsBracket,
 				angleBracket
 		);
@@ -197,10 +255,138 @@ public final class Sda1075XfoilSectionPolar {
 				reynoldsClamped,
 				angleClamped,
 				false,
+				lowReynoldsExtensionUsed,
+				lowReynoldsExtensionUsed,
 				reynoldsClamped || angleClamped
-						? "query-clamped-to-common-converged-xfoil-envelope"
-						: "sda1075-polar-interpolated"
+						? "query-clamped-to-supported-xfoil-envelope"
+						: lowReynoldsExtensionUsed
+								? "sda1075-path-independent-low-re-polar-interpolated"
+								: "sda1075-reviewed-polar-interpolated"
 		);
+	}
+
+	private static double[][] extendedLowReTable(Coefficient coefficient) {
+		double[][] table = new double[LOW_REYNOLDS_AXIS.length][LOW_RE_ANGLE_AXIS_DEGREES.length];
+		for (int reynoldsIndex = 0;
+				reynoldsIndex < PATH_INDEPENDENT_LOW_RE_POLARS.length;
+				reynoldsIndex++) {
+			double[] source = coefficient.values(PATH_INDEPENDENT_LOW_RE_POLARS[reynoldsIndex]);
+			System.arraycopy(source, 0, table[reynoldsIndex], 0, source.length);
+		}
+		double[][] reviewedTable = coefficient.reviewedTable();
+		int zeroAngleIndex = 5;
+		System.arraycopy(
+				reviewedTable[0],
+				zeroAngleIndex,
+				table[table.length - 1],
+				0,
+				LOW_RE_ANGLE_AXIS_DEGREES.length
+		);
+		return table;
+	}
+
+	private static XfoilPolar loadPathIndependentLowRePolar(int reynoldsNumber) {
+		String stem = "sda1075-re" + reynoldsNumber;
+		XfoilPolar ascending = loadXfoilPolar(stem + "-alpha-up.pol", reynoldsNumber);
+		XfoilPolar descending = loadXfoilPolar(stem + "-alpha-down.pol", reynoldsNumber);
+		verifySweepAgreement(reynoldsNumber, ascending, descending);
+		return ascending;
+	}
+
+	private static XfoilPolar loadXfoilPolar(String resourceName, int expectedReynoldsNumber) {
+		InputStream stream = Sda1075XfoilSectionPolar.class.getResourceAsStream(
+				LOW_RE_RESOURCE_ROOT + resourceName
+		);
+		if (stream == null) {
+			throw new IllegalStateException("Missing XFOIL polar resource: " + resourceName);
+		}
+		double[] lift = new double[LOW_RE_ANGLE_AXIS_DEGREES.length];
+		double[] drag = new double[LOW_RE_ANGLE_AXIS_DEGREES.length];
+		double[] pitchingMoment = new double[LOW_RE_ANGLE_AXIS_DEGREES.length];
+		boolean[] present = new boolean[LOW_RE_ANGLE_AXIS_DEGREES.length];
+		boolean versionVerified = false;
+		boolean settingsVerified = false;
+		try (BufferedReader reader = new BufferedReader(
+				new InputStreamReader(stream, StandardCharsets.US_ASCII))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				if (line.contains("XFOIL") && line.contains("Version 6.99")) {
+					versionVerified = true;
+				}
+				Matcher settingsMatcher = XFOIL_SETTINGS_PATTERN.matcher(line);
+				if (settingsMatcher.find()) {
+					double machNumber = Double.parseDouble(settingsMatcher.group(1));
+					double reynoldsNumber = Double.parseDouble(settingsMatcher.group(2)) * 1.0e6;
+					double ncrit = Double.parseDouble(settingsMatcher.group(3));
+					settingsVerified = Math.abs(machNumber) <= 1.0e-12
+							&& Math.abs(reynoldsNumber - expectedReynoldsNumber) <= 0.5
+							&& Math.abs(ncrit - 9.0) <= 1.0e-12;
+				}
+				String[] fields = line.trim().split("\\s+");
+				if (fields.length < 5) {
+					continue;
+				}
+				double alpha;
+				double liftCoefficient;
+				double dragCoefficient;
+				double pitchingMomentCoefficient;
+				try {
+					alpha = Double.parseDouble(fields[0]);
+					liftCoefficient = Double.parseDouble(fields[1]);
+					dragCoefficient = Double.parseDouble(fields[2]);
+					pitchingMomentCoefficient = Double.parseDouble(fields[4]);
+				} catch (NumberFormatException ignored) {
+					continue;
+				}
+				int angleIndex = (int) Math.round(alpha);
+				if (angleIndex < 0
+						|| angleIndex >= LOW_RE_ANGLE_AXIS_DEGREES.length
+						|| Math.abs(alpha - angleIndex) > 1.0e-9) {
+					continue;
+				}
+				lift[angleIndex] = liftCoefficient;
+				drag[angleIndex] = dragCoefficient;
+				pitchingMoment[angleIndex] = pitchingMomentCoefficient;
+				present[angleIndex] = true;
+			}
+		} catch (IOException exception) {
+			throw new IllegalStateException("Could not read XFOIL polar resource: " + resourceName,
+					exception);
+		}
+		if (!versionVerified || !settingsVerified) {
+			throw new IllegalStateException(
+					"XFOIL polar provenance/settings mismatch: " + resourceName
+			);
+		}
+		for (int angleIndex = 0; angleIndex < present.length; angleIndex++) {
+			if (!present[angleIndex]) {
+				throw new IllegalStateException(
+						"XFOIL polar resource is missing alpha=" + angleIndex + ": " + resourceName
+				);
+			}
+		}
+		return new XfoilPolar(lift, drag, pitchingMoment);
+	}
+
+	private static void verifySweepAgreement(
+			int reynoldsNumber,
+			XfoilPolar ascending,
+			XfoilPolar descending
+	) {
+		for (Coefficient coefficient : Coefficient.values()) {
+			double[] ascendingValues = coefficient.values(ascending);
+			double[] descendingValues = coefficient.values(descending);
+			for (int angleIndex = 0; angleIndex < ascendingValues.length; angleIndex++) {
+				if (Math.abs(ascendingValues[angleIndex] - descendingValues[angleIndex])
+						> SWEEP_AGREEMENT_TOLERANCE) {
+					throw new IllegalStateException(
+							"XFOIL sweep disagreement at Re=" + reynoldsNumber
+									+ ", alpha=" + angleIndex
+									+ ", coefficient=" + coefficient
+					);
+				}
+			}
+		}
 	}
 
 	private static AxisBracket bracket(double[] axis, double value) {
@@ -275,6 +461,35 @@ public final class Sda1075XfoilSectionPolar {
 	) {
 	}
 
+	private enum Coefficient {
+		LIFT,
+		DRAG,
+		PITCHING_MOMENT;
+
+		double[] values(XfoilPolar polar) {
+			return switch (this) {
+				case LIFT -> polar.liftCoefficient();
+				case DRAG -> polar.dragCoefficient();
+				case PITCHING_MOMENT -> polar.pitchingMomentCoefficient();
+			};
+		}
+
+		double[][] reviewedTable() {
+			return switch (this) {
+				case LIFT -> LIFT_COEFFICIENT;
+				case DRAG -> DRAG_COEFFICIENT;
+				case PITCHING_MOMENT -> PITCHING_MOMENT_COEFFICIENT;
+			};
+		}
+	}
+
+	private record XfoilPolar(
+			double[] liftCoefficient,
+			double[] dragCoefficient,
+			double[] pitchingMomentCoefficient
+	) {
+	}
+
 	public record PolarSample(
 			String dataSourceId,
 			double queryReynoldsNumber,
@@ -296,6 +511,8 @@ public final class Sda1075XfoilSectionPolar {
 			boolean reynoldsClamped,
 			boolean angleOfAttackClamped,
 			boolean blocked,
+			boolean lowReynoldsExtensionUsed,
+			boolean sourceSweepAgreementVerified,
 			String message
 	) {
 		public boolean accepted() {

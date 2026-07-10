@@ -87,8 +87,11 @@ class RotorHoverBladeElementModelTest {
 		assertTrue(sample.minimumReynoldsNumber() < 40_000.0);
 		assertTrue(sample.maximumReynoldsNumber() > 60_000.0);
 		assertTrue(sample.maximumReynoldsNumber() < 100_000.0);
-		assertTrue(sample.reynoldsClampedAnnulusCount() > 0);
-		assertTrue(sample.reynoldsClampedAnnulusCount() < sample.annulusCount());
+		assertEquals(0, sample.reynoldsClampedAnnulusCount());
+		assertTrue(sample.lowReynoldsExtensionAnnulusCount() > 0);
+		assertTrue(sample.lowReynoldsExtensionAnnulusCount() < sample.annulusCount());
+		assertEquals(1.0, sample.reynoldsSupportedThrustWeightFraction(), 1.0e-15);
+		assertTrue(sample.fullySupportedThrustWeightFraction() > 0.7);
 		assertTrue(sample.angleOfAttackClampedAnnulusCount() > 0);
 		assertTrue(sample.annuli().stream().allMatch(annulus ->
 				annulus.prandtlTipLossFactor() > 0.0
@@ -215,7 +218,28 @@ class RotorHoverBladeElementModelTest {
 	}
 
 	@Test
-	void reynoldsTrendConvergesNumericallyAndStrictEnvelopeBlocksLowReSections() {
+	void geometricallySimilarFiveAndNineInchPropsRemainConsistentAtMatchedReynolds() {
+		RotorHoverBladeElementModel.HoverSample fiveInch = solveGeometry(
+				UiucDa4002PropellerGeometry.fiveByThreePointSevenFiveTwoBlade(),
+				UiucDa4002PropellerGeometry.FIVE_INCH_DIAMETER_METERS,
+				6_480.0
+		);
+		RotorHoverBladeElementModel.HoverSample nineInch = solveGeometry(
+				UiucDa4002PropellerGeometry.nineBySixPointSevenFiveTwoBlade(),
+				UiucDa4002PropellerGeometry.NINE_INCH_DIAMETER_METERS,
+				2_000.0
+		);
+
+		assertTrue(fiveInch.solved());
+		assertTrue(nineInch.solved());
+		assertEquals(nineInch.thrustCoefficientCt(), fiveInch.thrustCoefficientCt(), 0.003);
+		assertEquals(nineInch.powerCoefficientCp(), fiveInch.powerCoefficientCp(), 0.004);
+		assertTrue(fiveInch.reynoldsSupportedThrustWeightFraction() > 0.95);
+		assertTrue(nineInch.reynoldsSupportedThrustWeightFraction() > 0.95);
+	}
+
+	@Test
+	void reynoldsTrendConvergesNumericallyAndStrictEnvelopeBlocksUnsupportedSections() {
 		RotorHoverBladeElementModel.HoverSample lowRpm = solve(
 				1_546.667,
 				RotorHoverBladeElementModel.DEFAULT_ANNULI_PER_GEOMETRY_INTERVAL,
@@ -240,7 +264,10 @@ class RotorHoverBladeElementModelTest {
 		assertTrue(lowRpm.solved());
 		assertTrue(highRpm.solved());
 		assertTrue(highRpm.thrustCoefficientCt() > lowRpm.thrustCoefficientCt());
-		assertEquals(lowRpm.annulusCount(), lowRpm.reynoldsClampedAnnulusCount());
+		assertTrue(lowRpm.reynoldsClampedAnnulusCount() > 0);
+		assertTrue(lowRpm.reynoldsClampedAnnulusCount() < lowRpm.annulusCount());
+		assertTrue(lowRpm.reynoldsSupportedThrustWeightFraction() > 0.9);
+		assertEquals(0, highRpm.reynoldsClampedAnnulusCount());
 		assertEquals(highRpm.thrustCoefficientCt(), coarseHighRpm.thrustCoefficientCt(), 0.003);
 		assertEquals(highRpm.powerCoefficientCp(), coarseHighRpm.powerCoefficientCp(), 0.002);
 		assertEquals(RotorHoverBladeElementModel.Status.BLOCKED_SECTION_POLAR_ENVELOPE,
@@ -299,5 +326,21 @@ class RotorHoverBladeElementModelTest {
 				rotationalAugmentationPolicy
 		);
 		return RotorHoverBladeElementModel.solve(query);
+	}
+
+	private static RotorHoverBladeElementModel.HoverSample solveGeometry(
+			RotorHoverBladeProfilePowerModel.BladeGeometry geometry,
+			double diameterMeters,
+			double rpm
+	) {
+		return RotorHoverBladeElementModel.solve(new RotorHoverBladeElementModel.HoverQuery(
+				geometry,
+				diameterMeters * 0.5,
+				RHO,
+				DYNAMIC_VISCOSITY_PASCAL_SECONDS,
+				rpm * 2.0 * Math.PI / 60.0,
+				RotorHoverBladeElementModel.DEFAULT_ANNULI_PER_GEOMETRY_INTERVAL,
+				Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE
+		));
 	}
 }

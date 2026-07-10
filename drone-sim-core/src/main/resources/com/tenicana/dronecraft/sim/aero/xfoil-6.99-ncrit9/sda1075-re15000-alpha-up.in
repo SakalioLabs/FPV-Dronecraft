@@ -1,0 +1,19 @@
+PLOP
+G
+
+LOAD sda1075.dat
+PANE
+OPER
+VISC 15000
+MACH 0
+VPAR
+N 9
+
+ITER 250
+PACC
+polar.pol
+
+ASEQ 0 12 0.25
+PACC
+
+QUIT

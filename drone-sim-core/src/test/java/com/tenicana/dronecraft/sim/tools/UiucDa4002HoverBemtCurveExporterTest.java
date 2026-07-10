@@ -33,7 +33,7 @@ class UiucDa4002HoverBemtCurveExporterTest {
 		Map<String, Integer> columns = columns(lines.get(0));
 
 		assertEquals(65, lines.size());
-		assertEquals(89, columns.size());
+		assertEquals(93, columns.size());
 		assertTrue(lines.stream().skip(1).allMatch(line -> cells(line).length == columns.size()));
 		assertTrue(lines.stream().skip(1).allMatch(line ->
 				"SOLVED".equals(textCell(line, columns, "bemt_status"))));
@@ -111,11 +111,16 @@ class UiucDa4002HoverBemtCurveExporterTest {
 		assertTrue(doubleCell(highNineInch, columns, "augmented_ct_residual_fraction")
 				> 0.02);
 		assertTrue(doubleCell(highNineInch, columns, "reynolds_75") > 70_000.0);
+		assertEquals(0.0, doubleCell(highNineInch, columns,
+				"bemt_reynolds_clamped_annuli"), 0.0);
 		assertTrue(doubleCell(highNineInch, columns,
-				"bemt_reynolds_clamped_annuli") > 0.0);
+				"bemt_low_re_extension_annuli") > 0.0);
+		assertEquals(1.0, doubleCell(highNineInch, columns,
+				"bemt_reynolds_supported_thrust_weight_fraction"), 1.0e-15);
 		assertTrue(doubleCell(highNineInch, columns,
-				"bemt_reynolds_clamped_annuli")
-				< doubleCell(highNineInch, columns, "bemt_annulus_count"));
+				"bemt_fully_supported_thrust_weight_fraction") > 0.7);
+		assertTrue(doubleCell(lowNineInch, columns,
+				"bemt_reynolds_supported_thrust_weight_fraction") > 0.9);
 		assertEquals(0.0, doubleCell(highNineInch, columns,
 				"bemt_momentum_wake_torque_nm"), 0.0);
 		assertTrue(doubleCell(highNineInch, columns,
@@ -156,9 +161,15 @@ class UiucDa4002HoverBemtCurveExporterTest {
 		assertTrue(fiveInchRows.stream().allMatch(line ->
 				doubleCell(line, columns, "reynolds_75") < 40_000.0));
 		assertTrue(fiveInchRows.stream().allMatch(line ->
+				doubleCell(line, columns, "bemt_low_re_extension_annuli")
+						== doubleCell(line, columns, "bemt_annulus_count")));
+		assertTrue(fiveInchRows.stream().anyMatch(line ->
+				doubleCell(line, columns,
+						"bemt_reynolds_supported_thrust_weight_fraction") > 0.95));
+		assertTrue(fiveInchRows.stream().anyMatch(line ->
 				doubleCell(line, columns,
 						"rotational_augmentation_applied_on_clamped_polar_annuli")
-						== doubleCell(line, columns,
+						< doubleCell(line, columns,
 								"rotational_augmentation_applied_annuli")));
 	}
 

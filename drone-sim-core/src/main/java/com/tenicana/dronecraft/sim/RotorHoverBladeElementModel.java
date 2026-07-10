@@ -591,6 +591,11 @@ public final class RotorHoverBladeElementModel {
 		int clampedCount = 0;
 		int reynoldsClampedCount = 0;
 		int angleClampedCount = 0;
+		int lowReynoldsExtensionCount = 0;
+		double absoluteThrustWeight = 0.0;
+		double reynoldsSupportedThrustWeight = 0.0;
+		double fullySupportedThrustWeight = 0.0;
+		double lowReynoldsExtensionThrustWeight = 0.0;
 		int rotationalAugmentationAppliedCount = 0;
 		int rotationalAugmentationSourceSpanLimitedCount = 0;
 		int rotationalAugmentationAppliedOnClampedPolarCount = 0;
@@ -627,6 +632,18 @@ public final class RotorHoverBladeElementModel {
 			}
 			if (annulus.polar().angleOfAttackClamped()) {
 				angleClampedCount++;
+			}
+			double annulusThrustWeight = Math.abs(annulus.thrustNewtons());
+			absoluteThrustWeight += annulusThrustWeight;
+			if (!annulus.polar().reynoldsClamped()) {
+				reynoldsSupportedThrustWeight += annulusThrustWeight;
+			}
+			if (!annulus.polar().clamped()) {
+				fullySupportedThrustWeight += annulusThrustWeight;
+			}
+			if (annulus.polar().lowReynoldsExtensionUsed()) {
+				lowReynoldsExtensionCount++;
+				lowReynoldsExtensionThrustWeight += annulusThrustWeight;
 			}
 			SnelMcCrinkRotationalAugmentation.Sample augmentation =
 					annulus.rotationalAugmentation();
@@ -711,6 +728,10 @@ public final class RotorHoverBladeElementModel {
 				clampedCount,
 				reynoldsClampedCount,
 				angleClampedCount,
+				lowReynoldsExtensionCount,
+				ratio(reynoldsSupportedThrustWeight, absoluteThrustWeight),
+				ratio(fullySupportedThrustWeight, absoluteThrustWeight),
+				ratio(lowReynoldsExtensionThrustWeight, absoluteThrustWeight),
 				rotationalAugmentationAppliedCount,
 				rotationalAugmentationSourceSpanLimitedCount,
 				rotationalAugmentationAppliedOnClampedPolarCount,
@@ -771,6 +792,10 @@ public final class RotorHoverBladeElementModel {
 				0,
 				0,
 				0,
+				0,
+				0.0,
+				0.0,
+				0.0,
 				0,
 				0,
 				0,
@@ -1031,6 +1056,10 @@ public final class RotorHoverBladeElementModel {
 			int clampedAnnulusCount,
 			int reynoldsClampedAnnulusCount,
 			int angleOfAttackClampedAnnulusCount,
+			int lowReynoldsExtensionAnnulusCount,
+			double reynoldsSupportedThrustWeightFraction,
+			double fullySupportedThrustWeightFraction,
+			double lowReynoldsExtensionThrustWeightFraction,
 			int rotationalAugmentationAppliedAnnulusCount,
 			int rotationalAugmentationSourceSpanLimitedAnnulusCount,
 			int rotationalAugmentationAppliedOnClampedPolarAnnulusCount,
