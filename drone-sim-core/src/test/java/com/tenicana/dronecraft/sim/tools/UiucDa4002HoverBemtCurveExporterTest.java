@@ -32,7 +32,7 @@ class UiucDa4002HoverBemtCurveExporterTest {
 		Map<String, Integer> columns = columns(lines.get(0));
 
 		assertEquals(65, lines.size());
-		assertEquals(52, columns.size());
+		assertEquals(66, columns.size());
 		assertTrue(lines.stream().skip(1).allMatch(line -> cells(line).length == columns.size()));
 		assertTrue(lines.stream().skip(1).allMatch(line ->
 				"SOLVED".equals(textCell(line, columns, "bemt_status"))));
@@ -86,6 +86,18 @@ class UiucDa4002HoverBemtCurveExporterTest {
 				"bemt_wake_swirl_kinetic_power_w") > 0.0);
 		assertTrue(doubleCell(highNineInchWithSwirl, columns,
 				"bemt_maximum_tangential_induction_to_blade_speed") < 0.06);
+		assertEquals(0.0, doubleCell(highNineInchWithSwirl, columns,
+				"required_power_closure_residual_w"), 1.0e-12);
+		assertEquals(0.0, doubleCell(highNineInchWithSwirl, columns,
+				"required_torque_closure_residual_nm"), 1.0e-15);
+		assertTrue(doubleCell(highNineInchWithSwirl, columns,
+				"effective_profile_power_scale_if_all_non_lift_loss_were_profile") > 2.0);
+		assertTrue(doubleCell(lowNineInch, columns,
+				"effective_profile_power_scale_if_all_non_lift_loss_were_profile") < 1.4);
+		assertTrue(doubleCell(highNineInchWithSwirl, columns,
+				"conditioned_unresolved_power_fraction") > 0.15);
+		assertTrue(lines.stream().skip(1).allMatch(line -> "true".equals(
+				textCell(line, columns, "effective_profile_power_scale_available"))));
 
 		List<String> fiveInchRows = lines.stream()
 				.skip(1)

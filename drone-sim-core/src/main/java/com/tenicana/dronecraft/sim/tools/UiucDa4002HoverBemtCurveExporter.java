@@ -10,6 +10,7 @@ import java.util.Locale;
 
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
 import com.tenicana.dronecraft.sim.RotorHoverBladeElementModel;
+import com.tenicana.dronecraft.sim.RotorHoverPowerLossDecomposition;
 import com.tenicana.dronecraft.sim.Sda1075XfoilSectionPolar;
 import com.tenicana.dronecraft.sim.UiucDa4002StaticPerformanceLookup;
 
@@ -42,6 +43,20 @@ public final class UiucDa4002HoverBemtCurveExporter {
 			"bemt_shaft_torque_nm",
 			"shaft_torque_residual_nm",
 			"shaft_torque_residual_fraction",
+			"reference_conditioned_lift_induced_power_w",
+			"reference_conditioned_lift_induced_cp",
+			"reference_conditioned_modeled_power_w",
+			"required_non_lift_power_w",
+			"required_non_lift_cp",
+			"required_non_lift_torque_nm",
+			"conditioned_unresolved_power_w",
+			"conditioned_unresolved_power_fraction",
+			"conditioned_unresolved_cp",
+			"conditioned_unresolved_torque_nm",
+			"effective_profile_power_scale_if_all_non_lift_loss_were_profile",
+			"effective_profile_power_scale_available",
+			"required_power_closure_residual_w",
+			"required_torque_closure_residual_nm",
 			"reference_disk_loading_n_m2",
 			"bemt_disk_loading_n_m2",
 			"reference_ideal_induced_velocity_mps",
@@ -171,6 +186,8 @@ public final class UiucDa4002HoverBemtCurveExporter {
 			UiucDa4002StaticPerformanceLookup.DimensionalSample reference,
 			RotorHoverBladeElementModel.HoverSample bemt
 	) {
+		RotorHoverPowerLossDecomposition.PowerLossSample powerLoss =
+				RotorHoverPowerLossDecomposition.decompose(reference, bemt);
 		double ctResidual = bemt.thrustCoefficientCt()
 				- reference.lookup().thrustCoefficientCt();
 		double cpResidual = bemt.powerCoefficientCp()
@@ -205,6 +222,20 @@ public final class UiucDa4002HoverBemtCurveExporter {
 				number(bemt.shaftTorqueNewtonMeters()),
 				number(torqueResidual),
 				number(ratio(torqueResidual, reference.shaftTorqueNewtonMeters())),
+				number(powerLoss.referenceConditionedLiftInducedPowerWatts()),
+				number(powerLoss.referenceConditionedLiftInducedPowerCoefficientCp()),
+				number(powerLoss.referenceConditionedModeledPowerWatts()),
+				number(powerLoss.requiredNonLiftPowerWatts()),
+				number(powerLoss.requiredNonLiftPowerCoefficientCp()),
+				number(powerLoss.requiredNonLiftTorqueNewtonMeters()),
+				number(powerLoss.conditionedUnresolvedPowerWatts()),
+				number(powerLoss.conditionedUnresolvedPowerFraction()),
+				number(powerLoss.conditionedUnresolvedPowerCoefficientCp()),
+				number(powerLoss.conditionedUnresolvedTorqueNewtonMeters()),
+				number(powerLoss.effectiveProfilePowerScaleIfAllNonLiftLossWereProfile()),
+				Boolean.toString(powerLoss.effectiveProfilePowerScaleAvailable()),
+				number(powerLoss.requiredPowerClosureResidualWatts()),
+				number(powerLoss.requiredTorqueClosureResidualNewtonMeters()),
 				number(reference.diskLoadingNewtonsPerSquareMeter()),
 				number(bemt.diskLoadingNewtonsPerSquareMeter()),
 				number(reference.idealInducedVelocityMetersPerSecond()),
