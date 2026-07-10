@@ -106,6 +106,7 @@ class UiucDa4002AdvancePerformanceLookupTest {
 		double omega = 2.0 * Math.PI * revolutionsPerSecond;
 		double axialVelocity = 0.543643 * revolutionsPerSecond * diameter;
 		double relativeSpeed75 = Math.hypot(0.75 * omega * radius, axialVelocity);
+		double rotationalSpeed75 = 0.75 * omega * radius;
 		double chord75 = curve.geometry().chordToRadiusAt(0.75) * radius;
 
 		assertFalse(sample.blocked());
@@ -121,7 +122,9 @@ class UiucDa4002AdvancePerformanceLookupTest {
 				sample.usefulPropulsivePowerWatts(), 1.0e-15);
 		assertEquals(sample.lookup().propulsiveEfficiencyEta(),
 				sample.coefficientDerivedEfficiencyEta(), 1.0e-5);
-		assertEquals(RHO * relativeSpeed75 * chord75 / DYNAMIC_VISCOSITY_PASCAL_SECONDS,
+		assertEquals(RHO * rotationalSpeed75 * chord75 / DYNAMIC_VISCOSITY_PASCAL_SECONDS,
 				sample.reynoldsNumberAtSeventyFivePercentRadius(), 1.0e-10);
+		assertEquals(RHO * relativeSpeed75 * chord75 / DYNAMIC_VISCOSITY_PASCAL_SECONDS,
+				sample.resultantSectionReynoldsNumberAtSeventyFivePercentRadius(), 1.0e-10);
 	}
 }

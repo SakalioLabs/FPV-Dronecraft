@@ -58,6 +58,23 @@ tasks.register("uiucDa4002AxialBemtCurve", JavaExec) {
 	}
 }
 
+tasks.register("uiucDa4002MeasuredRotorCurve", JavaExec) {
+	group = "simulation"
+	description = "Exports an explicitly bounded measured UIUC DA4002 CT/CP/J rotor curve."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.UiucDa4002MeasuredRotorCurveExporter")
+	doFirst {
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("uiuc-da4002-measured-rotor/curve.csv").get().asFile.absolutePath
+		def propeller = project.findProperty("propeller") ?: "DA4002_9X6_75"
+		def rpm = project.findProperty("rpm") ?: "4000"
+		def advanceRatioStep = project.findProperty("jStep") ?: "0.025"
+		def maximumAdvanceRatio = project.findProperty("maxJ") ?: "1.0"
+		def airDensity = project.findProperty("density") ?: ""
+		def dynamicViscosity = project.findProperty("dynamicViscosity") ?: ""
+		args(outputFile, propeller, rpm, advanceRatioStep, maximumAdvanceRatio, airDensity, dynamicViscosity)
+	}
+}
+
 tasks.register("ctCpJConfigurationCurve", JavaExec) {
 	group = "simulation"
 	description = "Exports static-anchored CT/CP/J whole-configuration force, torque, and power samples as CSV."

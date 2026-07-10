@@ -197,7 +197,11 @@ public final class UiucDa4002AdvancePerformanceLookup {
 		double chord75 = curve.geometry().chordToRadiusAt(0.75) * radius;
 		double rotationalSpeed75 = 0.75 * angularVelocity * radius;
 		double relativeSpeed75 = Math.hypot(rotationalSpeed75, axialFreestreamVelocity);
-		double reynolds75 = airDensityKgPerCubicMeter
+		double sourceRotationalReynolds75 = airDensityKgPerCubicMeter
+				* rotationalSpeed75
+				* chord75
+				/ dynamicViscosityPascalSeconds;
+		double resultantSectionReynolds75 = airDensityKgPerCubicMeter
 				* relativeSpeed75
 				* chord75
 				/ dynamicViscosityPascalSeconds;
@@ -210,7 +214,8 @@ public final class UiucDa4002AdvancePerformanceLookup {
 					revolutionsPerSecond,
 					angularVelocity,
 					axialFreestreamVelocity,
-					reynolds75,
+					sourceRotationalReynolds75,
+					resultantSectionReynolds75,
 					0.0,
 					0.0,
 					0.0,
@@ -237,7 +242,8 @@ public final class UiucDa4002AdvancePerformanceLookup {
 				revolutionsPerSecond,
 				angularVelocity,
 				axialFreestreamVelocity,
-				reynolds75,
+				sourceRotationalReynolds75,
+				resultantSectionReynolds75,
 				thrust,
 				shaftPower,
 				shaftTorque,
@@ -450,6 +456,7 @@ public final class UiucDa4002AdvancePerformanceLookup {
 			double angularVelocityRadiansPerSecond,
 			double axialFreestreamVelocityMetersPerSecond,
 			double reynoldsNumberAtSeventyFivePercentRadius,
+			double resultantSectionReynoldsNumberAtSeventyFivePercentRadius,
 			double thrustNewtons,
 			double shaftPowerWatts,
 			double shaftTorqueNewtonMeters,

@@ -32,7 +32,7 @@ class UiucDa4002AxialBemtCurveExporterTest {
 		Map<String, Integer> columns = columns(lines.get(0));
 
 		assertEquals(113, lines.size());
-		assertEquals(51, columns.size());
+		assertEquals(52, columns.size());
 		assertTrue(lines.stream().skip(1).allMatch(line ->
 				cells(line).length == columns.size()));
 		assertTrue(lines.stream().skip(1).allMatch(line ->
