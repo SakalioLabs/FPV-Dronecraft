@@ -43,7 +43,8 @@ public final class ControllerInputDiagnostics {
 			boolean controlAuthorized,
 			boolean armed,
 			ArmSafetyCheck.Result armCheck,
-			ControllerPayloadTrace payload
+			ControllerPayloadTrace payload,
+			ControllerActivityKeepalive.Result activityResult
 	) {
 		GamepadInputFrame frame = decision == null ? null : decision.frame();
 		GamepadDeviceResolver.Resolution resolution = frame == null ? null : frame.resolution();
@@ -53,6 +54,12 @@ public final class ControllerInputDiagnostics {
 				: smoothedInput;
 		ArmSafetyCheck.Result safeArmCheck = armCheck == null ? ArmSafetyCheck.Result.blocked(ArmSafetyCheck.Reason.NO_CONTROL_AUTHORITY) : armCheck;
 		ControllerPayloadTrace safePayload = payload == null ? ControllerPayloadTrace.empty() : payload;
+		ControllerActivityKeepalive.Result safeActivity = activityResult == null
+				? ControllerActivityKeepalive.Result.idle(null)
+				: activityResult;
+		UserActivityNotifier.Status activityStatus = safeActivity.status() == null
+				? UserActivityNotifier.Status.unavailable(Integer.MIN_VALUE)
+				: safeActivity.status();
 		return new Snapshot(
 				tick,
 				joystickList(resolution),
@@ -73,7 +80,14 @@ public final class ControllerInputDiagnostics {
 				safeSmoothed.source(),
 				armed,
 				safeArmCheck.reason().diagnosticText(),
-				safePayload.compactLine()
+				safePayload.compactLine(),
+				activityStatus.inactivityElapsedMillis(),
+				activityStatus.reduceFpsWhen(),
+				activityStatus.fpsCapReason(),
+				activityStatus.currentFps(),
+				safeActivity.meaningfulControllerActivity(),
+				safeActivity.userActivityReported(),
+				activityStatus.lastReportTick()
 		);
 	}
 
@@ -148,7 +162,14 @@ public final class ControllerInputDiagnostics {
 			InputSource inputSource,
 			boolean armed,
 			String armBlockReason,
-			String payload
+			String payload,
+			long inactivityElapsedMillis,
+			String reduceFpsWhen,
+			String fpsCapReason,
+			int currentFps,
+			boolean meaningfulControllerActivity,
+			boolean userActivityReported,
+			int lastUserActivityReportTick
 	) {
 		public static Snapshot empty() {
 			return new Snapshot(
@@ -171,14 +192,21 @@ public final class ControllerInputDiagnostics {
 					InputSource.KEYBOARD,
 					false,
 					"none",
-					"seq=0 T0.000 P0.000 R0.000 Y0.000 armed=false"
+					"seq=0 T0.000 P0.000 R0.000 Y0.000 armed=false",
+					-1L,
+					"unknown",
+					"unknown",
+					-1,
+					false,
+					false,
+					Integer.MIN_VALUE
 			);
 		}
 
 		public String compactLine() {
 			return String.format(
 					Locale.ROOT,
-					"tick=%d selected=%s cal=%s enabled=%s authority=%s shouldGamepad=%s status=%s raw=%s mapped=%s shaped=%s smooth=%s source=%s armed=%s arm=%s payload=%s",
+					"tick=%d selected=%s cal=%s enabled=%s authority=%s shouldGamepad=%s status=%s raw=%s mapped=%s shaped=%s smooth=%s source=%s armed=%s arm=%s payload=%s afkMs=%d reduceFps=%s capReason=%s fps=%d controllerActivity=%s activityReported=%s lastActivityTick=%d",
 					tick,
 					selectedRuntimeDevice,
 					calibrationSelectedDevice,
@@ -193,7 +221,14 @@ public final class ControllerInputDiagnostics {
 					inputSource,
 					armed,
 					armBlockReason,
-					payload
+					payload,
+					inactivityElapsedMillis,
+					reduceFpsWhen,
+					fpsCapReason,
+					currentFps,
+					meaningfulControllerActivity,
+					userActivityReported,
+					lastUserActivityReportTick
 			);
 		}
 	}

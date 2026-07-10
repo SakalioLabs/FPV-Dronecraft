@@ -3,7 +3,12 @@ package com.tenicana.dronecraft.network;
 import java.util.Comparator;
 import java.util.List;
 
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -89,6 +94,22 @@ public final class DroneNetworking {
 			}
 			context.server().execute(() -> updateFpvCamera(player, payload.fpvView()));
 		});
+		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> restorePlayerCamera(handler.player));
+		ServerPlayerEvents.JOIN.register(DroneNetworking::restorePlayerCamera);
+		ServerPlayerEvents.LEAVE.register(DroneNetworking::restorePlayerCamera);
+		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+			restorePlayerCamera(oldPlayer);
+			restorePlayerCamera(newPlayer);
+		});
+		ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> restorePlayerCamera(player));
+		ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
+			if (entity instanceof DroneEntity) {
+				world.getServer().getPlayerList().getPlayers().stream()
+						.filter(player -> player.getCamera() == entity)
+						.forEach(DroneNetworking::restorePlayerCamera);
+			}
+		});
+		ServerTickEvents.END_SERVER_TICK.register(server -> server.getPlayerList().getPlayers().forEach(DroneNetworking::restoreInvalidDroneCamera));
 	}
 
 	private static void updateFpvCamera(ServerPlayer player, boolean fpvView) {
@@ -96,23 +117,20 @@ public final class DroneNetworking {
 			return;
 		}
 		if (!fpvView) {
-			if (player.getCamera() instanceof DroneEntity) {
-				player.setCamera(player);
-			}
+			restorePlayerCamera(player);
 			return;
 		}
 		DroneEntity drone = fpvCameraDrone(player);
-		if (drone != null && player.getCamera() != drone) {
+		if (drone == null) {
+			restorePlayerCamera(player);
+		} else if (player.getCamera() != drone) {
 			player.setCamera(drone);
 		}
 	}
 
 	private static DroneEntity fpvCameraDrone(ServerPlayer player) {
 		Entity camera = player.getCamera();
-		if (camera instanceof DroneEntity drone
-				&& drone.isAlive()
-				&& drone.level() == player.level()
-				&& drone.isOwnedBy(player.getUUID())) {
+		if (camera instanceof DroneEntity drone && isValidFpvCameraDrone(player, drone)) {
 			return drone;
 		}
 
@@ -120,10 +138,35 @@ public final class DroneNetworking {
 		return player.level().getEntitiesOfClass(
 				DroneEntity.class,
 				search,
-				drone -> drone.isAlive() && drone.isOwnedBy(player.getUUID())
+				drone -> isValidFpvCameraDrone(player, drone)
 		).stream()
 				.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(player)))
 				.orElse(null);
+	}
+
+	private static void restorePlayerCamera(ServerPlayer player) {
+		if (player != null && player.getCamera() != player) {
+			player.setCamera(player);
+		}
+	}
+
+	private static void restoreInvalidDroneCamera(ServerPlayer player) {
+		if (player == null) {
+			return;
+		}
+		Entity camera = player.getCamera();
+		if (camera instanceof DroneEntity drone && !isValidFpvCameraDrone(player, drone)) {
+			restorePlayerCamera(player);
+		}
+	}
+
+	private static boolean isValidFpvCameraDrone(ServerPlayer player, DroneEntity drone) {
+		return player != null
+				&& drone != null
+				&& drone.isAlive()
+				&& !drone.isRemoved()
+				&& drone.level() == player.level()
+				&& drone.isOwnedBy(player.getUUID());
 	}
 
 	private static boolean bindNearestDroneIfNeeded(ServerPlayer player, DroneInput input) {

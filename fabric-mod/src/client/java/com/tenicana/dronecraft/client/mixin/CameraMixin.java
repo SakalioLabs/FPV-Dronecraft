@@ -17,6 +17,7 @@ import net.minecraft.world.phys.Vec3;
 
 import com.tenicana.dronecraft.camera.FpvCameraMount;
 import com.tenicana.dronecraft.camera.FpvCameraOrientation;
+import com.tenicana.dronecraft.client.camera.ClientCameraSafety;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.client.control.DroneClientControls;
@@ -30,6 +31,7 @@ public abstract class CameraMixin {
 	private static final float RPM_TO_RADIANS_PER_TICK = (float) (Math.PI * 2.0 / 1200.0);
 	private static final FpvCameraPoseDelay FPV_POSE_DELAY = new FpvCameraPoseDelay();
 	private static int delayedDroneId = -1;
+	private static Level delayedLevel;
 
 	@Shadow
 	protected abstract void setPosition(Vec3 position);
@@ -59,15 +61,22 @@ public abstract class CameraMixin {
 	@Inject(method = "setup", at = @At("RETURN"))
 	private void fpvdrone$setupFpvCamera(Level level, Entity entity, boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo ci) {
 		DroneEntity drone = DroneClientState.controlledDrone();
-		if (!DroneClientState.isFpvActive() || drone == null) {
+		if (!ClientCameraSafety.isUsableFpvDroneReference(
+				DroneClientState.isFpvActive(level),
+				drone != null,
+				drone != null && drone.level() == level,
+				drone != null && drone.isRemoved(),
+				drone != null && drone.isAlive()
+		)) {
 			resetCameraDelay();
 			return;
 		}
 
 		DroneClientConfig config = DroneClientControls.config();
-		if (drone.getId() != delayedDroneId) {
+		if (ClientCameraSafety.shouldResetFpvPoseDelay(drone.getId(), delayedDroneId, level, delayedLevel)) {
 			FPV_POSE_DELAY.reset();
 			delayedDroneId = drone.getId();
+			delayedLevel = level;
 		}
 
 		Vec3 rawPosition = drone.getPosition(partialTick).add(0.0, drone.getPhysicsCenterYOffsetMeters(), 0.0);
@@ -121,6 +130,7 @@ public abstract class CameraMixin {
 	private static void resetCameraDelay() {
 		FPV_POSE_DELAY.reset();
 		delayedDroneId = -1;
+		delayedLevel = null;
 	}
 
 	private static CameraShake cameraShake(DroneEntity drone, float partialTick, DroneClientConfig config) {

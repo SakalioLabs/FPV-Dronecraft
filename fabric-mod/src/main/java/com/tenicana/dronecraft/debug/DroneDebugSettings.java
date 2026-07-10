@@ -1,10 +1,14 @@
 package com.tenicana.dronecraft.debug;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 import java.util.Locale;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
+import com.tenicana.dronecraft.entity.PlayableFlightPreset;
 import com.tenicana.dronecraft.sim.DroneInput;
 
 import net.minecraft.server.level.ServerPlayer;
@@ -28,12 +32,16 @@ public final class DroneDebugSettings {
 	}
 
 	private static final UUID OWNERLESS_LOG_ID = new UUID(0L, 1L);
+	private static final String DEFAULT_PLAYABLE_PRESET_RESOURCE = "/assets/fpvdrone/default_playable_preset.txt";
+	private static final String PLAYABLE_PRESET_PROPERTY = "fpvdrone.playable_preset";
+	private static final String PLAYABLE_PRESET_ENV = "FPVDRONE_PLAYABLE_PRESET";
 	private static final ConcurrentHashMap<UUID, Integer> LAST_CONTROL_LOG_TICK = new ConcurrentHashMap<>();
 	private static final ConcurrentHashMap<UUID, Integer> LAST_TICK_LOG_TICK = new ConcurrentHashMap<>();
 	private static volatile boolean controlLoggingEnabled;
 	private static volatile boolean tickLoggingEnabled;
 	private static volatile boolean ownerlessControlEnabled;
 	private static volatile boolean bypassPhysicsEnabled = true;
+	private static volatile PlayableFlightPreset playablePreset = initialPlayablePreset();
 
 	private DroneDebugSettings() {
 	}
@@ -58,6 +66,10 @@ public final class DroneDebugSettings {
 		return bypassPhysicsEnabled ? FlightModelMode.PLAYABLE : FlightModelMode.SIMULATION;
 	}
 
+	public static PlayableFlightPreset playablePreset() {
+		return playablePreset;
+	}
+
 	public static void setControlLoggingEnabled(boolean enabled) {
 		controlLoggingEnabled = enabled;
 	}
@@ -78,12 +90,39 @@ public final class DroneDebugSettings {
 		bypassPhysicsEnabled = mode == null || mode == FlightModelMode.PLAYABLE;
 	}
 
+	public static void setPlayablePreset(PlayableFlightPreset preset) {
+		playablePreset = preset == null ? PlayableFlightPreset.defaultPreset() : preset;
+	}
+
+	private static PlayableFlightPreset initialPlayablePreset() {
+		String configured = System.getProperty(PLAYABLE_PRESET_PROPERTY);
+		if (configured == null || configured.isBlank()) {
+			configured = System.getenv(PLAYABLE_PRESET_ENV);
+		}
+		if (configured == null || configured.isBlank()) {
+			configured = readDefaultPlayablePresetResource();
+		}
+		return PlayableFlightPreset.byId(configured);
+	}
+
+	private static String readDefaultPlayablePresetResource() {
+		try (InputStream input = DroneDebugSettings.class.getResourceAsStream(DEFAULT_PLAYABLE_PRESET_RESOURCE)) {
+			if (input == null) {
+				return PlayableFlightPreset.defaultPreset().id();
+			}
+			return new String(input.readAllBytes(), StandardCharsets.UTF_8).trim();
+		} catch (IOException ignored) {
+			return PlayableFlightPreset.defaultPreset().id();
+		}
+	}
+
 	public static String statusLine() {
 		return String.format(
-				"debug[pkt=%s,tick=%s,flight=%s,ownerless=%s]",
+				"debug[pkt=%s,tick=%s,flight=%s,playable_preset=%s,ownerless=%s]",
 				controlLoggingEnabled ? "on" : "off",
 				tickLoggingEnabled ? "on" : "off",
 				flightModelMode().id(),
+				playablePreset.id(),
 				ownerlessControlEnabled ? "on" : "off"
 		);
 	}

@@ -11,8 +11,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientWorldEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
@@ -20,6 +24,7 @@ import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.DroneClientState.InputSource;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.client.config.DroneControllerSettingsScreen;
+import com.tenicana.dronecraft.client.mixin.MinecraftCameraStateAccessor;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.network.DroneControlPayload;
 import com.tenicana.dronecraft.network.DroneViewPayload;
@@ -72,7 +77,9 @@ public final class DroneClientControls {
 	private static final ControlInputSmoother INPUT_SMOOTHER = new ControlInputSmoother();
 	private static final DroneControlSession CONTROL_SESSION = new DroneControlSession();
 	private static final ControllerButtonEdgeTracker BUTTON_EDGE_TRACKER = new ControllerButtonEdgeTracker();
+	private static final ControllerActivityKeepalive CONTROLLER_ACTIVITY_KEEPALIVE = new ControllerActivityKeepalive();
 	private static final JoystickProvider JOYSTICKS = GlfwJoystickProvider.INSTANCE;
+	private static final UserActivityNotifier USER_ACTIVITY_NOTIFIER = MinecraftUserActivityNotifier.INSTANCE;
 	private static DroneClientConfig config = DroneClientConfig.defaults();
 
 	private DroneClientControls() {
@@ -84,26 +91,35 @@ public final class DroneClientControls {
 		DroneClientState.setHudMode(config.hudMode());
 		throttleCalibrationActive = false;
 
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> resetClientRuntimeState(client));
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> resetClientRuntimeState(client));
+		ClientWorldEvents.AFTER_CLIENT_WORLD_CHANGE.register((client, world) -> resetClientRuntimeState(client));
+		ClientLifecycleEvents.CLIENT_STOPPING.register(DroneClientControls::resetClientRuntimeState);
+		ClientEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
+			Minecraft client = Minecraft.getInstance();
+			if (entity == DroneClientState.controlledDrone() || client.getCameraEntity() == entity) {
+				disableFpvView(client, true, true);
+				resetClientRuntimeState(client);
+			}
+		});
+
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (client.player == null || client.level == null) {
-				BUTTON_EDGE_TRACKER.reset();
-				STICK_ARM_GESTURE.reset();
-				MODE_SWITCH_RAMP.reset();
-				INPUT_SMOOTHER.reset();
-				CONTROL_SESSION.clear();
-				armed = false;
-				throttleCalibrationActive = false;
-				disabledControllerActivityWarned = false;
+				resetClientRuntimeState(client);
 				return;
 			}
 
 			boolean hasController = client.player.getMainHandItem().is(DroneItems.DRONE_CONTROLLER)
 					|| client.player.getOffhandItem().is(DroneItems.DRONE_CONTROLLER);
+			boolean fpvRequestedBeforeRefresh = DroneClientState.isFpvViewEnabled();
 			DroneClientState.refreshControlledDrone(client);
 			if (CONTROL_SESSION.updateControlledDrone(controlledDroneId())) {
 				resetControlSessionState();
 			}
-			boolean hasLinkedDrone = DroneClientState.controlledDrone() != null && DroneClientState.controlledDrone().isAlive();
+			boolean hasLinkedDrone = DroneClientState.hasControlledDrone(client);
+			if (fpvRequestedBeforeRefresh && !hasLinkedDrone) {
+				disableFpvView(client, true, true);
+			}
 
 			while (VIRTUAL_CONTROLLER.consumeClick()) {
 				virtualControllerEnabled = !virtualControllerEnabled;
@@ -115,8 +131,12 @@ public final class DroneClientControls {
 
 			while (FPV_VIEW.consumeClick()) {
 				boolean fpvEnabled = !DroneClientState.isFpvViewEnabled();
-				DroneClientState.setFpvViewEnabled(fpvEnabled);
-				sendFpvViewState(fpvEnabled);
+				if (fpvEnabled) {
+					DroneClientState.setFpvViewEnabled(true);
+					sendFpvViewState(true);
+				} else {
+					disableFpvView(client, true);
+				}
 				client.player.displayClientMessage(
 						Component.translatable(fpvEnabled ? "message.fpvdrone.fpv_view_enabled" : "message.fpvdrone.fpv_view_disabled"),
 						true
@@ -174,7 +194,8 @@ public final class DroneClientControls {
 						false,
 						armed,
 						ArmSafetyCheck.Result.blocked(ArmSafetyCheck.Reason.NO_CONTROL_AUTHORITY),
-						ControllerInputDiagnostics.ControllerPayloadTrace.empty()
+						ControllerInputDiagnostics.ControllerPayloadTrace.empty(),
+						ControllerActivityKeepalive.Result.idle(USER_ACTIVITY_NOTIFIER)
 				);
 				ControllerInputDiagnostics.record(diagnostics, client.player.tickCount);
 				DroneClientState.setControllerDiagnostics(diagnostics);
@@ -192,7 +213,7 @@ public final class DroneClientControls {
 						config.throttleCalibrated(),
 						throttleCalibrationActive
 				);
-				sendFpvViewState(false);
+				disableFpvView(client, true);
 				return;
 			}
 
@@ -233,9 +254,13 @@ public final class DroneClientControls {
 				toggleThrottleCalibration(client, gamepadInput.rawThrottle());
 			}
 
+			ControllerButtonEdgeTracker.ButtonEdges buttonEdges = ControllerButtonEdgeTracker.ButtonEdges.none();
 			if (gamepadInput != null) {
-				handleGamepadButtons(client, gamepadInput);
+				buttonEdges = BUTTON_EDGE_TRACKER.sample(gamepadInput);
+				handleGamepadButtons(client, gamepadInput, buttonEdges);
 				handleStickArmGesture(client, gamepadInput);
+			} else {
+				BUTTON_EDGE_TRACKER.reset();
 			}
 
 			ClientControlInput input = gamepadInput != null ? gamepadInputAsControl(gamepadInput) : keyboardInput(client);
@@ -247,6 +272,16 @@ public final class DroneClientControls {
 			}
 			input = applyModeSwitchRamp(input);
 			throttle = input.throttle();
+			ControllerActivityKeepalive.Result activityResult = CONTROLLER_ACTIVITY_KEEPALIVE.sample(
+					client.player.tickCount,
+					gamepadDecision,
+					input,
+					hasLinkedDrone,
+					controlAuthorized,
+					armed,
+					buttonEdges,
+					USER_ACTIVITY_NOTIFIER
+			);
 			ControllerInputDiagnostics.ControllerPayloadTrace payloadTrace = new ControllerInputDiagnostics.ControllerPayloadTrace(
 					++payloadSequence,
 					input.throttle(),
@@ -265,7 +300,8 @@ public final class DroneClientControls {
 					controlAuthorized,
 					armed,
 					armCheckForDiagnostics(input),
-					payloadTrace
+					payloadTrace,
+					activityResult
 			);
 			ControllerInputDiagnostics.record(diagnostics, client.player.tickCount);
 			DroneClientState.setControllerDiagnostics(diagnostics);
@@ -283,22 +319,44 @@ public final class DroneClientControls {
 					config.throttleCalibrated(),
 					throttleCalibrationActive
 			);
-			ClientPlayNetworking.send(new DroneControlPayload(input.throttle(), input.pitch(), input.roll(), input.yaw(), armed, flightMode.id()));
+			restoreInvalidDroneCamera(client);
+			sendControlInput(input);
 			sendFpvViewState(DroneClientState.isFpvViewEnabled());
 		});
 	}
 
+	private static void sendControlInput(ClientControlInput input) {
+		if (!ClientPlayNetworking.canSend(DroneControlPayload.TYPE)) {
+			return;
+		}
+		ClientPlayNetworking.send(new DroneControlPayload(input.throttle(), input.pitch(), input.roll(), input.yaw(), armed, flightMode.id()));
+	}
+
 	private static void sendFpvViewState(boolean fpvView) {
+		if (!ClientPlayNetworking.canSend(DroneViewPayload.TYPE)) {
+			return;
+		}
 		ClientPlayNetworking.send(new DroneViewPayload(fpvView));
+	}
+
+	private static void disableFpvView(Minecraft client, boolean notifyServer) {
+		disableFpvView(client, notifyServer, false);
+	}
+
+	private static void disableFpvView(Minecraft client, boolean notifyServer, boolean forceNotifyServer) {
+		boolean wasEnabled = DroneClientState.isFpvViewEnabled();
+		DroneClientState.setFpvViewEnabled(false);
+		restoreVanillaCamera(client);
+		if (notifyServer && (wasEnabled || forceNotifyServer)) {
+			sendFpvViewState(false);
+		}
 	}
 
 	public static DroneClientConfig config() {
 		return config;
 	}
 
-	private static void handleGamepadButtons(Minecraft client, GamepadInputFrame input) {
-		ControllerButtonEdgeTracker.ButtonEdges edges = BUTTON_EDGE_TRACKER.sample(input);
-
+	private static void handleGamepadButtons(Minecraft client, GamepadInputFrame input, ControllerButtonEdgeTracker.ButtonEdges edges) {
 		if (edges.armPressed() && !input.disarmButtonPressed()) {
 			requestArmed(client, true, canArmWithGamepadButton(input));
 		}
@@ -394,6 +452,54 @@ public final class DroneClientControls {
 		STICK_ARM_GESTURE.reset();
 		MODE_SWITCH_RAMP.reset();
 		armed = false;
+		CONTROLLER_ACTIVITY_KEEPALIVE.reset();
+	}
+
+	private static void resetClientRuntimeState(Minecraft client) {
+		BUTTON_EDGE_TRACKER.reset();
+		STICK_ARM_GESTURE.reset();
+		MODE_SWITCH_RAMP.reset();
+		INPUT_SMOOTHER.reset();
+		CONTROL_SESSION.clear();
+		CONTROLLER_ACTIVITY_KEEPALIVE.reset();
+		resetTransientControlState();
+		armed = false;
+		virtualControllerEnabled = false;
+		throttleCalibrationActive = false;
+		disabledControllerActivityWarned = false;
+		DroneClientState.resetTransientFlightState();
+		restoreVanillaCamera(client);
+	}
+
+	private static void restoreVanillaCamera(Minecraft client) {
+		if (client == null) {
+			return;
+		}
+		clearStaleHitTargets(client);
+		if (client.player == null) {
+			return;
+		}
+		if (client.getCameraEntity() != client.player) {
+			client.setCameraEntity(client.player);
+		}
+	}
+
+	private static void clearStaleHitTargets(Minecraft client) {
+		if (client == null) {
+			return;
+		}
+		MinecraftCameraStateAccessor cameraState = (MinecraftCameraStateAccessor) client;
+		cameraState.fpvdrone$setCrosshairPickEntity(null);
+		cameraState.fpvdrone$setHitResult(null);
+	}
+
+	private static void restoreInvalidDroneCamera(Minecraft client) {
+		if (client == null || client.player == null || client.level == null) {
+			return;
+		}
+		if (client.getCameraEntity() instanceof DroneEntity && !DroneClientState.isFpvActive(client.level)) {
+			restoreVanillaCamera(client);
+		}
 	}
 
 	private static UUID controlledDroneId() {

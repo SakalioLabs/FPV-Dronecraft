@@ -860,8 +860,11 @@ public class DroneEntity extends Entity {
 			playableInitialized = true;
 		}
 		Map<String, String> modelConfiguration = failsafeDamping
-				? Map.of(LegacyPlayableFlightModelAdapter.OPTION_FAILSAFE_DAMPING, "true")
-				: Map.of();
+				? Map.of(
+						LegacyPlayableFlightModelAdapter.OPTION_FAILSAFE_DAMPING, "true",
+						LegacyPlayableFlightModelAdapter.OPTION_PLAYABLE_PRESET, DroneDebugSettings.playablePreset().id()
+				)
+				: Map.of(LegacyPlayableFlightModelAdapter.OPTION_PLAYABLE_PRESET, DroneDebugSettings.playablePreset().id());
 		return flightModels.step(new FlightStepContext(
 				input,
 				flightModels.snapshot(),

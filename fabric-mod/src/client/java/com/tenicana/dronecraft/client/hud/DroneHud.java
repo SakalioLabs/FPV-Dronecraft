@@ -50,7 +50,8 @@ public final class DroneHud {
 			return;
 		}
 		DroneEntity drone = DroneClientState.controlledDrone();
-		if (!DroneClientState.hasController() && !DroneClientState.isFpvActive() && drone == null) {
+		boolean fpvActive = DroneClientState.isFpvActive(client.level);
+		if (!DroneClientState.hasController() && !fpvActive && drone == null) {
 			return;
 		}
 
@@ -65,7 +66,7 @@ public final class DroneHud {
 		}
 
 		drawCompactStatus(graphics, font, screenWidth, telemetry);
-		if (DroneClientState.isFpvActive()) {
+		if (fpvActive) {
 			drawAttitude(graphics, screenWidth / 2, screenHeight / 2, telemetry);
 			drawSideScales(graphics, font, screenWidth, screenHeight, telemetry);
 		}
@@ -205,6 +206,8 @@ public final class DroneHud {
 				"RAW " + diagnostics.rawAxes(),
 				"MAP " + diagnostics.mappedAxes() + " CAL " + diagnostics.calibratedControls(),
 				"OUT " + diagnostics.smoothedControls() + " SRC " + diagnostics.inputSource(),
+				"AFK " + diagnostics.inactivityElapsedMillis() + "ms " + diagnostics.reduceFpsWhen() + "/" + diagnostics.fpsCapReason() + " FPS " + diagnostics.currentFps()
+						+ " ACT " + diagnostics.meaningfulControllerActivity() + " REP " + diagnostics.userActivityReported(),
 				"ARM " + (diagnostics.armed() ? "armed" : diagnostics.armBlockReason()) + " " + diagnostics.payload()
 		};
 		int y = MARGIN + 18;

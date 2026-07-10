@@ -75,7 +75,7 @@
 	"hud.fpvdrone.vs_short": "升降 %sm/s",
 	"hud.fpvdrone.metric.altitude": "高度 %sm",
 	"hud.fpvdrone.metric.speed": "速度 %sm/s",
-	"hud.fpvdrone.metric.rpm": "转速 %s",
+	"hud.fpvdrone.metric.rpm": "估转 %s",
 	"hud.fpvdrone.rpm_idle": "怠速",
 	"hud.fpvdrone.metric.temp": "温度 %sC",
 	"hud.fpvdrone.metric.health": "健康 %s",

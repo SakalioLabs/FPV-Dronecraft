@@ -53,4 +53,40 @@ class DroneClientStateTest {
 		assertEquals(DroneClientState.HudMode.MINIMAL, DroneClientState.hudMode());
 		assertTrue(DroneClientState.isHudEnabled());
 	}
+
+	@Test
+	void resetTransientFlightStateClearsFpvAndControlStateButKeepsHudMode() {
+		DroneClientState.setHudMode(DroneClientState.HudMode.FULL);
+		DroneClientState.setFpvViewEnabled(true);
+		DroneClientState.updateControls(
+				0.7f,
+				-0.3f,
+				0.4f,
+				-0.5f,
+				true,
+				true,
+				true,
+				true,
+				FlightMode.ACRO,
+				DroneClientState.InputSource.GAMEPAD,
+				false,
+				true
+		);
+
+		DroneClientState.resetTransientFlightState();
+
+		assertFalse(DroneClientState.isFpvViewEnabled());
+		assertFalse(DroneClientState.hasController());
+		assertFalse(DroneClientState.hasPhysicalController());
+		assertFalse(DroneClientState.isVirtualControllerEnabled());
+		assertEquals(0.0f, DroneClientState.throttle(), 1.0e-6f);
+		assertEquals(0.0f, DroneClientState.pitch(), 1.0e-6f);
+		assertEquals(0.0f, DroneClientState.roll(), 1.0e-6f);
+		assertEquals(0.0f, DroneClientState.yaw(), 1.0e-6f);
+		assertFalse(DroneClientState.armed());
+		assertEquals(DroneClientState.DEFAULT_FLIGHT_MODE, DroneClientState.flightMode());
+		assertEquals(DroneClientState.InputSource.KEYBOARD, DroneClientState.inputSource());
+		assertFalse(DroneClientState.throttleCalibrationActive());
+		assertEquals(DroneClientState.HudMode.FULL, DroneClientState.hudMode());
+	}
 }

@@ -4,7 +4,11 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"CameraMixin",
-		"GameRendererMixin"
+		"FramerateLimitTrackerAccessor",
+		"GameRendererMixin",
+		"MinecraftAttackSanitizerMixin",
+		"MinecraftCameraStateAccessor",
+		"MinecraftFramerateLimitTrackerAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

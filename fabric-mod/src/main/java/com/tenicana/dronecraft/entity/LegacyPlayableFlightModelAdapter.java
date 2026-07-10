@@ -28,6 +28,7 @@ import com.tenicana.dronecraft.sim.flight.StateCorrectionReason;
 final class LegacyPlayableFlightModelAdapter implements FlightModel {
 	static final String ID = "legacy_playable_direct";
 	static final String OPTION_FAILSAFE_DAMPING = "legacy_playable.failsafe_damping";
+	static final String OPTION_PLAYABLE_PRESET = "legacy_playable.preset";
 	private static final float DEBUG_AXIS_RISE_SMOOTH = PlayableDebugAxisFilter.DEFAULT_RISE_SMOOTHING;
 	private static final float DEBUG_AXIS_FALL_SMOOTH = PlayableDebugAxisFilter.DEFAULT_FALL_SMOOTHING;
 	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
@@ -68,6 +69,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 	private int debugAcroRollRecoveryTicksRemaining;
 	private float debugAcroAeroCrossflowLag;
 	private float debugAcroSidewashMemory;
+	private PlayableFlightPreset playablePreset = PlayableFlightPreset.defaultPreset();
 	private DroneInput lastInput = DroneInput.idle();
 	private FlightModelDiagnostics diagnostics = FlightModelDiagnostics.empty();
 
@@ -182,6 +184,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		boolean nearGroundLocked = nearGroundLocked(environment);
 		float lowAltitudeHorizontalAuthorityScale = lowAltitudeHorizontalAuthorityScale(environment, nearGroundLocked);
 		PlayableFlightModel.Step step = PlayableFlightModel.step(
+				playablePreset,
 				input.flightMode(),
 				smoothedThrottle,
 				smoothedPitch,
@@ -344,6 +347,9 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		values.put("command_yaw", Float.toString(debugCommandYaw));
 		values.put("motor_power", Float.toString(debugMotorPower));
 		values.put("average_motor_rpm", Float.toString(debugAverageMotorRpm));
+		values.put("estimated_mechanical_rpm", Float.toString(debugAverageMotorRpm));
+		values.put("rotor_reference_rpm", Float.toString(PlayableFlightModel.acroRotorReferenceMaxRpm()));
+		values.put("motor_command_percent", Float.toString(debugMotorPower * 100.0f));
 		values.put("low_altitude_horizontal_authority_scale", Float.toString(lowAltitudeHorizontalAuthorityScale(environment, nearGroundLocked(environment))));
 		values.put("flight_mode", Integer.toString(debugFlightMode.id()));
 		values.put("mode_switch_ticks_remaining", Integer.toString(debugModeSwitchTicksRemaining));
@@ -353,12 +359,14 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		values.put("acro_roll_recovery_ticks_remaining", Integer.toString(debugAcroRollRecoveryTicksRemaining));
 		values.put("acro_aero_crossflow_lag", Float.toString(debugAcroAeroCrossflowLag));
 		values.put("acro_sidewash_memory", Float.toString(debugAcroSidewashMemory));
+		values.put("playable_preset", playablePreset.id());
 		values.put("ground_clearance_m", Double.toString(environment.groundClearanceMeters()));
 		values.put("ground_lock_threshold_m", Double.toString(APPROXIMATE_GROUND_LOCK_CLEARANCE_METERS));
 		return new FlightModelDiagnostics(snapshot().isFinite(), values, corrections, lossyFields);
 	}
 
 	private void applyStepOptions(FlightStepContext context) {
+		playablePreset = PlayableFlightPreset.byId(context.modelConfiguration().get(OPTION_PLAYABLE_PRESET));
 		if (!Boolean.parseBoolean(context.modelConfiguration().getOrDefault(OPTION_FAILSAFE_DAMPING, "false"))) {
 			return;
 		}

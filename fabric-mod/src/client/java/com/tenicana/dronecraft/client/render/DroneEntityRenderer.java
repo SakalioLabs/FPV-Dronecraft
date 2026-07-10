@@ -46,7 +46,7 @@ public class DroneEntityRenderer extends EntityRenderer<DroneEntity, DroneEntity
 			state.rotorSpinDirection[i] = layout.spinDirection(i);
 		}
 		state.armed = entity.isArmed();
-		state.hiddenInFpv = DroneClientState.isFpvActive() && DroneClientState.controlledDrone() == entity;
+		state.hiddenInFpv = DroneClientState.isFpvActive(entity.level()) && DroneClientState.controlledDrone() == entity;
 	}
 
 	@Override
