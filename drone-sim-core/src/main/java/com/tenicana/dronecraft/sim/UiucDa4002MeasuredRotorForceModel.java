@@ -261,7 +261,7 @@ public final class UiucDa4002MeasuredRotorForceModel {
 		}
 
 		UiucDa4002MeasuredRotorModel.DimensionalSample dimensional =
-				UiucDa4002MeasuredRotorModel.sample(
+				UiucDa4002AxialSurfaceV1.sample(
 						query.propeller(),
 						signedAdvanceRatio,
 						query.rpm(),
