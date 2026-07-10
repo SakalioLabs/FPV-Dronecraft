@@ -176,6 +176,11 @@ class DroneEntityFlightModelRoutingTest {
 		assertFalse(damageSyncMethods.contains("simulationRuntime.state()"), "damage sync should not read DroneState directly");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.config()"), "damage sync should not read DroneConfig directly");
 		assertTrue(blackboxMethod.contains("simulationRuntime.blackboxSample("), "blackbox sample construction should be projected by SimulationFlightRuntime");
+		assertTrue(blackboxMethod.contains("if (blackbox.recordingEnabled())"), "expensive blackbox samples should only be built while capture is explicitly enabled");
+		assertTrue(
+				blackboxMethod.indexOf("if (blackbox.recordingEnabled())") < blackboxMethod.indexOf("simulationRuntime.blackboxSample("),
+				"the blackbox recording guard must run before the sample is constructed"
+		);
 		assertFalse(blackboxMethod.contains("simulationRuntime.state()"), "blackbox recording should not read DroneState directly");
 		assertFalse(blackboxMethod.contains("simulationRuntime.config()"), "blackbox recording should not read DroneConfig directly");
 		assertTrue(configAccessorMethod.contains("simulationRuntime.currentConfig()"), "public config access should cross the runtime boundary explicitly");
@@ -187,6 +192,10 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(source.contains("FlightModel playableFlightModel"), "DroneEntity should own playable through the common FlightModel contract");
 		assertTrue(source.contains("FlightModelRouter flightModels"), "DroneEntity should route active models through the common facade");
 		assertTrue(source.contains("flightModels.step(new FlightStepContext("), "model steps should cross the common FlightStepContext boundary");
+		assertTrue(
+				tickMethod.indexOf("DroneDebugSettings.controlLoggingEnabled()") < tickMethod.indexOf("level().getEntitiesOfClass"),
+				"disabled ownerless logging must not perform a spatial entity query"
+		);
 		assertTrue(source.contains("applySimulationResolvedState"), "simulation state corrections should be routed back through the facade");
 		assertTrue(source.contains("StateCorrectionReason.COLLISION_CONTACT_SOLVE"), "collision movement should report an explicit state correction");
 		assertTrue(source.contains("\"TAKEOFF_RELEASE\""), "takeoff assist should report an explicit state correction");

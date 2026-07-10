@@ -44,6 +44,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder;
+import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder.RecordingSource;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.control.DroneControlManager;
@@ -677,7 +678,7 @@ public class DroneEntity extends Entity {
 			DroneInput input = rawInput;
 			boolean airworthy = isAirworthy();
 			boolean bypassPhysics = usesPlayableFlightModel();
-			if (activeOwner == null) {
+			if (activeOwner == null && DroneDebugSettings.controlLoggingEnabled()) {
 				DroneDebugSettings.logNoOwnerInput(tickCount, level().getEntitiesOfClass(DroneEntity.class, getBoundingBox().inflate(24.0), drone -> true).size(), DroneDebugSettings.ownerlessControlEnabled(), activeOwner);
 			}
 			if (!airworthy && !bypassPhysics) {
@@ -2597,30 +2598,32 @@ public class DroneEntity extends Entity {
 	}
 
 	private void recordBlackbox(DroneInput input) {
-		boolean playableMode = usesPlayableFlightModel();
-		String flightModelModeId = playableMode
-				? DroneDebugSettings.FlightModelMode.PLAYABLE.id()
-				: DroneDebugSettings.FlightModelMode.SIMULATION.id();
-		blackbox.record(simulationRuntime.blackboxSample(
-				level().getGameTime(),
-				tickCount,
-				PHYSICS_STEPS_PER_TICK,
-				PHYSICS_DT,
-				flightModelModeId,
-				playableMode ? debugLowAltitudeHorizontalAuthority : 1.0,
-				playableMode ? Math.toDegrees(debugVisualPitchRadians) : 0.0,
-				playableMode ? getYRot() : 0.0,
-				playableMode ? Math.toDegrees(debugVisualRollRadians) : 0.0,
-				playableMode ? debugTargetYawRate * 20.0 : 0.0,
-				input,
-				frameHealth,
-				lastCollisionSeverity,
-				maxPropStrikeRotorIndexThisTick(),
-				maxPropStrikeSeverityThisTick(),
-				propStrikeCount,
-				propStrikeSeverityThisTick,
-				lastEnvironment
-		));
+		if (blackbox.recordingEnabled()) {
+			boolean playableMode = usesPlayableFlightModel();
+			String flightModelModeId = playableMode
+					? DroneDebugSettings.FlightModelMode.PLAYABLE.id()
+					: DroneDebugSettings.FlightModelMode.SIMULATION.id();
+			blackbox.record(simulationRuntime.blackboxSample(
+					level().getGameTime(),
+					tickCount,
+					PHYSICS_STEPS_PER_TICK,
+					PHYSICS_DT,
+					flightModelModeId,
+					playableMode ? debugLowAltitudeHorizontalAuthority : 1.0,
+					playableMode ? Math.toDegrees(debugVisualPitchRadians) : 0.0,
+					playableMode ? getYRot() : 0.0,
+					playableMode ? Math.toDegrees(debugVisualRollRadians) : 0.0,
+					playableMode ? debugTargetYawRate * 20.0 : 0.0,
+					input,
+					frameHealth,
+					lastCollisionSeverity,
+					maxPropStrikeRotorIndexThisTick(),
+					maxPropStrikeSeverityThisTick(),
+					propStrikeCount,
+					propStrikeSeverityThisTick,
+					lastEnvironment
+			));
+		}
 		lastCollisionSeverity *= 0.86;
 		if (lastCollisionSeverity < 0.001) {
 			lastCollisionSeverity = 0.0;
@@ -2667,7 +2670,11 @@ public class DroneEntity extends Entity {
 		}
 
 		DroneControlManager.CompletedDiagnostic completed = DroneControlManager.consumeCompletedDiagnostic(owner);
-		if (completed == null || !completed.autoSaveBlackbox()) {
+		if (completed == null) {
+			return;
+		}
+		blackbox.stopRecording(RecordingSource.SCRIPTED_DIAGNOSTIC);
+		if (!completed.autoSaveBlackbox()) {
 			return;
 		}
 

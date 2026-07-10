@@ -34,6 +34,19 @@ class DroneCommandsTest {
 		assertTrue(source.contains("fpvdiagStop"));
 		assertTrue(source.contains("FPVDIAG_SESSIONS"));
 		assertTrue(source.contains("DroneFlightTraceFiles.DIRECTORY_NAME"));
+		assertTrue(source.contains("RecordingSource.FPV_DIAGNOSTIC"));
+	}
+
+	@Test
+	void blackboxCaptureIsExplicitlyStartedAndStopped() throws Exception {
+		String source = Files.readString(droneCommandsSource(), StandardCharsets.UTF_8);
+
+		assertTrue(source.contains("Commands.literal(\"blackbox\")"));
+		assertTrue(source.contains("Commands.literal(\"start\").executes(context -> blackboxStart"));
+		assertTrue(source.contains("Commands.literal(\"stop\").executes(context -> blackboxStop"));
+		assertTrue(source.contains("startRecording(RecordingSource.MANUAL"));
+		assertTrue(source.contains("stopRecording(RecordingSource.MANUAL"));
+		assertTrue(source.contains("RecordingSource.SCRIPTED_DIAGNOSTIC"));
 	}
 
 	@Test

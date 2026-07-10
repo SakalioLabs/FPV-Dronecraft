@@ -20,6 +20,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSummary;
+import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder.RecordingSource;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
@@ -247,6 +248,7 @@ public final class DroneServerSelfTest {
 		initialY = drone.getY();
 		initialZ = drone.getZ();
 		durationTicks = DroneControlManager.startDiagnostic(SELF_TEST_OWNER, drone.tickCount, requestedSeconds * 20, false, controlFlightMode);
+		drone.blackbox().startRecording(RecordingSource.SCRIPTED_DIAGNOSTIC, true);
 		finishTick = durationTicks + POST_SCRIPT_TICKS;
 		started = true;
 		FpvDronecraftMod.LOGGER.info(
@@ -1062,6 +1064,9 @@ public final class DroneServerSelfTest {
 	private void finish(MinecraftServer server, boolean passed, String reason) {
 		finished = true;
 		DroneControlManager.stopDiagnostic(SELF_TEST_OWNER);
+		if (drone != null) {
+			drone.blackbox().stopRecording(RecordingSource.SCRIPTED_DIAGNOSTIC);
+		}
 		DroneDebugSettings.setBypassPhysicsEnabled(previousBypassPhysicsEnabled);
 
 		Path directory = server.getFile("fpvdrone-selftest");
