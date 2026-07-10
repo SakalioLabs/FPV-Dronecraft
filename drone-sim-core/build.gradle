@@ -108,6 +108,17 @@ tasks.register("uiucDa4002AxialSurfaceV1", JavaExec) {
 	}
 }
 
+tasks.register("uiucDa4002AxialSurfaceV1ShadowScenarios", JavaExec) {
+	group = "simulation"
+	description = "Exports deterministic current-runtime versus DA4002 axial v1 shadow residuals."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.UiucDa4002AxialSurfaceV1ShadowScenarioExporter")
+	doFirst {
+		def outputDirectory = project.findProperty("outputDir") ?: layout.buildDirectory.dir("uiuc-da4002-axial-surface-v1-shadow").get().asFile.absolutePath
+		args(outputDirectory)
+	}
+}
+
 tasks.register("ctCpJConfigurationCurve", JavaExec) {
 	group = "simulation"
 	description = "Exports static-anchored CT/CP/J whole-configuration force, torque, and power samples as CSV."
