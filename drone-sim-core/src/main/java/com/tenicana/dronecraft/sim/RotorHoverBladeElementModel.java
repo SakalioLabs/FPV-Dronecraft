@@ -8,14 +8,24 @@ import com.tenicana.dronecraft.sim.RotorHoverBladeProfilePowerModel.BladeGeometr
 /**
  * Hover blade-element/momentum model with annular induced-flow solves.
  * Each annulus closes blade-element thrust against hover momentum theory and
- * applies the Prandtl tip-loss factor. Section lift and drag come from the
- * explicitly bounded SDA1075 polar; no coefficient is tuned to static data.
+ * applies the Prandtl tip-loss factor. The optional wake-rotation solve also
+ * closes lift-induced torque against angular momentum; profile drag remains a
+ * dissipative torque instead of being forced into coherent swirl. Section lift
+ * and drag come from the explicitly bounded SDA1075 polar, with no coefficient
+ * tuned to static data.
  */
 public final class RotorHoverBladeElementModel {
+	public static final String BLADE_ELEMENT_MOMENTUM_REFERENCE_URL =
+			"https://www.nrel.gov/wind/nwtc/assets/pdfs/ad-theory.pdf";
 	public static final int DEFAULT_ANNULI_PER_GEOMETRY_INTERVAL = 8;
 	private static final int MAX_ANNULI_PER_GEOMETRY_INTERVAL = 64;
 	private static final int MAX_ROOT_BRACKET_EXPANSIONS = 20;
 	private static final int MAX_ROOT_ITERATIONS = 80;
+	private static final int MAX_COUPLED_INDUCTION_ITERATIONS = 1_000;
+	private static final double COUPLED_INDUCTION_RELAXATION = 0.20;
+	private static final double COUPLED_VELOCITY_CONVERGENCE_FRACTION = 1.0e-13;
+	private static final double COUPLED_MOMENTUM_RESIDUAL_TOLERANCE = 1.0e-8;
+	private static final double MAX_TANGENTIAL_INDUCTION_TO_BLADE_SPEED = 0.95;
 	private static final double EPSILON = 1.0e-12;
 
 	private RotorHoverBladeElementModel() {
@@ -25,6 +35,11 @@ public final class RotorHoverBladeElementModel {
 		SOLVED,
 		BLOCKED_SECTION_POLAR_ENVELOPE,
 		BLOCKED_ANNULAR_MOMENTUM_ROOT
+	}
+
+	public enum WakeRotationPolicy {
+		AXIAL_MOMENTUM_ONLY,
+		COUPLED_LIFT_TORQUE_ANGULAR_MOMENTUM
 	}
 
 	public static HoverSample solve(HoverQuery query) {
@@ -54,7 +69,7 @@ public final class RotorHoverBladeElementModel {
 						* query.rotorRadiusMeters();
 				double pitchAngle = geometry.pitchAngleRadiansAt(radialFraction);
 
-				RootSolve root = solveAnnularInducedVelocity(
+				RootSolve root = solveAnnularInducedFlow(
 						query,
 						radialFraction,
 						radius,
@@ -76,7 +91,8 @@ public final class RotorHoverBladeElementModel {
 						radius,
 						chord,
 						pitchAngle,
-						root.inducedVelocityMetersPerSecond(),
+						root.axialInducedVelocityMetersPerSecond(),
+						root.tangentialInducedVelocityMetersPerSecond(),
 						query.polarEnvelopePolicy()
 				);
 				AnnulusSample annulus = annulusSample(
@@ -87,7 +103,6 @@ public final class RotorHoverBladeElementModel {
 						radialWidth,
 						chord,
 						pitchAngle,
-						root.inducedVelocityMetersPerSecond(),
 						section,
 						root.iterations()
 				);
@@ -105,7 +120,35 @@ public final class RotorHoverBladeElementModel {
 		return aggregate(query, annuli);
 	}
 
-	private static RootSolve solveAnnularInducedVelocity(
+	private static RootSolve solveAnnularInducedFlow(
+			HoverQuery query,
+			double radialFraction,
+			double radiusMeters,
+			double chordMeters,
+			double pitchAngleRadians
+	) {
+		RootSolve axialRoot = solveAxialInducedVelocity(
+				query,
+				radialFraction,
+				radiusMeters,
+				chordMeters,
+				pitchAngleRadians
+		);
+		if (!axialRoot.solved()
+				|| query.wakeRotationPolicy() == WakeRotationPolicy.AXIAL_MOMENTUM_ONLY) {
+			return axialRoot;
+		}
+		return solveCoupledAxialAndTangentialInduction(
+				query,
+				radialFraction,
+				radiusMeters,
+				chordMeters,
+				pitchAngleRadians,
+				axialRoot
+		);
+	}
+
+	private static RootSolve solveAxialInducedVelocity(
 			HoverQuery query,
 			double radialFraction,
 			double radiusMeters,
@@ -119,10 +162,11 @@ public final class RotorHoverBladeElementModel {
 				chordMeters,
 				pitchAngleRadians,
 				0.0,
+				0.0,
 				Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE
 		);
 		if (lowerEvaluation.momentumClosureResidualNewtonsPerMeter() <= 0.0) {
-			return new RootSolve(false, 0.0, 0);
+			return RootSolve.blocked();
 		}
 
 		double lowerVelocity = 0.0;
@@ -137,6 +181,7 @@ public final class RotorHoverBladeElementModel {
 				chordMeters,
 				pitchAngleRadians,
 				upperVelocity,
+				0.0,
 				Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE
 		);
 		int bracketExpansions = 0;
@@ -150,12 +195,13 @@ public final class RotorHoverBladeElementModel {
 					chordMeters,
 					pitchAngleRadians,
 					upperVelocity,
+					0.0,
 					Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE
 			);
 			bracketExpansions++;
 		}
 		if (upperEvaluation.momentumClosureResidualNewtonsPerMeter() > 0.0) {
-			return new RootSolve(false, 0.0, 0);
+			return RootSolve.blocked();
 		}
 
 		int iterations = 0;
@@ -171,6 +217,7 @@ public final class RotorHoverBladeElementModel {
 					chordMeters,
 					pitchAngleRadians,
 					midpointVelocity,
+					0.0,
 					Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE
 			);
 			if (midpointEvaluation.momentumClosureResidualNewtonsPerMeter() > 0.0) {
@@ -179,7 +226,152 @@ public final class RotorHoverBladeElementModel {
 				upperVelocity = midpointVelocity;
 			}
 		}
-		return new RootSolve(true, 0.5 * (lowerVelocity + upperVelocity), iterations);
+		return new RootSolve(
+				true,
+				0.5 * (lowerVelocity + upperVelocity),
+				0.0,
+				iterations
+		);
+	}
+
+	private static RootSolve solveCoupledAxialAndTangentialInduction(
+			HoverQuery query,
+			double radialFraction,
+			double radiusMeters,
+			double chordMeters,
+			double pitchAngleRadians,
+			RootSolve axialRoot
+	) {
+		double bladeTangentialSpeed = query.angularVelocityRadiansPerSecond() * radiusMeters;
+		SectionEvaluation initial = evaluateSection(
+				query,
+				radialFraction,
+				radiusMeters,
+				chordMeters,
+				pitchAngleRadians,
+				axialRoot.axialInducedVelocityMetersPerSecond(),
+				0.0,
+				Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE
+		);
+		double axialInducedVelocity = axialRoot.axialInducedVelocityMetersPerSecond();
+		double tangentialInducedVelocity = tangentialInductionTarget(
+				query,
+				radiusMeters,
+				axialInducedVelocity,
+				initial
+		);
+		tangentialInducedVelocity = Math.min(
+				tangentialInducedVelocity,
+				MAX_TANGENTIAL_INDUCTION_TO_BLADE_SPEED * bladeTangentialSpeed
+		);
+		double convergenceTolerance = COUPLED_VELOCITY_CONVERGENCE_FRACTION
+				* bladeTangentialSpeed;
+		boolean converged = false;
+		int coupledIterations = 0;
+		for (; coupledIterations < MAX_COUPLED_INDUCTION_ITERATIONS; coupledIterations++) {
+			SectionEvaluation section = evaluateSection(
+					query,
+					radialFraction,
+					radiusMeters,
+					chordMeters,
+					pitchAngleRadians,
+					axialInducedVelocity,
+					tangentialInducedVelocity,
+					Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE
+			);
+			if (section.differentialThrustNewtonsPerMeter() <= EPSILON
+					|| section.prandtlTipLossFactor() <= EPSILON) {
+				return RootSolve.blocked();
+			}
+			double axialTarget = Math.sqrt(
+					section.differentialThrustNewtonsPerMeter()
+							/ (4.0
+							* Math.PI
+							* query.airDensityKgPerCubicMeter()
+							* section.prandtlTipLossFactor()
+							* radiusMeters)
+			);
+			double tangentialTarget = tangentialInductionTarget(
+					query,
+					radiusMeters,
+					axialInducedVelocity,
+					section
+			);
+			tangentialTarget = Math.min(
+					tangentialTarget,
+					MAX_TANGENTIAL_INDUCTION_TO_BLADE_SPEED * bladeTangentialSpeed
+			);
+			double newAxialVelocity = lerp(
+					axialInducedVelocity,
+					axialTarget,
+					COUPLED_INDUCTION_RELAXATION
+			);
+			double newTangentialVelocity = lerp(
+					tangentialInducedVelocity,
+					tangentialTarget,
+					COUPLED_INDUCTION_RELAXATION
+			);
+			if (Math.abs(newAxialVelocity - axialInducedVelocity) <= convergenceTolerance
+					&& Math.abs(newTangentialVelocity - tangentialInducedVelocity)
+							<= convergenceTolerance) {
+				axialInducedVelocity = newAxialVelocity;
+				tangentialInducedVelocity = newTangentialVelocity;
+				converged = true;
+				break;
+			}
+			axialInducedVelocity = newAxialVelocity;
+			tangentialInducedVelocity = newTangentialVelocity;
+		}
+		if (!converged) {
+			return RootSolve.blocked();
+		}
+
+		SectionEvaluation solvedSection = evaluateSection(
+				query,
+				radialFraction,
+				radiusMeters,
+				chordMeters,
+				pitchAngleRadians,
+				axialInducedVelocity,
+				tangentialInducedVelocity,
+				Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE
+		);
+		double scaledThrustResidual = Math.abs(
+				solvedSection.momentumClosureResidualNewtonsPerMeter()
+		) / Math.max(EPSILON, Math.abs(solvedSection.differentialThrustNewtonsPerMeter()));
+		double scaledAngularMomentumResidual = Math.abs(
+				solvedSection.angularMomentumClosureResidualNewtonMetersPerMeter()
+		) / Math.max(
+				EPSILON,
+				Math.abs(solvedSection.differentialLiftTorqueNewtonMetersPerMeter())
+		);
+		if (scaledThrustResidual > COUPLED_MOMENTUM_RESIDUAL_TOLERANCE
+				|| scaledAngularMomentumResidual > COUPLED_MOMENTUM_RESIDUAL_TOLERANCE) {
+			return RootSolve.blocked();
+		}
+		return new RootSolve(
+				true,
+				axialInducedVelocity,
+				tangentialInducedVelocity,
+				axialRoot.iterations() + coupledIterations + 1
+		);
+	}
+
+	private static double tangentialInductionTarget(
+			HoverQuery query,
+			double radiusMeters,
+			double axialInducedVelocityMetersPerSecond,
+			SectionEvaluation section
+	) {
+		double denominator = 4.0
+				* Math.PI
+				* query.airDensityKgPerCubicMeter()
+				* section.prandtlTipLossFactor()
+				* radiusMeters
+				* radiusMeters
+				* Math.max(EPSILON, axialInducedVelocityMetersPerSecond);
+		return Math.max(0.0, section.differentialLiftTorqueNewtonMetersPerMeter())
+				/ Math.max(EPSILON, denominator);
 	}
 
 	private static SectionEvaluation evaluateSection(
@@ -188,12 +380,26 @@ public final class RotorHoverBladeElementModel {
 			double radiusMeters,
 			double chordMeters,
 			double pitchAngleRadians,
-			double inducedVelocityMetersPerSecond,
+			double axialInducedVelocityMetersPerSecond,
+			double tangentialInducedVelocityMetersPerSecond,
 			Sda1075XfoilSectionPolar.EnvelopePolicy envelopePolicy
 	) {
-		double tangentialSpeed = query.angularVelocityRadiansPerSecond() * radiusMeters;
-		double relativeSpeed = Math.hypot(tangentialSpeed, inducedVelocityMetersPerSecond);
-		double inflowAngle = Math.atan2(inducedVelocityMetersPerSecond, tangentialSpeed);
+		double bladeTangentialSpeed = query.angularVelocityRadiansPerSecond() * radiusMeters;
+		double relativeTangentialSpeed = bladeTangentialSpeed
+				- tangentialInducedVelocityMetersPerSecond;
+		if (relativeTangentialSpeed <= EPSILON) {
+			throw new IllegalArgumentException(
+					"tangential induction must remain below the local blade speed."
+			);
+		}
+		double relativeSpeed = Math.hypot(
+				relativeTangentialSpeed,
+				axialInducedVelocityMetersPerSecond
+		);
+		double inflowAngle = Math.atan2(
+				axialInducedVelocityMetersPerSecond,
+				relativeTangentialSpeed
+		);
 		double angleOfAttack = pitchAngleRadians - inflowAngle;
 		double reynoldsNumber = query.airDensityKgPerCubicMeter()
 				* relativeSpeed
@@ -232,10 +438,27 @@ public final class RotorHoverBladeElementModel {
 				* query.airDensityKgPerCubicMeter()
 				* tipLossFactor
 				* radiusMeters
-				* inducedVelocityMetersPerSecond
-				* inducedVelocityMetersPerSecond;
+				* axialInducedVelocityMetersPerSecond
+				* axialInducedVelocityMetersPerSecond;
+		double differentialMomentumTorque = 4.0
+				* Math.PI
+				* query.airDensityKgPerCubicMeter()
+				* tipLossFactor
+				* radiusMeters
+				* radiusMeters
+				* axialInducedVelocityMetersPerSecond
+				* tangentialInducedVelocityMetersPerSecond;
+		// Actuator-disk swirl is half the far-wake tangential velocity jump.
+		double differentialWakeSwirlKineticPower = radiusMeters > EPSILON
+				? differentialMomentumTorque
+						* tangentialInducedVelocityMetersPerSecond
+						/ radiusMeters
+				: 0.0;
 		return new SectionEvaluation(
-				tangentialSpeed,
+				bladeTangentialSpeed,
+				axialInducedVelocityMetersPerSecond,
+				tangentialInducedVelocityMetersPerSecond,
+				relativeTangentialSpeed,
 				relativeSpeed,
 				inflowAngle,
 				angleOfAttack,
@@ -246,7 +469,10 @@ public final class RotorHoverBladeElementModel {
 				differentialMomentumThrust,
 				differentialThrust - differentialMomentumThrust,
 				differentialLiftTorque,
-				differentialProfileTorque
+				differentialProfileTorque,
+				differentialMomentumTorque,
+				differentialLiftTorque - differentialMomentumTorque,
+				differentialWakeSwirlKineticPower
 		);
 	}
 
@@ -275,7 +501,6 @@ public final class RotorHoverBladeElementModel {
 			double radialWidthMeters,
 			double chordMeters,
 			double pitchAngleRadians,
-			double inducedVelocityMetersPerSecond,
 			SectionEvaluation section,
 			int rootIterations
 	) {
@@ -287,8 +512,11 @@ public final class RotorHoverBladeElementModel {
 				radialWidthMeters,
 				chordMeters,
 				pitchAngleRadians,
-				inducedVelocityMetersPerSecond,
-				section.tangentialSpeedMetersPerSecond(),
+				section.axialInducedVelocityMetersPerSecond(),
+				section.tangentialInducedVelocityMetersPerSecond(),
+				2.0 * section.tangentialInducedVelocityMetersPerSecond(),
+				section.bladeTangentialSpeedMetersPerSecond(),
+				section.relativeTangentialSpeedMetersPerSecond(),
 				section.relativeSpeedMetersPerSecond(),
 				section.inflowAngleRadians(),
 				section.angleOfAttackRadians(),
@@ -300,10 +528,16 @@ public final class RotorHoverBladeElementModel {
 				section.momentumClosureResidualNewtonsPerMeter(),
 				section.differentialLiftTorqueNewtonMetersPerMeter(),
 				section.differentialProfileTorqueNewtonMetersPerMeter(),
+				section.differentialMomentumTorqueNewtonMetersPerMeter(),
+				section.angularMomentumClosureResidualNewtonMetersPerMeter(),
+				section.differentialWakeSwirlKineticPowerWattsPerMeter(),
 				section.differentialThrustNewtonsPerMeter() * radialWidthMeters,
 				section.differentialMomentumThrustNewtonsPerMeter() * radialWidthMeters,
 				section.differentialLiftTorqueNewtonMetersPerMeter() * radialWidthMeters,
 				section.differentialProfileTorqueNewtonMetersPerMeter() * radialWidthMeters,
+				section.differentialMomentumTorqueNewtonMetersPerMeter() * radialWidthMeters,
+				section.angularMomentumClosureResidualNewtonMetersPerMeter() * radialWidthMeters,
+				section.differentialWakeSwirlKineticPowerWattsPerMeter() * radialWidthMeters,
 				rootIterations
 		);
 	}
@@ -313,6 +547,10 @@ public final class RotorHoverBladeElementModel {
 		double momentumThrust = 0.0;
 		double liftTorque = 0.0;
 		double profileTorque = 0.0;
+		double momentumWakeTorque = 0.0;
+		double wakeSwirlKineticPower = 0.0;
+		double maximumTangentialInducedVelocity = 0.0;
+		double maximumTangentialInductionFraction = 0.0;
 		int clampedCount = 0;
 		int reynoldsClampedCount = 0;
 		int angleClampedCount = 0;
@@ -325,6 +563,19 @@ public final class RotorHoverBladeElementModel {
 			momentumThrust += annulus.momentumThrustNewtons();
 			liftTorque += annulus.liftInducedTorqueNewtonMeters();
 			profileTorque += annulus.profileTorqueNewtonMeters();
+			momentumWakeTorque += annulus.momentumWakeTorqueNewtonMeters();
+			wakeSwirlKineticPower += annulus.wakeSwirlKineticPowerWatts();
+			maximumTangentialInducedVelocity = Math.max(
+					maximumTangentialInducedVelocity,
+					annulus.tangentialInducedVelocityMetersPerSecond()
+			);
+			maximumTangentialInductionFraction = Math.max(
+					maximumTangentialInductionFraction,
+					ratio(
+							annulus.tangentialInducedVelocityMetersPerSecond(),
+							annulus.bladeTangentialSpeedMetersPerSecond()
+					)
+			);
 			if (annulus.polar().clamped()) {
 				clampedCount++;
 			}
@@ -374,10 +625,14 @@ public final class RotorHoverBladeElementModel {
 				liftTorque,
 				profileTorque,
 				shaftTorque - liftTorque - profileTorque,
+				momentumWakeTorque,
+				liftTorque - momentumWakeTorque,
 				shaftPower,
 				liftPower,
 				profilePower,
 				shaftPower - liftPower - profilePower,
+				wakeSwirlKineticPower,
+				ratio(wakeSwirlKineticPower, shaftPower),
 				ratio(thrust, thrustDenominator),
 				ratio(shaftPower, powerDenominator),
 				ratio(shaftTorque, torqueDenominator),
@@ -394,7 +649,11 @@ public final class RotorHoverBladeElementModel {
 				maximumReynolds,
 				minimumAngle,
 				maximumAngle,
-				"annular-hover-bemt-solved"
+				maximumTangentialInducedVelocity,
+				maximumTangentialInductionFraction,
+				query.wakeRotationPolicy() == WakeRotationPolicy.AXIAL_MOMENTUM_ONLY
+						? "annular-hover-bemt-axial-momentum-solved"
+						: "annular-hover-bemt-axial-angular-momentum-solved"
 		);
 	}
 
@@ -423,6 +682,10 @@ public final class RotorHoverBladeElementModel {
 				0.0,
 				0.0,
 				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
 				diskArea,
 				0.0,
 				0.0,
@@ -432,6 +695,8 @@ public final class RotorHoverBladeElementModel {
 				0,
 				0,
 				0,
+				0.0,
+				0.0,
 				0.0,
 				0.0,
 				0.0,
@@ -456,13 +721,20 @@ public final class RotorHoverBladeElementModel {
 
 	private record RootSolve(
 			boolean solved,
-			double inducedVelocityMetersPerSecond,
+			double axialInducedVelocityMetersPerSecond,
+			double tangentialInducedVelocityMetersPerSecond,
 			int iterations
 	) {
+		private static RootSolve blocked() {
+			return new RootSolve(false, 0.0, 0.0, 0);
+		}
 	}
 
 	private record SectionEvaluation(
-			double tangentialSpeedMetersPerSecond,
+			double bladeTangentialSpeedMetersPerSecond,
+			double axialInducedVelocityMetersPerSecond,
+			double tangentialInducedVelocityMetersPerSecond,
+			double relativeTangentialSpeedMetersPerSecond,
 			double relativeSpeedMetersPerSecond,
 			double inflowAngleRadians,
 			double angleOfAttackRadians,
@@ -473,7 +745,10 @@ public final class RotorHoverBladeElementModel {
 			double differentialMomentumThrustNewtonsPerMeter,
 			double momentumClosureResidualNewtonsPerMeter,
 			double differentialLiftTorqueNewtonMetersPerMeter,
-			double differentialProfileTorqueNewtonMetersPerMeter
+			double differentialProfileTorqueNewtonMetersPerMeter,
+			double differentialMomentumTorqueNewtonMetersPerMeter,
+			double angularMomentumClosureResidualNewtonMetersPerMeter,
+			double differentialWakeSwirlKineticPowerWattsPerMeter
 	) {
 	}
 
@@ -484,8 +759,30 @@ public final class RotorHoverBladeElementModel {
 			double dynamicViscosityPascalSeconds,
 			double angularVelocityRadiansPerSecond,
 			int annuliPerGeometryInterval,
-			Sda1075XfoilSectionPolar.EnvelopePolicy polarEnvelopePolicy
+			Sda1075XfoilSectionPolar.EnvelopePolicy polarEnvelopePolicy,
+			WakeRotationPolicy wakeRotationPolicy
 	) {
+		public HoverQuery(
+				BladeGeometry geometry,
+				double rotorRadiusMeters,
+				double airDensityKgPerCubicMeter,
+				double dynamicViscosityPascalSeconds,
+				double angularVelocityRadiansPerSecond,
+				int annuliPerGeometryInterval,
+				Sda1075XfoilSectionPolar.EnvelopePolicy polarEnvelopePolicy
+		) {
+			this(
+					geometry,
+					rotorRadiusMeters,
+					airDensityKgPerCubicMeter,
+					dynamicViscosityPascalSeconds,
+					angularVelocityRadiansPerSecond,
+					annuliPerGeometryInterval,
+					polarEnvelopePolicy,
+					WakeRotationPolicy.AXIAL_MOMENTUM_ONLY
+			);
+		}
+
 		public HoverQuery {
 			if (geometry == null) {
 				throw new IllegalArgumentException("geometry must not be null.");
@@ -519,6 +816,9 @@ public final class RotorHoverBladeElementModel {
 				polarEnvelopePolicy = Sda1075XfoilSectionPolar.EnvelopePolicy
 						.BLOCK_OUT_OF_ENVELOPE;
 			}
+			if (wakeRotationPolicy == null) {
+				wakeRotationPolicy = WakeRotationPolicy.AXIAL_MOMENTUM_ONLY;
+			}
 		}
 
 		public static HoverQuery standardResolution(
@@ -536,7 +836,8 @@ public final class RotorHoverBladeElementModel {
 					dynamicViscosityPascalSeconds,
 					angularVelocityRadiansPerSecond,
 					DEFAULT_ANNULI_PER_GEOMETRY_INTERVAL,
-					polarEnvelopePolicy
+					polarEnvelopePolicy,
+					WakeRotationPolicy.AXIAL_MOMENTUM_ONLY
 			);
 		}
 	}
@@ -549,8 +850,11 @@ public final class RotorHoverBladeElementModel {
 			double radialWidthMeters,
 			double chordMeters,
 			double pitchAngleRadians,
-			double inducedVelocityMetersPerSecond,
-			double tangentialSpeedMetersPerSecond,
+			double axialInducedVelocityMetersPerSecond,
+			double tangentialInducedVelocityMetersPerSecond,
+			double farWakeTangentialVelocityMetersPerSecond,
+			double bladeTangentialSpeedMetersPerSecond,
+			double relativeTangentialSpeedMetersPerSecond,
 			double relativeSpeedMetersPerSecond,
 			double inflowAngleRadians,
 			double angleOfAttackRadians,
@@ -562,10 +866,16 @@ public final class RotorHoverBladeElementModel {
 			double differentialMomentumClosureResidualNewtonsPerMeter,
 			double differentialLiftTorqueNewtonMetersPerMeter,
 			double differentialProfileTorqueNewtonMetersPerMeter,
+			double differentialMomentumTorqueNewtonMetersPerMeter,
+			double differentialAngularMomentumClosureResidualNewtonMetersPerMeter,
+			double differentialWakeSwirlKineticPowerWattsPerMeter,
 			double thrustNewtons,
 			double momentumThrustNewtons,
 			double liftInducedTorqueNewtonMeters,
 			double profileTorqueNewtonMeters,
+			double momentumWakeTorqueNewtonMeters,
+			double angularMomentumClosureResidualNewtonMeters,
+			double wakeSwirlKineticPowerWatts,
 			int rootIterations
 	) {
 	}
@@ -581,10 +891,14 @@ public final class RotorHoverBladeElementModel {
 			double liftInducedTorqueNewtonMeters,
 			double profileTorqueNewtonMeters,
 			double torqueClosureResidualNewtonMeters,
+			double momentumWakeTorqueNewtonMeters,
+			double angularMomentumClosureResidualNewtonMeters,
 			double shaftPowerWatts,
 			double liftInducedPowerWatts,
 			double profilePowerWatts,
 			double powerClosureResidualWatts,
+			double wakeSwirlKineticPowerWatts,
+			double wakeSwirlKineticPowerOverShaftPower,
 			double thrustCoefficientCt,
 			double powerCoefficientCp,
 			double torqueCoefficientCq,
@@ -601,6 +915,8 @@ public final class RotorHoverBladeElementModel {
 			double maximumReynoldsNumber,
 			double minimumAngleOfAttackDegrees,
 			double maximumAngleOfAttackDegrees,
+			double maximumTangentialInducedVelocityMetersPerSecond,
+			double maximumTangentialInductionToBladeSpeed,
 			String message
 	) {
 		public HoverSample {

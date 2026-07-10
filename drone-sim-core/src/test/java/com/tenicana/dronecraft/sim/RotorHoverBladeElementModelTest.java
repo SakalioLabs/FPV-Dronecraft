@@ -96,6 +96,45 @@ class RotorHoverBladeElementModelTest {
 	}
 
 	@Test
+	void coupledWakeRotationClosesLiftTorqueAngularMomentumWithoutHidingPowerGap() {
+		RotorHoverBladeElementModel.HoverSample axialOnly = solve(
+				HIGH_RPM,
+				RotorHoverBladeElementModel.DEFAULT_ANNULI_PER_GEOMETRY_INTERVAL,
+				Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE,
+				RotorHoverBladeElementModel.WakeRotationPolicy.AXIAL_MOMENTUM_ONLY
+		);
+		RotorHoverBladeElementModel.HoverSample coupled = solve(
+				HIGH_RPM,
+				RotorHoverBladeElementModel.DEFAULT_ANNULI_PER_GEOMETRY_INTERVAL,
+				Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE,
+				RotorHoverBladeElementModel.WakeRotationPolicy
+						.COUPLED_LIFT_TORQUE_ANGULAR_MOMENTUM
+		);
+
+		assertTrue(coupled.solved());
+		assertEquals(coupled.liftInducedTorqueNewtonMeters(),
+				coupled.momentumWakeTorqueNewtonMeters(), 1.0e-10);
+		assertEquals(0.0, coupled.angularMomentumClosureResidualNewtonMeters(), 1.0e-10);
+		assertEquals(axialOnly.liftInducedTorqueNewtonMeters(),
+				axialOnly.angularMomentumClosureResidualNewtonMeters(), 1.0e-15);
+		assertEquals(0.0, axialOnly.momentumWakeTorqueNewtonMeters(), 0.0);
+		assertTrue(coupled.maximumTangentialInducedVelocityMetersPerSecond() > 0.0);
+		assertTrue(coupled.maximumTangentialInductionToBladeSpeed() > 0.0);
+		assertTrue(coupled.maximumTangentialInductionToBladeSpeed() < 0.06);
+		assertTrue(coupled.wakeSwirlKineticPowerWatts() > 0.0);
+		assertTrue(coupled.wakeSwirlKineticPowerWatts() < coupled.shaftPowerWatts());
+		assertTrue(coupled.thrustCoefficientCt() < axialOnly.thrustCoefficientCt());
+		assertTrue(coupled.powerCoefficientCp() < axialOnly.powerCoefficientCp());
+		assertTrue((coupled.powerCoefficientCp() - UIUC_HIGH_RPM_CP) / UIUC_HIGH_RPM_CP < -0.20);
+		assertTrue(coupled.annuli().stream().allMatch(annulus ->
+				annulus.farWakeTangentialVelocityMetersPerSecond()
+						== 2.0 * annulus.tangentialInducedVelocityMetersPerSecond()));
+		assertTrue(coupled.annuli().stream().allMatch(annulus ->
+				annulus.rootIterations() > 0
+						&& annulus.rootIterations() < 1_100));
+	}
+
+	@Test
 	void reynoldsTrendConvergesNumericallyAndStrictEnvelopeBlocksLowReSections() {
 		RotorHoverBladeElementModel.HoverSample lowRpm = solve(
 				1_546.667,
@@ -137,6 +176,20 @@ class RotorHoverBladeElementModelTest {
 			int annuliPerGeometryInterval,
 			Sda1075XfoilSectionPolar.EnvelopePolicy envelopePolicy
 	) {
+		return solve(
+				rpm,
+				annuliPerGeometryInterval,
+				envelopePolicy,
+				RotorHoverBladeElementModel.WakeRotationPolicy.AXIAL_MOMENTUM_ONLY
+		);
+	}
+
+	private static RotorHoverBladeElementModel.HoverSample solve(
+			double rpm,
+			int annuliPerGeometryInterval,
+			Sda1075XfoilSectionPolar.EnvelopePolicy envelopePolicy,
+			RotorHoverBladeElementModel.WakeRotationPolicy wakeRotationPolicy
+	) {
 		RotorHoverBladeElementModel.HoverQuery query = new RotorHoverBladeElementModel.HoverQuery(
 				UiucDa4002PropellerGeometry.nineBySixPointSevenFiveTwoBlade(),
 				UiucDa4002PropellerGeometry.NINE_INCH_DIAMETER_METERS * 0.5,
@@ -144,7 +197,8 @@ class RotorHoverBladeElementModelTest {
 				DYNAMIC_VISCOSITY_PASCAL_SECONDS,
 				rpm * 2.0 * Math.PI / 60.0,
 				annuliPerGeometryInterval,
-				envelopePolicy
+				envelopePolicy,
+				wakeRotationPolicy
 		);
 		return RotorHoverBladeElementModel.solve(query);
 	}

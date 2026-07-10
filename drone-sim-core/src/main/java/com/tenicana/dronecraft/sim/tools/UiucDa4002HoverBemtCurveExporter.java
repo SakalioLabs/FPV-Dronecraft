@@ -20,6 +20,7 @@ public final class UiucDa4002HoverBemtCurveExporter {
 			"case_id",
 			"source_url",
 			"rpm",
+			"wake_rotation_policy",
 			"reynolds_75",
 			"reference_ct",
 			"bemt_ct",
@@ -50,6 +51,10 @@ public final class UiucDa4002HoverBemtCurveExporter {
 			"bemt_lift_induced_power_w",
 			"bemt_profile_power_w",
 			"bemt_lift_induced_power_over_uniform_ideal",
+			"bemt_momentum_wake_torque_nm",
+			"bemt_angular_momentum_closure_residual_nm",
+			"bemt_wake_swirl_kinetic_power_w",
+			"bemt_wake_swirl_kinetic_power_over_shaft_power",
 			"bemt_minimum_reynolds",
 			"bemt_maximum_reynolds",
 			"bemt_minimum_alpha_deg",
@@ -59,6 +64,8 @@ public final class UiucDa4002HoverBemtCurveExporter {
 			"bemt_alpha_clamped_annuli",
 			"bemt_annulus_count",
 			"bemt_unclamped_polar_coverage_fraction",
+			"bemt_maximum_tangential_induced_velocity_mps",
+			"bemt_maximum_tangential_induction_to_blade_speed",
 			"bemt_status",
 			"reference_data_source_id",
 			"section_polar_data_source_id"
@@ -138,18 +145,22 @@ public final class UiucDa4002HoverBemtCurveExporter {
 								UiucDa4002StaticPerformanceLookup.EnvelopePolicy
 										.BLOCK_OUT_OF_ENVELOPE
 						);
-				RotorHoverBladeElementModel.HoverSample bemt = RotorHoverBladeElementModel.solve(
-						new RotorHoverBladeElementModel.HoverQuery(
-								curve.geometry(),
-								curve.referenceDiameterMeters() * 0.5,
-								airDensityKgPerCubicMeter,
-								dynamicViscosityPascalSeconds,
-								row.rpm() * 2.0 * Math.PI / 60.0,
-								annuliPerGeometryInterval,
-								Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE
-						)
-				);
-				lines.add(csvLine(curve, reference, bemt));
+				for (RotorHoverBladeElementModel.WakeRotationPolicy wakeRotationPolicy
+						: RotorHoverBladeElementModel.WakeRotationPolicy.values()) {
+					RotorHoverBladeElementModel.HoverSample bemt = RotorHoverBladeElementModel.solve(
+							new RotorHoverBladeElementModel.HoverQuery(
+									curve.geometry(),
+									curve.referenceDiameterMeters() * 0.5,
+									airDensityKgPerCubicMeter,
+									dynamicViscosityPascalSeconds,
+									row.rpm() * 2.0 * Math.PI / 60.0,
+									annuliPerGeometryInterval,
+									Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE,
+									wakeRotationPolicy
+							)
+					);
+					lines.add(csvLine(curve, reference, bemt));
+				}
 			}
 		}
 		return List.copyOf(lines);
@@ -172,6 +183,7 @@ public final class UiucDa4002HoverBemtCurveExporter {
 				escape(curve.id()),
 				escape(curve.sourceUrl()),
 				number(reference.lookup().effectiveRpm()),
+				escape(bemt.query().wakeRotationPolicy().name()),
 				number(reference.reynoldsNumberAtSeventyFivePercentRadius()),
 				number(reference.lookup().thrustCoefficientCt()),
 				number(bemt.thrustCoefficientCt()),
@@ -202,6 +214,10 @@ public final class UiucDa4002HoverBemtCurveExporter {
 				number(bemt.liftInducedPowerWatts()),
 				number(bemt.profilePowerWatts()),
 				number(bemt.liftInducedPowerOverUniformIdeal()),
+				number(bemt.momentumWakeTorqueNewtonMeters()),
+				number(bemt.angularMomentumClosureResidualNewtonMeters()),
+				number(bemt.wakeSwirlKineticPowerWatts()),
+				number(bemt.wakeSwirlKineticPowerOverShaftPower()),
 				number(bemt.minimumReynoldsNumber()),
 				number(bemt.maximumReynoldsNumber()),
 				number(bemt.minimumAngleOfAttackDegrees()),
@@ -211,6 +227,8 @@ public final class UiucDa4002HoverBemtCurveExporter {
 				Integer.toString(bemt.angleOfAttackClampedAnnulusCount()),
 				Integer.toString(bemt.annulusCount()),
 				number(bemt.unclampedPolarCoverageFraction()),
+				number(bemt.maximumTangentialInducedVelocityMetersPerSecond()),
+				number(bemt.maximumTangentialInductionToBladeSpeed()),
 				escape(bemt.status().name()),
 				escape(UiucDa4002StaticPerformanceLookup.DATA_SOURCE_ID),
 				escape(Sda1075XfoilSectionPolar.DATA_SOURCE_ID)
