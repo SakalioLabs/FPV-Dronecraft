@@ -2,6 +2,7 @@ package com.tenicana.dronecraft.sim;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +32,8 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 							row("j0-rmax", 0.65024, 7_946.7, 0.088, 0.054),
 							row("j1-rmax", 0.8128, 7_946.7, 0.080, 0.060)))
 	);
+	private static final Map<String, ReferenceWindow> ACCEPTED_ADVANCE_SHAPE_WINDOWS =
+			materializeAcceptedAdvanceShapeWindows();
 
 	private PropellerArchiveCtCpJLookupEvaluator() {
 	}
@@ -683,7 +686,25 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 	}
 
 	private static ReferenceWindow acceptedAdvanceShapeWindow(String presetName) {
-		String normalizedPreset = normalizePreset(presetName);
+		return ACCEPTED_ADVANCE_SHAPE_WINDOWS.get(normalizePreset(presetName));
+	}
+
+	private static Map<String, ReferenceWindow> materializeAcceptedAdvanceShapeWindows() {
+		Map<String, ReferenceWindow> windows = new HashMap<>();
+		for (ReferenceWindow window : ACCEPTED_REFERENCE_WINDOWS) {
+			String presetName = window.presetName();
+			if (windows.containsKey(presetName)) {
+				continue;
+			}
+			ReferenceWindow shapeWindow = materializeAcceptedAdvanceShapeWindow(presetName);
+			if (shapeWindow != null) {
+				windows.put(presetName, shapeWindow);
+			}
+		}
+		return Map.copyOf(windows);
+	}
+
+	private static ReferenceWindow materializeAcceptedAdvanceShapeWindow(String normalizedPreset) {
 		List<CoefficientGridRow> shapeRows = new ArrayList<>();
 		for (ReferenceWindow window : ACCEPTED_REFERENCE_WINDOWS) {
 			if (!window.presetName().equals(normalizedPreset)) {

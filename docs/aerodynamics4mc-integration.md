@@ -426,6 +426,12 @@ The configuration packet now includes `static_anchored_configuration_state_envir
 
 `Aerodynamics4McL2PoweredHoverAcceptanceGate` keeps that validation from leaking into gameplay too early. The gate only opens when powered source-term API support is actually available, every expected preset has exactly one validation result, no unexpected preset appears, and all baseline-subtracted force/moment comparisons pass. The current audit packet therefore includes one open synthetic scenario and three blocked scenarios, including the present "API unavailable/no results" state, so future source-term work must move the live system through the same gate before any powered L2 force is considered for gameplay coupling.
 
+## sim/lab Hover BEMT Reference
+
+`Sda1075XfoilSectionPolar` and `RotorHoverBladeElementModel` now provide an offline/callable hover reference from bounded XFOIL section data, measured UIUC DA4002 geometry, annular momentum closure, and Prandtl tip loss. The 9x6.75 high-RPM case reproduces the measured static thrust coefficient closely without coefficient fitting, while shaft power remains materially underpredicted; low-Reynolds and high-angle annuli are explicitly clamped or blocked.
+
+For `playable/dev`, only normalized CT/RPM/Re trend shapes and the dimensional `T`, `P`, and `Q` relationships are suitable low-cost reference material. Do not copy the absolute CP prediction, clamped low-Reynolds sections, inferred loss split, or hover-only annular inflow into gameplay tuning until broader polar and static-power validation close the measured residuals.
+
 ## Next Research Steps
 
 - Use `docs/data/a4mc_l2_static_airframe_run_matrix_packet.csv` as the compact static-airframe force/moment run-summary contract before comparing live A4MC outputs; persist only `L2RunResult` force/moment and pressure-center outputs rather than raw CFD state in the tick loop.
