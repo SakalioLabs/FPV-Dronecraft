@@ -30,6 +30,20 @@ tasks.register("ctCpJCurve", JavaExec) {
 	}
 }
 
+tasks.register("uiucDa4002HoverBemtCurve", JavaExec) {
+	group = "simulation"
+	description = "Exports measured UIUC DA4002 static loads beside the untuned hover BEMT response."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.UiucDa4002HoverBemtCurveExporter")
+	doFirst {
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("uiuc-da4002-hover-bemt/comparison.csv").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		def dynamicViscosity = project.findProperty("dynamicViscosity") ?: ""
+		def annuliPerGeometryInterval = project.findProperty("annuliPerInterval") ?: ""
+		args(outputFile, airDensity, dynamicViscosity, annuliPerGeometryInterval)
+	}
+}
+
 tasks.register("ctCpJConfigurationCurve", JavaExec) {
 	group = "simulation"
 	description = "Exports static-anchored CT/CP/J whole-configuration force, torque, and power samples as CSV."

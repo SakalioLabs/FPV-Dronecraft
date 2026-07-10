@@ -430,6 +430,8 @@ The configuration packet now includes `static_anchored_configuration_state_envir
 
 `Sda1075XfoilSectionPolar` and `RotorHoverBladeElementModel` now provide an offline/callable hover reference from bounded XFOIL section data, measured UIUC DA4002 geometry, annular momentum closure, and Prandtl tip loss. The 9x6.75 high-RPM case reproduces the measured static thrust coefficient closely without coefficient fitting, while shaft power remains materially underpredicted; low-Reynolds and high-angle annuli are explicitly clamped or blocked.
 
+`UiucDa4002StaticPerformanceLookup` materializes all 32 official 5x3.75 and 9x6.75 static CT/CP rows with explicit RPM block/clamp behavior and SI loads. `./gradlew :drone-sim-core:uiucDa4002HoverBemtCurve` exports their BEMT residual curve. Across that curve, the 9x6.75 CT residual improves from more than 20% low at the lowest measured Re75 to 0.31% high at the highest point, while CP remains 17-29% low across both propellers. The persistent torque/power residual therefore must not be represented as a low-Re lift correction alone.
+
 For `playable/dev`, only normalized CT/RPM/Re trend shapes and the dimensional `T`, `P`, and `Q` relationships are suitable low-cost reference material. Do not copy the absolute CP prediction, clamped low-Reynolds sections, inferred loss split, or hover-only annular inflow into gameplay tuning until broader polar and static-power validation close the measured residuals.
 
 ## Next Research Steps
