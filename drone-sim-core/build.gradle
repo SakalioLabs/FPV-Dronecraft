@@ -75,6 +75,17 @@ tasks.register("uiucDa4002MeasuredRotorCurve", JavaExec) {
 	}
 }
 
+tasks.register("uiucDa4002CrossValidation", JavaExec) {
+	group = "simulation"
+	description = "Exports DA4002 source-row and nominal-RPM interpolation cross-validation residuals."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.UiucDa4002MeasuredRotorCrossValidationExporter")
+	doFirst {
+		def outputDirectory = project.findProperty("outputDir") ?: layout.buildDirectory.dir("uiuc-da4002-cross-validation").get().asFile.absolutePath
+		args(outputDirectory)
+	}
+}
+
 tasks.register("ctCpJConfigurationCurve", JavaExec) {
 	group = "simulation"
 	description = "Exports static-anchored CT/CP/J whole-configuration force, torque, and power samples as CSV."
