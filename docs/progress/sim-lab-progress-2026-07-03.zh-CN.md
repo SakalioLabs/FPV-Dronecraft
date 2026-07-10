@@ -44,8 +44,8 @@
 | M9 runtime 决策 | 已完成 | shadow 残差不支持替换现有 runtime，收敛为离线轴向参考 v1 |
 | M10 条件式 sim/lab runtime 接入 | 不执行 | M9 未满足接入条件，`DronePhysics` 保持不变 |
 | M11 集成物理闭合 | 不执行 | 未发生 runtime 集成；v1 自身的 `Q omega = P` 继续由 focused tests 闭合 |
-| M12 playable 参考输出 | 下一节点 | 一份短说明和紧凑有界曲线，不新增 handoff/gate 代码 |
-| M13 最终收口 | 待开始 | 文档、最小关键回归、完整 build、泄漏扫描和远端同步 |
+| M12 playable 参考输出 | 已完成 | 短说明只开放 DA4002 正推力轴向有界曲线、量纲公式和零推力趋向 |
+| M13 最终收口 | 下一节点 | 文档、最小关键回归、完整 build、泄漏扫描和远端同步 |
 
 允许两种合法终态：一是证据不足时冻结为可信但不接 runtime 的 `DA4002 axial reference v1`；二是独立验证和 shadow 均通过后形成严格包络内的 `DA4002 sim/lab runtime v1`。Runtime 接入不是为了“看起来完成”而必须发生，未验证区域始终保持 reference-only 或 blocked。
 
@@ -107,6 +107,8 @@ M7 仍未进入 `DronePhysics.tick`。M8 使用固定场景批量运行这个只
 - focused tests 锁住 16/64 覆盖、有限 N/W/Nm、参考 `Q omega = P`、hover/mid/high 趋势、零推力符号变化、包络外阻断、倾斜轴、斜流、旋向以及两次导出逐字一致。测试没有把残差阈值调成 runtime 接入许可。
 
 M9 因此选择合法终态一：冻结 `DA4002 axial reference v1` 为离线/可调用/只读参考，不进入 M10/M11，不向 `DronePhysics` 施加 v1 力。这个决定不是否定 v1 曲面，而是避免用一个已验证的特定 DA4002 轴向曲面去替换覆盖任意桨、复杂流动和既有调参项的 runtime 模型。未来只有新的同几何台架/独立结果与受控 runtime 残差同时闭合时，才重新讨论接入。
+
+M12 将 `docs/playable-ct-cp-j-reference-note-2026-07-03.md` 收敛为一页消费边界：`playable/dev` 可使用 v1 正推力轴向包络内的 CT/CP 曲线、标准 N/W/Nm 公式、归一化轴向衰减和接近零推力的定性趋势；不得使用负 CT 尾段、斜流侧向力、反向流、跨桨/跨叶片数外推、边界 clamp 或 M8 residual correction multiplier。说明直接引用 M6 的确定性曲线导出与 bundle SHA，不新增 handoff/gate 代码。
 
 ## 已完成工作
 

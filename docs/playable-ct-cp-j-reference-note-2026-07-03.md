@@ -1,61 +1,28 @@
-# CT/CP/J Playable Reference Note 2026-07-03
+# Playable Reference: DA4002 Axial Surface v1
 
-`sim/lab` now has a callable CT/CP/J lookup evaluator for the accepted `apDrone` reference windows:
-static anchor, mid-domain bilinear, and high-advance single-RPM edge. These rows can be used as low-cost
-playable reference material only for curve shape checks: CT decreases with advance ratio, CP rises toward the
-high-advance edge, and dimensional thrust/power/torque follow the SI propeller coefficient equations.
+This note is a bounded data reference, not permission to copy `sim/lab` forces into `playable/dev`.
 
-Do not auto-apply these rows to `playable/dev` tuning yet. They are suitable for simplified force/power curve
-prototyping and controller-feel comparison, but not for full propeller replacement, OpenFOAM coupling, or
-terrain/voxel airflow tuning until more reviewed CT/CP/J rows and offline CFD comparisons are available.
+## Usable Reference
 
-2026-07-05 update: `./gradlew :drone-sim-core:ctCpJCurve -Ppreset=apDrone` now also exports
-`static_anchored_runtime_*` rows. These rows keep the APDrone rotor-spec static CT/CP at the requested runtime RPM
-and apply only the accepted PropellerArchive advance-ratio shape. `playable/dev` may use the normalized CT rolloff,
-CP rise, and torque/power ratios as low-cost feel references inside the accepted J envelope. It should not treat the
-absolute N/W/Nm values as gameplay tuning targets, and it should not extrapolate beyond the exported envelope.
+- Source only from `UiucDa4002AxialSurfaceV1`: UIUC DA4002 5x3.75 and 9x6.75, two blades, axial non-reversing flow.
+- Compute `J = Vaxial / (n D)`, then use the bounded piecewise-linear `CT(J, RPM)` and `CP(J, RPM)` lookup. Outside the measured support, return unavailable; do not extrapolate or edge-clamp.
+- Convert coefficients with `T = CT rho n^2 D^4`, `P = CP rho n^3 D^5`, and `Q = P / omega`.
+- For low-cost feel work, the positive-thrust rows may supply normalized axial rolloff such as `CT(J, RPM) / CT(0, RPM)` and the matching CP/torque trend. The approach toward zero thrust is a valid qualitative fade direction; stop before the measured negative-CT tail.
 
-2026-07-07 update: `docs/data/propeller_archive_ct_cp_j_runtime_curve_packet.csv` is now the playable-facing
-selection surface. `playable/dev` may only consult rows where `runtime_eligibility_status=ACCEPTED` and
-`runtime_force_replacement_accepted=true`; these are static-anchored APDrone runtime rows with finite thrust,
-shaft power, shaft torque, body thrust force, reaction torque, thrust moment, tip Mach, and Reynolds telemetry.
-Rows marked `MOMENTUM_POWER_CLOSURE_FAILED`, `OPERATING_POINT_OUTSIDE_RUNTIME_ENVELOPE`,
-`OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE`, `CLAMPED`, `OUT_OF_ENVELOPE_BLOCKED`, or `NOT_RUNTIME_CANDIDATE`
-remain sim/lab diagnostics only. The current packet has 14 accepted runtime-reference rows; all other rows are
-for plotting, validation, and envelope explanation rather than gameplay auto-apply.
+| Propeller | Static RPM | Forward nominal RPM | Maximum J by track |
+| --- | --- | --- | --- |
+| DA4002 5x3.75 | 1410-7440 | 4000 / 5000 / 6000 | 0.857870 / 0.851340 / 0.895451 |
+| DA4002 9x6.75 | 1546.667-5943.333 | 2000 / 3000 / 4000 / 5000 | 0.894262 / 0.887498 / 0.865364 / 0.914534 |
 
-2026-07-08 wake-torque update: the same packet now includes wake angular-momentum torque closure columns. These
-columns are useful for checking that simplified torque curves preserve the reviewed CT/CP/J shaft-torque scale,
-but they are not a standalone yaw-feel tuning target and should stay inside the accepted runtime-reference row
-filter above.
+Between nominal RPM tracks, valid J ends at the smaller adjacent-track limit. `J=0` uses the separate static RPM envelope.
 
-2026-07-08 signed-wake update: the runtime and configuration packets now also include signed body-frame wake
-angular-momentum torque vector columns. These are conservation diagnostics for matching rotor spin direction and
-reaction torque cancellation across symmetric rotor sets; `playable/dev` should not use the signed residuals as
-control or yaw-feel constants without a separate simplification review.
+Run `./gradlew :drone-sim-core:uiucDa4002AxialSurfaceV1` to generate the 12 deterministic J slices and checksums. The frozen curve-bundle SHA-256 is `49f20e2f7ea42771ce07bc2b4b1f371b54e6966616921da09c8bbf82612043cf`.
 
-2026-07-08 source-term update: the CT/CP/J packets now include actuator-disk pressure jump, mass flux, ideal
-momentum-power loading, and far-wake axial velocity vector references for offline CFD source-term comparison.
-These are lab reference columns for A4MC/OpenFOAM-style validation, not direct thrust, propwash, or controller
-feel tuning knobs.
+## Not Usable
 
-2026-07-07 world-kinematics update: `docs/data/propeller_archive_ct_cp_j_configuration_curve_packet.csv`
-now includes target-thrust and trim rows for body/world/environment kinematics. `playable/dev` may use accepted
-world/environment rows only as normalized curve-shape references for advance-ratio thrust rolloff, power rise,
-and local J/RPM spread. It must not consume the world per-rotor-wind trim yaw residual as a hand-feel tuning
-constant; that residual is sim/lab evidence that thrust-moment allocation and reaction-torque balance are distinct
-effects and need separate runtime validation before simplification.
+- Do not use the negative-thrust tail as gameplay thrust, windmilling, braking, or regenerative behavior.
+- Do not infer oblique-flow side force, reverse-flow response, arbitrary blade counts, or another propeller geometry from these curves.
+- Do not turn M8 runtime residuals into correction multipliers; their sign and scale vary across J and between the two propellers.
+- Do not make Minecraft runtime depend on OpenFOAM or other offline CFD tooling.
 
-2026-07-07 world-frame projection update: the same configuration packet now carries body-to-world quaternions and
-world-frame aggregate force/torque columns, including a non-identity yaw diagnostic row. These columns are coordinate
-verification material for sim/lab force integration; `playable/dev` should not use them as camera, control, or feel
-tuning constants without a separate reviewed runtime simplification.
-
-2026-07-09 source/wake probe update: `docs/data/propeller_archive_ct_cp_j_runtime_curve_packet.csv` still exposes
-14 `ACCEPTED` runtime-reference rows, while the actuator-disk source, wake-probe, and wake-plane packets now cover
-six source cases: hover, mid-J, high-J, reverse-axial clamp, blocked high-J, and mid-J skew. `playable/dev` may use
-only the accepted runtime rows as offline normalized references for axial CT rolloff, shaft-power/torque scale, and
-coarse wake-energy magnitude. The source and wake packets are CFD comparison material for A4MC/OpenFOAM-style
-validation; their centerline, swirl-radius, plane, and skew-wake vectors are not terrain propwash, side-force,
-yaw-feel, or controller constants. Rows with clamp, block, oblique-inflow, operating-envelope, or momentum-closure
-statuses remain sim/lab diagnostics and must not be extrapolated into runtime gameplay behavior.
+The converged status is `DA4002 axial reference v1`: callable and reproducible in `sim/lab`, reference-only for `playable/dev`, and not wired into `DronePhysics`.
