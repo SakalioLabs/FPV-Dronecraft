@@ -879,6 +879,16 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			return baselineRotorObliqueInflowSample(true);
 		}
 
+		public RotorObliqueMomentumInflowModel.ConfigurationRotorObliqueMomentumInflowSample
+				baselineRotorObliqueMomentumInflowSample() {
+			return baselineRotorObliqueMomentumInflowSample(false);
+		}
+
+		public RotorObliqueMomentumInflowModel.ConfigurationRotorObliqueMomentumInflowSample
+				runtimeReplacementBaselineRotorObliqueMomentumInflowSample() {
+			return baselineRotorObliqueMomentumInflowSample(true);
+		}
+
 		public RotorAngularRateDampingModel.ConfigurationRotorAngularRateDampingSample
 				baselineRotorAngularRateDampingSample(Vec3 angularVelocityBodyRadiansPerSecond) {
 			return baselineRotorAngularRateDampingSample(angularVelocityBodyRadiansPerSecond, false);
@@ -1973,6 +1983,28 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 				));
 			}
 			return RotorObliqueInflowMomentModel.aggregate(samples);
+		}
+
+		private RotorObliqueMomentumInflowModel.ConfigurationRotorObliqueMomentumInflowSample
+				baselineRotorObliqueMomentumInflowSample(boolean runtimeReplacement) {
+			List<RotorObliqueMomentumInflowModel.RotorObliqueMomentumInflowSample> samples =
+					new ArrayList<>();
+			for (PropellerArchiveCtCpJRotorForceModel.RotorForceSample rotorSample
+					: aggregate.rotorSamples()) {
+				boolean applied = runtimeReplacement
+						? rotorSample.runtimeForceReplacementAccepted()
+						: !rotorSample.blocked();
+				if (!applied) {
+					continue;
+				}
+				samples.add(RotorObliqueMomentumInflowModel.solve(
+						rotorSample.query().rotor(),
+						rotorSample.relativeAirVelocityBodyMetersPerSecond(),
+						rotorSample.thrustNewtons(),
+						rotorSample.query().airDensityKgPerCubicMeter()
+				));
+			}
+			return RotorObliqueMomentumInflowModel.aggregate(samples);
 		}
 
 		private RotorAngularRateDampingModel.ConfigurationRotorAngularRateDampingSample
