@@ -86,6 +86,17 @@ tasks.register("uiucDa4002CrossValidation", JavaExec) {
 	}
 }
 
+tasks.register("uiucDa4002PublishedCfdComparison", JavaExec) {
+	group = "simulation"
+	description = "Compares the DA4002 measured surface with published CFX and OpenFOAM evidence."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.UiucDa4002PublishedCfdComparisonExporter")
+	doFirst {
+		def outputDirectory = project.findProperty("outputDir") ?: layout.buildDirectory.dir("uiuc-da4002-published-cfd-comparison").get().asFile.absolutePath
+		args(outputDirectory)
+	}
+}
+
 tasks.register("ctCpJConfigurationCurve", JavaExec) {
 	group = "simulation"
 	description = "Exports static-anchored CT/CP/J whole-configuration force, torque, and power samples as CSV."
