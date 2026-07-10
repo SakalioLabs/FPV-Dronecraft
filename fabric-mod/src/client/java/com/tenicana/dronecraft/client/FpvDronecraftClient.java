@@ -7,6 +7,7 @@ import com.tenicana.dronecraft.client.control.DroneClientControls;
 import com.tenicana.dronecraft.client.hud.DroneHud;
 import com.tenicana.dronecraft.client.render.DroneEntityRenderer;
 import com.tenicana.dronecraft.client.render.DroneModelLayers;
+import com.tenicana.dronecraft.client.sound.DroneSoundManager;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 
 public final class FpvDronecraftClient implements ClientModInitializer {
@@ -16,5 +17,6 @@ public final class FpvDronecraftClient implements ClientModInitializer {
 		EntityRendererRegistry.register(DroneEntityTypes.DRONE, DroneEntityRenderer::new);
 		DroneClientControls.initialize();
 		DroneHud.initialize();
+		DroneSoundManager.initialize();
 	}
 }
