@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.entity;
 
 import com.tenicana.dronecraft.sim.FlightMode;
+import com.tenicana.dronecraft.sim.UiucDa4002FiveInchRuntimeLookup;
 
 final class PlayableFlightModel {
 	private static final FlightMode DEFAULT_PLAYABLE_MODE = FlightMode.DEFAULT_FIRST_FLIGHT;
@@ -244,6 +245,11 @@ final class PlayableFlightModel {
 	private static final float ACRO_ADVANCE_SIDEFLOW_START_RADIANS = (float) Math.toRadians(12.0f);
 	private static final float ACRO_ADVANCE_SIDEFLOW_FULL_RADIANS = (float) Math.toRadians(48.0f);
 	private static final float ACRO_ADVANCE_AXIAL_FLOW_WEIGHT = 0.18f;
+	private static final float ACRO_DA4002_REFERENCE_MIN_RPM = 4_000.0f;
+	private static final float ACRO_DA4002_REFERENCE_MAX_RPM = 6_000.0f;
+	private static final float ACRO_DA4002_REFERENCE_RPM_BLEND_WIDTH = 400.0f;
+	private static final float ACRO_DA4002_REFERENCE_J_FADE_START = 0.72f;
+	private static final float ACRO_DA4002_REFERENCE_J_FADE_END = 0.80f;
 	private static final float ACRO_TRANSLATIONAL_LIFT_MU_START = 0.030f;
 	private static final float ACRO_TRANSLATIONAL_LIFT_MU_FULL = 0.085f;
 	private static final float ACRO_TRANSLATIONAL_LIFT_FADE_START_MU = 0.135f;
@@ -510,6 +516,7 @@ final class PlayableFlightModel {
 				acroRollRateRadiansPerTick,
 				acroAeroCrossflowLag,
 				acroSidewashMemory,
+				preset,
 				profile
 		);
 		float velocityX = velocity.x();
@@ -1052,7 +1059,12 @@ final class PlayableFlightModel {
 				safeHover,
 				acroAeroCrossflowLag,
 				acroSidewashMemory
-		), profile);
+		), profile) * acroDa4002AxialThrustScale(
+				preset,
+				thrustBodyVelocity,
+				safeThrottle,
+				safeHover
+		);
 		float translationalLiftThrustScale = acroTranslationalLiftThrustScale(
 				thrustBodyVelocity,
 				safeThrottle,
@@ -1961,10 +1973,11 @@ final class PlayableFlightModel {
 			float rollRateRadiansPerTick,
 			float acroAeroCrossflowLag,
 			float acroSidewashMemory,
+			PlayableFlightPreset preset,
 			Profile profile
 	) {
 		if (safeMode(mode) == FlightMode.ACRO) {
-			return acroPhysicalVelocity(previousVelocityX, previousVelocityY, previousVelocityZ, throttle, hoverThrottle, collectiveThrustToWeight, pitchRadians, rollRadians, yawDegreesPerTick, eulerPitchRateRadiansPerTick, eulerRollRateRadiansPerTick, pitchRateRadiansPerTick, rollRateRadiansPerTick, acroAeroCrossflowLag, acroSidewashMemory, profile);
+			return acroPhysicalVelocity(previousVelocityX, previousVelocityY, previousVelocityZ, throttle, hoverThrottle, collectiveThrustToWeight, pitchRadians, rollRadians, yawDegreesPerTick, eulerPitchRateRadiansPerTick, eulerRollRateRadiansPerTick, pitchRateRadiansPerTick, rollRateRadiansPerTick, acroAeroCrossflowLag, acroSidewashMemory, preset, profile);
 		}
 		Velocity horizontalVelocity = horizontalVelocityStep(
 				previousVelocityX,
@@ -2028,6 +2041,7 @@ final class PlayableFlightModel {
 			float rollRateRadiansPerTick,
 			float acroAeroCrossflowLag,
 			float acroSidewashMemory,
+			PlayableFlightPreset preset,
 			Profile profile
 	) {
 		float integrationPitchRadians = acroMidpointIntegrationAttitudeRadians(pitchRadians, eulerPitchRateRadiansPerTick);
@@ -2037,6 +2051,7 @@ final class PlayableFlightModel {
 		Velocity bodyDragAcceleration = acroBodyAerodynamicAcceleration(bodyVelocity, acroAeroCrossflowLag, acroSidewashMemory);
 		Velocity dragAcceleration = yawLocalVelocityForAcroBody(bodyDragAcceleration.x(), bodyDragAcceleration.y(), bodyDragAcceleration.z(), integrationPitchRadians, integrationRollRadians);
 		float thrustScale = acroProfileThrustLossScale(acroAdvanceRatioThrustScale(previousVelocityX, previousVelocityY, previousVelocityZ, integrationPitchRadians, integrationRollRadians, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory), profile)
+				* acroDa4002AxialThrustScale(preset, bodyVelocity, throttle, hoverThrottle)
 				* acroTranslationalLiftThrustScale(bodyVelocity, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory)
 				* acroProfileThrustLossScale(acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory), profile);
 		float thrustAcceleration = ACRO_GRAVITY_METERS_PER_SECOND_SQUARED * collectiveThrustToWeight * thrustScale;
@@ -2185,6 +2200,56 @@ final class PlayableFlightModel {
 			return recovered;
 		}
 		return Math.copySign(ACRO_COMPLETED_ROLL_RECOVERY_SIDE_SLIP_MAX_METERS_PER_SECOND, recovered);
+	}
+
+	static float acroDa4002AxialThrustScale(
+			PlayableFlightPreset preset,
+			Velocity bodyVelocity,
+			float throttle,
+			float hoverThrottle
+	) {
+		if (bodyVelocity == null) {
+			return 1.0f;
+		}
+		return acroDa4002AxialThrustScale(
+				preset,
+				bodyVelocity.y(),
+				averageRpm(throttle, hoverThrottle)
+		);
+	}
+
+	static float acroDa4002AxialThrustScale(
+			PlayableFlightPreset preset,
+			float axialVelocityMetersPerSecond,
+			float rpm
+	) {
+		if (preset != PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE
+				|| !Float.isFinite(axialVelocityMetersPerSecond)
+				|| !Float.isFinite(rpm)
+				|| axialVelocityMetersPerSecond <= 1.0e-6f
+				|| rpm <= 0.0f) {
+			return 1.0f;
+		}
+		float revolutionsPerSecond = rpm / 60.0f;
+		float advanceRatioJ = axialVelocityMetersPerSecond
+				/ Math.max(1.0e-6f, revolutionsPerSecond
+						* UiucDa4002FiveInchRuntimeLookup.PROPELLER_DIAMETER_METERS);
+		float measuredScale = UiucDa4002FiveInchRuntimeLookup.normalizedThrustScale(
+				advanceRatioJ,
+				rpm
+		);
+		if (!Float.isFinite(measuredScale)) {
+			return 1.0f;
+		}
+
+		float lowerRpmWeight = smoothStep((rpm - ACRO_DA4002_REFERENCE_MIN_RPM)
+				/ ACRO_DA4002_REFERENCE_RPM_BLEND_WIDTH);
+		float upperRpmWeight = smoothStep((ACRO_DA4002_REFERENCE_MAX_RPM - rpm)
+				/ ACRO_DA4002_REFERENCE_RPM_BLEND_WIDTH);
+		float highAdvanceFade = smoothStep((advanceRatioJ - ACRO_DA4002_REFERENCE_J_FADE_START)
+				/ (ACRO_DA4002_REFERENCE_J_FADE_END - ACRO_DA4002_REFERENCE_J_FADE_START));
+		float referenceWeight = lowerRpmWeight * upperRpmWeight * (1.0f - highAdvanceFade);
+		return lerp(1.0f, clamp(measuredScale, 0.0f, 1.0f), referenceWeight);
 	}
 
 	static float acroAdvanceRatioThrustScale(
