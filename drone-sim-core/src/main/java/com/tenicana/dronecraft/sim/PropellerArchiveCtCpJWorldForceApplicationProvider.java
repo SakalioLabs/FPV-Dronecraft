@@ -889,6 +889,16 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			return baselineRotorObliqueMomentumInflowSample(true);
 		}
 
+		public RotorObliqueMomentumPowerBalanceModel.ConfigurationRotorObliqueMomentumPowerBalanceSample
+				baselineRotorObliqueMomentumPowerBalanceSample() {
+			return baselineRotorObliqueMomentumPowerBalanceSample(false);
+		}
+
+		public RotorObliqueMomentumPowerBalanceModel.ConfigurationRotorObliqueMomentumPowerBalanceSample
+				runtimeReplacementBaselineRotorObliqueMomentumPowerBalanceSample() {
+			return baselineRotorObliqueMomentumPowerBalanceSample(true);
+		}
+
 		public RotorAngularRateDampingModel.ConfigurationRotorAngularRateDampingSample
 				baselineRotorAngularRateDampingSample(Vec3 angularVelocityBodyRadiansPerSecond) {
 			return baselineRotorAngularRateDampingSample(angularVelocityBodyRadiansPerSecond, false);
@@ -2005,6 +2015,32 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 				));
 			}
 			return RotorObliqueMomentumInflowModel.aggregate(samples);
+		}
+
+		private RotorObliqueMomentumPowerBalanceModel.ConfigurationRotorObliqueMomentumPowerBalanceSample
+				baselineRotorObliqueMomentumPowerBalanceSample(boolean runtimeReplacement) {
+			List<RotorObliqueMomentumPowerBalanceModel.RotorObliqueMomentumPowerBalanceSample> samples =
+					new ArrayList<>();
+			for (PropellerArchiveCtCpJRotorForceModel.RotorForceSample rotorSample
+					: aggregate.rotorSamples()) {
+				boolean applied = runtimeReplacement
+						? rotorSample.runtimeForceReplacementAccepted()
+						: !rotorSample.blocked();
+				if (!applied) {
+					continue;
+				}
+				PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional =
+						rotorSample.dimensionalSample();
+				samples.add(RotorObliqueMomentumPowerBalanceModel.solve(
+						rotorSample.query().rotor(),
+						rotorSample.relativeAirVelocityBodyMetersPerSecond(),
+						rotorSample.thrustNewtons(),
+						dimensional.shaftPowerWatts(),
+						dimensional.angularVelocityRadiansPerSecond(),
+						rotorSample.query().airDensityKgPerCubicMeter()
+				));
+			}
+			return RotorObliqueMomentumPowerBalanceModel.aggregate(samples);
 		}
 
 		private RotorAngularRateDampingModel.ConfigurationRotorAngularRateDampingSample
