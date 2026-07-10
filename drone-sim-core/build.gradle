@@ -97,6 +97,17 @@ tasks.register("uiucDa4002PublishedCfdComparison", JavaExec) {
 	}
 }
 
+tasks.register("uiucDa4002AxialSurfaceV1", JavaExec) {
+	group = "simulation"
+	description = "Exports the frozen DA4002 axial surface v1 curve bundle and evidence summary."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.UiucDa4002AxialSurfaceV1Exporter")
+	doFirst {
+		def outputDirectory = project.findProperty("outputDir") ?: layout.buildDirectory.dir("uiuc-da4002-axial-surface-v1").get().asFile.absolutePath
+		args(outputDirectory)
+	}
+}
+
 tasks.register("ctCpJConfigurationCurve", JavaExec) {
 	group = "simulation"
 	description = "Exports static-anchored CT/CP/J whole-configuration force, torque, and power samples as CSV."

@@ -67,6 +67,47 @@ public final class UiucDa4002MeasuredRotorModel {
 		}
 	}
 
+	public static StaticRpmEnvelope staticRpmEnvelope(Propeller propeller) {
+		if (propeller == null) {
+			throw new IllegalArgumentException("propeller must not be null.");
+		}
+		UiucDa4002StaticPerformanceLookup.StaticCurve curve = staticCurve(propeller);
+		return new StaticRpmEnvelope(
+				propeller,
+				curve.id(),
+				curve.minimumRpm(),
+				curve.maximumRpm()
+		);
+	}
+
+	public static List<NominalTrackEnvelope> nominalTrackEnvelopes(
+			Propeller propeller
+	) {
+		if (propeller == null) {
+			throw new IllegalArgumentException("propeller must not be null.");
+		}
+		return advanceTrackGroups(propeller).stream()
+				.map(group -> new NominalTrackEnvelope(
+						propeller,
+						group.nominalRpm(),
+						0.0,
+						group.curves().stream()
+								.mapToDouble(UiucDa4002AdvancePerformanceLookup
+										.AdvanceCurve::minimumAdvanceRatio)
+								.min()
+								.orElseThrow(),
+						group.curves().stream()
+								.mapToDouble(UiucDa4002AdvancePerformanceLookup
+										.AdvanceCurve::maximumAdvanceRatio)
+								.max()
+								.orElseThrow(),
+						group.curves().stream()
+								.map(UiucDa4002AdvancePerformanceLookup.AdvanceCurve::id)
+								.toList()
+				))
+				.toList();
+	}
+
 	public enum TrackInterpolationStatus {
 		STATIC,
 		LINEAR_STATIC_TO_FIRST_ADVANCE,
@@ -637,6 +678,27 @@ public final class UiucDa4002MeasuredRotorModel {
 	}
 
 	public record Query(Propeller propeller, double advanceRatioJ, double rpm) {
+	}
+
+	public record StaticRpmEnvelope(
+			Propeller propeller,
+			String sourceCurveId,
+			double minimumRpm,
+			double maximumRpm
+	) {
+	}
+
+	public record NominalTrackEnvelope(
+			Propeller propeller,
+			double nominalRpm,
+			double minimumSupportedAdvanceRatioJ,
+			double firstMeasuredAdvanceRatioJ,
+			double maximumSupportedAdvanceRatioJ,
+			List<String> sourceCurveIds
+	) {
+		public NominalTrackEnvelope {
+			sourceCurveIds = List.copyOf(sourceCurveIds);
+		}
 	}
 
 	public record LookupResult(
