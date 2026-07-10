@@ -11,8 +11,10 @@ import com.tenicana.dronecraft.sim.RotorHoverBladeProfilePowerModel.BladeGeometr
  * applies the Prandtl tip-loss factor. The optional wake-rotation solve also
  * closes lift-induced torque against angular momentum; profile drag remains a
  * dissipative torque instead of being forced into coherent swirl. Section lift
- * and drag come from the explicitly bounded SDA1075 polar, with no coefficient
- * tuned to static data.
+ * and drag come from the explicitly bounded SDA1075 polar. An optional
+ * Snel-McCrink normal-force correction exposes three-dimensional rotational
+ * augmentation as an unfitted sensitivity instead of silently changing the
+ * baseline model.
  */
 public final class RotorHoverBladeElementModel {
 	public static final String BLADE_ELEMENT_MOMENTUM_REFERENCE_URL =
@@ -411,6 +413,22 @@ public final class RotorHoverBladeElementModel {
 						angleOfAttack,
 						envelopePolicy
 				);
+		SnelMcCrinkRotationalAugmentation.Policy augmentationPolicy = polar.blocked()
+				? SnelMcCrinkRotationalAugmentation.Policy.NONE
+				: query.rotationalAugmentationPolicy();
+		SnelMcCrinkRotationalAugmentation.Sample rotationalAugmentation =
+				SnelMcCrinkRotationalAugmentation.evaluate(
+						new SnelMcCrinkRotationalAugmentation.Query(
+								polar.liftCoefficientCl(),
+								polar.dragCoefficientCd(),
+								polar.effectiveAngleOfAttackRadians(),
+								radialFraction,
+								chordMeters / radiusMeters,
+								bladeTangentialSpeed,
+								relativeSpeed
+						),
+						augmentationPolicy
+				);
 		double tipLossFactor = prandtlTipLossFactor(
 				query.geometry().bladeCount(),
 				radialFraction,
@@ -423,15 +441,27 @@ public final class RotorHoverBladeElementModel {
 		double bladeCountDynamicPressureChord = query.geometry().bladeCount()
 				* dynamicPressure
 				* chordMeters;
-		double differentialLift = bladeCountDynamicPressureChord * polar.liftCoefficientCl();
-		double differentialDrag = bladeCountDynamicPressureChord * polar.dragCoefficientCd();
+		double differentialLift2d = bladeCountDynamicPressureChord
+				* polar.liftCoefficientCl();
+		double differentialDrag2d = bladeCountDynamicPressureChord
+				* polar.dragCoefficientCd();
+		double differentialRotationalLift = bladeCountDynamicPressureChord
+				* rotationalAugmentation.liftCoefficientDelta();
+		double differentialRotationalDrag = bladeCountDynamicPressureChord
+				* rotationalAugmentation.dragCoefficientDelta();
+		double differentialLift = differentialLift2d + differentialRotationalLift;
+		double differentialDrag = differentialDrag2d + differentialRotationalDrag;
 		double differentialThrust = differentialLift * Math.cos(inflowAngle)
 				- differentialDrag * Math.sin(inflowAngle);
+		double differentialRotationalAugmentationTorque = radiusMeters
+				* (differentialRotationalLift * Math.sin(inflowAngle)
+				+ differentialRotationalDrag * Math.cos(inflowAngle));
 		double differentialLiftTorque = radiusMeters
-				* differentialLift
-				* Math.sin(inflowAngle);
+				* differentialLift2d
+				* Math.sin(inflowAngle)
+				+ differentialRotationalAugmentationTorque;
 		double differentialProfileTorque = radiusMeters
-				* differentialDrag
+				* differentialDrag2d
 				* Math.cos(inflowAngle);
 		double differentialMomentumThrust = 4.0
 				* Math.PI
@@ -464,11 +494,13 @@ public final class RotorHoverBladeElementModel {
 				angleOfAttack,
 				reynoldsNumber,
 				polar,
+				rotationalAugmentation,
 				tipLossFactor,
 				differentialThrust,
 				differentialMomentumThrust,
 				differentialThrust - differentialMomentumThrust,
 				differentialLiftTorque,
+				differentialRotationalAugmentationTorque,
 				differentialProfileTorque,
 				differentialMomentumTorque,
 				differentialLiftTorque - differentialMomentumTorque,
@@ -522,11 +554,13 @@ public final class RotorHoverBladeElementModel {
 				section.angleOfAttackRadians(),
 				section.reynoldsNumber(),
 				section.polar(),
+				section.rotationalAugmentation(),
 				section.prandtlTipLossFactor(),
 				section.differentialThrustNewtonsPerMeter(),
 				section.differentialMomentumThrustNewtonsPerMeter(),
 				section.momentumClosureResidualNewtonsPerMeter(),
 				section.differentialLiftTorqueNewtonMetersPerMeter(),
+				section.differentialRotationalAugmentationTorqueNewtonMetersPerMeter(),
 				section.differentialProfileTorqueNewtonMetersPerMeter(),
 				section.differentialMomentumTorqueNewtonMetersPerMeter(),
 				section.angularMomentumClosureResidualNewtonMetersPerMeter(),
@@ -534,6 +568,8 @@ public final class RotorHoverBladeElementModel {
 				section.differentialThrustNewtonsPerMeter() * radialWidthMeters,
 				section.differentialMomentumThrustNewtonsPerMeter() * radialWidthMeters,
 				section.differentialLiftTorqueNewtonMetersPerMeter() * radialWidthMeters,
+				section.differentialRotationalAugmentationTorqueNewtonMetersPerMeter()
+						* radialWidthMeters,
 				section.differentialProfileTorqueNewtonMetersPerMeter() * radialWidthMeters,
 				section.differentialMomentumTorqueNewtonMetersPerMeter() * radialWidthMeters,
 				section.angularMomentumClosureResidualNewtonMetersPerMeter() * radialWidthMeters,
@@ -546,6 +582,7 @@ public final class RotorHoverBladeElementModel {
 		double thrust = 0.0;
 		double momentumThrust = 0.0;
 		double liftTorque = 0.0;
+		double rotationalAugmentationTorque = 0.0;
 		double profileTorque = 0.0;
 		double momentumWakeTorque = 0.0;
 		double wakeSwirlKineticPower = 0.0;
@@ -554,6 +591,11 @@ public final class RotorHoverBladeElementModel {
 		int clampedCount = 0;
 		int reynoldsClampedCount = 0;
 		int angleClampedCount = 0;
+		int rotationalAugmentationAppliedCount = 0;
+		int rotationalAugmentationSourceSpanLimitedCount = 0;
+		int rotationalAugmentationAppliedOnClampedPolarCount = 0;
+		double maximumAbsoluteRotationalLiftCoefficientDelta = 0.0;
+		double maximumAbsoluteRotationalDragCoefficientDelta = 0.0;
 		double minimumReynolds = Double.POSITIVE_INFINITY;
 		double maximumReynolds = 0.0;
 		double minimumAngle = Double.POSITIVE_INFINITY;
@@ -562,6 +604,7 @@ public final class RotorHoverBladeElementModel {
 			thrust += annulus.thrustNewtons();
 			momentumThrust += annulus.momentumThrustNewtons();
 			liftTorque += annulus.liftInducedTorqueNewtonMeters();
+			rotationalAugmentationTorque += annulus.rotationalAugmentationTorqueNewtonMeters();
 			profileTorque += annulus.profileTorqueNewtonMeters();
 			momentumWakeTorque += annulus.momentumWakeTorqueNewtonMeters();
 			wakeSwirlKineticPower += annulus.wakeSwirlKineticPowerWatts();
@@ -585,6 +628,25 @@ public final class RotorHoverBladeElementModel {
 			if (annulus.polar().angleOfAttackClamped()) {
 				angleClampedCount++;
 			}
+			SnelMcCrinkRotationalAugmentation.Sample augmentation =
+					annulus.rotationalAugmentation();
+			if (augmentation.applied()) {
+				rotationalAugmentationAppliedCount++;
+				if (annulus.polar().clamped()) {
+					rotationalAugmentationAppliedOnClampedPolarCount++;
+				}
+			}
+			if (augmentation.sourceSpanLimited()) {
+				rotationalAugmentationSourceSpanLimitedCount++;
+			}
+			maximumAbsoluteRotationalLiftCoefficientDelta = Math.max(
+					maximumAbsoluteRotationalLiftCoefficientDelta,
+					Math.abs(augmentation.liftCoefficientDelta())
+			);
+			maximumAbsoluteRotationalDragCoefficientDelta = Math.max(
+					maximumAbsoluteRotationalDragCoefficientDelta,
+					Math.abs(augmentation.dragCoefficientDelta())
+			);
 			minimumReynolds = Math.min(minimumReynolds, annulus.reynoldsNumber());
 			maximumReynolds = Math.max(maximumReynolds, annulus.reynoldsNumber());
 			double angleDegrees = Math.toDegrees(annulus.angleOfAttackRadians());
@@ -594,6 +656,8 @@ public final class RotorHoverBladeElementModel {
 
 		double shaftTorque = liftTorque + profileTorque;
 		double liftPower = liftTorque * query.angularVelocityRadiansPerSecond();
+		double rotationalAugmentationPower = rotationalAugmentationTorque
+				* query.angularVelocityRadiansPerSecond();
 		double profilePower = profileTorque * query.angularVelocityRadiansPerSecond();
 		double shaftPower = shaftTorque * query.angularVelocityRadiansPerSecond();
 		double diameter = query.rotorRadiusMeters() * 2.0;
@@ -623,12 +687,14 @@ public final class RotorHoverBladeElementModel {
 				thrust - momentumThrust,
 				shaftTorque,
 				liftTorque,
+				rotationalAugmentationTorque,
 				profileTorque,
 				shaftTorque - liftTorque - profileTorque,
 				momentumWakeTorque,
 				liftTorque - momentumWakeTorque,
 				shaftPower,
 				liftPower,
+				rotationalAugmentationPower,
 				profilePower,
 				shaftPower - liftPower - profilePower,
 				wakeSwirlKineticPower,
@@ -645,6 +711,14 @@ public final class RotorHoverBladeElementModel {
 				clampedCount,
 				reynoldsClampedCount,
 				angleClampedCount,
+				rotationalAugmentationAppliedCount,
+				rotationalAugmentationSourceSpanLimitedCount,
+				rotationalAugmentationAppliedOnClampedPolarCount,
+				maximumAbsoluteRotationalLiftCoefficientDelta,
+				maximumAbsoluteRotationalDragCoefficientDelta,
+				query.rotationalAugmentationPolicy()
+						== SnelMcCrinkRotationalAugmentation.Policy
+								.SNEL_MCCRINK_NORMAL_FORCE,
 				minimumReynolds,
 				maximumReynolds,
 				minimumAngle,
@@ -686,6 +760,8 @@ public final class RotorHoverBladeElementModel {
 				0.0,
 				0.0,
 				0.0,
+				0.0,
+				0.0,
 				diskArea,
 				0.0,
 				0.0,
@@ -695,6 +771,14 @@ public final class RotorHoverBladeElementModel {
 				0,
 				0,
 				0,
+				0,
+				0,
+				0,
+				0.0,
+				0.0,
+				query.rotationalAugmentationPolicy()
+						== SnelMcCrinkRotationalAugmentation.Policy
+								.SNEL_MCCRINK_NORMAL_FORCE,
 				0.0,
 				0.0,
 				0.0,
@@ -740,11 +824,13 @@ public final class RotorHoverBladeElementModel {
 			double angleOfAttackRadians,
 			double reynoldsNumber,
 			Sda1075XfoilSectionPolar.PolarSample polar,
+			SnelMcCrinkRotationalAugmentation.Sample rotationalAugmentation,
 			double prandtlTipLossFactor,
 			double differentialThrustNewtonsPerMeter,
 			double differentialMomentumThrustNewtonsPerMeter,
 			double momentumClosureResidualNewtonsPerMeter,
 			double differentialLiftTorqueNewtonMetersPerMeter,
+			double differentialRotationalAugmentationTorqueNewtonMetersPerMeter,
 			double differentialProfileTorqueNewtonMetersPerMeter,
 			double differentialMomentumTorqueNewtonMetersPerMeter,
 			double angularMomentumClosureResidualNewtonMetersPerMeter,
@@ -760,8 +846,32 @@ public final class RotorHoverBladeElementModel {
 			double angularVelocityRadiansPerSecond,
 			int annuliPerGeometryInterval,
 			Sda1075XfoilSectionPolar.EnvelopePolicy polarEnvelopePolicy,
-			WakeRotationPolicy wakeRotationPolicy
+			WakeRotationPolicy wakeRotationPolicy,
+			SnelMcCrinkRotationalAugmentation.Policy rotationalAugmentationPolicy
 	) {
+		public HoverQuery(
+				BladeGeometry geometry,
+				double rotorRadiusMeters,
+				double airDensityKgPerCubicMeter,
+				double dynamicViscosityPascalSeconds,
+				double angularVelocityRadiansPerSecond,
+				int annuliPerGeometryInterval,
+				Sda1075XfoilSectionPolar.EnvelopePolicy polarEnvelopePolicy,
+				WakeRotationPolicy wakeRotationPolicy
+		) {
+			this(
+					geometry,
+					rotorRadiusMeters,
+					airDensityKgPerCubicMeter,
+					dynamicViscosityPascalSeconds,
+					angularVelocityRadiansPerSecond,
+					annuliPerGeometryInterval,
+					polarEnvelopePolicy,
+					wakeRotationPolicy,
+					SnelMcCrinkRotationalAugmentation.Policy.NONE
+			);
+		}
+
 		public HoverQuery(
 				BladeGeometry geometry,
 				double rotorRadiusMeters,
@@ -779,7 +889,8 @@ public final class RotorHoverBladeElementModel {
 					angularVelocityRadiansPerSecond,
 					annuliPerGeometryInterval,
 					polarEnvelopePolicy,
-					WakeRotationPolicy.AXIAL_MOMENTUM_ONLY
+					WakeRotationPolicy.AXIAL_MOMENTUM_ONLY,
+					SnelMcCrinkRotationalAugmentation.Policy.NONE
 			);
 		}
 
@@ -819,6 +930,9 @@ public final class RotorHoverBladeElementModel {
 			if (wakeRotationPolicy == null) {
 				wakeRotationPolicy = WakeRotationPolicy.AXIAL_MOMENTUM_ONLY;
 			}
+			if (rotationalAugmentationPolicy == null) {
+				rotationalAugmentationPolicy = SnelMcCrinkRotationalAugmentation.Policy.NONE;
+			}
 		}
 
 		public static HoverQuery standardResolution(
@@ -837,7 +951,8 @@ public final class RotorHoverBladeElementModel {
 					angularVelocityRadiansPerSecond,
 					DEFAULT_ANNULI_PER_GEOMETRY_INTERVAL,
 					polarEnvelopePolicy,
-					WakeRotationPolicy.AXIAL_MOMENTUM_ONLY
+					WakeRotationPolicy.AXIAL_MOMENTUM_ONLY,
+					SnelMcCrinkRotationalAugmentation.Policy.NONE
 			);
 		}
 	}
@@ -860,11 +975,13 @@ public final class RotorHoverBladeElementModel {
 			double angleOfAttackRadians,
 			double reynoldsNumber,
 			Sda1075XfoilSectionPolar.PolarSample polar,
+			SnelMcCrinkRotationalAugmentation.Sample rotationalAugmentation,
 			double prandtlTipLossFactor,
 			double differentialThrustNewtonsPerMeter,
 			double differentialMomentumThrustNewtonsPerMeter,
 			double differentialMomentumClosureResidualNewtonsPerMeter,
 			double differentialLiftTorqueNewtonMetersPerMeter,
+			double differentialRotationalAugmentationTorqueNewtonMetersPerMeter,
 			double differentialProfileTorqueNewtonMetersPerMeter,
 			double differentialMomentumTorqueNewtonMetersPerMeter,
 			double differentialAngularMomentumClosureResidualNewtonMetersPerMeter,
@@ -872,6 +989,7 @@ public final class RotorHoverBladeElementModel {
 			double thrustNewtons,
 			double momentumThrustNewtons,
 			double liftInducedTorqueNewtonMeters,
+			double rotationalAugmentationTorqueNewtonMeters,
 			double profileTorqueNewtonMeters,
 			double momentumWakeTorqueNewtonMeters,
 			double angularMomentumClosureResidualNewtonMeters,
@@ -889,12 +1007,14 @@ public final class RotorHoverBladeElementModel {
 			double thrustClosureResidualNewtons,
 			double shaftTorqueNewtonMeters,
 			double liftInducedTorqueNewtonMeters,
+			double rotationalAugmentationTorqueNewtonMeters,
 			double profileTorqueNewtonMeters,
 			double torqueClosureResidualNewtonMeters,
 			double momentumWakeTorqueNewtonMeters,
 			double angularMomentumClosureResidualNewtonMeters,
 			double shaftPowerWatts,
 			double liftInducedPowerWatts,
+			double rotationalAugmentationPowerWatts,
 			double profilePowerWatts,
 			double powerClosureResidualWatts,
 			double wakeSwirlKineticPowerWatts,
@@ -911,6 +1031,12 @@ public final class RotorHoverBladeElementModel {
 			int clampedAnnulusCount,
 			int reynoldsClampedAnnulusCount,
 			int angleOfAttackClampedAnnulusCount,
+			int rotationalAugmentationAppliedAnnulusCount,
+			int rotationalAugmentationSourceSpanLimitedAnnulusCount,
+			int rotationalAugmentationAppliedOnClampedPolarAnnulusCount,
+			double maximumAbsoluteRotationalLiftCoefficientDelta,
+			double maximumAbsoluteRotationalDragCoefficientDelta,
+			boolean rotationalAugmentationRequiresPropellerSpecificValidation,
 			double minimumReynoldsNumber,
 			double maximumReynoldsNumber,
 			double minimumAngleOfAttackDegrees,
@@ -939,6 +1065,12 @@ public final class RotorHoverBladeElementModel {
 			return annuli.isEmpty()
 					? 0.0
 					: (double) (annuli.size() - clampedAnnulusCount) / annuli.size();
+		}
+
+		public double rotationalAugmentationAppliedFraction() {
+			return annuli.isEmpty()
+					? 0.0
+					: (double) rotationalAugmentationAppliedAnnulusCount / annuli.size();
 		}
 	}
 }

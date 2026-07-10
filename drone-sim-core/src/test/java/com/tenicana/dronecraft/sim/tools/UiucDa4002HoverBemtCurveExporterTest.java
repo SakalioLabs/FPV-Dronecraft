@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
 import com.tenicana.dronecraft.sim.RotorHoverBladeElementModel;
+import com.tenicana.dronecraft.sim.SnelMcCrinkRotationalAugmentation;
 
 class UiucDa4002HoverBemtCurveExporterTest {
 	@Test
@@ -32,12 +33,47 @@ class UiucDa4002HoverBemtCurveExporterTest {
 		Map<String, Integer> columns = columns(lines.get(0));
 
 		assertEquals(65, lines.size());
-		assertEquals(66, columns.size());
+		assertEquals(89, columns.size());
 		assertTrue(lines.stream().skip(1).allMatch(line -> cells(line).length == columns.size()));
 		assertTrue(lines.stream().skip(1).allMatch(line ->
 				"SOLVED".equals(textCell(line, columns, "bemt_status"))));
 		assertTrue(lines.stream().skip(1).allMatch(line ->
+				"SOLVED".equals(textCell(line, columns, "augmented_bemt_status"))));
+		assertTrue(lines.stream().skip(1).allMatch(line ->
+				SnelMcCrinkRotationalAugmentation.Policy.SNEL_MCCRINK_NORMAL_FORCE.name()
+						.equals(textCell(line, columns, "rotational_augmentation_policy"))));
+		assertTrue(lines.stream().skip(1).allMatch(line ->
+				SnelMcCrinkRotationalAugmentation.DATA_SOURCE_ID.equals(
+						textCell(line, columns, "rotational_augmentation_source_id"))));
+		assertTrue(lines.stream().skip(1).allMatch(line ->
 				doubleCell(line, columns, "cp_residual_fraction") < -0.17));
+		assertTrue(lines.stream().skip(1).allMatch(line ->
+				doubleCell(line, columns, "augmented_ct_delta_from_baseline") > 0.0
+						&& doubleCell(line, columns, "augmented_cp_delta_from_baseline") > 0.0
+						&& doubleCell(line, columns, "augmented_thrust_delta_n") > 0.0
+						&& doubleCell(line, columns, "augmented_shaft_power_delta_w") > 0.0
+						&& doubleCell(line, columns, "augmented_shaft_torque_delta_nm") > 0.0
+						&& doubleCell(line, columns,
+								"rotational_augmentation_torque_nm") > 0.0
+						&& doubleCell(line, columns,
+								"rotational_augmentation_power_w") > 0.0));
+		assertTrue(lines.stream().skip(1).allMatch(line ->
+				doubleCell(line, columns, "augmented_cp_residual_fraction") < -0.13));
+		assertTrue(lines.stream().skip(1).allMatch(line ->
+				doubleCell(line, columns, "rotational_augmentation_applied_annuli")
+						+ doubleCell(line, columns,
+								"rotational_augmentation_source_span_limited_annuli")
+						== doubleCell(line, columns, "bemt_annulus_count")));
+		assertTrue(lines.stream().skip(1).allMatch(line ->
+				doubleCell(line, columns,
+						"rotational_augmentation_applied_on_clamped_polar_annuli") > 0.0));
+		assertTrue(lines.stream().skip(1).allMatch(line ->
+				doubleCell(line, columns, "rotational_augmentation_max_abs_delta_cl") > 0.0
+						&& doubleCell(line, columns,
+								"rotational_augmentation_max_abs_delta_cd") > 0.0));
+		assertTrue(lines.stream().skip(1).allMatch(line -> "true".equals(
+				textCell(line, columns,
+						"rotational_augmentation_requires_propeller_specific_validation"))));
 
 		String lowNineInch = row(
 				lines,
@@ -64,6 +100,16 @@ class UiucDa4002HoverBemtCurveExporterTest {
 		assertTrue(Math.abs(doubleCell(highNineInch, columns, "ct_residual_fraction")) < 0.01);
 		assertTrue(doubleCell(highNineInch, columns, "cp_residual_fraction") < -0.17);
 		assertTrue(doubleCell(highNineInch, columns, "cp_residual_fraction") > -0.25);
+		assertTrue(doubleCell(highNineInch, columns, "augmented_bemt_ct")
+				> doubleCell(highNineInch, columns, "bemt_ct"));
+		assertTrue(doubleCell(highNineInch, columns, "augmented_bemt_cp")
+				> doubleCell(highNineInch, columns, "bemt_cp"));
+		assertTrue(doubleCell(highNineInch, columns, "augmented_cp_residual_fraction")
+				> doubleCell(highNineInch, columns, "cp_residual_fraction"));
+		assertTrue(doubleCell(highNineInch, columns, "augmented_cp_residual_fraction")
+				< -0.15);
+		assertTrue(doubleCell(highNineInch, columns, "augmented_ct_residual_fraction")
+				> 0.02);
 		assertTrue(doubleCell(highNineInch, columns, "reynolds_75") > 70_000.0);
 		assertTrue(doubleCell(highNineInch, columns,
 				"bemt_reynolds_clamped_annuli") > 0.0);
@@ -109,6 +155,11 @@ class UiucDa4002HoverBemtCurveExporterTest {
 		assertEquals(13, fiveInchRows.size());
 		assertTrue(fiveInchRows.stream().allMatch(line ->
 				doubleCell(line, columns, "reynolds_75") < 40_000.0));
+		assertTrue(fiveInchRows.stream().allMatch(line ->
+				doubleCell(line, columns,
+						"rotational_augmentation_applied_on_clamped_polar_annuli")
+						== doubleCell(line, columns,
+								"rotational_augmentation_applied_annuli")));
 	}
 
 	private static Map<String, Integer> columns(String header) {

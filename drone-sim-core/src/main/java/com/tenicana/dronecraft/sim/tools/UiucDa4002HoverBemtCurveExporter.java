@@ -12,9 +12,10 @@ import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse
 import com.tenicana.dronecraft.sim.RotorHoverBladeElementModel;
 import com.tenicana.dronecraft.sim.RotorHoverPowerLossDecomposition;
 import com.tenicana.dronecraft.sim.Sda1075XfoilSectionPolar;
+import com.tenicana.dronecraft.sim.SnelMcCrinkRotationalAugmentation;
 import com.tenicana.dronecraft.sim.UiucDa4002StaticPerformanceLookup;
 
-/** Exports measured UIUC DA4002 static loads beside the untuned hover BEMT response. */
+/** Exports measured UIUC loads beside baseline and rotationally augmented hover BEMT. */
 public final class UiucDa4002HoverBemtCurveExporter {
 	public static final double DEFAULT_DYNAMIC_VISCOSITY_PASCAL_SECONDS = 1.81e-5;
 	private static final String HEADER = String.join(",",
@@ -82,6 +83,29 @@ public final class UiucDa4002HoverBemtCurveExporter {
 			"bemt_maximum_tangential_induced_velocity_mps",
 			"bemt_maximum_tangential_induction_to_blade_speed",
 			"bemt_status",
+			"rotational_augmentation_policy",
+			"rotational_augmentation_source_id",
+			"augmented_bemt_ct",
+			"augmented_ct_delta_from_baseline",
+			"augmented_ct_residual_fraction",
+			"augmented_bemt_cp",
+			"augmented_cp_delta_from_baseline",
+			"augmented_cp_residual_fraction",
+			"augmented_bemt_thrust_n",
+			"augmented_thrust_delta_n",
+			"augmented_bemt_shaft_power_w",
+			"augmented_shaft_power_delta_w",
+			"augmented_bemt_shaft_torque_nm",
+			"augmented_shaft_torque_delta_nm",
+			"rotational_augmentation_torque_nm",
+			"rotational_augmentation_power_w",
+			"rotational_augmentation_applied_annuli",
+			"rotational_augmentation_source_span_limited_annuli",
+			"rotational_augmentation_applied_on_clamped_polar_annuli",
+			"rotational_augmentation_max_abs_delta_cl",
+			"rotational_augmentation_max_abs_delta_cd",
+			"rotational_augmentation_requires_propeller_specific_validation",
+			"augmented_bemt_status",
 			"reference_data_source_id",
 			"section_polar_data_source_id"
 	);
@@ -171,10 +195,27 @@ public final class UiucDa4002HoverBemtCurveExporter {
 									row.rpm() * 2.0 * Math.PI / 60.0,
 									annuliPerGeometryInterval,
 									Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE,
-									wakeRotationPolicy
+									wakeRotationPolicy,
+									SnelMcCrinkRotationalAugmentation.Policy.NONE
 							)
 					);
-					lines.add(csvLine(curve, reference, bemt));
+					RotorHoverBladeElementModel.HoverSample augmented =
+							RotorHoverBladeElementModel.solve(
+									new RotorHoverBladeElementModel.HoverQuery(
+											curve.geometry(),
+											curve.referenceDiameterMeters() * 0.5,
+											airDensityKgPerCubicMeter,
+											dynamicViscosityPascalSeconds,
+											row.rpm() * 2.0 * Math.PI / 60.0,
+											annuliPerGeometryInterval,
+											Sda1075XfoilSectionPolar.EnvelopePolicy
+													.CLAMP_TO_ENVELOPE,
+											wakeRotationPolicy,
+											SnelMcCrinkRotationalAugmentation.Policy
+													.SNEL_MCCRINK_NORMAL_FORCE
+									)
+							);
+					lines.add(csvLine(curve, reference, bemt, augmented));
 				}
 			}
 		}
@@ -184,7 +225,8 @@ public final class UiucDa4002HoverBemtCurveExporter {
 	private static String csvLine(
 			UiucDa4002StaticPerformanceLookup.StaticCurve curve,
 			UiucDa4002StaticPerformanceLookup.DimensionalSample reference,
-			RotorHoverBladeElementModel.HoverSample bemt
+			RotorHoverBladeElementModel.HoverSample bemt,
+			RotorHoverBladeElementModel.HoverSample augmented
 	) {
 		RotorHoverPowerLossDecomposition.PowerLossSample powerLoss =
 				RotorHoverPowerLossDecomposition.decompose(reference, bemt);
@@ -196,6 +238,10 @@ public final class UiucDa4002HoverBemtCurveExporter {
 		double powerResidual = bemt.shaftPowerWatts() - reference.shaftPowerWatts();
 		double torqueResidual = bemt.shaftTorqueNewtonMeters()
 				- reference.shaftTorqueNewtonMeters();
+		double augmentedCtResidual = augmented.thrustCoefficientCt()
+				- reference.lookup().thrustCoefficientCt();
+		double augmentedCpResidual = augmented.powerCoefficientCp()
+				- reference.lookup().powerCoefficientCp();
 		return String.join(",",
 				escape(curve.id()),
 				escape(curve.sourceUrl()),
@@ -261,6 +307,42 @@ public final class UiucDa4002HoverBemtCurveExporter {
 				number(bemt.maximumTangentialInducedVelocityMetersPerSecond()),
 				number(bemt.maximumTangentialInductionToBladeSpeed()),
 				escape(bemt.status().name()),
+				escape(augmented.query().rotationalAugmentationPolicy().name()),
+				escape(SnelMcCrinkRotationalAugmentation.DATA_SOURCE_ID),
+				number(augmented.thrustCoefficientCt()),
+				number(augmented.thrustCoefficientCt() - bemt.thrustCoefficientCt()),
+				number(ratio(
+						augmentedCtResidual,
+						reference.lookup().thrustCoefficientCt()
+				)),
+				number(augmented.powerCoefficientCp()),
+				number(augmented.powerCoefficientCp() - bemt.powerCoefficientCp()),
+				number(ratio(
+						augmentedCpResidual,
+						reference.lookup().powerCoefficientCp()
+				)),
+				number(augmented.thrustNewtons()),
+				number(augmented.thrustNewtons() - bemt.thrustNewtons()),
+				number(augmented.shaftPowerWatts()),
+				number(augmented.shaftPowerWatts() - bemt.shaftPowerWatts()),
+				number(augmented.shaftTorqueNewtonMeters()),
+				number(augmented.shaftTorqueNewtonMeters()
+						- bemt.shaftTorqueNewtonMeters()),
+				number(augmented.rotationalAugmentationTorqueNewtonMeters()),
+				number(augmented.rotationalAugmentationPowerWatts()),
+				Integer.toString(augmented.rotationalAugmentationAppliedAnnulusCount()),
+				Integer.toString(
+						augmented.rotationalAugmentationSourceSpanLimitedAnnulusCount()
+				),
+				Integer.toString(
+						augmented.rotationalAugmentationAppliedOnClampedPolarAnnulusCount()
+				),
+				number(augmented.maximumAbsoluteRotationalLiftCoefficientDelta()),
+				number(augmented.maximumAbsoluteRotationalDragCoefficientDelta()),
+				Boolean.toString(
+						augmented.rotationalAugmentationRequiresPropellerSpecificValidation()
+				),
+				escape(augmented.status().name()),
 				escape(UiucDa4002StaticPerformanceLookup.DATA_SOURCE_ID),
 				escape(Sda1075XfoilSectionPolar.DATA_SOURCE_ID)
 		);

@@ -135,6 +135,86 @@ class RotorHoverBladeElementModelTest {
 	}
 
 	@Test
+	void snelMcCrinkSensitivityRaisesNormalLoadWithinSourceSpanWithoutClosingPowerGap() {
+		RotorHoverBladeElementModel.HoverSample baseline = solve(
+				HIGH_RPM,
+				RotorHoverBladeElementModel.DEFAULT_ANNULI_PER_GEOMETRY_INTERVAL,
+				Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE,
+				RotorHoverBladeElementModel.WakeRotationPolicy.AXIAL_MOMENTUM_ONLY,
+				SnelMcCrinkRotationalAugmentation.Policy.NONE
+		);
+		RotorHoverBladeElementModel.HoverSample augmented = solve(
+				HIGH_RPM,
+				RotorHoverBladeElementModel.DEFAULT_ANNULI_PER_GEOMETRY_INTERVAL,
+				Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE,
+				RotorHoverBladeElementModel.WakeRotationPolicy.AXIAL_MOMENTUM_ONLY,
+				SnelMcCrinkRotationalAugmentation.Policy.SNEL_MCCRINK_NORMAL_FORCE
+		);
+		RotorHoverBladeElementModel.HoverSample coupledAugmented = solve(
+				HIGH_RPM,
+				RotorHoverBladeElementModel.DEFAULT_ANNULI_PER_GEOMETRY_INTERVAL,
+				Sda1075XfoilSectionPolar.EnvelopePolicy.CLAMP_TO_ENVELOPE,
+				RotorHoverBladeElementModel.WakeRotationPolicy
+						.COUPLED_LIFT_TORQUE_ANGULAR_MOMENTUM,
+				SnelMcCrinkRotationalAugmentation.Policy.SNEL_MCCRINK_NORMAL_FORCE
+		);
+
+		assertTrue(augmented.solved());
+		assertTrue(augmented.thrustCoefficientCt() > baseline.thrustCoefficientCt());
+		assertTrue(augmented.powerCoefficientCp() > baseline.powerCoefficientCp());
+		assertTrue(augmented.thrustNewtons() > baseline.thrustNewtons());
+		assertTrue(augmented.shaftPowerWatts() > baseline.shaftPowerWatts());
+		assertTrue(augmented.shaftTorqueNewtonMeters() > baseline.shaftTorqueNewtonMeters());
+		assertTrue((augmented.powerCoefficientCp() - UIUC_HIGH_RPM_CP) / UIUC_HIGH_RPM_CP
+				< -0.15);
+		assertEquals(0.0, augmented.thrustClosureResidualNewtons(), 1.0e-12);
+		assertEquals(0.0, augmented.torqueClosureResidualNewtonMeters(), 1.0e-15);
+		assertEquals(0.0, augmented.powerClosureResidualWatts(), 1.0e-12);
+		assertTrue(augmented.rotationalAugmentationTorqueNewtonMeters() > 0.0);
+		assertTrue(augmented.rotationalAugmentationTorqueNewtonMeters()
+				< augmented.liftInducedTorqueNewtonMeters());
+		assertEquals(
+				augmented.rotationalAugmentationTorqueNewtonMeters()
+						* augmented.query().angularVelocityRadiansPerSecond(),
+				augmented.rotationalAugmentationPowerWatts(),
+				1.0e-12
+		);
+		assertTrue(coupledAugmented.solved());
+		assertEquals(
+				coupledAugmented.liftInducedTorqueNewtonMeters(),
+				coupledAugmented.momentumWakeTorqueNewtonMeters(),
+				1.0e-10
+		);
+		assertEquals(0.0, coupledAugmented.angularMomentumClosureResidualNewtonMeters(),
+				1.0e-10);
+		assertTrue(coupledAugmented.maximumTangentialInductionToBladeSpeed() > 0.09);
+		assertTrue(coupledAugmented.maximumTangentialInductionToBladeSpeed() < 0.12);
+		assertEquals(
+				augmented.annulusCount(),
+				augmented.rotationalAugmentationAppliedAnnulusCount()
+						+ augmented.rotationalAugmentationSourceSpanLimitedAnnulusCount()
+		);
+		assertTrue(augmented.rotationalAugmentationAppliedOnClampedPolarAnnulusCount() > 0);
+		assertTrue(augmented.rotationalAugmentationAppliedOnClampedPolarAnnulusCount()
+				< augmented.rotationalAugmentationAppliedAnnulusCount());
+		assertTrue(augmented.maximumAbsoluteRotationalLiftCoefficientDelta() > 0.4);
+		assertTrue(augmented.maximumAbsoluteRotationalDragCoefficientDelta() > 0.09);
+		assertTrue(augmented.rotationalAugmentationRequiresPropellerSpecificValidation());
+		assertTrue(augmented.annuli().stream()
+				.filter(annulus -> annulus.rotationalAugmentation().applied())
+				.allMatch(annulus -> annulus.radialFraction()
+						<= SnelMcCrinkRotationalAugmentation.MAX_APPLIED_RADIAL_FRACTION));
+		assertTrue(augmented.annuli().stream()
+				.filter(annulus -> annulus.rotationalAugmentation().sourceSpanLimited())
+				.allMatch(annulus -> annulus.radialFraction()
+						> SnelMcCrinkRotationalAugmentation.MAX_APPLIED_RADIAL_FRACTION));
+		assertEquals(0, baseline.rotationalAugmentationAppliedAnnulusCount());
+		assertEquals(0.0, baseline.rotationalAugmentationTorqueNewtonMeters(), 0.0);
+		assertEquals(0.0, baseline.maximumAbsoluteRotationalLiftCoefficientDelta(), 1.0e-15);
+		assertTrue(!baseline.rotationalAugmentationRequiresPropellerSpecificValidation());
+	}
+
+	@Test
 	void reynoldsTrendConvergesNumericallyAndStrictEnvelopeBlocksLowReSections() {
 		RotorHoverBladeElementModel.HoverSample lowRpm = solve(
 				1_546.667,
@@ -180,7 +260,8 @@ class RotorHoverBladeElementModelTest {
 				rpm,
 				annuliPerGeometryInterval,
 				envelopePolicy,
-				RotorHoverBladeElementModel.WakeRotationPolicy.AXIAL_MOMENTUM_ONLY
+				RotorHoverBladeElementModel.WakeRotationPolicy.AXIAL_MOMENTUM_ONLY,
+				SnelMcCrinkRotationalAugmentation.Policy.NONE
 		);
 	}
 
@@ -190,6 +271,22 @@ class RotorHoverBladeElementModelTest {
 			Sda1075XfoilSectionPolar.EnvelopePolicy envelopePolicy,
 			RotorHoverBladeElementModel.WakeRotationPolicy wakeRotationPolicy
 	) {
+		return solve(
+				rpm,
+				annuliPerGeometryInterval,
+				envelopePolicy,
+				wakeRotationPolicy,
+				SnelMcCrinkRotationalAugmentation.Policy.NONE
+		);
+	}
+
+	private static RotorHoverBladeElementModel.HoverSample solve(
+			double rpm,
+			int annuliPerGeometryInterval,
+			Sda1075XfoilSectionPolar.EnvelopePolicy envelopePolicy,
+			RotorHoverBladeElementModel.WakeRotationPolicy wakeRotationPolicy,
+			SnelMcCrinkRotationalAugmentation.Policy rotationalAugmentationPolicy
+	) {
 		RotorHoverBladeElementModel.HoverQuery query = new RotorHoverBladeElementModel.HoverQuery(
 				UiucDa4002PropellerGeometry.nineBySixPointSevenFiveTwoBlade(),
 				UiucDa4002PropellerGeometry.NINE_INCH_DIAMETER_METERS * 0.5,
@@ -198,7 +295,8 @@ class RotorHoverBladeElementModelTest {
 				rpm * 2.0 * Math.PI / 60.0,
 				annuliPerGeometryInterval,
 				envelopePolicy,
-				wakeRotationPolicy
+				wakeRotationPolicy,
+				rotationalAugmentationPolicy
 		);
 		return RotorHoverBladeElementModel.solve(query);
 	}
