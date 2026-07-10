@@ -1746,14 +1746,18 @@ public final class DronePhysics {
 			);
 			Vec3 angularDragTorque = angularRateDamping.dampingTorqueBodyNewtonMeters();
 			rotorAngularDragTorqueSum = rotorAngularDragTorqueSum.add(angularDragTorque);
-			double inflowSkewIntensity = rotorInflowSkewIntensity(
+			RotorObliqueInflowMomentModel.RotorObliqueInflowMomentSample obliqueInflow =
+					RotorObliqueInflowMomentModel.sampleMoment(
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
+					thrust,
+					state.rotorInducedVelocityMetersPerSecond(i),
 					state.rotorTranslationalLiftIntensity(i),
 					rotorStall
 			);
-			Vec3 inflowSkewTorque = rotorInflowSkewTorque(aerodynamicRotor, rotorRelativeAirVelocityBody, thrust, inflowSkewIntensity);
+			double inflowSkewIntensity = obliqueInflow.inflowSkewIntensity();
+			Vec3 inflowSkewTorque = obliqueInflow.totalHubMomentBodyNewtonMeters();
 			rotorInflowSkewSum += inflowSkewIntensity;
 			rotorInflowSkewTorqueSum = rotorInflowSkewTorqueSum.add(inflowSkewTorque);
 			Vec3 bladeDissymmetryTorque = rotorBladeDissymmetryTorque(
@@ -5672,26 +5676,6 @@ public final class DronePhysics {
 		return projectOntoRotorDisk(diskWindGradientBody, rotorAxisBody(rotor)).clamp(-12.0, 12.0);
 	}
 
-	private static double rotorInflowSkewIntensity(
-			RotorSpec rotor,
-			Vec3 relativeAirVelocityBody,
-			double omegaRadiansPerSecond,
-			double translationalLiftIntensity,
-			double rotorStallIntensity
-	) {
-		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
-		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
-		if (spinRatio <= 0.12 || transverseSpeed <= 0.25 || translationalLiftIntensity <= 1.0e-6) {
-			return 0.0;
-		}
-
-		double advanceRatio = rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
-		double advanceSkew = smoothStep(0.035, 0.24, advanceRatio);
-		double loadedRotor = smoothStep(0.18, 0.60, spinRatio);
-		double stallSoftening = 1.0 - 0.35 * MathUtil.clamp(rotorStallIntensity, 0.0, 1.0);
-		return MathUtil.clamp(translationalLiftIntensity * advanceSkew * loadedRotor * stallSoftening, 0.0, 1.0);
-	}
-
 	private static double rotorAerodynamicLoadFactor(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
@@ -5758,32 +5742,6 @@ public final class DronePhysics {
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
 		double activeRotor = smoothStep(0.08, 0.32, spinRatio);
 		return MathUtil.clamp(0.075 * activeRotor * MathUtil.clamp(ambientDirtyAir, 0.0, 1.8), 0.0, 0.13);
-	}
-
-	private static Vec3 rotorInflowSkewTorque(
-			RotorSpec rotor,
-			Vec3 relativeAirVelocityBody,
-			double thrustNewtons,
-			double inflowSkewIntensity
-	) {
-		Vec3 transverseVelocityBody = rotorTransverseVelocityBody(rotor, relativeAirVelocityBody);
-		double transverseSpeed = transverseVelocityBody.length();
-		if (inflowSkewIntensity <= 1.0e-6 || transverseSpeed <= 1.0e-6 || thrustNewtons <= 1.0e-6) {
-			return Vec3.ZERO;
-		}
-
-		Vec3 transverseUnit = transverseVelocityBody.multiply(1.0 / transverseSpeed);
-		double hubMomentCoefficient = 0.85 * rotor.flappingCoefficient()
-				+ 0.35 * rotor.transverseFlowLiftCoefficient();
-		if (hubMomentCoefficient <= 1.0e-6) {
-			return Vec3.ZERO;
-		}
-
-		double moment = thrustNewtons * rotor.radiusMeters() * hubMomentCoefficient * inflowSkewIntensity;
-		Vec3 skewMoment = transverseUnit.cross(rotorAxisBody(rotor)).multiply(moment);
-		double advancingBladeMoment = moment * 0.28 * rotor.spinDirection();
-		Vec3 spinCoupledMoment = transverseUnit.multiply(advancingBladeMoment);
-		return skewMoment.add(spinCoupledMoment);
 	}
 
 	private static Vec3 rotorBladeDissymmetryTorque(
@@ -6338,64 +6296,23 @@ public final class DronePhysics {
 			double hoverTargetInducedVelocityMetersPerSecond,
 			double dtSeconds
 	) {
-		double target = calculateSteadyRotorTranslationalLiftIntensity(
-				rotor,
-				relativeAirVelocityBody,
-				omegaRadiansPerSecond,
-				hoverTargetInducedVelocityMetersPerSecond
-		);
-		if (dtSeconds <= 0.0) {
-			state.setRotorTranslationalLiftIntensity(index, target);
-			return target;
-		}
-
-		double previous = state.rotorTranslationalLiftIntensity(index);
-		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
-		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
-		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
-		double transverseFlush = smoothStep(1.0, 8.0, transverseSpeed);
-		double buildTimeConstant = MathUtil.clamp(
-				0.075 * Math.sqrt(radiusScale) / (0.78 + 0.36 * spinRatio + 0.24 * transverseFlush),
-				0.024,
-				0.155
-		);
-		double releaseTimeConstant = MathUtil.clamp(
-				(0.180 - 0.080 * transverseFlush) * Math.sqrt(radiusScale) / (0.72 + 0.28 * spinRatio),
-				0.055,
-				0.280
-		);
-		double timeConstant = target > previous ? buildTimeConstant : releaseTimeConstant;
-		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
-		double translationalLift = previous + (target - previous) * alpha;
-		if (target <= 1.0e-6 && translationalLift < 1.0e-5) {
-			translationalLift = 0.0;
-		}
-		state.setRotorTranslationalLiftIntensity(index, translationalLift);
+		RotorObliqueInflowMomentModel.TranslationalLiftSample sample = dtSeconds <= 0.0
+				? RotorObliqueInflowMomentModel.sampleSteadyTranslationalLift(
+						rotor,
+						relativeAirVelocityBody,
+						omegaRadiansPerSecond,
+						hoverTargetInducedVelocityMetersPerSecond
+				)
+				: RotorObliqueInflowMomentModel.stepTranslationalLift(
+						rotor,
+						relativeAirVelocityBody,
+						omegaRadiansPerSecond,
+						hoverTargetInducedVelocityMetersPerSecond,
+						state.rotorTranslationalLiftIntensity(index),
+						dtSeconds
+				);
+		state.setRotorTranslationalLiftIntensity(index, sample.intensity());
 		return state.rotorTranslationalLiftIntensity(index);
-	}
-
-	private static double calculateSteadyRotorTranslationalLiftIntensity(
-			RotorSpec rotor,
-			Vec3 relativeAirVelocityBody,
-			double omegaRadiansPerSecond,
-			double hoverTargetInducedVelocityMetersPerSecond
-	) {
-		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
-		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
-		if (spinRatio <= 0.12 || transverseSpeed <= 0.25 || hoverTargetInducedVelocityMetersPerSecond <= 1.0e-6) {
-			return 0.0;
-		}
-
-		double tipSpeed = Math.max(1.0, Math.abs(omegaRadiansPerSecond) * rotor.radiusMeters());
-		double advanceRatio = transverseSpeed / tipSpeed;
-		double inducedRatio = transverseSpeed / Math.max(1.0, hoverTargetInducedVelocityMetersPerSecond);
-		double descentSpeed = Math.max(0.0, -rotorAxialVelocity(rotor, relativeAirVelocityBody));
-		double descentRatio = descentSpeed / Math.max(1.0, hoverTargetInducedVelocityMetersPerSecond);
-		double cleanDiskFlow = smoothStep(0.45, 1.45, inducedRatio);
-		double highAdvanceFlow = smoothStep(0.025, 0.16, advanceRatio);
-		double loadedRotor = smoothStep(0.16, 0.55, spinRatio);
-		double descentWashPenalty = 1.0 - 0.55 * smoothStep(0.65, 1.50, descentRatio);
-		return MathUtil.clamp(cleanDiskFlow * highAdvanceFlow * loadedRotor * descentWashPenalty, 0.0, 1.0);
 	}
 
 	static double targetRotorInducedVelocityMetersPerSecond(
