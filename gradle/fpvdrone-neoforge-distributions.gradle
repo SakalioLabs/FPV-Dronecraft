@@ -1,0 +1,50 @@
+def fpvDronePresetDistributionDir = layout.buildDirectory.dir("fpvdrone-distributions")
+def fpvDroneJar = tasks.named('jar', Jar)
+def fpvDroneCandidatePresetText = "5inch_agile_candidate\n"
+def fpvDroneCandidatePresetFile = layout.buildDirectory.file("generated/fpvdrone/5inch-agile-candidate/default_playable_preset.txt")
+
+def generateFiveInchAgileCandidatePreset = tasks.register("generateFiveInchAgileCandidatePreset") {
+	inputs.property("preset", fpvDroneCandidatePresetText)
+	outputs.file(fpvDroneCandidatePresetFile)
+
+	doLast {
+		def presetFile = fpvDroneCandidatePresetFile.get().asFile
+		presetFile.parentFile.mkdirs()
+		presetFile.setText(fpvDroneCandidatePresetText, "UTF-8")
+	}
+}
+
+tasks.register("legacyHeavyRacingQuadJar", Copy) {
+	group = "build"
+	description = "Copies the normal NeoForge mod jar as the frozen legacy-heavy-racing-quad test build."
+	dependsOn(fpvDroneJar)
+
+	from(fpvDroneJar.flatMap { it.archiveFile })
+	into(fpvDronePresetDistributionDir)
+	rename { "legacy-heavy-racing-quad.jar" }
+}
+
+tasks.register("fiveInchAgileCandidateJar", Zip) {
+	group = "build"
+	description = "Builds a NeoForge mod jar variant whose default playable preset resource selects 5inch_agile_candidate."
+	dependsOn(fpvDroneJar, generateFiveInchAgileCandidatePreset)
+
+	archiveFileName = "5inch-agile-candidate.jar"
+	destinationDirectory = fpvDronePresetDistributionDir
+	preserveFileTimestamps = false
+	reproducibleFileOrder = true
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+	from({ zipTree(fpvDroneJar.get().archiveFile.get().asFile) }) {
+		exclude "assets/fpvdrone/default_playable_preset.txt"
+	}
+	from(fpvDroneCandidatePresetFile) {
+		into "assets/fpvdrone"
+	}
+}
+
+tasks.register("playablePresetJars") {
+	group = "build"
+	description = "Builds both legacy-heavy-racing-quad.jar and 5inch-agile-candidate.jar NeoForge test artifacts."
+	dependsOn("legacyHeavyRacingQuadJar", "fiveInchAgileCandidateJar")
+}
