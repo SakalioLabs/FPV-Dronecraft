@@ -123,6 +123,10 @@ class Aerodynamics4McAtmosphereRoutingTest {
 		assertTrue(stageOne.contains("adoptedAblStability(externalAtmosphere, sourceQuality)"));
 		assertTrue(advanced.contains("adoptedAblMixingStrength(externalAtmosphere, sourceQuality)"));
 		assertTrue(stageOne.contains("adoptedAblMixingStrength(externalAtmosphere, sourceQuality)"));
+		assertTrue(advanced.contains("adoptedWindShearMagnitudePerBlock(externalAtmosphere, sourceQuality)"));
+		assertTrue(stageOne.contains("adoptedWindShearMagnitudePerBlock(externalAtmosphere, sourceQuality)"));
+		assertTrue(advanced.contains("adoptedShelterFactor(externalAtmosphere, sourceQuality)"));
+		assertTrue(stageOne.contains("adoptedShelterFactor(externalAtmosphere, sourceQuality)"));
 		assertFalse(advanced.contains("externalAtmosphere.ablStability()"));
 		assertFalse(stageOne.contains("externalAtmosphere.ablStability()"));
 		assertFalse(advanced.contains("externalAtmosphere.ablMixingStrength()"));

@@ -30,7 +30,9 @@ public record DroneEnvironment(
 		Vec3 adoptedWindDerivativeAlongBodyZPerMeter,
 		Vec3 adoptedPressureGradientBodyPascalsPerMeter,
 		Vec3 adoptedLocalPressureCenterOffsetBodyMeters,
-		double adoptedLocalStaticPressureExposure
+		double adoptedLocalStaticPressureExposure,
+		double adoptedSourceWindShearMagnitudePerBlock,
+		double adoptedSourceShelterFactor
 ) {
 	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
 	private static final double SEA_LEVEL_PRESSURE_PASCALS = SEA_LEVEL_PRESSURE_HECTOPASCALS * 100.0;
@@ -518,6 +520,42 @@ public record DroneEnvironment(
 		);
 	}
 
+	/** Compatibility constructor for the local static-port contract that predates terrain shear. */
+	public DroneEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters,
+			double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity,
+			double ceilingClearanceMeters, double[] rotorThrustMultipliers,
+			double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody,
+			double[] rotorWaterImmersions, double waterImmersionIntensity,
+			double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius, double[] rotorFlowObstructionWallForceFactors,
+			double effectiveAmbientTemperatureCelsius, double ambientHumidity,
+			double adoptedSourceHumidity, double adoptedSourcePressureAnomalyPascals,
+			double motorEscVentilationFactor, double batteryVentilationFactor,
+			Vec3 adoptedSourceGustVelocityWorldMetersPerSecond, double adoptedAblStability,
+			double adoptedAblMixingStrength, Vec3 adoptedWindDerivativeAlongBodyXPerMeter,
+			Vec3 adoptedWindDerivativeAlongBodyZPerMeter,
+			Vec3 adoptedPressureGradientBodyPascalsPerMeter,
+			Vec3 adoptedLocalPressureCenterOffsetBodyMeters,
+			double adoptedLocalStaticPressureExposure
+	) {
+		this(
+				windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters,
+				turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters,
+				rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody,
+				rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses,
+				precipitationWetnessIntensity, ambientTemperatureCelsius,
+				rotorFlowObstructionWallForceFactors, effectiveAmbientTemperatureCelsius,
+				ambientHumidity, adoptedSourceHumidity, adoptedSourcePressureAnomalyPascals,
+				motorEscVentilationFactor, batteryVentilationFactor,
+				adoptedSourceGustVelocityWorldMetersPerSecond, adoptedAblStability,
+				adoptedAblMixingStrength, adoptedWindDerivativeAlongBodyXPerMeter,
+				adoptedWindDerivativeAlongBodyZPerMeter, adoptedPressureGradientBodyPascalsPerMeter,
+				adoptedLocalPressureCenterOffsetBodyMeters, adoptedLocalStaticPressureExposure,
+				0.0, 0.0
+		);
+	}
+
 	public DroneEnvironment {
 		if (windVelocityWorldMetersPerSecond == null) {
 			windVelocityWorldMetersPerSecond = Vec3.ZERO;
@@ -648,6 +686,18 @@ public record DroneEnvironment(
 			adoptedLocalStaticPressureExposure = 0.0;
 		}
 		adoptedLocalStaticPressureExposure = MathUtil.clamp(adoptedLocalStaticPressureExposure, 0.0, 1.0);
+		if (!Double.isFinite(adoptedSourceWindShearMagnitudePerBlock)) {
+			adoptedSourceWindShearMagnitudePerBlock = 0.0;
+		}
+		adoptedSourceWindShearMagnitudePerBlock = MathUtil.clamp(
+				adoptedSourceWindShearMagnitudePerBlock,
+				0.0,
+				5.0
+		);
+		if (!Double.isFinite(adoptedSourceShelterFactor)) {
+			adoptedSourceShelterFactor = 0.0;
+		}
+		adoptedSourceShelterFactor = MathUtil.clamp(adoptedSourceShelterFactor, 0.0, 1.0);
 	}
 
 	private static Vec3 sanitizeAdoptedGradient(Vec3 value, double maxAbsComponent) {

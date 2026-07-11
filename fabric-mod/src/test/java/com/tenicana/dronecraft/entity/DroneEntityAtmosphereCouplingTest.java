@@ -44,6 +44,8 @@ class DroneEntityAtmosphereCouplingTest {
 		assertSame(Vec3.ZERO, AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(flow, 0.0));
 		assertEquals(0.0, AerodynamicsAtmosphereCoupling.adoptedAblStability(flow, 0.0), 0.0);
 		assertEquals(0.0, AerodynamicsAtmosphereCoupling.adoptedAblMixingStrength(flow, 0.0), 0.0);
+		assertEquals(0.0, AerodynamicsAtmosphereCoupling.adoptedWindShearMagnitudePerBlock(flow, 0.0), 0.0);
+		assertEquals(0.0, AerodynamicsAtmosphereCoupling.adoptedShelterFactor(flow, 0.0), 0.0);
 		assertSame(
 				Vec3.ZERO,
 				AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(
@@ -194,6 +196,8 @@ class DroneEntityAtmosphereCouplingTest {
 
 		assertEquals(0.645, AerodynamicsAtmosphereCoupling.adoptedAtmosphereTurbulence(0.1, flow, 0.5), 1.0e-12);
 		assertEquals(450.0, AerodynamicsAtmosphereCoupling.adoptedAtmospherePressureAnomalyPascals(flow, 0.5), 0.0);
+		assertEquals(0.20, AerodynamicsAtmosphereCoupling.adoptedWindShearMagnitudePerBlock(flow, 0.5), 0.0);
+		assertEquals(0.25, AerodynamicsAtmosphereCoupling.adoptedShelterFactor(flow, 0.5), 0.0);
 
 		Aerodynamics4McAtmosphereBridge.AtmosphereSample sheltered = sample(
 				true,

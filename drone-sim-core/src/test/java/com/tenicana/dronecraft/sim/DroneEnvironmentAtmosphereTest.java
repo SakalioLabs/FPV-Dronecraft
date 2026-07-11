@@ -163,6 +163,19 @@ class DroneEnvironmentAtmosphereTest {
 	}
 
 	@Test
+	void adoptedTerrainShearPrimitivesAreFiniteClampedAndLegacyNeutral() {
+		DroneEnvironment invalid = explicitTerrainShearEnvironment(Double.NaN, Double.POSITIVE_INFINITY);
+		assertRawEquals(0.0, invalid.adoptedSourceWindShearMagnitudePerBlock());
+		assertRawEquals(0.0, invalid.adoptedSourceShelterFactor());
+		DroneEnvironment clamped = explicitTerrainShearEnvironment(8.0, 2.0);
+		assertRawEquals(5.0, clamped.adoptedSourceWindShearMagnitudePerBlock());
+		assertRawEquals(1.0, clamped.adoptedSourceShelterFactor());
+		DroneEnvironment inRange = explicitTerrainShearEnvironment(1.25, 0.45);
+		assertRawEquals(1.25, inRange.adoptedSourceWindShearMagnitudePerBlock());
+		assertRawEquals(0.45, inRange.adoptedSourceShelterFactor());
+	}
+
+	@Test
 	void legacyAtmosphereConstructorDescriptorsDefaultSpatialGradientsToNeutral() throws NoSuchMethodException {
 		assertLegacyAtmosphereConstructorDescriptor();
 		assertLegacyAtmosphereConstructorDescriptor(double.class, double.class, double.class);
@@ -190,6 +203,10 @@ class DroneEnvironmentAtmosphereTest {
 				double.class, double.class, double.class, Vec3.class, double.class, double.class,
 				Vec3.class, Vec3.class, Vec3.class, Vec3.class
 		);
+		assertLegacyAtmosphereConstructorDescriptor(
+				double.class, double.class, double.class, Vec3.class, double.class, double.class,
+				Vec3.class, Vec3.class, Vec3.class, Vec3.class, double.class
+		);
 
 		DroneEnvironment[] legacyEnvironments = {
 				explicitEnvironment(20.0, 30.0, 0.20, 0.10, 0.75),
@@ -203,12 +220,16 @@ class DroneEnvironmentAtmosphereTest {
 			assertSame(Vec3.ZERO, environment.adoptedPressureGradientBodyPascalsPerMeter());
 			assertSame(Vec3.ZERO, environment.adoptedLocalPressureCenterOffsetBodyMeters());
 			assertRawEquals(0.0, environment.adoptedLocalStaticPressureExposure());
+			assertRawEquals(0.0, environment.adoptedSourceWindShearMagnitudePerBlock());
+			assertRawEquals(0.0, environment.adoptedSourceShelterFactor());
 		}
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedWindDerivativeAlongBodyXPerMeter());
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedWindDerivativeAlongBodyZPerMeter());
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedPressureGradientBodyPascalsPerMeter());
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedLocalPressureCenterOffsetBodyMeters());
 		assertRawEquals(0.0, DroneEnvironment.calm().adoptedLocalStaticPressureExposure());
+		assertRawEquals(0.0, DroneEnvironment.calm().adoptedSourceWindShearMagnitudePerBlock());
+		assertRawEquals(0.0, DroneEnvironment.calm().adoptedSourceShelterFactor());
 	}
 
 	@Test
@@ -652,6 +673,15 @@ class DroneEnvironmentAtmosphereTest {
 				base.ceilingClearanceMeters(), null, null, null, null, 0.0, null, 0.0, 25.0, null,
 				25.0, 0.0, 0.0, 0.0, 1.0, 1.0, Vec3.ZERO, 0.0, 0.0,
 				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, exposure
+		);
+	}
+
+	private static DroneEnvironment explicitTerrainShearEnvironment(double shear, double shelter) {
+		return new DroneEnvironment(
+				Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0,
+				Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null,
+				25.0, 0.0, 0.0, 0.0, 1.0, 1.0, Vec3.ZERO, 0.0, 0.0,
+				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, 0.0, shear, shelter
 		);
 	}
 

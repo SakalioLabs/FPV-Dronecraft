@@ -4100,6 +4100,60 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void compactTerrainShearBuildsBoundedThreeAxisFlowDecaysAndKeepsNeutralTraceExact() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics active = new DronePhysics(config);
+		DronePhysics baseline = new DronePhysics(config);
+		DronePhysics explicitNeutral = new DronePhysics(config);
+		Vec3 wind = new Vec3(8.0, 0.0, 2.0);
+		DroneEnvironment activeEnvironment = terrainShearEnvironment(wind, 2.0, 0.65, -0.4, 0.7);
+		DroneEnvironment legacyEnvironment = new DroneEnvironment(wind, 1.0, 6.0, 0.0);
+		DroneEnvironment explicitNeutralEnvironment = terrainShearEnvironment(wind, 0.0, 0.0, 0.0, 0.0);
+		double maxPerturbation = 0.0;
+		double maxVertical = 0.0;
+
+		for (int i = 0; i < 500; i++) {
+			active.step(DroneInput.idle(), 0.005, activeEnvironment);
+			baseline.step(DroneInput.idle(), 0.005, legacyEnvironment);
+			explicitNeutral.step(DroneInput.idle(), 0.005, explicitNeutralEnvironment);
+			Vec3 perturbation = active.state().effectiveWindVelocityWorldMetersPerSecond()
+					.subtract(baseline.state().effectiveWindVelocityWorldMetersPerSecond());
+			maxPerturbation = Math.max(maxPerturbation, perturbation.length());
+			maxVertical = Math.max(maxVertical, Math.abs(perturbation.y()));
+		}
+
+		double observedMaxPerturbation = maxPerturbation;
+		double observedMaxVertical = maxVertical;
+		assertTrue(observedMaxPerturbation > 0.20, () -> "maxPerturbation=" + observedMaxPerturbation);
+		assertTrue(observedMaxPerturbation < 3.1, () -> "maxPerturbation=" + observedMaxPerturbation);
+		assertTrue(observedMaxVertical > 0.015, () -> "maxVertical=" + observedMaxVertical);
+		assertEquals(baseline.aerodynamicTransientStateSnapshot(), explicitNeutral.aerodynamicTransientStateSnapshot());
+		assertEquals(
+				baseline.state().effectiveWindVelocityWorldMetersPerSecond(),
+				explicitNeutral.state().effectiveWindVelocityWorldMetersPerSecond()
+		);
+		DronePhysics.AerodynamicTransientState activeSnapshot = active.aerodynamicTransientStateSnapshot();
+		assertTrue(activeSnapshot.compactTerrainShearVelocityWorldMetersPerSecond().length() > 0.01);
+		DronePhysics restored = new DronePhysics(config);
+		restored.restoreAerodynamicTransientState(activeSnapshot);
+		assertEquals(activeSnapshot, restored.aerodynamicTransientStateSnapshot());
+		active.step(DroneInput.idle(), 0.005, activeEnvironment);
+		restored.step(DroneInput.idle(), 0.005, activeEnvironment);
+		assertEquals(
+				active.state().effectiveWindVelocityWorldMetersPerSecond(),
+				restored.state().effectiveWindVelocityWorldMetersPerSecond()
+		);
+
+		for (int i = 0; i < 500; i++) {
+			active.step(DroneInput.idle(), 0.005, legacyEnvironment);
+		}
+		assertTrue(
+				active.state().windGustVelocityWorldMetersPerSecond().length() < 0.01,
+				() -> "residualGust=" + active.state().windGustVelocityWorldMetersPerSecond()
+		);
+	}
+
+	@Test
 	void turbulentAirMassAddsGustAndWindShearTelemetry() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DroneInput idle = DroneInput.idle();
@@ -13856,6 +13910,21 @@ class DronePhysicsTest {
 				Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null,
 				25.0, 0.0, 0.0, pressureAnomalyPascals, 1.0, 1.0, Vec3.ZERO, 0.0, 0.0,
 				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO
+		);
+	}
+
+	private static DroneEnvironment terrainShearEnvironment(
+			Vec3 wind,
+			double shear,
+			double shelter,
+			double stability,
+			double mixing
+	) {
+		return new DroneEnvironment(
+				wind, 1.0, 6.0, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY,
+				null, null, null, null, 0.0, null, 0.0, 25.0, null,
+				25.0, 0.0, 0.0, 0.0, 1.0, 1.0, Vec3.ZERO, stability, mixing,
+				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, 0.0, shear, shelter
 		);
 	}
 

@@ -86,6 +86,34 @@ public final class AerodynamicsAtmosphereCoupling {
 		);
 	}
 
+	public static double adoptedWindShearMagnitudePerBlock(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere,
+			double sourceQuality
+	) {
+		if (atmosphere == null || !atmosphere.hasFlow() || sourceQuality <= 1.0e-9) {
+			return 0.0;
+		}
+		return MathUtil.clamp(
+				atmosphere.windShearMagnitudePerBlock() * MathUtil.clamp(sourceQuality, 0.0, 1.0),
+				0.0,
+				5.0
+		);
+	}
+
+	public static double adoptedShelterFactor(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere,
+			double sourceQuality
+	) {
+		if (atmosphere == null || !atmosphere.hasFlow() || sourceQuality <= 1.0e-9) {
+			return 0.0;
+		}
+		return MathUtil.clamp(
+				atmosphere.shelterFactor() * MathUtil.clamp(sourceQuality, 0.0, 1.0),
+				0.0,
+				1.0
+		);
+	}
+
 	public static double adoptedAtmosphereTurbulence(
 			double fallbackTurbulence,
 			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere,

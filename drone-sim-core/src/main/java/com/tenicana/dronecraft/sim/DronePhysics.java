@@ -207,6 +207,7 @@ public final class DronePhysics {
 	private double windGustPhaseC;
 	private Vec3 meanWindVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 windBurbleVelocityWorldMetersPerSecond = Vec3.ZERO;
+	private Vec3 compactTerrainShearVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 drydenFirstOrderVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 drydenTransverseLagVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
@@ -324,6 +325,7 @@ public final class DronePhysics {
 			Vec3 drydenFirstOrderVelocityWorldMetersPerSecond,
 			Vec3 drydenTransverseLagVelocityWorldMetersPerSecond,
 			Vec3 drydenTurbulenceVelocityWorldMetersPerSecond,
+			Vec3 compactTerrainShearVelocityWorldMetersPerSecond,
 			Vec3 windGustVelocityWorldMetersPerSecond,
 			long drydenRandomState,
 			double drydenSpareGaussian,
@@ -352,6 +354,7 @@ public final class DronePhysics {
 			drydenFirstOrderVelocityWorldMetersPerSecond = finiteVecOrZero(drydenFirstOrderVelocityWorldMetersPerSecond);
 			drydenTransverseLagVelocityWorldMetersPerSecond = finiteVecOrZero(drydenTransverseLagVelocityWorldMetersPerSecond);
 			drydenTurbulenceVelocityWorldMetersPerSecond = finiteVecOrZero(drydenTurbulenceVelocityWorldMetersPerSecond);
+			compactTerrainShearVelocityWorldMetersPerSecond = finiteVecOrZero(compactTerrainShearVelocityWorldMetersPerSecond);
 			windGustVelocityWorldMetersPerSecond = finiteVecOrZero(windGustVelocityWorldMetersPerSecond);
 			rotorWashDragForceBody = finiteVecOrZero(rotorWashDragForceBody);
 			rotorWashAirframeAngularDamping = finiteVecOrZero(rotorWashAirframeAngularDamping);
@@ -1626,6 +1629,7 @@ public final class DronePhysics {
 				drydenFirstOrderVelocityWorldMetersPerSecond,
 				drydenTransverseLagVelocityWorldMetersPerSecond,
 				drydenTurbulenceVelocityWorldMetersPerSecond,
+				compactTerrainShearVelocityWorldMetersPerSecond,
 				windGustVelocityWorldMetersPerSecond,
 				drydenRandomState,
 				drydenSpareGaussian,
@@ -1661,6 +1665,7 @@ public final class DronePhysics {
 		drydenFirstOrderVelocityWorldMetersPerSecond = transientState.drydenFirstOrderVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
 		drydenTransverseLagVelocityWorldMetersPerSecond = transientState.drydenTransverseLagVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
 		drydenTurbulenceVelocityWorldMetersPerSecond = transientState.drydenTurbulenceVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
+		compactTerrainShearVelocityWorldMetersPerSecond = transientState.compactTerrainShearVelocityWorldMetersPerSecond().clamp(-3.0, 3.0);
 		windGustVelocityWorldMetersPerSecond = transientState.windGustVelocityWorldMetersPerSecond().clamp(-60.0, 60.0);
 		drydenRandomState = transientState.drydenRandomState();
 		boolean hasFiniteSpareGaussian = transientState.hasDrydenSpareGaussian()
@@ -8179,6 +8184,7 @@ public final class DronePhysics {
 			windModelInitialized = true;
 			meanWindVelocityWorldMetersPerSecond = targetMeanWind;
 			windBurbleVelocityWorldMetersPerSecond = Vec3.ZERO;
+			compactTerrainShearVelocityWorldMetersPerSecond = Vec3.ZERO;
 			drydenFirstOrderVelocityWorldMetersPerSecond = Vec3.ZERO;
 			drydenTransverseLagVelocityWorldMetersPerSecond = Vec3.ZERO;
 			drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
@@ -8217,13 +8223,22 @@ public final class DronePhysics {
 				targetBurble.subtract(windBurbleVelocityWorldMetersPerSecond).multiply(burbleAlpha)
 		);
 		Vec3 drydenTurbulence = updateDrydenTurbulence(environment, targetMeanWind, dtSeconds);
-		windGustVelocityWorldMetersPerSecond = combinedWindGust(
+		Vec3 baseWindGust = combinedWindGust(
 				environment,
 				targetMeanWind,
 				dirtyAir,
 				windBurbleVelocityWorldMetersPerSecond,
 				drydenTurbulence
 		);
+		Vec3 terrainShear = updateCompactTerrainShear(
+				environment,
+				targetMeanWind,
+				dirtyAir,
+				dtSeconds
+		);
+		windGustVelocityWorldMetersPerSecond = terrainShear.lengthSquared() <= 1.0e-18
+				? baseWindGust
+				: baseWindGust.add(terrainShear);
 
 		Vec3 previousEffectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
 		Vec3 effectiveWind = meanWindVelocityWorldMetersPerSecond.add(windGustVelocityWorldMetersPerSecond);
@@ -8406,6 +8421,90 @@ public final class DronePhysics {
 		double ambientTurbulence = MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.5);
 		double localDirtyAir = Math.max(0.0, dirtyAir - ambientTurbulence);
 		return MathUtil.clamp(localDirtyAir + 0.18 * ambientTurbulence, 0.0, 1.8);
+	}
+
+	private Vec3 updateCompactTerrainShear(
+			DroneEnvironment environment,
+			Vec3 targetMeanWind,
+			double dirtyAir,
+			double dtSeconds
+	) {
+		double shearMagnitude = environment.adoptedSourceWindShearMagnitudePerBlock();
+		double shelter = environment.adoptedSourceShelterFactor();
+		double horizontalWindSpeed = Math.hypot(targetMeanWind.x(), targetMeanWind.z());
+		double shelterWindGate = smoothStep(0.8, 7.0, horizontalWindSpeed);
+		double updraft = MathUtil.clamp(targetMeanWind.y(), -12.0, 12.0);
+		boolean active = shearMagnitude > 1.0e-6
+				|| shelter > 1.0e-6 && shelterWindGate > 1.0e-6;
+		if (!active && compactTerrainShearVelocityWorldMetersPerSecond.lengthSquared() <= 1.0e-18) {
+			return Vec3.ZERO;
+		}
+
+		double tau = MathUtil.clamp(
+				(0.18 - 0.035 * Math.min(2.0, shearMagnitude) - 0.025 * shelter)
+						* compactTerrainShearAblTimeScaleMultiplier(environment),
+				0.045,
+				0.360
+		);
+		Vec3 target = Vec3.ZERO;
+		if (active) {
+			double inverseHorizontalSpeed = horizontalWindSpeed > 1.0e-6 ? 1.0 / horizontalWindSpeed : 0.0;
+			double windAxisX = inverseHorizontalSpeed > 0.0 ? targetMeanWind.x() * inverseHorizontalSpeed : 1.0;
+			double windAxisZ = inverseHorizontalSpeed > 0.0 ? targetMeanWind.z() * inverseHorizontalSpeed : 0.0;
+			double shelterSignal = shelter * shelterWindGate
+					* (0.20 + 0.12 * smoothStep(0.25, 2.0, shearMagnitude));
+			double terrainSignal = MathUtil.clamp(
+					0.42 * shearMagnitude * (0.50 + 0.50 * smoothStep(0.6, 7.0, horizontalWindSpeed))
+							+ 0.10 * Math.abs(updraft)
+							+ shelterSignal,
+					0.0,
+					2.40
+			);
+			double dirtyGain = MathUtil.clamp(
+					0.72 + 0.18 * dirtyAir + 0.10 * shelter * shelterWindGate,
+					0.72,
+					1.10
+			);
+			double along = Math.sin(windGustPhaseA * 0.73 + 0.40) * terrainSignal * 0.35;
+			double cross = Math.sin(windGustPhaseB * 0.91 + 1.10) * terrainSignal * 0.55;
+			double vertical = Math.sin(windGustPhaseC * 0.67 + 2.00)
+					* terrainSignal
+					* (0.22 + 0.16 * smoothStep(0.25, 5.0, Math.abs(updraft)));
+			target = new Vec3(
+					MathUtil.clamp((windAxisX * along - windAxisZ * cross) * dirtyGain, -3.0, 3.0),
+					MathUtil.clamp(vertical * dirtyGain, -3.0, 3.0),
+					MathUtil.clamp((windAxisZ * along + windAxisX * cross) * dirtyGain, -3.0, 3.0)
+			);
+		}
+
+		double alpha = MathUtil.expSmoothing(dtSeconds, tau);
+		Vec3 previous = compactTerrainShearVelocityWorldMetersPerSecond;
+		compactTerrainShearVelocityWorldMetersPerSecond = new Vec3(
+				previous.x() + (target.x() - previous.x()) * alpha,
+				previous.y() + (target.y() - previous.y()) * alpha,
+				previous.z() + (target.z() - previous.z()) * alpha
+		);
+		if (!active && compactTerrainShearVelocityWorldMetersPerSecond.lengthSquared() < 1.0e-8) {
+			compactTerrainShearVelocityWorldMetersPerSecond = Vec3.ZERO;
+		}
+		return compactTerrainShearVelocityWorldMetersPerSecond;
+	}
+
+	private static double compactTerrainShearAblTimeScaleMultiplier(DroneEnvironment environment) {
+		double stability = environment.adoptedAblStability();
+		double mixing = environment.adoptedAblMixingStrength();
+		if (mixing <= 1.0e-6 && Math.abs(stability) <= 1.0e-6) {
+			return 1.0;
+		}
+		double unstable = Math.max(0.0, stability);
+		double stable = Math.max(0.0, -stability);
+		double mixedUnstable = unstable * mixing;
+		double stablePersistence = stable * (0.75 + 0.25 * (1.0 - mixing));
+		return MathUtil.clamp(
+				1.0 - 0.20 * mixing - 0.25 * mixedUnstable + 0.55 * stablePersistence,
+				0.55,
+				1.65
+		);
 	}
 
 	private Vec3 updateDrydenTurbulence(DroneEnvironment environment, Vec3 targetMeanWind, double dtSeconds) {
