@@ -14,6 +14,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 
+import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder.RecordingSource;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
@@ -55,6 +56,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 		level.addFreshEntity(drone);
 
 		double initialY = drone.getY();
+		drone.blackbox().startRecording(RecordingSource.SCRIPTED_DIAGNOSTIC, true);
 		DroneControlManager.startDiagnostic(TEST_OWNER, drone.tickCount, DURATION_TICKS);
 
 		context.runAfterDelay(160, () -> {
@@ -65,6 +67,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 		context.runAfterDelay(ASSERT_TICKS, () -> {
 			DroneControlManager.stopDiagnostic(TEST_OWNER);
+			drone.blackbox().stopRecording(RecordingSource.SCRIPTED_DIAGNOSTIC);
 			assertTrue(!drone.isRemoved(), "drone was removed during GameTest");
 			assertTrue(drone.tickCount > 120, "drone did not tick enough in GameTest: " + drone.tickCount);
 			assertTrue(drone.blackbox().size() > 120, "blackbox did not collect enough samples: " + drone.blackbox().size());
