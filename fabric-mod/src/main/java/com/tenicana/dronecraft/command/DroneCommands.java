@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import com.mojang.brigadier.CommandDispatcher;
@@ -49,6 +50,7 @@ public final class DroneCommands {
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 	private static final double SPAWN_FORWARD_METERS = 1.65;
 	private static final double SPAWN_GROUND_OFFSET_METERS = 0.04;
+	private static final Predicate<CommandSourceStack> GAMEMASTER_ONLY = Commands.hasPermission(Commands.LEVEL_GAMEMASTERS);
 	private static final Map<UUID, FpvDiagSession> FPVDIAG_SESSIONS = new ConcurrentHashMap<>();
 
 	private record FpvDiagSession(int startTick, LocalDateTime startedAt, String commitSha) {
@@ -76,21 +78,25 @@ public final class DroneCommands {
 				.then(Commands.literal("repair").executes(context -> repair(context.getSource())))
 				.then(Commands.literal("debug")
 						.then(Commands.literal("trace")
+								.requires(GAMEMASTER_ONLY)
 								.then(Commands.argument("enabled", BoolArgumentType.bool())
 										.executes(context -> setDebugTrace(context.getSource(), BoolArgumentType.getBool(context, "enabled")))
 								)
 						)
 						.then(Commands.literal("ticklog")
+								.requires(GAMEMASTER_ONLY)
 								.then(Commands.argument("enabled", BoolArgumentType.bool())
 										.executes(context -> setDebugTickLog(context.getSource(), BoolArgumentType.getBool(context, "enabled")))
 								)
 						)
 						.then(Commands.literal("physics")
+								.requires(GAMEMASTER_ONLY)
 								.then(Commands.argument("enabled", BoolArgumentType.bool())
 										.executes(context -> setDebugPhysics(context.getSource(), BoolArgumentType.getBool(context, "enabled")))
 								)
 						)
 						.then(Commands.literal("mode")
+								.requires(GAMEMASTER_ONLY)
 								.then(Commands.literal("playable")
 										.executes(context -> setDebugFlightModel(context.getSource(), FlightModelMode.PLAYABLE)))
 								.then(Commands.literal("direct")
@@ -101,6 +107,7 @@ public final class DroneCommands {
 										.executes(context -> setDebugFlightModel(context.getSource(), FlightModelMode.SIMULATION)))
 						)
 						.then(Commands.literal("playablepreset")
+								.requires(GAMEMASTER_ONLY)
 								.then(Commands.literal("legacy_heavy_racing_quad")
 										.executes(context -> setPlayablePreset(context.getSource(), PlayableFlightPreset.LEGACY_HEAVY_RACING_QUAD)))
 								.then(Commands.literal("5inch_agile_candidate")
@@ -109,6 +116,7 @@ public final class DroneCommands {
 						.then(Commands.literal("status").executes(context -> debugStatus(context.getSource())))
 				)
 				.then(Commands.literal("fault")
+						.requires(GAMEMASTER_ONLY)
 						.then(Commands.literal("rotor")
 								.then(Commands.argument("index", IntegerArgumentType.integer(0, 7))
 										.then(Commands.argument("damage", DoubleArgumentType.doubleArg(0.0, 1.0))
@@ -163,8 +171,11 @@ public final class DroneCommands {
 						.then(preset("coaxial_x8", DroneConfig::coaxialX8)))
 				.then(Commands.literal("environment")
 						.then(Commands.literal("status").executes(context -> environmentStatus(context.getSource())))
-						.then(Commands.literal("clear").executes(context -> environmentClear(context.getSource())))
+						.then(Commands.literal("clear")
+								.requires(GAMEMASTER_ONLY)
+								.executes(context -> environmentClear(context.getSource())))
 						.then(Commands.literal("wind")
+								.requires(GAMEMASTER_ONLY)
 								.then(Commands.literal("clear").executes(context -> environmentWindClear(context.getSource())))
 								.then(Commands.argument("x", DoubleArgumentType.doubleArg(-40.0, 40.0))
 										.then(Commands.argument("y", DoubleArgumentType.doubleArg(-20.0, 20.0))
@@ -176,6 +187,7 @@ public final class DroneCommands {
 																DoubleArgumentType.getDouble(context, "z")
 														))))))
 						.then(Commands.literal("turbulence")
+								.requires(GAMEMASTER_ONLY)
 								.then(Commands.literal("clear").executes(context -> environmentTurbulenceClear(context.getSource())))
 								.then(Commands.argument("intensity", DoubleArgumentType.doubleArg(0.0, 1.5))
 										.executes(context -> environmentTurbulence(
@@ -183,6 +195,7 @@ public final class DroneCommands {
 												DoubleArgumentType.getDouble(context, "intensity")
 										))))
 						.then(Commands.literal("density")
+								.requires(GAMEMASTER_ONLY)
 								.then(Commands.literal("clear").executes(context -> environmentDensityClear(context.getSource())))
 								.then(Commands.argument("ratio", DoubleArgumentType.doubleArg(0.35, 1.35))
 										.executes(context -> environmentDensity(
@@ -191,8 +204,11 @@ public final class DroneCommands {
 										)))))
 				.then(Commands.literal("tune")
 						.then(Commands.literal("status").executes(context -> tuneStatus(context.getSource())))
-						.then(Commands.literal("reset").executes(context -> tuneReset(context.getSource())))
+						.then(Commands.literal("reset")
+								.requires(GAMEMASTER_ONLY)
+								.executes(context -> tuneReset(context.getSource())))
 						.then(Commands.literal("set")
+								.requires(GAMEMASTER_ONLY)
 								.then(tuneParameter("pitch_p", (config, value) -> config.withPitchGains(withP(config.pitchGains(), value))))
 								.then(tuneParameter("pitch_i", (config, value) -> config.withPitchGains(withI(config.pitchGains(), value))))
 								.then(tuneParameter("pitch_d", (config, value) -> config.withPitchGains(withD(config.pitchGains(), value))))

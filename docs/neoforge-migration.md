@@ -31,6 +31,7 @@ the branch remains usable as the base for the next unit.
 | 6 | Client rendering, HUD, audio, and Mixins | Focused tests, client launch, dedicated-server launch | Complete | This commit; 419 JUnit tests, six client Mixins applied at title-screen launch, 240-sample dedicated-server self-test |
 | 7a | NeoForge-native GameTests | GameTest server runs exactly eight required integration tests | Complete | This commit; 8/8 NeoForge GameTests and XML report gate |
 | 7b | NeoForge server self-test matrix | Simulation plus playable angle/horizon/acro self-tests and report validation | Complete | This commit; four 240-sample reports at 200 Hz with full JSON/CSV gates |
+| 7c | Cross-loader command authorization | Real Brigadier-tree permission tests in both loader modules | Complete | This commit; read-only status/preset paths stay public and 12 mutation boundaries require GameMaster |
 | 8 | CI, distributions, documentation, and final packaging | Full build, clean jar audit, clean client/server install | Pending | Pending |
 
 ## Verification Policy
@@ -50,10 +51,11 @@ $env:FPVDRONE_UPDATE_GOLDEN_TRACES = "false"
 .\gradlew.bat --no-daemon --no-parallel --max-workers=1 :neoforge-mod:runPlayableAcroServerSelfTest
 ```
 
-Before a public dedicated-server release, add permission gates to the global
-debug, fault-injection, environment, and tuning commands in both loader modules.
-This is tracked separately so loader migration does not silently change normal
-player command behavior.
+Global debug mutation, fault-injection, environment override, and tuning mutation
+commands require Minecraft's GameMaster permission in both loader modules.
+Read-only status commands and normal gameplay preset selection remain available
+without elevated permission. Real Brigadier-tree tests lock this policy across
+both loaders.
 
 Every completed unit is committed independently and pushed to
 `origin/NeoForge` before work begins on the next dependent unit.
