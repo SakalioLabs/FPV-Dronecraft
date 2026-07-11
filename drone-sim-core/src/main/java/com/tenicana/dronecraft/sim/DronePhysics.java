@@ -70,6 +70,16 @@ public final class DronePhysics {
 	private final PidController yawPid;
 	private final PidController rollPid;
 	private final double[] targetRotorThrusts;
+	private final double[] mixerBaseThrusts;
+	private final double[] mixerMixedThrusts;
+	private final double[] mixerTorqueMixDeltas;
+	private final int[] coaxialUpperPairIndices;
+	private final int[] coaxialLowerPairIndices;
+	private final double[] coaxialPairSpacingRatios;
+	private final double[] coaxialPairSpacingWindows;
+	private TorqueMixAllocationPlan torqueMixAllocationPlan;
+	private int coaxialPairCount;
+	private double mixerAverageMaxRotorThrust;
 	private final double[] escDesyncPhases;
 	private final double[] motorCommutationPhases;
 	private final double[] rotorBladePassPhases;
@@ -475,6 +485,13 @@ public final class DronePhysics {
 		this.yawPid = new PidController(config.yawGains());
 		this.rollPid = new PidController(config.rollGains());
 		this.targetRotorThrusts = new double[config.rotors().size()];
+		this.mixerBaseThrusts = new double[config.rotors().size()];
+		this.mixerMixedThrusts = new double[config.rotors().size()];
+		this.mixerTorqueMixDeltas = new double[config.rotors().size()];
+		this.coaxialUpperPairIndices = new int[config.rotors().size() / 2];
+		this.coaxialLowerPairIndices = new int[config.rotors().size() / 2];
+		this.coaxialPairSpacingRatios = new double[config.rotors().size() / 2];
+		this.coaxialPairSpacingWindows = new double[config.rotors().size() / 2];
 		this.escDesyncPhases = new double[config.rotors().size()];
 		this.motorCommutationPhases = new double[config.rotors().size()];
 		this.rotorBladePassPhases = new double[config.rotors().size()];
@@ -528,6 +545,7 @@ public final class DronePhysics {
 		Arrays.fill(this.rotorBladeElementThrustScale, 1.0);
 		Arrays.fill(this.rotorBladeDissymmetryThrustScale, 1.0);
 		Arrays.fill(this.rotorSurfaceEffectThrustMultipliers, 1.0);
+		rebuildMixerCaches();
 		resetSensorBiasModel();
 		resetGyroModel();
 		resetAccelerometerModel();
@@ -548,6 +566,7 @@ public final class DronePhysics {
 		DroneConfig previousConfig = this.config;
 		double previousStateOfCharge = state.batteryStateOfCharge();
 		this.config = config;
+		rebuildMixerCaches();
 		pitchPid.setGains(config.pitchGains());
 		yawPid.setGains(config.yawGains());
 		rollPid.setGains(config.rollGains());
@@ -6532,15 +6551,49 @@ public final class DronePhysics {
 		);
 	}
 
+	private void rebuildMixerCaches() {
+		torqueMixAllocationPlan = new TorqueMixAllocationPlan(
+				config.rotors(),
+				config.centerOfMassOffsetBodyMeters()
+		);
+		mixerAverageMaxRotorThrust = config.totalMaxThrustNewtons() / config.rotors().size();
+
+		boolean[] paired = new boolean[config.rotors().size()];
+		int pairCount = 0;
+		for (int upperIndex = 0; upperIndex < config.rotors().size(); upperIndex++) {
+			if (paired[upperIndex]) {
+				continue;
+			}
+			int lowerIndex = coaxialLowerRotorIndex(upperIndex, paired);
+			if (lowerIndex < 0) {
+				continue;
+			}
+			coaxialUpperPairIndices[pairCount] = upperIndex;
+			coaxialLowerPairIndices[pairCount] = lowerIndex;
+			RotorSpec upper = config.rotors().get(upperIndex);
+			RotorSpec lower = config.rotors().get(lowerIndex);
+			double spacingRatio = coaxialSpacingRatio(upper, lower);
+			coaxialPairSpacingRatios[pairCount] = spacingRatio;
+			coaxialPairSpacingWindows[pairCount] = coaxialBenchmarkSpacingEfficiencyWindow(spacingRatio);
+			pairCount++;
+			paired[upperIndex] = true;
+			paired[lowerIndex] = true;
+		}
+		coaxialPairCount = pairCount;
+	}
+
 	private void mixRotorThrusts(DroneInput input, Vec3 requestedTorqueBody) {
-		double[] baseThrusts = new double[targetRotorThrusts.length];
-		double[] mixedThrusts = new double[targetRotorThrusts.length];
+		double[] baseThrusts = mixerBaseThrusts;
+		double[] mixedThrusts = mixerMixedThrusts;
 		double directThrottleFraction = input.armed()
 				? config.throttleCommandToDirectThrustFraction(input.throttle())
 				: 0.0;
-		double[] torqueMix = input.armed()
-				? allocateTorqueMixDeltas(config.rotors(), config.centerOfMassOffsetBodyMeters(), requestedTorqueBody)
-				: new double[targetRotorThrusts.length];
+		double[] torqueMix = mixerTorqueMixDeltas;
+		if (input.armed()) {
+			torqueMixAllocationPlan.allocateInto(requestedTorqueBody, torqueMix);
+		} else {
+			Arrays.fill(torqueMix, 0.0);
+		}
 
 		for (int i = 0; i < config.rotors().size(); i++) {
 			RotorSpec rotor = config.rotors().get(i);
@@ -6607,9 +6660,7 @@ public final class DronePhysics {
 		state.setMixerLowHeadroom(lowHeadroom);
 		state.setMixerHighHeadroom(highHeadroom);
 		state.setMixerSaturation(Math.max(Math.max(lowDesaturationPressure, highDesaturationPressure), saturation / rotorCount));
-		Vec3 achievedTorqueBody = mixerOutputTorqueFromThrustDeltas(
-				config.rotors(),
-				config.centerOfMassOffsetBodyMeters(),
+		Vec3 achievedTorqueBody = torqueMixAllocationPlan.outputTorqueFromThrustDeltas(
 				baseThrusts,
 				targetRotorThrusts
 		);
@@ -6632,31 +6683,13 @@ public final class DronePhysics {
 			return;
 		}
 
-		boolean[] paired = new boolean[config.rotors().size()];
-		int[] upperPairIndices = new int[config.rotors().size() / 2];
-		int[] lowerPairIndices = new int[config.rotors().size() / 2];
-		int pairCount = 0;
-		for (int upperIndex = 0; upperIndex < config.rotors().size(); upperIndex++) {
-			if (paired[upperIndex]) {
-				continue;
-			}
-			int lowerIndex = coaxialLowerRotorIndex(upperIndex, paired);
-			if (lowerIndex < 0) {
-				continue;
-			}
-			upperPairIndices[pairCount] = upperIndex;
-			lowerPairIndices[pairCount] = lowerIndex;
-			pairCount++;
-			paired[upperIndex] = true;
-			paired[lowerIndex] = true;
-		}
-		if (pairCount < 2) {
+		if (coaxialPairCount < 2) {
 			return;
 		}
 
-		for (int pairIndex = 0; pairIndex < pairCount; pairIndex++) {
-			int upperIndex = upperPairIndices[pairIndex];
-			int lowerIndex = lowerPairIndices[pairIndex];
+		for (int pairIndex = 0; pairIndex < coaxialPairCount; pairIndex++) {
+			int upperIndex = coaxialUpperPairIndices[pairIndex];
+			int lowerIndex = coaxialLowerPairIndices[pairIndex];
 			RotorSpec upper = config.rotors().get(upperIndex);
 			RotorSpec lower = config.rotors().get(lowerIndex);
 			double pairTotalThrust = mixedThrusts[upperIndex] + mixedThrusts[lowerIndex];
@@ -6671,7 +6704,9 @@ public final class DronePhysics {
 					upperIndex,
 					lowerIndex,
 					throttle,
-					pairMeanThrust
+					pairMeanThrust,
+					coaxialPairSpacingRatios[pairIndex],
+					coaxialPairSpacingWindows[pairIndex]
 			);
 			double targetBias = target.bias();
 			state.setRotorCoaxialLoadBiasTarget(upperIndex, targetBias);
@@ -6777,10 +6812,10 @@ public final class DronePhysics {
 			int upperIndex,
 			int lowerIndex,
 			double throttle,
-			double pairMeanThrust
+			double pairMeanThrust,
+			double spacingRatio,
+			double spacingWindow
 	) {
-		double spacingRatio = coaxialSpacingRatio(upper, lower);
-		double spacingWindow = coaxialBenchmarkSpacingEfficiencyWindow(spacingRatio);
 		double loadFraction = coaxialLoadFraction(upper, lower, pairMeanThrust);
 		double loadWindow = smoothStep(
 				Math.max(0.02, config.motorIdleThrustFraction()),
@@ -6959,31 +6994,6 @@ public final class DronePhysics {
 		return Math.exp(-normalized * normalized);
 	}
 
-	private static Vec3 mixerOutputTorqueFromThrustDeltas(
-			List<RotorSpec> rotors,
-			Vec3 centerOfMassOffsetBodyMeters,
-			double[] baseThrusts,
-			double[] finalThrusts
-	) {
-		if (rotors == null || baseThrusts == null || finalThrusts == null) {
-			return Vec3.ZERO;
-		}
-
-		Vec3 centerOfMass = centerOfMassOffsetBodyMeters == null ? Vec3.ZERO : centerOfMassOffsetBodyMeters;
-		Vec3 torque = Vec3.ZERO;
-		int count = Math.min(rotors.size(), Math.min(baseThrusts.length, finalThrusts.length));
-		for (int i = 0; i < count; i++) {
-			RotorSpec rotor = rotors.get(i);
-			Vec3 arm = rotor.positionBodyMeters().subtract(centerOfMass);
-			double deltaThrust = finalThrusts[i] - baseThrusts[i];
-			if (!Double.isFinite(deltaThrust)) {
-				continue;
-			}
-			torque = torque.add(rotorTorqueCoefficientPerThrust(rotor, arm).multiply(deltaThrust));
-		}
-		return torque.isFinite() ? torque : Vec3.ZERO;
-	}
-
 	private static Vec3 mixerAxisAuthority(Vec3 requestedTorqueBody, Vec3 achievedTorqueBody) {
 		Vec3 requested = requestedTorqueBody == null || !requestedTorqueBody.isFinite() ? Vec3.ZERO : requestedTorqueBody;
 		Vec3 achieved = achievedTorqueBody == null || !achievedTorqueBody.isFinite() ? Vec3.ZERO : achievedTorqueBody;
@@ -7005,7 +7015,7 @@ public final class DronePhysics {
 	}
 
 	private double averageMaxRotorThrust() {
-		return config.totalMaxThrustNewtons() / config.rotors().size();
+		return mixerAverageMaxRotorThrust;
 	}
 
 	private static double motorLoadTargetScale(double rotorAerodynamicLoadFactor, double escOutput) {
@@ -7044,6 +7054,99 @@ public final class DronePhysics {
 				0.0,
 				1.0
 		);
+	}
+
+	static final class TorqueMixAllocationPlan {
+		private static final int CONSTRAINT_COUNT = 4;
+		private final int rotorCount;
+		private final double[][] rows;
+		private final double[][] dampedGram;
+		private final double[][] augmented = new double[CONSTRAINT_COUNT][CONSTRAINT_COUNT + 1];
+		private final double[] rhs = new double[CONSTRAINT_COUNT];
+		private final double[] lambda = new double[CONSTRAINT_COUNT];
+		private final boolean solvable;
+
+		TorqueMixAllocationPlan(List<RotorSpec> rotors, Vec3 centerOfMassOffsetBodyMeters) {
+			rotorCount = rotors == null ? 0 : rotors.size();
+			rows = new double[CONSTRAINT_COUNT][rotorCount];
+			Vec3 centerOfMass = centerOfMassOffsetBodyMeters == null ? Vec3.ZERO : centerOfMassOffsetBodyMeters;
+			for (int i = 0; i < rotorCount; i++) {
+				RotorSpec rotor = rotors.get(i);
+				Vec3 arm = rotor.positionBodyMeters().subtract(centerOfMass);
+				Vec3 torqueCoefficient = rotorTorqueCoefficientPerThrust(rotor, arm);
+				rows[0][i] = torqueCoefficient.x();
+				rows[1][i] = torqueCoefficient.y();
+				rows[2][i] = torqueCoefficient.z();
+				rows[3][i] = 1.0;
+			}
+
+			dampedGram = new double[CONSTRAINT_COUNT][CONSTRAINT_COUNT];
+			for (int row = 0; row < CONSTRAINT_COUNT; row++) {
+				for (int column = 0; column < CONSTRAINT_COUNT; column++) {
+					double value = 0.0;
+					for (int i = 0; i < rotorCount; i++) {
+						value += rows[row][i] * rows[column][i];
+					}
+					dampedGram[row][column] = value;
+				}
+			}
+
+			double trace = dampedGram[0][0] + dampedGram[1][1] + dampedGram[2][2] + dampedGram[3][3];
+			solvable = Double.isFinite(trace) && trace > 1.0e-12;
+			if (solvable) {
+				double damping = Math.max(1.0e-9, trace * 1.0e-8);
+				for (int i = 0; i < CONSTRAINT_COUNT; i++) {
+					dampedGram[i][i] += damping;
+				}
+			}
+		}
+
+		void allocateInto(Vec3 requestedTorqueBody, double[] deltas) {
+			if (deltas == null || deltas.length != rotorCount) {
+				throw new IllegalArgumentException("deltas must match rotor count");
+			}
+			Arrays.fill(deltas, 0.0);
+			if (!solvable || requestedTorqueBody == null || requestedTorqueBody.lengthSquared() <= 1.0e-12) {
+				return;
+			}
+
+			rhs[0] = requestedTorqueBody.x();
+			rhs[1] = requestedTorqueBody.y();
+			rhs[2] = requestedTorqueBody.z();
+			rhs[3] = 0.0;
+			if (!solveLinearSystemInto(dampedGram, rhs, augmented, lambda)) {
+				return;
+			}
+
+			for (int i = 0; i < rotorCount; i++) {
+				double delta = 0.0;
+				for (int row = 0; row < CONSTRAINT_COUNT; row++) {
+					delta += rows[row][i] * lambda[row];
+				}
+				deltas[i] = Double.isFinite(delta) ? delta : 0.0;
+			}
+		}
+
+		Vec3 outputTorqueFromThrustDeltas(double[] baseThrusts, double[] finalThrusts) {
+			if (baseThrusts == null || finalThrusts == null) {
+				return Vec3.ZERO;
+			}
+			double torqueX = 0.0;
+			double torqueY = 0.0;
+			double torqueZ = 0.0;
+			int count = Math.min(rotorCount, Math.min(baseThrusts.length, finalThrusts.length));
+			for (int i = 0; i < count; i++) {
+				double deltaThrust = finalThrusts[i] - baseThrusts[i];
+				if (!Double.isFinite(deltaThrust)) {
+					continue;
+				}
+				torqueX += rows[0][i] * deltaThrust;
+				torqueY += rows[1][i] * deltaThrust;
+				torqueZ += rows[2][i] * deltaThrust;
+			}
+			Vec3 torque = new Vec3(torqueX, torqueY, torqueZ);
+			return torque.isFinite() ? torque : Vec3.ZERO;
+		}
 	}
 
 	static double[] allocateTorqueMixDeltas(
@@ -7111,16 +7214,27 @@ public final class DronePhysics {
 	private static double[] solveLinearSystem(double[][] matrix, double[] rhs) {
 		int size = rhs.length;
 		double[][] augmented = new double[size][size + 1];
+		double[] solution = new double[size];
+		return solveLinearSystemInto(matrix, rhs, augmented, solution) ? solution : null;
+	}
+
+	private static boolean solveLinearSystemInto(
+			double[][] matrix,
+			double[] rhs,
+			double[][] augmented,
+			double[] solution
+	) {
+		int size = rhs.length;
 		for (int row = 0; row < size; row++) {
 			for (int column = 0; column < size; column++) {
 				double value = matrix[row][column];
 				if (!Double.isFinite(value)) {
-					return null;
+					return false;
 				}
 				augmented[row][column] = value;
 			}
 			if (!Double.isFinite(rhs[row])) {
-				return null;
+				return false;
 			}
 			augmented[row][size] = rhs[row];
 		}
@@ -7136,7 +7250,7 @@ public final class DronePhysics {
 				}
 			}
 			if (pivotAbs <= 1.0e-12) {
-				return null;
+				return false;
 			}
 			if (pivotRow != pivot) {
 				double[] temp = augmented[pivot];
@@ -7162,11 +7276,10 @@ public final class DronePhysics {
 			}
 		}
 
-		double[] solution = new double[size];
 		for (int row = 0; row < size; row++) {
 			solution[row] = augmented[row][size];
 		}
-		return solution;
+		return true;
 	}
 
 	static Vec3 rotorTorqueCoefficientPerThrust(RotorSpec rotor, Vec3 rotorArmBody) {

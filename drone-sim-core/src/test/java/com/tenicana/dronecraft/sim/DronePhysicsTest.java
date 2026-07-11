@@ -1,5 +1,6 @@
 package com.tenicana.dronecraft.sim;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -607,6 +608,101 @@ class DronePhysicsTest {
 		assertEquals(requestedTorque.x(), allocatedTorque.x(), 2.0e-5);
 		assertEquals(requestedTorque.y(), allocatedTorque.y(), 2.0e-5);
 		assertEquals(requestedTorque.z(), allocatedTorque.z(), 2.0e-5);
+	}
+
+	@Test
+	void cachedMixerPlanMatchesReferenceAcrossSupportedLayoutsAndClearsScratch() {
+		DroneConfig cantedOffsetQuad = directControl(DroneConfig.racingQuad())
+				.withCenterOfMassOffsetBodyMeters(new Vec3(0.035, 0.0, -0.022))
+				.withRotorOutwardCantDegrees(18.0);
+		List<DroneConfig> configs = List.of(
+				directControl(DroneConfig.racingQuad()),
+				directControl(DroneConfig.hexLift()),
+				directControl(DroneConfig.octoLift()),
+				directControl(DroneConfig.coaxialX8()),
+				cantedOffsetQuad
+		);
+		List<Vec3> requestedTorques = List.of(
+				new Vec3(0.110, 0.035, -0.090),
+				new Vec3(0.120, 0.0, 0.0),
+				new Vec3(0.0, -0.045, 0.0),
+				new Vec3(0.0, 0.0, 0.095),
+				Vec3.ZERO,
+				new Vec3(1.0e-7, -1.0e-7, 1.0e-7),
+				new Vec3(Double.NaN, 0.0, 0.0)
+		);
+
+		for (DroneConfig config : configs) {
+			DronePhysics.TorqueMixAllocationPlan plan = new DronePhysics.TorqueMixAllocationPlan(
+					config.rotors(),
+					config.centerOfMassOffsetBodyMeters()
+			);
+			double[] cached = new double[config.rotors().size()];
+			for (Vec3 requestedTorque : requestedTorques) {
+				double[] expected = DronePhysics.allocateTorqueMixDeltas(
+						config.rotors(),
+						config.centerOfMassOffsetBodyMeters(),
+						requestedTorque
+				);
+				plan.allocateInto(requestedTorque, cached);
+				assertArrayEquals(expected, cached, 0.0, () -> "rotors=" + config.rotors().size() + " torque=" + requestedTorque);
+				assertVecClose(
+						torqueFromRotorDeltas(config, expected),
+						plan.outputTorqueFromThrustDeltas(new double[cached.length], cached),
+						0.0
+				);
+			}
+
+			plan.allocateInto(new Vec3(0.1, -0.04, 0.08), cached);
+			plan.allocateInto(null, cached);
+			assertArrayEquals(new double[cached.length], cached, 0.0);
+		}
+	}
+
+	@Test
+	void runtimeMixerCachesRefreshAfterSameRotorCountGeometryChanges() {
+		DroneConfig base = directControl(DroneConfig.racingQuad());
+		DroneConfig updated = base
+				.withCenterOfMassOffsetBodyMeters(new Vec3(0.031, -0.004, -0.019))
+				.withRotorOutwardCantDegrees(16.0);
+		DronePhysics reconfigured = new DronePhysics(base);
+		DronePhysics fresh = new DronePhysics(updated);
+		reconfigured.applyConfig(updated);
+		DroneInput[] inputs = {
+				new DroneInput(0.51, 0.35, -0.22, 0.18, true),
+				new DroneInput(0.57, -0.24, 0.31, -0.15, true),
+				new DroneInput(0.48, 0.18, 0.27, 0.21, true)
+		};
+
+		for (int tick = 0; tick < 30; tick++) {
+			DroneInput input = inputs[tick % inputs.length];
+			reconfigured.step(input, 0.005, DroneEnvironment.calm());
+			fresh.step(input, 0.005, DroneEnvironment.calm());
+			assertVecClose(fresh.state().mixerOutputTorqueBodyNewtonMeters(), reconfigured.state().mixerOutputTorqueBodyNewtonMeters(), 0.0);
+			assertVecClose(fresh.state().mixerAxisAuthority(), reconfigured.state().mixerAxisAuthority(), 0.0);
+			assertArrayEquals(fresh.state().rotorThrustNewtons(), reconfigured.state().rotorThrustNewtons(), 0.0);
+		}
+	}
+
+	@Test
+	void runtimeMixerCachesRefreshCoaxialPairTopology() {
+		DroneConfig flat = directControl(DroneConfig.octoLift());
+		DroneConfig coaxial = directControl(DroneConfig.coaxialX8());
+		DronePhysics reconfigured = new DronePhysics(flat);
+		DronePhysics fresh = new DronePhysics(coaxial);
+		reconfigured.applyConfig(coaxial);
+		DroneInput coaxialInput = new DroneInput(coaxial.hoverThrottle() + 0.08, 0.22, -0.18, 0.14, true);
+
+		reconfigured.step(coaxialInput, 0.005, DroneEnvironment.calm());
+		fresh.step(coaxialInput, 0.005, DroneEnvironment.calm());
+
+		assertArrayEquals(fresh.state().rotorCoaxialLoadBiasTarget(), reconfigured.state().rotorCoaxialLoadBiasTarget(), 0.0);
+		assertTrue(reconfigured.state().maxAbsRotorCoaxialLoadBiasTarget() > 0.0);
+
+		reconfigured.applyConfig(flat);
+		reconfigured.step(new DroneInput(flat.hoverThrottle() + 0.08, 0.22, -0.18, 0.14, true), 0.005, DroneEnvironment.calm());
+		assertEquals(0.0, reconfigured.state().maxAbsRotorCoaxialLoadBiasTarget(), 0.0);
+		assertEquals(0.0, reconfigured.state().maxAbsRotorCoaxialLoadBias(), 0.0);
 	}
 
 	@Test
