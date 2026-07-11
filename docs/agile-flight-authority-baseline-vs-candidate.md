@@ -57,12 +57,12 @@ The first major legacy bottleneck is the combined effective thrust scale, especi
 Run:
 
 ```powershell
-.\gradlew.bat --no-daemon :fabric-mod:playablePresetJars
+.\gradlew.bat --no-daemon :neoforge-mod:verifyNeoForgePackaging
 ```
 
 Outputs:
 
-- `fabric-mod/build/fpvdrone-distributions/legacy-heavy-racing-quad.jar`
-- `fabric-mod/build/fpvdrone-distributions/5inch-agile-candidate.jar`
+- `neoforge-mod/build/fpvdrone-distributions/legacy-heavy-racing-quad.jar`
+- `neoforge-mod/build/fpvdrone-distributions/5inch-agile-candidate.jar`
 
-The normal jar and `legacy-heavy-racing-quad.jar` use `legacy_heavy_racing_quad` as the default playable preset. The candidate jar carries a resource default of `5inch_agile_candidate`; the same preset can also be selected in any build with `/fpvdrone debug playablepreset 5inch_agile_candidate`.
+The normal NeoForge jar and `legacy-heavy-racing-quad.jar` use `legacy_heavy_racing_quad` as the default playable preset. The candidate jar carries a resource default of `5inch_agile_candidate`; a GameMaster can also select that preset at runtime with `/fpvdrone debug playablepreset 5inch_agile_candidate`.
