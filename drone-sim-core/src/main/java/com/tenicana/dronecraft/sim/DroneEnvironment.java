@@ -32,6 +32,23 @@ public record DroneEnvironment(
 	private static final double MAX_CEILING_EFFECT_EXTRA_THRUST_FRACTION = 0.38;
 	private static final double PARTIAL_SURFACE_NEGLIGIBLE_DIAMETER_OVER_PROP_DIAMETER = 0.5;
 	private static final double PARTIAL_SURFACE_FULL_LIKE_DIAMETER_OVER_PROP_DIAMETER = 1.0;
+	private static final DroneEnvironment CALM = new DroneEnvironment(
+			Vec3.ZERO,
+			1.0,
+			Double.POSITIVE_INFINITY,
+			0.0,
+			0.0,
+			0.0,
+			Double.POSITIVE_INFINITY,
+			null,
+			null,
+			null,
+			null,
+			0.0,
+			null,
+			0.0,
+			25.0
+	);
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters) {
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, 0.0);
@@ -131,7 +148,7 @@ public record DroneEnvironment(
 	}
 
 	public static DroneEnvironment calm() {
-		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0);
+		return CALM;
 	}
 
 	public static double standardAtmospherePressureRatio(double altitudeMeters) {

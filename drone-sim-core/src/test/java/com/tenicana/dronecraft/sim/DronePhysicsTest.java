@@ -2,6 +2,7 @@ package com.tenicana.dronecraft.sim;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -4140,6 +4141,21 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void calmEnvironmentIsCanonicalAndKeepsRotorArraysDefensive() {
+		DroneEnvironment calm = DroneEnvironment.calm();
+
+		assertSame(calm, DroneEnvironment.calm());
+		assertEquals(Vec3.ZERO, calm.windVelocityWorldMetersPerSecond());
+		assertEquals(1.0, calm.airDensityRatio(), 1.0e-12);
+		assertEquals(25.0, calm.ambientTemperatureCelsius(), 1.0e-12);
+		assertNotSame(calm.rotorThrustMultipliers(), calm.rotorThrustMultipliers());
+		assertNotSame(calm.rotorFlowObstructions(), calm.rotorFlowObstructions());
+		assertNotSame(calm.rotorFlowObstructionDirectionsBody(), calm.rotorFlowObstructionDirectionsBody());
+		assertNotSame(calm.rotorWaterImmersions(), calm.rotorWaterImmersions());
+		assertNotSame(calm.rotorPrecipitationWetnesses(), calm.rotorPrecipitationWetnesses());
+	}
+
+	@Test
 	void environmentProvidesPerRotorPrecipitationWetnessFallbackAndClamping() {
 		DroneEnvironment environment = new DroneEnvironment(
 				Vec3.ZERO,
@@ -4243,6 +4259,36 @@ class DronePhysicsTest {
 		assertTrue(saturatedCold.effectiveAirDensityRatio() > saturatedHot.effectiveAirDensityRatio());
 		assertTrue(DroneEnvironment.moistAirDensityMultiplier(42.0, 1.0)
 				< DroneEnvironment.moistAirDensityMultiplier(42.0, 0.25));
+	}
+
+	@Test
+	void atmosphereCacheUsesValueKeysAndPreservesDerivedBits() throws ReflectiveOperationException {
+		DronePhysics.AtmosphereCache cache = new DronePhysics.AtmosphereCache();
+		DroneEnvironment hotWet = atmosphereEnvironment(Vec3.ZERO, 1.0, 0.80, 42.0);
+		assertTrue(cache.resolve(hotWet));
+		assertAtmosphereCacheMatchesPureFunctions(cache, hotWet);
+
+		DroneEnvironment sameAtmosphereDifferentWind = atmosphereEnvironment(
+				new Vec3(18.0, -2.0, 7.0),
+				1.0,
+				0.80,
+				42.0
+		);
+		assertFalse(cache.resolve(sameAtmosphereDifferentWind));
+		assertAtmosphereCacheMatchesPureFunctions(cache, sameAtmosphereDifferentWind);
+
+		DroneEnvironment lowerDensity = atmosphereEnvironment(Vec3.ZERO, 0.82, 0.80, 42.0);
+		assertTrue(cache.resolve(lowerDensity));
+		assertAtmosphereCacheMatchesPureFunctions(cache, lowerDensity);
+
+		DroneEnvironment colder = atmosphereEnvironment(Vec3.ZERO, 0.82, 0.80, 8.0);
+		assertTrue(cache.resolve(colder));
+		assertAtmosphereCacheMatchesPureFunctions(cache, colder);
+
+		DroneEnvironment drier = atmosphereEnvironment(Vec3.ZERO, 0.82, 0.15, 8.0);
+		assertTrue(cache.resolve(drier));
+		assertAtmosphereCacheMatchesPureFunctions(cache, drier);
+		assertFalse(cache.resolve(drier));
 	}
 
 	@Test
@@ -12171,6 +12217,54 @@ class DronePhysicsTest {
 				0.0,
 				0.0,
 				ambientTemperatureCelsius
+		);
+	}
+
+	private static DroneEnvironment atmosphereEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius
+	) {
+		return new DroneEnvironment(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius
+		);
+	}
+
+	private static void assertAtmosphereCacheMatchesPureFunctions(
+			DronePhysics.AtmosphereCache cache,
+			DroneEnvironment environment
+	) throws ReflectiveOperationException {
+		assertEquals(
+				Double.doubleToRawLongBits(environment.effectiveAirDensityRatio()),
+				Double.doubleToRawLongBits(cache.effectiveAirDensityRatio())
+		);
+		assertEquals(
+				Double.doubleToRawLongBits(
+						DroneEnvironment.speedOfSoundMetersPerSecond(environment.ambientTemperatureCelsius())
+				),
+				Double.doubleToRawLongBits(cache.speedOfSoundMetersPerSecond())
+		);
+		Method viscosityRatio = DronePhysics.class.getDeclaredMethod("airDynamicViscosityRatio", double.class);
+		viscosityRatio.setAccessible(true);
+		double expectedViscosityRatio = (double) viscosityRatio.invoke(null, environment.ambientTemperatureCelsius());
+		assertEquals(
+				Double.doubleToRawLongBits(expectedViscosityRatio),
+				Double.doubleToRawLongBits(cache.dynamicViscosityRatio())
 		);
 	}
 
