@@ -127,6 +127,10 @@ class Aerodynamics4McAtmosphereRoutingTest {
 		assertTrue(stageOne.contains("adoptedWindShearMagnitudePerBlock(externalAtmosphere, sourceQuality)"));
 		assertTrue(advanced.contains("adoptedShelterFactor(externalAtmosphere, sourceQuality)"));
 		assertTrue(stageOne.contains("adoptedShelterFactor(externalAtmosphere, sourceQuality)"));
+		assertTrue(advanced.contains("adoptedUpdraftMetersPerSecond(externalAtmosphere, sourceQuality)"));
+		assertTrue(stageOne.contains("adoptedUpdraftMetersPerSecond(externalAtmosphere, sourceQuality)"));
+		assertTrue(advanced.contains("adoptedUpdraftLocalVoxelGain(externalAtmosphere, sourceQuality)"));
+		assertTrue(stageOne.contains("adoptedUpdraftLocalVoxelGain(externalAtmosphere, sourceQuality)"));
 		assertFalse(advanced.contains("externalAtmosphere.ablStability()"));
 		assertFalse(stageOne.contains("externalAtmosphere.ablStability()"));
 		assertFalse(advanced.contains("externalAtmosphere.ablMixingStrength()"));

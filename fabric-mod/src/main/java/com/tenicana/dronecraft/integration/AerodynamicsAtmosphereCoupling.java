@@ -18,22 +18,42 @@ public final class AerodynamicsAtmosphereCoupling {
 			return fallback;
 		}
 		double quality = MathUtil.clamp(sourceQuality, 0.0, 1.0);
-		double separatedUpdraft = separatedAtmosphereUpdraftMetersPerSecond(atmosphere);
-		if (!atmosphere.hasMeanVelocity() && Math.abs(separatedUpdraft) <= 1.0e-9) {
+		if (!atmosphere.hasMeanVelocity()) {
 			return fallback;
 		}
 
 		double windX = fallback.x();
 		double windY = fallback.y();
 		double windZ = fallback.z();
-		if (atmosphere.hasMeanVelocity()) {
-			double fallbackWeight = 1.0 - quality;
-			windX = fallback.x() * fallbackWeight + atmosphere.meanVelocityX() * quality;
-			windY = fallback.y() * fallbackWeight + atmosphere.meanVelocityY() * quality;
-			windZ = fallback.z() * fallbackWeight + atmosphere.meanVelocityZ() * quality;
-		}
-		windY += separatedUpdraft * quality;
+		double fallbackWeight = 1.0 - quality;
+		windX = fallback.x() * fallbackWeight + atmosphere.meanVelocityX() * quality;
+		windY = fallback.y() * fallbackWeight + atmosphere.meanVelocityY() * quality;
+		windZ = fallback.z() * fallbackWeight + atmosphere.meanVelocityZ() * quality;
 		return new Vec3(windX, windY, windZ).clamp(-30.0, 30.0);
+	}
+
+	public static double adoptedUpdraftMetersPerSecond(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere,
+			double sourceQuality
+	) {
+		if (atmosphere == null || !atmosphere.hasFlow() || sourceQuality <= 1.0e-9) {
+			return 0.0;
+		}
+		return MathUtil.clamp(
+				separatedAtmosphereUpdraftMetersPerSecond(atmosphere)
+						* MathUtil.clamp(sourceQuality, 0.0, 1.0),
+				-12.0,
+				12.0
+		);
+	}
+
+	public static double adoptedUpdraftLocalVoxelGain(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere,
+			double sourceQuality
+	) {
+		return atmosphere != null && atmosphere.hasFlow() && sourceQuality > 1.0e-9
+				? atmosphere.localVoxelFlow() ? 1.0 : 0.72
+				: 0.0;
 	}
 
 	/** Keeps the coherent A4MC gust separate from the mean-air filter and gates it exactly once. */

@@ -1435,7 +1435,9 @@ public class DroneEntity extends Entity {
 				localPressureCenterOffset,
 				localStaticPressureExposure,
 				AerodynamicsAtmosphereCoupling.adoptedWindShearMagnitudePerBlock(externalAtmosphere, sourceQuality),
-				AerodynamicsAtmosphereCoupling.adoptedShelterFactor(externalAtmosphere, sourceQuality)
+				AerodynamicsAtmosphereCoupling.adoptedShelterFactor(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedUpdraftMetersPerSecond(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedUpdraftLocalVoxelGain(externalAtmosphere, sourceQuality)
 		);
 	}
 
@@ -1523,7 +1525,9 @@ public class DroneEntity extends Entity {
 				localPressureCenterOffset,
 				localStaticPressureExposure,
 				AerodynamicsAtmosphereCoupling.adoptedWindShearMagnitudePerBlock(externalAtmosphere, sourceQuality),
-				AerodynamicsAtmosphereCoupling.adoptedShelterFactor(externalAtmosphere, sourceQuality)
+				AerodynamicsAtmosphereCoupling.adoptedShelterFactor(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedUpdraftMetersPerSecond(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedUpdraftLocalVoxelGain(externalAtmosphere, sourceQuality)
 		);
 	}
 

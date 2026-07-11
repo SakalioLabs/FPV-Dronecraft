@@ -46,6 +46,8 @@ class DroneEntityAtmosphereCouplingTest {
 		assertEquals(0.0, AerodynamicsAtmosphereCoupling.adoptedAblMixingStrength(flow, 0.0), 0.0);
 		assertEquals(0.0, AerodynamicsAtmosphereCoupling.adoptedWindShearMagnitudePerBlock(flow, 0.0), 0.0);
 		assertEquals(0.0, AerodynamicsAtmosphereCoupling.adoptedShelterFactor(flow, 0.0), 0.0);
+		assertEquals(0.0, AerodynamicsAtmosphereCoupling.adoptedUpdraftMetersPerSecond(flow, 0.0), 0.0);
+		assertEquals(0.0, AerodynamicsAtmosphereCoupling.adoptedUpdraftLocalVoxelGain(flow, 0.0), 0.0);
 		assertSame(
 				Vec3.ZERO,
 				AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(
@@ -172,7 +174,9 @@ class DroneEntityAtmosphereCouplingTest {
 		);
 
 		assertEquals(3.0, AerodynamicsAtmosphereCoupling.separatedAtmosphereUpdraftMetersPerSecond(flow), 0.0);
-		assertEquals(6.0, AerodynamicsAtmosphereCoupling.adoptedAtmosphereWind(Vec3.ZERO, flow, 1.0).y(), 0.0);
+		assertEquals(3.0, AerodynamicsAtmosphereCoupling.adoptedAtmosphereWind(Vec3.ZERO, flow, 1.0).y(), 0.0);
+		assertEquals(3.0, AerodynamicsAtmosphereCoupling.adoptedUpdraftMetersPerSecond(flow, 1.0), 0.0);
+		assertEquals(0.72, AerodynamicsAtmosphereCoupling.adoptedUpdraftLocalVoxelGain(flow, 1.0), 0.0);
 		assertEquals(-5.0, AerodynamicsAtmosphereCoupling.removeOverlappingVerticalFlow(-5.0, 2.0), 0.0);
 		assertEquals(0.0, AerodynamicsAtmosphereCoupling.removeOverlappingVerticalFlow(2.0, 3.0), 0.0);
 	}

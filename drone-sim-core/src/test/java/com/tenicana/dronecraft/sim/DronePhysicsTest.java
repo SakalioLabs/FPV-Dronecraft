@@ -4207,6 +4207,41 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void compactUpdraftIsSmoothedAblShapedLocalVoxelAwareAndSigned() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics localUnstable = new DronePhysics(config);
+		DronePhysics coarseStable = new DronePhysics(config);
+		DronePhysics downdraft = new DronePhysics(config);
+		DronePhysics explicitNeutral = new DronePhysics(config);
+		DronePhysics legacyNeutral = new DronePhysics(config);
+		DroneEnvironment local = updraftEnvironment(4.0, 1.0, 1.0, 1.0);
+		DroneEnvironment coarse = updraftEnvironment(4.0, 0.72, -1.0, 0.0);
+		DroneEnvironment down = updraftEnvironment(-4.0, 1.0, 0.0, 0.0);
+		DroneEnvironment zero = updraftEnvironment(0.0, 0.0, 0.0, 0.0);
+
+		for (int i = 0; i < 500; i++) {
+			localUnstable.step(DroneInput.idle(), 0.005, local);
+			coarseStable.step(DroneInput.idle(), 0.005, coarse);
+			downdraft.step(DroneInput.idle(), 0.005, down);
+			explicitNeutral.step(DroneInput.idle(), 0.005, zero);
+			legacyNeutral.step(DroneInput.idle(), 0.005, DroneEnvironment.calm());
+		}
+
+		double localVertical = localUnstable.state().effectiveWindVelocityWorldMetersPerSecond().y();
+		double coarseVertical = coarseStable.state().effectiveWindVelocityWorldMetersPerSecond().y();
+		double downVertical = downdraft.state().effectiveWindVelocityWorldMetersPerSecond().y();
+		assertTrue(localVertical > coarseVertical + 0.75,
+				() -> "local=" + localVertical + " coarse=" + coarseVertical);
+		assertTrue(localVertical > 2.5 && localVertical <= 4.5);
+		assertTrue(downVertical < -2.0 && downVertical >= -4.5);
+		assertEquals(legacyNeutral.aerodynamicTransientStateSnapshot(), explicitNeutral.aerodynamicTransientStateSnapshot());
+		assertEquals(
+				legacyNeutral.state().effectiveWindVelocityWorldMetersPerSecond(),
+				explicitNeutral.state().effectiveWindVelocityWorldMetersPerSecond()
+		);
+	}
+
+	@Test
 	void turbulentAirMassAddsGustAndWindShearTelemetry() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DroneInput idle = DroneInput.idle();
@@ -13978,6 +14013,21 @@ class DronePhysicsTest {
 				null, null, null, null, 0.0, null, 0.0, 25.0, null,
 				25.0, 0.0, 0.0, 0.0, 1.0, 1.0, Vec3.ZERO, stability, mixing,
 				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, 0.0, shear, shelter
+		);
+	}
+
+	private static DroneEnvironment updraftEnvironment(
+			double updraft,
+			double localVoxelGain,
+			double stability,
+			double mixing
+	) {
+		return new DroneEnvironment(
+				Vec3.ZERO, 1.0, 6.0, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY,
+				null, null, null, null, 0.0, null, 0.0, 25.0, null,
+				25.0, 0.0, 0.0, 0.0, 1.0, 1.0, Vec3.ZERO, stability, mixing,
+				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, 0.0, 0.0, 0.0,
+				updraft, localVoxelGain
 		);
 	}
 

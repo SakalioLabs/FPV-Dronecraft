@@ -8433,19 +8433,43 @@ public final class DronePhysics {
 		double shelter = environment.adoptedSourceShelterFactor();
 		double horizontalWindSpeed = Math.hypot(targetMeanWind.x(), targetMeanWind.z());
 		double shelterWindGate = smoothStep(0.8, 7.0, horizontalWindSpeed);
-		double updraft = MathUtil.clamp(targetMeanWind.y(), -12.0, 12.0);
-		boolean active = shearMagnitude > 1.0e-6
+		double sourceUpdraft = environment.adoptedSourceUpdraftMetersPerSecond();
+		double updraftTarget = 0.0;
+		if (Math.abs(sourceUpdraft) > 1.0e-6) {
+			double responseGain = MathUtil.clamp(
+					environment.adoptedSourceUpdraftLocalVoxelGain()
+							* compactUpdraftAblTargetMultiplier(environment)
+							* (0.50 + 0.22 * smoothStep(0.35, 4.0, Math.abs(sourceUpdraft))),
+					0.30,
+					0.90
+			);
+			updraftTarget = MathUtil.clamp(sourceUpdraft * responseGain, -4.5, 4.5);
+		}
+		boolean terrainActive = shearMagnitude > 1.0e-6
 				|| shelter > 1.0e-6 && shelterWindGate > 1.0e-6;
+		boolean updraftActive = Math.abs(updraftTarget) > 1.0e-6;
+		boolean active = terrainActive || updraftActive;
 		if (!active && compactTerrainShearVelocityWorldMetersPerSecond.lengthSquared() <= 1.0e-18) {
 			return Vec3.ZERO;
 		}
 
-		double tau = MathUtil.clamp(
+		double terrainTau = MathUtil.clamp(
 				(0.18 - 0.035 * Math.min(2.0, shearMagnitude) - 0.025 * shelter)
 						* compactTerrainShearAblTimeScaleMultiplier(environment),
 				0.045,
 				0.360
 		);
+		double updraftTau = MathUtil.clamp(
+				(0.22
+						- 0.065 * smoothStep(0.25, 4.0, Math.abs(sourceUpdraft))
+						- 0.040 * smoothStep(0.10, 1.0, Math.abs(sourceUpdraft)))
+						* compactUpdraftAblTimeScaleMultiplier(environment),
+				0.055,
+				0.330
+		);
+		double tau = terrainActive && updraftActive
+				? Math.min(terrainTau, updraftTau)
+				: updraftActive ? updraftTau : terrainTau;
 		Vec3 target = Vec3.ZERO;
 		if (active) {
 			double inverseHorizontalSpeed = horizontalWindSpeed > 1.0e-6 ? 1.0 / horizontalWindSpeed : 0.0;
@@ -8455,7 +8479,7 @@ public final class DronePhysics {
 					* (0.20 + 0.12 * smoothStep(0.25, 2.0, shearMagnitude));
 			double terrainSignal = MathUtil.clamp(
 					0.42 * shearMagnitude * (0.50 + 0.50 * smoothStep(0.6, 7.0, horizontalWindSpeed))
-							+ 0.10 * Math.abs(updraft)
+							+ 0.10 * Math.abs(sourceUpdraft)
 							+ shelterSignal,
 					0.0,
 					2.40
@@ -8469,10 +8493,10 @@ public final class DronePhysics {
 			double cross = Math.sin(windGustPhaseB * 0.91 + 1.10) * terrainSignal * 0.55;
 			double vertical = Math.sin(windGustPhaseC * 0.67 + 2.00)
 					* terrainSignal
-					* (0.22 + 0.16 * smoothStep(0.25, 5.0, Math.abs(updraft)));
+					* (0.22 + 0.16 * smoothStep(0.25, 5.0, Math.abs(sourceUpdraft)));
 			target = new Vec3(
 					MathUtil.clamp((windAxisX * along - windAxisZ * cross) * dirtyGain, -3.0, 3.0),
-					MathUtil.clamp(vertical * dirtyGain, -3.0, 3.0),
+					MathUtil.clamp(updraftTarget + vertical * dirtyGain, -4.5, 4.5),
 					MathUtil.clamp((windAxisZ * along + windAxisX * cross) * dirtyGain, -3.0, 3.0)
 			);
 		}
@@ -8504,6 +8528,40 @@ public final class DronePhysics {
 				1.0 - 0.20 * mixing - 0.25 * mixedUnstable + 0.55 * stablePersistence,
 				0.55,
 				1.65
+		);
+	}
+
+	private static double compactUpdraftAblTargetMultiplier(DroneEnvironment environment) {
+		double stability = environment.adoptedAblStability();
+		double mixing = environment.adoptedAblMixingStrength();
+		if (mixing <= 1.0e-6 && Math.abs(stability) <= 1.0e-6) {
+			return 0.84;
+		}
+		double unstable = Math.max(0.0, stability);
+		double stable = Math.max(0.0, -stability);
+		double mixedUnstable = unstable * mixing;
+		double stableSuppression = stable * (0.75 + 0.25 * (1.0 - mixing));
+		return MathUtil.clamp(
+				(0.84 + 0.18 * mixing) * (1.0 + 0.30 * mixedUnstable - 0.34 * stableSuppression),
+				0.55,
+				1.22
+		);
+	}
+
+	private static double compactUpdraftAblTimeScaleMultiplier(DroneEnvironment environment) {
+		double stability = environment.adoptedAblStability();
+		double mixing = environment.adoptedAblMixingStrength();
+		if (mixing <= 1.0e-6 && Math.abs(stability) <= 1.0e-6) {
+			return 1.0;
+		}
+		double unstable = Math.max(0.0, stability);
+		double stable = Math.max(0.0, -stability);
+		double mixedUnstable = unstable * mixing;
+		double stablePersistence = stable * (0.75 + 0.25 * (1.0 - mixing));
+		return MathUtil.clamp(
+				1.0 - 0.16 * mixing - 0.24 * mixedUnstable + 0.48 * stablePersistence,
+				0.60,
+				1.55
 		);
 	}
 
