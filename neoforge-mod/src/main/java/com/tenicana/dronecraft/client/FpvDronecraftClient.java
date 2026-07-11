@@ -18,6 +18,7 @@ import net.neoforged.neoforge.event.level.LevelEvent;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.client.control.DroneClientControls;
+import com.tenicana.dronecraft.client.diagnostic.ClientTitleScreenProbe;
 import com.tenicana.dronecraft.client.hud.DroneHud;
 import com.tenicana.dronecraft.client.render.DroneEntityRenderer;
 import com.tenicana.dronecraft.client.render.DroneModelLayers;
@@ -62,6 +63,7 @@ public final class FpvDronecraftClient {
 		Minecraft client = Minecraft.getInstance();
 		DroneClientControls.onClientTick(client);
 		DroneSoundManager.onClientTick(client);
+		ClientTitleScreenProbe.onClientTick(client);
 	}
 
 	@SubscribeEvent

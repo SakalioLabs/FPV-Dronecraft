@@ -37,7 +37,8 @@ the branch remains usable as the base for the next unit.
 | 8c | NeoForge packaging verifier | Validate metadata, nested core, Mixins, exclusions, and preset variants | Complete | This commit; three archives pass structural gates and seven isolated corrupt fixtures fail with exact error codes |
 | 8d | NeoForge-native CI | NeoForge tests, GameTest, packaging artifacts, and four server self-tests run remotely | Complete | `29169520426`; 14 successful jobs and 6 inspected artifacts |
 | 8e | Installation and release documentation | Accurate four-language requirements, artifact paths, and no false NeoForge release link | Complete | This commit; README and dedicated NeoForge installation guide |
-| 8f | Production-jar clean instances | Clean dedicated-server and client title-screen smoke tests | Pending | Pending |
+| 8f | Production-jar clean client | Isolated production client reaches a resource-complete title screen | Complete | This commit; `CLIENT in PROD`, exact three-mod list, six Mixins, UUID-bound 20-tick report |
+| 8g | Production-jar clean server | Isolated official NeoForge dedicated server completes the self-test | Pending | Pending |
 
 ## Verification Policy
 
