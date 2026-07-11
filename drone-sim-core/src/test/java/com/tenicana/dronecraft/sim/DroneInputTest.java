@@ -34,4 +34,14 @@ class DroneInputTest {
 		assertEquals(FlightMode.ACRO, new DroneInput(0.0, 0.0, 0.0, 0.0, true, true).flightMode());
 		assertEquals(FlightMode.HORIZON, new DroneInput(0.0, 0.0, 0.0, 0.0, true, FlightMode.HORIZON).flightMode());
 	}
+
+	@Test
+	void nonFiniteAxesNormalizeToFailsafe() {
+		DroneInput failsafe = DroneInput.failsafe();
+
+		assertEquals(failsafe, new DroneInput(Double.NaN, 0.0, 0.0, 0.0, true, true).normalized());
+		assertEquals(failsafe, new DroneInput(0.5, Double.POSITIVE_INFINITY, 0.0, 0.0, true, true).normalized());
+		assertEquals(failsafe, new DroneInput(0.5, 0.0, Double.NEGATIVE_INFINITY, 0.0, true, true).normalized());
+		assertEquals(failsafe, new DroneInput(0.5, 0.0, 0.0, Double.NaN, true, true).normalized());
+	}
 }

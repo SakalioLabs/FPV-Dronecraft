@@ -32,6 +32,12 @@ public record DroneInput(
 	}
 
 	public DroneInput normalized() {
+		if (!Double.isFinite(throttle)
+				|| !Double.isFinite(pitch)
+				|| !Double.isFinite(roll)
+				|| !Double.isFinite(yaw)) {
+			return failsafe();
+		}
 		return new DroneInput(
 				MathUtil.clamp(throttle, 0.0, 1.0),
 				MathUtil.clamp(pitch, -1.0, 1.0),
