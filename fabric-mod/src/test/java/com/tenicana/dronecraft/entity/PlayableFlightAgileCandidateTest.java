@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import com.tenicana.dronecraft.sim.FlightMode;
+import com.tenicana.dronecraft.sim.UiucDa4002FiveInchRuntimeLookup;
 
 class PlayableFlightAgileCandidateTest {
 	private static final float HOVER_THROTTLE = 0.20f;
@@ -92,6 +93,76 @@ class PlayableFlightAgileCandidateTest {
 
 		assertTrue(maxHorizontalSpeed >= 25.0f, "candidate cruise headroom too low: " + maxHorizontalSpeed);
 		assertTrue(maxHorizontalSpeed <= 52.0f, "candidate exceeded hard speed headroom: " + maxHorizontalSpeed);
+	}
+
+	@Test
+	void agileCandidateConsumesOnlyBoundedPositiveDa4002AxialReference() {
+		float rpm = 5_000.0f;
+		float advanceRatioJ = 0.4f;
+		float axialVelocity = advanceRatioJ * (rpm / 60.0f)
+				* UiucDa4002FiveInchRuntimeLookup.PROPELLER_DIAMETER_METERS;
+		float expected = UiucDa4002FiveInchRuntimeLookup.normalizedThrustScale(
+				advanceRatioJ,
+				rpm
+		);
+
+		assertEquals(expected, PlayableFlightModel.acroDa4002AxialThrustScale(
+				PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE,
+				axialVelocity,
+				rpm
+		), 1.0e-6f);
+		assertEquals(1.0f, PlayableFlightModel.acroDa4002AxialThrustScale(
+				PlayableFlightPreset.LEGACY_HEAVY_RACING_QUAD,
+				axialVelocity,
+				rpm
+		), 0.0f);
+		assertEquals(1.0f, PlayableFlightModel.acroDa4002AxialThrustScale(
+				PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE,
+				-axialVelocity,
+				rpm
+		), 0.0f);
+		assertEquals(1.0f, PlayableFlightModel.acroDa4002AxialThrustScale(
+				PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE,
+				axialVelocity,
+				3_999.0f
+		), 0.0f);
+		assertEquals(1.0f, PlayableFlightModel.acroDa4002AxialThrustScale(
+				PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE,
+				axialVelocity,
+				6_001.0f
+		), 0.0f);
+	}
+
+	@Test
+	void da4002InfluenceFadesInsideMeasuredEnvelopeEdges() {
+		float advanceRatioJ = 0.4f;
+		float lowerBoundaryRpm = 4_000.0f;
+		float lowerBlendRpm = 4_200.0f;
+		float fullWeightRpm = 4_400.0f;
+
+		float boundary = axialReferenceScaleAt(advanceRatioJ, lowerBoundaryRpm);
+		float blended = axialReferenceScaleAt(advanceRatioJ, lowerBlendRpm);
+		float full = axialReferenceScaleAt(advanceRatioJ, fullWeightRpm);
+		assertEquals(1.0f, boundary, 0.0f);
+		assertTrue(blended < boundary && blended > full);
+		assertEquals(
+				UiucDa4002FiveInchRuntimeLookup.normalizedThrustScale(
+						advanceRatioJ,
+						fullWeightRpm
+				),
+				full,
+				1.0e-6f
+		);
+	}
+
+	private static float axialReferenceScaleAt(float advanceRatioJ, float rpm) {
+		float axialVelocity = advanceRatioJ * (rpm / 60.0f)
+				* UiucDa4002FiveInchRuntimeLookup.PROPELLER_DIAMETER_METERS;
+		return PlayableFlightModel.acroDa4002AxialThrustScale(
+				PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE,
+				axialVelocity,
+				rpm
+		);
 	}
 
 	private static RollResult fullRollSeconds(PlayableFlightModel.State initialState, float throttle) {

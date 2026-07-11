@@ -1,0 +1,34 @@
+{
+	"drone.motor_loop": {
+		"sounds": [
+			{
+				"name": "fpvdrone:drone/motor_loop",
+				"attenuation_distance": 48
+			}
+		]
+	},
+	"drone.propeller_loop": {
+		"sounds": [
+			{
+				"name": "fpvdrone:drone/propeller_loop",
+				"attenuation_distance": 48
+			}
+		]
+	},
+	"drone.impact": {
+		"sounds": [
+			{
+				"name": "fpvdrone:drone/impact_1",
+				"attenuation_distance": 32
+			},
+			{
+				"name": "fpvdrone:drone/impact_2",
+				"attenuation_distance": 32
+			},
+			{
+				"name": "fpvdrone:drone/impact_3",
+				"attenuation_distance": 32
+			}
+		]
+	}
+}

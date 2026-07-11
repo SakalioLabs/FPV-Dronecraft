@@ -30,6 +30,7 @@ import net.minecraft.world.phys.AABB;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSummary;
+import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder.RecordingSource;
 import com.tenicana.dronecraft.blackbox.DroneFlightTraceFiles;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
@@ -128,6 +129,8 @@ public final class DroneCommands {
 												))))))
 				.then(Commands.literal("blackbox")
 						.then(Commands.literal("status").executes(context -> blackboxStatus(context.getSource())))
+						.then(Commands.literal("start").executes(context -> blackboxStart(context.getSource())))
+						.then(Commands.literal("stop").executes(context -> blackboxStop(context.getSource())))
 						.then(Commands.literal("summary").executes(context -> summary(context.getSource())))
 						.then(Commands.literal("clear").executes(context -> clear(context.getSource())))
 						.then(Commands.literal("save").executes(context -> save(context.getSource()))))
@@ -546,10 +549,36 @@ public final class DroneCommands {
 		}
 
 		source.sendSuccess(
-				() -> Component.literal("Blackbox samples: " + drone.blackbox().size() + "/" + drone.blackbox().capacity()),
+				() -> Component.literal("Blackbox recording: "
+						+ (drone.blackbox().recordingEnabled() ? "on" : "off")
+						+ ", samples: " + drone.blackbox().size() + "/" + drone.blackbox().capacity()),
 				false
 		);
 		return drone.blackbox().size();
+	}
+
+	private static int blackboxStart(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+		DroneEntity drone = findOwnedDrone(source);
+		if (drone == null) {
+			source.sendFailure(Component.literal("No linked drone found nearby."));
+			return 0;
+		}
+
+		drone.blackbox().startRecording(RecordingSource.MANUAL, false);
+		source.sendSuccess(() -> Component.literal("Blackbox recording enabled."), false);
+		return 1;
+	}
+
+	private static int blackboxStop(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+		DroneEntity drone = findOwnedDrone(source);
+		if (drone == null) {
+			source.sendFailure(Component.literal("No linked drone found nearby."));
+			return 0;
+		}
+
+		drone.blackbox().stopRecording(RecordingSource.MANUAL);
+		source.sendSuccess(() -> Component.literal("Blackbox recording disabled; captured samples were retained."), false);
+		return 1;
 	}
 
 	private static int summary(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
@@ -624,7 +653,7 @@ public final class DroneCommands {
 
 		String commitSha = currentCommitSha();
 		FPVDIAG_SESSIONS.put(player.getUUID(), new FpvDiagSession(drone.tickCount, LocalDateTime.now(), commitSha));
-		drone.blackbox().clear();
+		drone.blackbox().startRecording(RecordingSource.FPV_DIAGNOSTIC, true);
 		source.sendSuccess(
 				() -> Component.literal("FPV diagnostic trace started: samples cleared, commit " + DroneFlightTraceFiles.safeCommitSha(commitSha) + "."),
 				false
@@ -690,9 +719,11 @@ public final class DroneCommands {
 					drone.blackbox().toCsv()
 			);
 		} catch (IOException exception) {
+			drone.blackbox().stopRecording(RecordingSource.FPV_DIAGNOSTIC);
 			source.sendFailure(Component.literal("Failed to save FPV diagnostic trace: " + exception.getMessage()));
 			return 0;
 		}
+		drone.blackbox().stopRecording(RecordingSource.FPV_DIAGNOSTIC);
 
 		String summaryText = summary.hasSamples() ? summary.formatForChat() : "Blackbox summary: no samples.";
 		source.sendSuccess(
@@ -753,7 +784,7 @@ public final class DroneCommands {
 
 		ServerPlayer player = source.getPlayerOrException();
 		int durationTicks = DroneControlManager.startDiagnostic(player.getUUID(), drone.tickCount, seconds * 20, autoSaveBlackbox);
-		drone.blackbox().clear();
+		drone.blackbox().startRecording(RecordingSource.SCRIPTED_DIAGNOSTIC, true);
 		source.sendSuccess(
 				() -> Component.literal(String.format(
 						java.util.Locale.ROOT,
@@ -810,6 +841,7 @@ public final class DroneCommands {
 			source.sendFailure(Component.literal("No diagnostic flight active."));
 			return 0;
 		}
+		drone.blackbox().stopRecording(RecordingSource.SCRIPTED_DIAGNOSTIC);
 
 		source.sendSuccess(
 				() -> Component.literal("Diagnostic flight stopped. Blackbox samples: " + drone.blackbox().size() + "/" + drone.blackbox().capacity()),

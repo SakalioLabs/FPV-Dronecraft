@@ -47,6 +47,10 @@ class DroneEntityFlightModelRoutingTest {
 				source.indexOf("private void applyDebugFlight"),
 				source.indexOf("private void applyDebugMovement")
 		);
+		String simulationStepMethod = source.substring(
+				source.indexOf("private void stepSimulationFlightModel"),
+				source.indexOf("private void applyDebugMovement")
+		);
 		String directControlMethods = source.substring(
 				source.indexOf("private DroneInput directFailsafeInput"),
 				source.indexOf("private static final float DEBUG_ARM_THRUST_THRESHOLD")
@@ -176,6 +180,11 @@ class DroneEntityFlightModelRoutingTest {
 		assertFalse(damageSyncMethods.contains("simulationRuntime.state()"), "damage sync should not read DroneState directly");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.config()"), "damage sync should not read DroneConfig directly");
 		assertTrue(blackboxMethod.contains("simulationRuntime.blackboxSample("), "blackbox sample construction should be projected by SimulationFlightRuntime");
+		assertTrue(blackboxMethod.contains("if (blackbox.recordingEnabled())"), "expensive blackbox samples should only be built while capture is explicitly enabled");
+		assertTrue(
+				blackboxMethod.indexOf("if (blackbox.recordingEnabled())") < blackboxMethod.indexOf("simulationRuntime.blackboxSample("),
+				"the blackbox recording guard must run before the sample is constructed"
+		);
 		assertFalse(blackboxMethod.contains("simulationRuntime.state()"), "blackbox recording should not read DroneState directly");
 		assertFalse(blackboxMethod.contains("simulationRuntime.config()"), "blackbox recording should not read DroneConfig directly");
 		assertTrue(configAccessorMethod.contains("simulationRuntime.currentConfig()"), "public config access should cross the runtime boundary explicitly");
@@ -186,7 +195,14 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(source.contains("FlightModel simulationFlightModel"), "DroneEntity should own simulation through the common FlightModel contract");
 		assertTrue(source.contains("FlightModel playableFlightModel"), "DroneEntity should own playable through the common FlightModel contract");
 		assertTrue(source.contains("FlightModelRouter flightModels"), "DroneEntity should route active models through the common facade");
-		assertTrue(source.contains("flightModels.step(new FlightStepContext("), "model steps should cross the common FlightStepContext boundary");
+		assertTrue(playableStepMethods.contains("flightModels.step(new FlightStepContext("), "rich playable steps should cross the common FlightStepContext boundary");
+		assertTrue(simulationStepMethod.contains("flightModels.stepStateOnly("), "high-rate simulation substeps should use the common state-only model boundary");
+		assertFalse(simulationStepMethod.contains("new FlightStepContext("), "state-only simulation substeps should not allocate a rich step context");
+		assertFalse(simulationStepMethod.contains("flightModels.snapshot()"), "state-only simulation substeps should not materialize a previous snapshot");
+		assertTrue(
+				tickMethod.indexOf("DroneDebugSettings.controlLoggingEnabled()") < tickMethod.indexOf("level().getEntitiesOfClass"),
+				"disabled ownerless logging must not perform a spatial entity query"
+		);
 		assertTrue(source.contains("applySimulationResolvedState"), "simulation state corrections should be routed back through the facade");
 		assertTrue(source.contains("StateCorrectionReason.COLLISION_CONTACT_SOLVE"), "collision movement should report an explicit state correction");
 		assertTrue(source.contains("\"TAKEOFF_RELEASE\""), "takeoff assist should report an explicit state correction");

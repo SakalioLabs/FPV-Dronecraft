@@ -93,12 +93,16 @@ class SimulationFlightGoldenTraceTest {
 			SimulationFlightModelAdapter adapter = new SimulationFlightModelAdapter();
 			FlightModelRouter router = new FlightModelRouter(List.of(adapter), SimulationFlightModelAdapter.ID);
 			router.initialize(new FlightModelInitializationContext(config, snapshot(direct), scenario.environment().at(0), 0L));
+			SimulationFlightModelAdapter stateOnlyAdapter = new SimulationFlightModelAdapter();
+			FlightModelRouter stateOnlyRouter = new FlightModelRouter(List.of(stateOnlyAdapter), SimulationFlightModelAdapter.ID);
+			stateOnlyRouter.initialize(new FlightModelInitializationContext(config, snapshot(direct), scenario.environment().at(0), 0L));
 
 			for (int tick = 0; tick < scenario.ticks(); tick++) {
 				DroneInput input = scenario.input().at(tick, config).normalized();
 				DroneEnvironment environment = scenario.environment().at(tick);
 				String mutation = scenario.beforeStep().apply(tick, direct);
 				applyMutationToRouter(router, direct, mutation);
+				applyMutationToRouter(stateOnlyRouter, direct, mutation);
 
 				direct.step(input, DT_SECONDS, environment);
 				FlightStepResult routeResult = router.step(new FlightStepContext(
@@ -109,12 +113,18 @@ class SimulationFlightGoldenTraceTest {
 						tick,
 						config
 				));
+				stateOnlyRouter.stepStateOnly(input, environment, DT_SECONDS, tick, config, Map.of());
 
 				assertSnapshotClose(scenario.name(), tick, snapshot(direct), routeResult.nextState());
 				assertActuatorClose(scenario.name(), tick, actuatorOutput(direct), routeResult.actuatorOutput());
 				assertForceTorqueClose(scenario.name(), tick, forceTorqueDiagnostics(direct), routeResult.forceTorqueDiagnostics());
 				assertEquals(List.of(), routeResult.stateCorrections(), firstDifference(scenario.name(), tick, "state_corrections", List.of(), routeResult.stateCorrections()));
 				assertDiagnosticsClose(scenario.name(), tick, diagnostics(direct, environment), routeResult.diagnostics());
+				String stateOnlyScenario = scenario.name() + "[state_only]";
+				assertSnapshotClose(stateOnlyScenario, tick, snapshot(direct), stateOnlyRouter.snapshot());
+				assertActuatorClose(stateOnlyScenario, tick, actuatorOutput(direct), actuatorOutput(stateOnlyAdapter.physics()));
+				assertForceTorqueClose(stateOnlyScenario, tick, forceTorqueDiagnostics(direct), forceTorqueDiagnostics(stateOnlyAdapter.physics()));
+				assertDiagnosticsClose(stateOnlyScenario, tick, diagnostics(direct, environment), stateOnlyRouter.diagnostics());
 			}
 		}
 	}

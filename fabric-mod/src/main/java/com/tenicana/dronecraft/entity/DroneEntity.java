@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -21,6 +22,8 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -44,6 +47,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder;
+import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder.RecordingSource;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.control.DroneControlManager;
@@ -72,8 +76,11 @@ import com.tenicana.dronecraft.sim.flight.FlightStepResult;
 import com.tenicana.dronecraft.sim.flight.SimulationFlightModelAdapter;
 import com.tenicana.dronecraft.sim.flight.StateCorrection;
 import com.tenicana.dronecraft.sim.flight.StateCorrectionReason;
+import com.tenicana.dronecraft.sound.DroneSoundEvents;
+import com.tenicana.dronecraft.sound.DroneSoundPhysics;
 
 public class DroneEntity extends Entity {
+	private static final int COLLISION_SOUND_COOLDOWN_TICKS = 4;
 	private static final double PHYSICS_DT = 0.005;
 	private static final int PHYSICS_STEPS_PER_TICK = 10;
 	private static final int PROP_STRIKE_COOLDOWN_TICKS = 4;
@@ -324,6 +331,9 @@ public class DroneEntity extends Entity {
 	private int lastPropStrikeRotorIndex = -1;
 	private double lastPropStrikeSeverity;
 	private double lastCollisionSeverity;
+	private int lastCollisionSoundContactTick = Integer.MIN_VALUE;
+	private int lastCollisionSoundEventTick = Integer.MIN_VALUE;
+	private double collisionSoundContactPeakImpact;
 	private DroneEnvironment lastEnvironment = DroneEnvironment.calm();
 	private DroneEnvironmentOverride environmentOverride = DroneEnvironmentOverride.natural();
 	private final DroneBlackboxRecorder blackbox = new DroneBlackboxRecorder();
@@ -677,7 +687,7 @@ public class DroneEntity extends Entity {
 			DroneInput input = rawInput;
 			boolean airworthy = isAirworthy();
 			boolean bypassPhysics = usesPlayableFlightModel();
-			if (activeOwner == null) {
+			if (activeOwner == null && DroneDebugSettings.controlLoggingEnabled()) {
 				DroneDebugSettings.logNoOwnerInput(tickCount, level().getEntitiesOfClass(DroneEntity.class, getBoundingBox().inflate(24.0), drone -> true).size(), DroneDebugSettings.ownerlessControlEnabled(), activeOwner);
 			}
 			if (!airworthy && !bypassPhysics) {
@@ -1027,14 +1037,14 @@ public class DroneEntity extends Entity {
 
 	private void stepSimulationFlightModel(DroneInput input, double dtSeconds, DroneEnvironment environment) {
 		flightModels.select(SimulationFlightModelAdapter.ID);
-		flightModels.step(new FlightStepContext(
+		flightModels.stepStateOnly(
 				input,
-				flightModels.snapshot(),
 				environment,
 				dtSeconds,
 				tickCount,
-				simulationRuntime.flightModelConfig()
-		));
+				simulationRuntime.flightModelConfig(),
+				Map.of()
+		);
 	}
 
 	private void applyDebugMovement(
@@ -1057,6 +1067,20 @@ public class DroneEntity extends Entity {
 		float actualWorldVelocityX = (float) (actualDeltaX * 20.0);
 		float actualWorldVelocityY = (float) (actualDeltaY * 20.0);
 		float actualWorldVelocityZ = (float) (actualDeltaZ * 20.0);
+		boolean collided = horizontalCollision || verticalCollision;
+		if (collided) {
+			ContactDynamics.Response contact = ContactDynamics.resolve(
+					new Vec3(worldVelocityX, worldVelocityY, worldVelocityZ),
+					new Vec3(deltaX, deltaY, deltaZ),
+					new Vec3(actualDeltaX, actualDeltaY, actualDeltaZ),
+					horizontalCollision,
+					verticalCollision
+			);
+			setPlayableContactTelemetry(contact);
+			maybePlayCollisionSound(contact.impactSpeedMetersPerSecond());
+		} else {
+			setPlayableContactTelemetry(null);
+		}
 
 		if (!horizontalCollision) {
 			actualWorldVelocityX = worldVelocityX;
@@ -1084,6 +1108,74 @@ public class DroneEntity extends Entity {
 				new Vec3(actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ)
 		);
 		setDeltaMovement(actualDeltaX, actualDeltaY, actualDeltaZ);
+	}
+
+	private void setPlayableContactTelemetry(ContactDynamics.Response contact) {
+		double impactValue = contact == null ? 0.0 : contact.impactSpeedMetersPerSecond();
+		double slipValue = contact == null ? 0.0 : contact.slipSpeedMetersPerSecond();
+		float impact = (float) impactValue;
+		float slip = (float) slipValue;
+		float bounce = 0.0f;
+		simulationRuntime.setContactTelemetry(impactValue, slipValue, bounce);
+		entityData.set(CONTACT_IMPACT_SPEED, impact);
+		entityData.set(CONTACT_SLIP_SPEED, slip);
+		entityData.set(CONTACT_BOUNCE_SPEED, bounce);
+		entityData.set(CONTACT_ANGULAR_IMPULSE, 0.0f);
+	}
+
+	private void maybePlayCollisionSound(double impactSpeedMetersPerSecond) {
+		if (!Double.isFinite(impactSpeedMetersPerSecond) || impactSpeedMetersPerSecond < 0.0) {
+			return;
+		}
+		boolean newContact = lastCollisionSoundContactTick < tickCount - 2;
+		double previousPeak = newContact ? 0.0 : collisionSoundContactPeakImpact;
+		lastCollisionSoundContactTick = tickCount;
+		collisionSoundContactPeakImpact = Math.max(previousPeak, impactSpeedMetersPerSecond);
+
+		if (!DroneSoundPhysics.shouldPlayImpact(impactSpeedMetersPerSecond)) {
+			return;
+		}
+		boolean crossedThreshold = previousPeak < DroneSoundPhysics.MIN_IMPACT_SPEED_METERS_PER_SECOND;
+		boolean materiallyStronger = impactSpeedMetersPerSecond >= previousPeak * 1.5
+				|| impactSpeedMetersPerSecond >= previousPeak + 1.0;
+		boolean cooldownReady = lastCollisionSoundEventTick <= tickCount - COLLISION_SOUND_COOLDOWN_TICKS;
+		if (!cooldownReady || (!newContact && !crossedThreshold && !materiallyStronger)) {
+			return;
+		}
+
+		float volume = DroneSoundPhysics.impactVolume(impactSpeedMetersPerSecond);
+		float pitch = DroneSoundPhysics.impactPitch(impactSpeedMetersPerSecond, getRandom().nextDouble());
+		ServerPlayer ownerPlayer = null;
+		UUID ownerId = getOwner();
+		if (level() instanceof ServerLevel serverLevel && ownerId != null) {
+			ServerPlayer candidate = serverLevel.getServer().getPlayerList().getPlayer(ownerId);
+			if (candidate != null && candidate.level() == serverLevel) {
+				ownerPlayer = candidate;
+			}
+		}
+		level().playSound(
+				ownerPlayer,
+				getX(),
+				getY() + getBbHeight() * 0.5,
+				getZ(),
+				DroneSoundEvents.IMPACT,
+				SoundSource.NEUTRAL,
+				volume,
+				pitch
+		);
+		if (ownerPlayer != null) {
+			ownerPlayer.connection.send(new ClientboundSoundPacket(
+					BuiltInRegistries.SOUND_EVENT.wrapAsHolder(DroneSoundEvents.IMPACT),
+					SoundSource.NEUTRAL,
+					getX(),
+					getY() + getBbHeight() * 0.5,
+					getZ(),
+					volume,
+					pitch,
+					getRandom().nextLong()
+			));
+		}
+		lastCollisionSoundEventTick = tickCount;
 	}
 
 	private DroneInput directFailsafeInput() {
@@ -1871,6 +1963,14 @@ public class DroneEntity extends Entity {
 		if (collided) {
 			Vec3 attemptedDelta = new Vec3(delta.x(), delta.y(), delta.z());
 			Vec3 actualDelta = new Vec3(getX() - startX, getY() - startY, getZ() - startZ);
+			ContactDynamics.Response preliminaryContact = ContactDynamics.resolve(
+					velocityBeforeCollision,
+					attemptedDelta,
+					actualDelta,
+					horizontalCollision,
+					verticalCollision
+			);
+			maybePlayCollisionSound(preliminaryContact.impactSpeedMetersPerSecond());
 			if (input != null && shouldConstrainOnGround(input) && !hasTakeoffAuthority(input) && verticalCollision && velocityBeforeCollision.y() <= 0.0) {
 				constrainOnGround();
 				return;
@@ -1886,19 +1986,12 @@ public class DroneEntity extends Entity {
 						horizontalCollision ? 0.0 : velocity.z()
 				);
 				simulationRuntime.setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-				simulationRuntime.setContactTelemetry(velocityBeforeCollision.length(), 0.0, 0.0);
+				simulationRuntime.setContactTelemetry(preliminaryContact.impactSpeedMetersPerSecond(), 0.0, 0.0);
 				simulationRuntime.setVelocityMetersPerSecond(velocity);
 				setDeltaMovement(velocity.x() * 0.05, velocity.y() * 0.05, velocity.z() * 0.05);
 				applySimulationResolvedState(before, StateCorrectionReason.COLLISION_CONTACT_SOLVE, "SIMPLE_CONTACT_SOLVE");
 				return;
 			}
-			ContactDynamics.Response preliminaryContact = ContactDynamics.resolve(
-					velocityBeforeCollision,
-					attemptedDelta,
-					actualDelta,
-					horizontalCollision,
-					verticalCollision
-			);
 			ContactDynamics.ContactSurface contactSurface = contactSurfaceForNormal(preliminaryContact.contactNormalWorld());
 			ContactDynamics.Response contact = ContactDynamics.resolve(
 					velocityBeforeCollision,
@@ -2597,30 +2690,32 @@ public class DroneEntity extends Entity {
 	}
 
 	private void recordBlackbox(DroneInput input) {
-		boolean playableMode = usesPlayableFlightModel();
-		String flightModelModeId = playableMode
-				? DroneDebugSettings.FlightModelMode.PLAYABLE.id()
-				: DroneDebugSettings.FlightModelMode.SIMULATION.id();
-		blackbox.record(simulationRuntime.blackboxSample(
-				level().getGameTime(),
-				tickCount,
-				PHYSICS_STEPS_PER_TICK,
-				PHYSICS_DT,
-				flightModelModeId,
-				playableMode ? debugLowAltitudeHorizontalAuthority : 1.0,
-				playableMode ? Math.toDegrees(debugVisualPitchRadians) : 0.0,
-				playableMode ? getYRot() : 0.0,
-				playableMode ? Math.toDegrees(debugVisualRollRadians) : 0.0,
-				playableMode ? debugTargetYawRate * 20.0 : 0.0,
-				input,
-				frameHealth,
-				lastCollisionSeverity,
-				maxPropStrikeRotorIndexThisTick(),
-				maxPropStrikeSeverityThisTick(),
-				propStrikeCount,
-				propStrikeSeverityThisTick,
-				lastEnvironment
-		));
+		if (blackbox.recordingEnabled()) {
+			boolean playableMode = usesPlayableFlightModel();
+			String flightModelModeId = playableMode
+					? DroneDebugSettings.FlightModelMode.PLAYABLE.id()
+					: DroneDebugSettings.FlightModelMode.SIMULATION.id();
+			blackbox.record(simulationRuntime.blackboxSample(
+					level().getGameTime(),
+					tickCount,
+					PHYSICS_STEPS_PER_TICK,
+					PHYSICS_DT,
+					flightModelModeId,
+					playableMode ? debugLowAltitudeHorizontalAuthority : 1.0,
+					playableMode ? Math.toDegrees(debugVisualPitchRadians) : 0.0,
+					playableMode ? getYRot() : 0.0,
+					playableMode ? Math.toDegrees(debugVisualRollRadians) : 0.0,
+					playableMode ? debugTargetYawRate * 20.0 : 0.0,
+					input,
+					frameHealth,
+					lastCollisionSeverity,
+					maxPropStrikeRotorIndexThisTick(),
+					maxPropStrikeSeverityThisTick(),
+					propStrikeCount,
+					propStrikeSeverityThisTick,
+					lastEnvironment
+			));
+		}
 		lastCollisionSeverity *= 0.86;
 		if (lastCollisionSeverity < 0.001) {
 			lastCollisionSeverity = 0.0;
@@ -2667,7 +2762,11 @@ public class DroneEntity extends Entity {
 		}
 
 		DroneControlManager.CompletedDiagnostic completed = DroneControlManager.consumeCompletedDiagnostic(owner);
-		if (completed == null || !completed.autoSaveBlackbox()) {
+		if (completed == null) {
+			return;
+		}
+		blackbox.stopRecording(RecordingSource.SCRIPTED_DIAGNOSTIC);
+		if (!completed.autoSaveBlackbox()) {
 			return;
 		}
 

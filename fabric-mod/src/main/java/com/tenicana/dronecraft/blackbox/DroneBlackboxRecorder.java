@@ -1,12 +1,20 @@
 package com.tenicana.dronecraft.blackbox;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 public final class DroneBlackboxRecorder {
 	private static final int DEFAULT_CAPACITY = 20 * 60 * 5;
 
+	public enum RecordingSource {
+		MANUAL,
+		SCRIPTED_DIAGNOSTIC,
+		FPV_DIAGNOSTIC
+	}
+
 	private final DroneBlackboxSample[] samples;
+	private final EnumSet<RecordingSource> recordingSources = EnumSet.noneOf(RecordingSource.class);
 	private int nextIndex;
 	private int size;
 
@@ -24,6 +32,30 @@ public final class DroneBlackboxRecorder {
 		if (size < samples.length) {
 			size++;
 		}
+	}
+
+	public void startRecording(RecordingSource source, boolean clearExisting) {
+		if (source == null) {
+			throw new IllegalArgumentException("source must not be null.");
+		}
+		if (clearExisting) {
+			clear();
+		}
+		recordingSources.add(source);
+	}
+
+	public void stopRecording(RecordingSource source) {
+		if (source != null) {
+			recordingSources.remove(source);
+		}
+	}
+
+	public boolean recordingEnabled() {
+		return !recordingSources.isEmpty();
+	}
+
+	public boolean recordingEnabled(RecordingSource source) {
+		return source != null && recordingSources.contains(source);
 	}
 
 	public int size() {

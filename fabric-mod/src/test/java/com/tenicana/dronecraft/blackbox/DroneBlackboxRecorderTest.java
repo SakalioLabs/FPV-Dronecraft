@@ -22,6 +22,25 @@ import com.tenicana.dronecraft.sim.Vec3;
 
 class DroneBlackboxRecorderTest {
 	@Test
+	void recordingSourcesAreOptInAndIndependent() {
+		DroneBlackboxRecorder recorder = new DroneBlackboxRecorder(4);
+
+		assertFalse(recorder.recordingEnabled());
+		recorder.startRecording(DroneBlackboxRecorder.RecordingSource.MANUAL, false);
+		assertTrue(recorder.recordingEnabled());
+		assertTrue(recorder.recordingEnabled(DroneBlackboxRecorder.RecordingSource.MANUAL));
+
+		recorder.startRecording(DroneBlackboxRecorder.RecordingSource.FPV_DIAGNOSTIC, false);
+		recorder.stopRecording(DroneBlackboxRecorder.RecordingSource.MANUAL);
+		assertTrue(recorder.recordingEnabled());
+		assertFalse(recorder.recordingEnabled(DroneBlackboxRecorder.RecordingSource.MANUAL));
+		assertTrue(recorder.recordingEnabled(DroneBlackboxRecorder.RecordingSource.FPV_DIAGNOSTIC));
+
+		recorder.stopRecording(DroneBlackboxRecorder.RecordingSource.FPV_DIAGNOSTIC);
+		assertFalse(recorder.recordingEnabled());
+	}
+
+	@Test
 	void blackboxCsvKeepsHeaderAndRowsAlignedWithDiagnosticTelemetry() {
 		DroneConfig config = DroneConfig.racingQuad();
 		DronePhysics physics = new DronePhysics(config);
