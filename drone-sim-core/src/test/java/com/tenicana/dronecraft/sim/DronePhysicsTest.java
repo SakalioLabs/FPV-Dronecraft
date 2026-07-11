@@ -10639,6 +10639,78 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void compactLocalPressureCenterMirrorsCruiseYawTorque() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0);
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics positive = new DronePhysics(config);
+		DronePhysics negative = new DronePhysics(config);
+		Vec3 straightVelocity = new Vec3(0.0, 0.0, 18.0);
+		DroneEnvironment neutralEnvironment = localPressureCenterEnvironment(Vec3.ZERO);
+		DroneEnvironment positiveEnvironment = localPressureCenterEnvironment(new Vec3(0.018, 0.0, 0.0));
+		DroneEnvironment negativeEnvironment = localPressureCenterEnvironment(new Vec3(-0.018, 0.0, 0.0));
+
+		for (int i = 0; i < 120; i++) {
+			holdInCruise(neutral, straightVelocity);
+			holdInCruise(positive, straightVelocity);
+			holdInCruise(negative, straightVelocity);
+			neutral.step(DroneInput.idle(), 0.005, neutralEnvironment);
+			positive.step(DroneInput.idle(), 0.005, positiveEnvironment);
+			negative.step(DroneInput.idle(), 0.005, negativeEnvironment);
+		}
+
+		double neutralYaw = neutral.state().airframePressureCenterTorqueBodyNewtonMeters().y();
+		double positiveYaw = positive.state().airframePressureCenterTorqueBodyNewtonMeters().y();
+		double negativeYaw = negative.state().airframePressureCenterTorqueBodyNewtonMeters().y();
+		assertEquals(0.0, neutralYaw, 1.0e-9);
+		assertTrue(Math.abs(positiveYaw) > 0.003, () -> "positiveYaw=" + positiveYaw);
+		assertEquals(positiveYaw, -negativeYaw, 1.0e-9);
+
+		for (int i = 0; i < 260; i++) {
+			holdInCruise(positive, straightVelocity);
+			positive.step(DroneInput.idle(), 0.005, neutralEnvironment);
+		}
+		double recoveredYaw = positive.state().airframePressureCenterTorqueBodyNewtonMeters().y();
+		assertTrue(Math.abs(recoveredYaw) < 0.001, () -> "recoveredYaw=" + recoveredYaw);
+	}
+
+	@Test
+	void compactLocalPressureCenterProducesMirroredPoweredHoverWashMoment() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics positive = new DronePhysics(config);
+		DronePhysics negative = new DronePhysics(config);
+		DronePhysics unpowered = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		DroneEnvironment positiveEnvironment = localPressureCenterEnvironment(new Vec3(0.018, 0.0, 0.0));
+		DroneEnvironment negativeEnvironment = localPressureCenterEnvironment(new Vec3(-0.018, 0.0, 0.0));
+
+		for (int i = 0; i < 180; i++) {
+			holdInStillAir(positive);
+			holdInStillAir(negative);
+			holdInStillAir(unpowered);
+			positive.step(hover, 0.005, positiveEnvironment);
+			negative.step(hover, 0.005, negativeEnvironment);
+			unpowered.step(DroneInput.idle(), 0.005, positiveEnvironment);
+		}
+
+		Vec3 positiveTorque = positive.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 negativeTorque = negative.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 unpoweredTorque = unpowered.state().airframePressureCenterTorqueBodyNewtonMeters();
+		assertTrue(positive.state().averageRotorInducedVelocityMetersPerSecond() > 2.0);
+		assertTrue(Math.abs(positiveTorque.z()) > 0.0003, () -> "positiveTorque=" + positiveTorque);
+		assertEquals(positiveTorque.z(), -negativeTorque.z(), 1.0e-9);
+		assertTrue(unpoweredTorque.length() < 1.0e-8, () -> "unpoweredTorque=" + unpoweredTorque);
+	}
+
+	@Test
 	void rotorOutwardCantTiltsThrustAxesAndReducesVerticalLift() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
@@ -13685,7 +13757,42 @@ class DronePhysicsTest {
 				0.0,
 				windDerivativeAlongBodyXPerMeter,
 				windDerivativeAlongBodyZPerMeter,
-				pressureGradientBodyPascalsPerMeter
+				pressureGradientBodyPascalsPerMeter,
+				Vec3.ZERO
+		);
+	}
+
+	private static DroneEnvironment localPressureCenterEnvironment(Vec3 localPressureCenterOffsetBodyMeters) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				Vec3.ZERO,
+				0.0,
+				0.0,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				localPressureCenterOffsetBodyMeters
 		);
 	}
 

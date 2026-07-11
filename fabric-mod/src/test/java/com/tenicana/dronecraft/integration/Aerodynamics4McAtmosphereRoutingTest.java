@@ -31,6 +31,11 @@ class Aerodynamics4McAtmosphereRoutingTest {
 				"static final class A4mcSharedStencilCache",
 				"SimulationFlightRuntime(DroneConfig config)"
 		);
+		String pressureCenterReduction = between(
+				runtimeSource,
+				"Vec3 compactLocalPressureCenterOffsetBodyMeters",
+				"Vec3 bodyXWorldDirection()"
+		);
 		String rotorSampling = between(source, "private PrecipitationWetness samplePrecipitationWetness", "private DroneWakeAirflow sampleDroneWakeAirflow");
 
 		assertEquals(1, occurrences(advanced, "sampleAerodynamicsAtmosphere()"));
@@ -72,6 +77,14 @@ class Aerodynamics4McAtmosphereRoutingTest {
 		assertFalse(cacheAndMath.contains("new Vec3["));
 		assertFalse(cacheAndMath.contains("record "));
 		assertFalse(cacheAndMath.contains("Map<"));
+		assertTrue(pressureCenterReduction.contains("LOCAL_PRESSURE_CENTER_OBSTRUCTION_WEIGHT"));
+		assertTrue(pressureCenterReduction.contains("LOCAL_PRESSURE_CENTER_PRESSURE_WEIGHT"));
+		assertFalse(pressureCenterReduction.contains("new double["),
+				"compact pressure-center reduction must not allocate per-rotor scratch arrays");
+		assertFalse(pressureCenterReduction.contains("new Vec3["));
+		assertFalse(pressureCenterReduction.contains("record "));
+		assertFalse(pressureCenterReduction.contains("Map<"));
+		assertFalse(pressureCenterReduction.contains("Aerodynamics4McAtmosphereBridge.sampleGameplay"));
 		assertFalse(rotorSampling.contains("Aerodynamics4McAtmosphereBridge"),
 				"the shared stencil must not expand into per-rotor probes");
 		assertFalse(rotorSampling.contains("sampleAerodynamicsAtmosphereAt("),
@@ -111,6 +124,13 @@ class Aerodynamics4McAtmosphereRoutingTest {
 		assertTrue(stageOne.contains("a4mcSharedStencil.adoptedWindDerivativeAlongBodyXPerMeter(simulationRuntime)"));
 		assertTrue(stageOne.contains("a4mcSharedStencil.adoptedWindDerivativeAlongBodyZPerMeter(simulationRuntime)"));
 		assertTrue(stageOne.contains("a4mcSharedStencil.adoptedPressureGradientBodyPascalsPerMeter(simulationRuntime)"));
+		assertTrue(advanced.contains("compactLocalPressureCenterOffsetBodyMeters("));
+		assertTrue(advanced.contains("rotorEffects.flowObstructions()"));
+		assertTrue(advanced.contains("rotorEffects.flowObstructionWallForceFactors()"));
+		assertTrue(stageOne.contains("compactLocalPressureCenterOffsetBodyMeters("));
+		assertTrue(stageOne.contains("externalAtmosphere.localVoxelFlow() ? sourceQuality : 0.0"));
+		assertTrue(advanced.contains("localPressureCenterOffset"));
+		assertTrue(stageOne.contains("localPressureCenterOffset"));
 	}
 
 	@Test

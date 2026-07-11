@@ -22,6 +22,8 @@ public final class DronePhysics {
 	private static final double ROTOR_DISK_WIND_GRADIENT_MAX_FLAPPING_TILT_RADIANS = Math.toRadians(4.5);
 	private static final double LOCAL_PRESSURE_GRADIENT_FULL_SCALE_PASCALS = 1600.0;
 	private static final double LOCAL_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_METERS_PER_SECOND = 2.4;
+	private static final double LOCAL_PRESSURE_CENTER_HOVER_WASH_GATE_SCALE = 0.42;
+	private static final double LOCAL_PRESSURE_CENTER_HOVER_DOWNLOAD_GAIN = 0.018;
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
 	private static final double COAXIAL_LOAD_BIAS_MAX = CoaxialAllocationCalibration.LOAD_BIAS_MAX;
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
@@ -2645,7 +2647,15 @@ public final class DronePhysics {
 		state.setAirframeLiftForceBodyNewtons(airframeLiftBody);
 		Vec3 rotorWashDragBody = updateRotorWashDragForce(totalForceBody, relativeAirVelocityBody, airDensity, dtSeconds);
 		state.setRotorWashDragForceBodyNewtons(rotorWashDragBody);
-		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(relativeAirVelocityBody, rotorWashDragBody, airframeLiftBody, airframeDragBody, airDensity, dtSeconds);
+		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(
+				relativeAirVelocityBody,
+				rotorWashDragBody,
+				airframeLiftBody,
+				airframeDragBody,
+				environment,
+				airDensity,
+				dtSeconds
+		);
 		state.setAirframeAerodynamicTorqueBodyNewtonMeters(airframeTorqueBody);
 		Vec3 turbulenceTorqueBody = calculateWindTurbulenceTorque(environment, relativeAirVelocityBody, dtSeconds);
 		state.setWindTurbulenceTorqueBodyNewtonMeters(turbulenceTorqueBody);
@@ -7676,6 +7686,7 @@ public final class DronePhysics {
 			Vec3 rotorWashDragForceBody,
 			Vec3 airframeLiftForceBody,
 			Vec3 airframeDragForceBody,
+			DroneEnvironment environment,
 			double airDensityRatio,
 			double dtSeconds
 	) {
@@ -7685,6 +7696,7 @@ public final class DronePhysics {
 				rotorWashDragForceBody,
 				airframeLiftForceBody,
 				airframeDragForceBody,
+				environment,
 				airDensityRatio,
 				dtSeconds
 		);
@@ -7768,9 +7780,39 @@ public final class DronePhysics {
 			Vec3 rotorWashDragForceBody,
 			Vec3 airframeLiftForceBody,
 			Vec3 airframeDragForceBody,
+			DroneEnvironment environment,
 			double airDensityRatio,
 			double dtSeconds
 	) {
+		Vec3 localPressureCenterOffset = environment == null
+				? Vec3.ZERO
+				: environment.adoptedLocalPressureCenterOffsetBodyMeters();
+		if (localPressureCenterOffset.lengthSquared() > 1.0e-12) {
+			double washGate = localPressureCenterHoverWashGate();
+			Vec3 dynamicPressureCenterOffsetBody = updateDynamicPressureCenterOffsetBody(
+					relativeAirVelocityBody,
+					localPressureCenterOffset,
+					washGate,
+					dtSeconds
+			);
+			Vec3 localWashForceBody = localPressureCenterRotorWashForceBody(
+					dynamicPressureCenterOffsetBody,
+					washGate,
+					airDensityRatio
+			);
+			Vec3 momentArmBody = config.centerOfPressureOffsetBodyMeters()
+					.add(dynamicPressureCenterOffsetBody)
+					.subtract(config.centerOfMassOffsetBodyMeters());
+			if (momentArmBody.lengthSquared() <= 1.0e-12 || airDensityRatio <= 0.0) {
+				return Vec3.ZERO;
+			}
+			Vec3 airframeForceBody = airframeDragForceBody
+					.add(airframeLiftForceBody)
+					.add(rotorWashDragForceBody)
+					.add(localWashForceBody);
+			return momentArmBody.cross(airframeForceBody).clamp(-0.45, 0.45);
+		}
+
 		Vec3 dynamicPressureCenterOffsetBody = updateDynamicPressureCenterOffsetBody(relativeAirVelocityBody, dtSeconds);
 		Vec3 momentArmBody = config.centerOfPressureOffsetBodyMeters()
 				.add(dynamicPressureCenterOffsetBody)
@@ -7783,6 +7825,79 @@ public final class DronePhysics {
 				.add(airframeLiftForceBody)
 				.add(rotorWashDragForceBody);
 		return momentArmBody.cross(airframeForceBody).clamp(-0.45, 0.45);
+	}
+
+	private Vec3 updateDynamicPressureCenterOffsetBody(
+			Vec3 relativeAirVelocityBody,
+			Vec3 localPressureCenterOffsetBody,
+			double washGate,
+			double dtSeconds
+	) {
+		double speed = relativeAirVelocityBody.length();
+		double localGate = Math.max(smoothStep(2.0, 12.0, speed), washGate);
+		Vec3 target = calculateSteadyDynamicPressureCenterOffsetBody(relativeAirVelocityBody)
+				.add(localPressureCenterOffsetBody.multiply(localGate))
+				.clamp(-0.040, 0.040);
+		if (dtSeconds <= 0.0) {
+			dynamicPressureCenterOffsetBodyFiltered = target;
+			return dynamicPressureCenterOffsetBodyFiltered;
+		}
+
+		double targetMagnitude = target.length();
+		double previousMagnitude = dynamicPressureCenterOffsetBodyFiltered.length();
+		double timeConstant = targetMagnitude > previousMagnitude ? 0.040 : 0.130;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		dynamicPressureCenterOffsetBodyFiltered = dynamicPressureCenterOffsetBodyFiltered
+				.add(target.subtract(dynamicPressureCenterOffsetBodyFiltered).multiply(alpha))
+				.clamp(-0.040, 0.040);
+		if (targetMagnitude <= 1.0e-6 && dynamicPressureCenterOffsetBodyFiltered.lengthSquared() < 1.0e-8) {
+			dynamicPressureCenterOffsetBodyFiltered = Vec3.ZERO;
+		}
+		return dynamicPressureCenterOffsetBodyFiltered;
+	}
+
+	private Vec3 localPressureCenterRotorWashForceBody(
+			Vec3 dynamicPressureCenterOffsetBody,
+			double washGate,
+			double airDensityRatio
+	) {
+		if (dynamicPressureCenterOffsetBody.lengthSquared() <= 1.0e-12
+				|| washGate <= 1.0e-6
+				|| airDensityRatio <= 0.0) {
+			return Vec3.ZERO;
+		}
+		double inducedVelocity = state.averageRotorInducedVelocityMetersPerSecond();
+		Vec3 drag = config.bodyDragCoefficients();
+		double bodyAreaScale = Math.sqrt(Math.max(0.0, drag.x() * drag.z()));
+		if (bodyAreaScale <= 1.0e-9 || inducedVelocity <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+		double download = airDensityRatio
+				* inducedVelocity
+				* inducedVelocity
+				* bodyAreaScale
+				* LOCAL_PRESSURE_CENTER_HOVER_DOWNLOAD_GAIN
+				* washGate;
+		return new Vec3(0.0, -MathUtil.clamp(download, 0.0, 0.45), 0.0);
+	}
+
+	private double localPressureCenterHoverWashGate() {
+		int rotorCount = Math.min(state.motorCount(), config.rotors().size());
+		if (rotorCount <= 0) {
+			return 0.0;
+		}
+		double totalThrust = 0.0;
+		double inducedVelocitySum = 0.0;
+		for (int i = 0; i < rotorCount; i++) {
+			totalThrust += state.rotorThrustNewtons(i);
+			inducedVelocitySum += state.rotorInducedVelocityMetersPerSecond(i);
+		}
+		double averageInducedVelocity = inducedVelocitySum / rotorCount;
+		double thrustToWeight = totalThrust
+				/ Math.max(1.0e-6, config.massKg() * config.gravityMetersPerSecondSquared());
+		return LOCAL_PRESSURE_CENTER_HOVER_WASH_GATE_SCALE
+				* smoothStep(0.08, 0.70, thrustToWeight)
+				* smoothStep(0.35, 5.5, averageInducedVelocity);
 	}
 
 	private Vec3 updateDynamicPressureCenterOffsetBody(Vec3 relativeAirVelocityBody, double dtSeconds) {

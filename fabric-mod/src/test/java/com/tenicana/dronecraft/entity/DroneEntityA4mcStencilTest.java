@@ -257,6 +257,73 @@ class DroneEntityA4mcStencilTest {
 		assertFalse(cache.shouldRefresh(1L));
 	}
 
+	@Test
+	void compactPressureCenterMirrorsTrustedPressureGradientWithoutRotorScratch() {
+		SimulationFlightRuntime runtime = new SimulationFlightRuntime(DroneConfig.racingQuad());
+		Vec3 positiveX = runtime.compactLocalPressureCenterOffsetBodyMeters(
+				new Vec3(100_000.0, 0.0, 0.0),
+				1.0,
+				null,
+				null
+		);
+		Vec3 negativeX = runtime.compactLocalPressureCenterOffsetBodyMeters(
+				new Vec3(-100_000.0, 0.0, 0.0),
+				1.0,
+				null,
+				null
+		);
+		Vec3 positiveZ = runtime.compactLocalPressureCenterOffsetBodyMeters(
+				new Vec3(0.0, 0.0, 100_000.0),
+				1.0,
+				null,
+				null
+		);
+
+		assertTrue(positiveX.x() < -0.003, () -> "positiveX=" + positiveX);
+		assertEquals(positiveX.x(), -negativeX.x(), 1.0e-12);
+		assertEquals(0.0, positiveX.z(), 1.0e-12);
+		assertTrue(positiveZ.z() < -0.002, () -> "positiveZ=" + positiveZ);
+		assertEquals(0.0, positiveZ.x(), 1.0e-12);
+		assertTrue(Math.abs(positiveX.x()) <= 0.024);
+		assertTrue(Math.abs(positiveZ.z()) <= 0.024);
+	}
+
+	@Test
+	void compactPressureCenterUsesExistingRotorObstructionOnlyUnderLocalVoxelAuthority() {
+		SimulationFlightRuntime runtime = new SimulationFlightRuntime(DroneConfig.racingQuad());
+		double[] rightBlocked = {1.0, 0.0, 0.0, 1.0};
+		double[] leftBlocked = {0.0, 1.0, 1.0, 0.0};
+		double[] symmetric = {1.0, 1.0, 1.0, 1.0};
+		double[] wallFactors = {1.0, 1.0, 1.0, 1.0};
+		Vec3 rightOffset = runtime.compactLocalPressureCenterOffsetBodyMeters(
+				Vec3.ZERO,
+				1.0,
+				rightBlocked,
+				wallFactors
+		);
+		Vec3 leftOffset = runtime.compactLocalPressureCenterOffsetBodyMeters(
+				Vec3.ZERO,
+				1.0,
+				leftBlocked,
+				wallFactors
+		);
+
+		assertTrue(rightOffset.x() < -0.001, () -> "rightOffset=" + rightOffset);
+		assertEquals(rightOffset.x(), -leftOffset.x(), 1.0e-12);
+		assertEquals(Vec3.ZERO, runtime.compactLocalPressureCenterOffsetBodyMeters(
+				Vec3.ZERO,
+				1.0,
+				symmetric,
+				wallFactors
+		));
+		assertEquals(Vec3.ZERO, runtime.compactLocalPressureCenterOffsetBodyMeters(
+				Vec3.ZERO,
+				0.0,
+				rightBlocked,
+				wallFactors
+		));
+	}
+
 	private static Aerodynamics4McAtmosphereBridge.AtmosphereSample sample(
 			Vec3 meanWind,
 			double pressureAnomalyPascals,

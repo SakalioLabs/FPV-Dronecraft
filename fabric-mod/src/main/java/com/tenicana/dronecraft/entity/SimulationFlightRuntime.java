@@ -31,6 +31,11 @@ final class SimulationFlightRuntime {
 	private static final int A4MC_STENCIL_EDGE_SAMPLE_COUNT = 4;
 	private static final double A4MC_STENCIL_MIN_RADIUS_METERS = 1.0e-6;
 	private static final double A4MC_STENCIL_MIN_SOURCE_QUALITY = 1.0e-9;
+	private static final double LOCAL_PRESSURE_CENTER_DISK_RADIUS_SCALE = 0.36;
+	private static final double LOCAL_PRESSURE_CENTER_FULL_SCALE_PASCALS = 1600.0;
+	private static final double LOCAL_PRESSURE_CENTER_MAX_WIND_EQUIVALENT_METERS_PER_SECOND = 2.4;
+	private static final double LOCAL_PRESSURE_CENTER_OBSTRUCTION_WEIGHT = 0.35;
+	private static final double LOCAL_PRESSURE_CENTER_PRESSURE_WEIGHT = 0.85;
 
 	private DronePhysics physics;
 	private FlightModel flightModel;
@@ -521,6 +526,152 @@ final class SimulationFlightRuntime {
 			radiusSum += rotor.radiusMeters();
 		}
 		return radiusSum / rotors.size();
+	}
+
+	/**
+	 * Reduces trusted local-voxel pressure and already-sampled rotor obstruction primitives to one
+	 * body-frame pressure-center offset. This runs once per environment frame and allocates no
+	 * per-rotor scratch arrays.
+	 */
+	Vec3 compactLocalPressureCenterOffsetBodyMeters(
+			Vec3 pressureGradientBodyPascalsPerMeter,
+			double localVoxelSourceQuality,
+			double[] rotorFlowObstructions,
+			double[] rotorFlowObstructionWallForceFactors
+	) {
+		double quality = Double.isFinite(localVoxelSourceQuality)
+				? MathUtil.clamp(localVoxelSourceQuality, 0.0, 1.0)
+				: 0.0;
+		var rotors = physics.config().rotors();
+		int rotorCount = rotors.size();
+		if (quality <= A4MC_STENCIL_MIN_SOURCE_QUALITY || rotorCount == 0) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 pressureGradient = pressureGradientBodyPascalsPerMeter == null
+				|| !pressureGradientBodyPascalsPerMeter.isFinite()
+				? Vec3.ZERO
+				: pressureGradientBodyPascalsPerMeter;
+		double pressureGradientX = pressureGradient.x();
+		double pressureGradientZ = pressureGradient.z();
+		double pressureGradientMagnitude = Math.hypot(pressureGradientX, pressureGradientZ);
+		double pressureDirectionX = 0.0;
+		double pressureDirectionZ = 0.0;
+		double pressureStrength = 0.0;
+		if (pressureGradientMagnitude > 1.0e-9) {
+			double radiusSum = 0.0;
+			for (RotorSpec rotor : rotors) {
+				radiusSum += rotor.radiusMeters();
+			}
+			double representativeRadius = radiusSum / rotorCount;
+			double diskPressureGradientPascals = pressureGradientMagnitude
+					* LOCAL_PRESSURE_CENTER_DISK_RADIUS_SCALE
+					* representativeRadius;
+			double pressureWindEquivalent = MathUtil.clamp(
+					diskPressureGradientPascals / LOCAL_PRESSURE_CENTER_FULL_SCALE_PASCALS
+							* LOCAL_PRESSURE_CENTER_MAX_WIND_EQUIVALENT_METERS_PER_SECOND,
+					0.0,
+					LOCAL_PRESSURE_CENTER_MAX_WIND_EQUIVALENT_METERS_PER_SECOND
+			);
+			pressureStrength = smoothStep(0.15, 1.80, pressureWindEquivalent);
+			pressureDirectionX = pressureGradientX / pressureGradientMagnitude;
+			pressureDirectionZ = pressureGradientZ / pressureGradientMagnitude;
+		}
+
+		double signalSum = 0.0;
+		for (int i = 0; i < rotorCount; i++) {
+			signalSum += compactLocalPressureCenterSignal(
+					rotors.get(i),
+					i,
+					quality,
+					rotorFlowObstructions,
+					rotorFlowObstructionWallForceFactors,
+					pressureStrength,
+					pressureDirectionX,
+					pressureDirectionZ
+			);
+		}
+		double meanSignal = signalSum / rotorCount;
+		if (meanSignal <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+
+		double centroidX = 0.0;
+		double centroidZ = 0.0;
+		for (int i = 0; i < rotorCount; i++) {
+			double anomaly = compactLocalPressureCenterSignal(
+					rotors.get(i),
+					i,
+					quality,
+					rotorFlowObstructions,
+					rotorFlowObstructionWallForceFactors,
+					pressureStrength,
+					pressureDirectionX,
+					pressureDirectionZ
+			) - meanSignal;
+			Vec3 position = rotors.get(i).positionBodyMeters();
+			centroidX += position.x() * anomaly;
+			centroidZ += position.z() * anomaly;
+		}
+		double inverseCount = 1.0 / rotorCount;
+		double strength = MathUtil.clamp(meanSignal, 0.0, 1.0);
+		double offsetX = -centroidX * inverseCount * 0.68 * strength;
+		double offsetZ = -centroidZ * inverseCount * 0.44 * strength;
+		if (Math.abs(offsetX) <= 1.0e-12 && Math.abs(offsetZ) <= 1.0e-12) {
+			return Vec3.ZERO;
+		}
+		return new Vec3(offsetX, 0.0, offsetZ).clamp(-0.024, 0.024);
+	}
+
+	private static double compactLocalPressureCenterSignal(
+			RotorSpec rotor,
+			int rotorIndex,
+			double sourceQuality,
+			double[] rotorFlowObstructions,
+			double[] rotorFlowObstructionWallForceFactors,
+			double pressureStrength,
+			double pressureDirectionX,
+			double pressureDirectionZ
+	) {
+		double obstruction = rotorIndex >= 0
+				&& rotorFlowObstructions != null
+				&& rotorIndex < rotorFlowObstructions.length
+				&& Double.isFinite(rotorFlowObstructions[rotorIndex])
+				? MathUtil.clamp(rotorFlowObstructions[rotorIndex], 0.0, 1.0)
+				: 0.0;
+		double wallFactor = rotorIndex >= 0
+				&& rotorFlowObstructionWallForceFactors != null
+				&& rotorIndex < rotorFlowObstructionWallForceFactors.length
+				&& Double.isFinite(rotorFlowObstructionWallForceFactors[rotorIndex])
+				? MathUtil.clamp(rotorFlowObstructionWallForceFactors[rotorIndex], 0.0, 1.0)
+				: (obstruction > 1.0e-9 ? 1.0 : 0.0);
+		double obstructionSignal = LOCAL_PRESSURE_CENTER_OBSTRUCTION_WEIGHT
+				* sourceQuality
+				* obstruction
+				* wallFactor;
+
+		Vec3 position = rotor.positionBodyMeters();
+		double radialMagnitude = Math.hypot(position.x(), position.z());
+		double radialProjection = radialMagnitude <= 1.0e-9
+				? 0.0
+				: MathUtil.clamp(
+						(position.x() * pressureDirectionX + position.z() * pressureDirectionZ)
+								/ radialMagnitude,
+						-1.0,
+						1.0
+				);
+		double pressureSignal = LOCAL_PRESSURE_CENTER_PRESSURE_WEIGHT
+				* pressureStrength
+				* (0.5 + 0.5 * radialProjection);
+		return obstructionSignal + pressureSignal;
+	}
+
+	private static double smoothStep(double edge0, double edge1, double value) {
+		if (edge1 <= edge0) {
+			return value >= edge1 ? 1.0 : 0.0;
+		}
+		double t = MathUtil.clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0);
+		return t * t * (3.0 - 2.0 * t);
 	}
 
 	Vec3 bodyXWorldDirection() {

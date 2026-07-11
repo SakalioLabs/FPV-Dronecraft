@@ -131,6 +131,24 @@ class DroneEnvironmentAtmosphereTest {
 	}
 
 	@Test
+	void adoptedLocalPressureCenterOffsetIsFiniteClampedAndNeutralized() {
+		Vec3 inRange = new Vec3(0.012, -0.006, 0.018);
+		assertSame(inRange, explicitLocalPressureCenterEnvironment(inRange)
+				.adoptedLocalPressureCenterOffsetBodyMeters());
+		assertEquals(
+				new Vec3(0.024, -0.024, 0.024),
+				explicitLocalPressureCenterEnvironment(new Vec3(0.08, -0.04, 0.12))
+						.adoptedLocalPressureCenterOffsetBodyMeters()
+		);
+		assertSame(Vec3.ZERO, explicitLocalPressureCenterEnvironment(null)
+				.adoptedLocalPressureCenterOffsetBodyMeters());
+		assertSame(Vec3.ZERO, explicitLocalPressureCenterEnvironment(new Vec3(1.0, Double.NaN, 2.0))
+				.adoptedLocalPressureCenterOffsetBodyMeters());
+		assertSame(Vec3.ZERO, explicitLocalPressureCenterEnvironment(new Vec3(-0.0, 0.0, -0.0))
+				.adoptedLocalPressureCenterOffsetBodyMeters());
+	}
+
+	@Test
 	void legacyAtmosphereConstructorDescriptorsDefaultSpatialGradientsToNeutral() throws NoSuchMethodException {
 		assertLegacyAtmosphereConstructorDescriptor();
 		assertLegacyAtmosphereConstructorDescriptor(double.class, double.class, double.class);
@@ -143,6 +161,17 @@ class DroneEnvironmentAtmosphereTest {
 				double.class,
 				double.class
 		);
+		assertLegacyAtmosphereConstructorDescriptor(
+				double.class,
+				double.class,
+				double.class,
+				Vec3.class,
+				double.class,
+				double.class,
+				Vec3.class,
+				Vec3.class,
+				Vec3.class
+		);
 
 		DroneEnvironment[] legacyEnvironments = {
 				explicitEnvironment(20.0, 30.0, 0.20, 0.10, 0.75),
@@ -154,10 +183,12 @@ class DroneEnvironmentAtmosphereTest {
 			assertSame(Vec3.ZERO, environment.adoptedWindDerivativeAlongBodyXPerMeter());
 			assertSame(Vec3.ZERO, environment.adoptedWindDerivativeAlongBodyZPerMeter());
 			assertSame(Vec3.ZERO, environment.adoptedPressureGradientBodyPascalsPerMeter());
+			assertSame(Vec3.ZERO, environment.adoptedLocalPressureCenterOffsetBodyMeters());
 		}
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedWindDerivativeAlongBodyXPerMeter());
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedWindDerivativeAlongBodyZPerMeter());
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedPressureGradientBodyPascalsPerMeter());
+		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedLocalPressureCenterOffsetBodyMeters());
 	}
 
 	@Test
@@ -556,6 +587,40 @@ class DroneEnvironmentAtmosphereTest {
 				windDerivativeAlongBodyXPerMeter,
 				windDerivativeAlongBodyZPerMeter,
 				pressureGradientBodyPascalsPerMeter
+		);
+	}
+
+	private static DroneEnvironment explicitLocalPressureCenterEnvironment(Vec3 localPressureCenterOffset) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				Vec3.ZERO,
+				0.0,
+				0.0,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				localPressureCenterOffset
 		);
 	}
 
