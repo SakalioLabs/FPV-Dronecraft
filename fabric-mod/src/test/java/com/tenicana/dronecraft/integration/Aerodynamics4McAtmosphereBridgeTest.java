@@ -212,6 +212,8 @@ class Aerodynamics4McAtmosphereBridgeTest {
 		assertEquals(-12.0, sample.updraftMetersPerSecond(), 0.0);
 		assertEquals(13.0, sample.gustSpeedMetersPerSecond(), 0.0);
 		assertEquals(4.0, sample.gustVerticalMetersPerSecond(), 0.0);
+		assertEquals(3.0, sample.gustVelocityXMetersPerSecond(), 0.0);
+		assertEquals(12.0, sample.gustVelocityZMetersPerSecond(), 0.0);
 		assertTrue(sample.localVoxelFlow());
 		assertEquals(5000.0, sample.pressureAnomalyPascals(), 0.0,
 				"pressureAnomalyPascals must take precedence over the legacy pressure accessor");
@@ -259,6 +261,8 @@ class Aerodynamics4McAtmosphereBridgeTest {
 		assertEquals(0.0, nonFinite.updraftMetersPerSecond(), 0.0);
 		assertEquals(0.0, nonFinite.gustSpeedMetersPerSecond(), 0.0);
 		assertEquals(0.0, nonFinite.gustVerticalMetersPerSecond(), 0.0);
+		assertEquals(0.0, nonFinite.gustVelocityXMetersPerSecond(), 0.0);
+		assertEquals(0.0, nonFinite.gustVelocityZMetersPerSecond(), 0.0);
 		assertFalse(nonFinite.localVoxelFlow());
 		assertEquals(0.0, nonFinite.pressureAnomalyPascals(), 0.0);
 	}
@@ -323,6 +327,8 @@ class Aerodynamics4McAtmosphereBridgeTest {
 		assertEquals(0.0, sample.updraftMetersPerSecond(), 0.0);
 		assertEquals(0.0, sample.gustSpeedMetersPerSecond(), 0.0);
 		assertEquals(0.0, sample.gustVerticalMetersPerSecond(), 0.0);
+		assertEquals(0.0, sample.gustVelocityXMetersPerSecond(), 0.0);
+		assertEquals(0.0, sample.gustVelocityZMetersPerSecond(), 0.0);
 		assertFalse(sample.localVoxelFlow());
 		assertEquals(0.0, sample.pressureAnomalyPascals(), 0.0);
 	}

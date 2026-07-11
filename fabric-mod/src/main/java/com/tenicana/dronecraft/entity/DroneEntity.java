@@ -1392,7 +1392,8 @@ public class DroneEntity extends Entity {
 				adoptedSourceHumidity,
 				AerodynamicsAtmosphereCoupling.adoptedAtmospherePressureAnomalyPascals(externalAtmosphere, sourceQuality),
 				AerodynamicsAtmosphereCoupling.motorEscVentilationFactor(externalAtmosphere, sourceQuality),
-				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality)
+				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality)
 		);
 	}
 
@@ -1447,7 +1448,8 @@ public class DroneEntity extends Entity {
 				adoptedSourceHumidity,
 				AerodynamicsAtmosphereCoupling.adoptedAtmospherePressureAnomalyPascals(externalAtmosphere, sourceQuality),
 				AerodynamicsAtmosphereCoupling.motorEscVentilationFactor(externalAtmosphere, sourceQuality),
-				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality)
+				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality)
 		);
 	}
 

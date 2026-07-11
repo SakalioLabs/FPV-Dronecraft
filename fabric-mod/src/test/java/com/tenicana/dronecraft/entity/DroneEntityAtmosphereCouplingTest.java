@@ -41,6 +41,14 @@ class DroneEntityAtmosphereCouplingTest {
 		assertEquals(0.0, AerodynamicsAtmosphereCoupling.adoptedAtmospherePressureAnomalyPascals(flow, 0.0), 0.0);
 		assertEquals(1.0, AerodynamicsAtmosphereCoupling.motorEscVentilationFactor(flow, 0.0), 0.0);
 		assertEquals(1.0, AerodynamicsAtmosphereCoupling.batteryVentilationFactor(flow, 0.0), 0.0);
+		assertSame(Vec3.ZERO, AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(flow, 0.0));
+		assertSame(
+				Vec3.ZERO,
+				AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(
+						Aerodynamics4McAtmosphereBridge.AtmosphereSample.unavailable(),
+						1.0
+				)
+		);
 	}
 
 	@Test
@@ -57,13 +65,46 @@ class DroneEntityAtmosphereCouplingTest {
 				13.0,
 				4.0,
 				false,
-				0.0
+				0.0,
+				3.0,
+				12.0
 		);
 
 		Vec3 adopted = AerodynamicsAtmosphereCoupling.adoptedAtmosphereWind(new Vec3(2.0, 0.0, 0.0), flow, 0.5);
 		assertEquals(6.0, adopted.x(), 0.0);
 		assertEquals(1.0, adopted.y(), 0.0);
 		assertEquals(-2.0, adopted.z(), 0.0);
+	}
+
+	@Test
+	void coherentGustPreservesAllComponentsAndConsumesQualityExactlyOnce() {
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample flow = sample(
+				true,
+				10.0,
+				2.0,
+				-4.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				13.0,
+				4.0,
+				false,
+				0.0,
+				3.0,
+				12.0
+		);
+
+		Vec3 fullQuality = AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(flow, 1.0);
+		assertEquals(3.0, fullQuality.x(), 0.0);
+		assertEquals(4.0, fullQuality.y(), 0.0);
+		assertEquals(12.0, fullQuality.z(), 0.0);
+
+		Vec3 halfQuality = AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(flow, 0.5);
+		assertEquals(1.5, halfQuality.x(), 0.0);
+		assertEquals(2.0, halfQuality.y(), 0.0);
+		assertEquals(6.0, halfQuality.z(), 0.0);
+		assertSame(Vec3.ZERO, AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(flow, 1.0e-12));
 	}
 
 	@Test
@@ -159,6 +200,40 @@ class DroneEntityAtmosphereCouplingTest {
 			boolean localVoxelFlow,
 			double pressureAnomalyPascals
 	) {
+		return sample(
+				hasMeanVelocity,
+				meanVelocityX,
+				meanVelocityY,
+				meanVelocityZ,
+				turbulenceIntensity,
+				windShearMagnitudePerBlock,
+				shelterFactor,
+				updraftMetersPerSecond,
+				gustSpeedMetersPerSecond,
+				gustVerticalMetersPerSecond,
+				localVoxelFlow,
+				pressureAnomalyPascals,
+				0.0,
+				0.0
+		);
+	}
+
+	private static Aerodynamics4McAtmosphereBridge.AtmosphereSample sample(
+			boolean hasMeanVelocity,
+			double meanVelocityX,
+			double meanVelocityY,
+			double meanVelocityZ,
+			double turbulenceIntensity,
+			double windShearMagnitudePerBlock,
+			double shelterFactor,
+			double updraftMetersPerSecond,
+			double gustSpeedMetersPerSecond,
+			double gustVerticalMetersPerSecond,
+			boolean localVoxelFlow,
+			double pressureAnomalyPascals,
+			double gustVelocityXMetersPerSecond,
+			double gustVelocityZMetersPerSecond
+	) {
 		return new Aerodynamics4McAtmosphereBridge.AtmosphereSample(
 				true,
 				true,
@@ -179,7 +254,9 @@ class DroneEntityAtmosphereCouplingTest {
 				false,
 				0.0,
 				false,
-				0.0
+				0.0,
+				gustVelocityXMetersPerSecond,
+				gustVelocityZMetersPerSecond
 		);
 	}
 }

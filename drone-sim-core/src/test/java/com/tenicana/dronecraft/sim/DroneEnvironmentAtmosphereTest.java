@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.sim;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +16,8 @@ class DroneEnvironmentAtmosphereTest {
 		assertRawEquals(0.0, environment.adoptedSourcePressureAnomalyPascals());
 		assertRawEquals(1.0, environment.motorEscVentilationFactor());
 		assertRawEquals(1.0, environment.batteryVentilationFactor());
+		assertEquals(Vec3.ZERO, environment.adoptedSourceGustVelocityWorldMetersPerSecond());
+		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedSourceGustVelocityWorldMetersPerSecond());
 		assertRawEquals(0.85 * 0.9789925675447962, environment.effectiveAirDensityRatio());
 
 		DroneEnvironment dry = legacyEnvironment(1.0, 35.0, 0.0);
@@ -24,6 +27,29 @@ class DroneEnvironmentAtmosphereTest {
 		assertRawEquals(
 				DroneEnvironment.speedOfSoundMetersPerSecond(35.0),
 				DroneEnvironment.speedOfSoundMetersPerSecond(35.0, 0.0)
+		);
+	}
+
+	@Test
+	void adoptedSourceGustIsFiniteClampedAndLegacyNeutral() {
+		Vec3 inRange = new Vec3(1.0, -2.0, 3.0);
+		assertSame(
+				inRange,
+				explicitSourceGustEnvironment(inRange).adoptedSourceGustVelocityWorldMetersPerSecond()
+		);
+		assertEquals(
+				Vec3.ZERO,
+				explicitSourceGustEnvironment(new Vec3(Double.NaN, 2.0, 3.0))
+						.adoptedSourceGustVelocityWorldMetersPerSecond()
+		);
+		assertEquals(
+				new Vec3(30.0, -30.0, 3.0),
+				explicitSourceGustEnvironment(new Vec3(45.0, -50.0, 3.0))
+						.adoptedSourceGustVelocityWorldMetersPerSecond()
+		);
+		assertSame(
+				Vec3.ZERO,
+				explicitFlowEnvironment(0.0, 1.0, 1.0).adoptedSourceGustVelocityWorldMetersPerSecond()
 		);
 	}
 
@@ -305,6 +331,34 @@ class DroneEnvironmentAtmosphereTest {
 				pressureAnomalyPascals,
 				motorEscVentilationFactor,
 				batteryVentilationFactor
+		);
+	}
+
+	private static DroneEnvironment explicitSourceGustEnvironment(Vec3 sourceGust) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				sourceGust
 		);
 	}
 

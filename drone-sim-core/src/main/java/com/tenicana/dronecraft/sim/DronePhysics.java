@@ -7185,7 +7185,13 @@ public final class DronePhysics {
 				targetBurble.subtract(windBurbleVelocityWorldMetersPerSecond).multiply(burbleAlpha)
 		);
 		Vec3 drydenTurbulence = updateDrydenTurbulence(environment, targetMeanWind, dtSeconds);
-		windGustVelocityWorldMetersPerSecond = windBurbleVelocityWorldMetersPerSecond.add(drydenTurbulence);
+		windGustVelocityWorldMetersPerSecond = combinedWindGust(
+				environment,
+				targetMeanWind,
+				dirtyAir,
+				windBurbleVelocityWorldMetersPerSecond,
+				drydenTurbulence
+		);
 
 		Vec3 previousEffectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
 		Vec3 effectiveWind = meanWindVelocityWorldMetersPerSecond.add(windGustVelocityWorldMetersPerSecond);
@@ -7289,6 +7295,36 @@ public final class DronePhysics {
 				.multiply(gustScale)
 				.add(upstreamBurble)
 				.multiply(burbleScale);
+	}
+
+	private static Vec3 combinedWindGust(
+			DroneEnvironment environment,
+			Vec3 targetMeanWind,
+			double dirtyAir,
+			Vec3 burble,
+			Vec3 dryden
+	) {
+		Vec3 sourceGust = environment.adoptedSourceGustVelocityWorldMetersPerSecond();
+		double sourceMagnitudeSquared = sourceGust.lengthSquared();
+		if (sourceMagnitudeSquared <= 1.0e-12) {
+			return burble.add(dryden);
+		}
+
+		double sourceMagnitude = Math.sqrt(sourceMagnitudeSquared);
+		double sourceSpeed = MathUtil.clamp(sourceMagnitude, 0.0, 12.0);
+		double horizontalWindSpeed = Math.hypot(targetMeanWind.x(), targetMeanWind.z());
+		double windGate = smoothStep(0.3, 5.0, Math.max(horizontalWindSpeed, sourceSpeed));
+		if (windGate <= 1.0e-9) {
+			return burble.add(dryden);
+		}
+		double dirtyGain = MathUtil.clamp(0.72 + 0.10 * dirtyAir, 0.72, 0.94);
+		double vectorScale = MathUtil.clamp(sourceSpeed / sourceMagnitude, 0.0, 1.0);
+		double scale = 0.22 * windGate * dirtyGain * vectorScale;
+		return new Vec3(
+				burble.x() + dryden.x() + MathUtil.clamp(sourceGust.x() * scale, -2.0, 2.0),
+				burble.y() + dryden.y() + MathUtil.clamp(sourceGust.y() * scale, -2.0, 2.0),
+				burble.z() + dryden.z() + MathUtil.clamp(sourceGust.z() * scale, -2.0, 2.0)
+		);
 	}
 
 	private static double localizedWindBurbleIntensity(DroneEnvironment environment, double dirtyAir) {

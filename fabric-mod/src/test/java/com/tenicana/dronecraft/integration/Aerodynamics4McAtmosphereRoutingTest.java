@@ -48,6 +48,8 @@ class Aerodynamics4McAtmosphereRoutingTest {
 		assertTrue(stageOne.contains("motorEscVentilationFactor(externalAtmosphere, sourceQuality)"));
 		assertTrue(advanced.contains("batteryVentilationFactor(externalAtmosphere, sourceQuality)"));
 		assertTrue(stageOne.contains("batteryVentilationFactor(externalAtmosphere, sourceQuality)"));
+		assertTrue(advanced.contains("adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality)"));
+		assertTrue(stageOne.contains("adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality)"));
 		assertTrue(stageOne.contains("effectiveAmbientTemperature"), "the default playable path must receive adopted source temperature");
 		assertTrue(stageOne.contains("adoptedSourceHumidity"), "the default playable path must receive quality-gated source humidity");
 	}

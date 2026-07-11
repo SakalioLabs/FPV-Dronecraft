@@ -12,8 +12,8 @@ import com.tenicana.dronecraft.sim.Vec3;
  * Optional, single-point atmosphere and flow sampling from Aerodynamics4MC.
  *
  * <p>The bridge deliberately keeps the gameplay contract compact: one body-center sample becomes
- * scalar flow, pressure, shelter, and thermal primitives. It does not expose L2 solver types,
- * source metadata, per-rotor arrays, or any additional world sampling.</p>
+ * primitive mean/coherent flow, pressure, shelter, and thermal inputs. It does not expose L2
+ * solver types, source metadata, per-rotor arrays, or any additional world sampling.</p>
  */
 public final class Aerodynamics4McAtmosphereBridge {
 	private static final String MOD_ID = "aerodynamics4mc";
@@ -355,7 +355,9 @@ public final class Aerodynamics4McAtmosphereBridge {
 						sampleHasTemperature,
 						temperatureCelsius,
 						sampleHasHumidity,
-						sampleHumidity
+						sampleHumidity,
+						hasGustVelocity ? gustX : 0.0,
+						hasGustVelocity ? gustZ : 0.0
 				);
 			} catch (InvocationTargetException error) {
 				disableAfterFailure(this);
@@ -441,7 +443,9 @@ public final class Aerodynamics4McAtmosphereBridge {
 			boolean hasTemperature,
 			double temperatureCelsius,
 			boolean hasHumidity,
-			double humidity
+			double humidity,
+			double gustVelocityXMetersPerSecond,
+			double gustVelocityZMetersPerSecond
 	) {
 		private static final AtmosphereSample UNAVAILABLE = new AtmosphereSample(
 				false,
@@ -463,8 +467,59 @@ public final class Aerodynamics4McAtmosphereBridge {
 				false,
 				0.0,
 				false,
+				0.0,
+				0.0,
 				0.0
 		);
+
+		/** Compatibility constructor for the compact scalar-flow contract. */
+		public AtmosphereSample(
+				boolean hasFlow,
+				boolean trustedForGameplay,
+				double confidence,
+				long freshnessAgeTicks,
+				boolean hasMeanVelocity,
+				double meanVelocityX,
+				double meanVelocityY,
+				double meanVelocityZ,
+				double turbulenceIntensity,
+				double windShearMagnitudePerBlock,
+				double shelterFactor,
+				double updraftMetersPerSecond,
+				double gustSpeedMetersPerSecond,
+				double gustVerticalMetersPerSecond,
+				boolean localVoxelFlow,
+				double pressureAnomalyPascals,
+				boolean hasTemperature,
+				double temperatureCelsius,
+				boolean hasHumidity,
+				double humidity
+		) {
+			this(
+					hasFlow,
+					trustedForGameplay,
+					confidence,
+					freshnessAgeTicks,
+					hasMeanVelocity,
+					meanVelocityX,
+					meanVelocityY,
+					meanVelocityZ,
+					turbulenceIntensity,
+					windShearMagnitudePerBlock,
+					shelterFactor,
+					updraftMetersPerSecond,
+					gustSpeedMetersPerSecond,
+					gustVerticalMetersPerSecond,
+					localVoxelFlow,
+					pressureAnomalyPascals,
+					hasTemperature,
+					temperatureCelsius,
+					hasHumidity,
+					humidity,
+					0.0,
+					0.0
+			);
+		}
 
 		public AtmosphereSample {
 			confidence = finiteClamped(confidence, 0.0, 1.0, 0.0);
@@ -493,6 +548,8 @@ public final class Aerodynamics4McAtmosphereBridge {
 			updraftMetersPerSecond = finiteClamped(updraftMetersPerSecond, -12.0, 12.0, 0.0);
 			gustSpeedMetersPerSecond = finiteClamped(gustSpeedMetersPerSecond, 0.0, 60.0, 0.0);
 			gustVerticalMetersPerSecond = finiteClamped(gustVerticalMetersPerSecond, -30.0, 30.0, 0.0);
+			gustVelocityXMetersPerSecond = finiteClamped(gustVelocityXMetersPerSecond, -30.0, 30.0, 0.0);
+			gustVelocityZMetersPerSecond = finiteClamped(gustVelocityZMetersPerSecond, -30.0, 30.0, 0.0);
 			pressureAnomalyPascals = finiteClamped(pressureAnomalyPascals, -5000.0, 5000.0, 0.0);
 			if (!hasTemperature || !Double.isFinite(temperatureCelsius)) {
 				hasTemperature = false;

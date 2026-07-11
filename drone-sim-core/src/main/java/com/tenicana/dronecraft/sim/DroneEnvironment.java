@@ -22,7 +22,8 @@ public record DroneEnvironment(
 		double adoptedSourceHumidity,
 		double adoptedSourcePressureAnomalyPascals,
 		double motorEscVentilationFactor,
-		double batteryVentilationFactor
+		double batteryVentilationFactor,
+		Vec3 adoptedSourceGustVelocityWorldMetersPerSecond
 ) {
 	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
 	private static final double SEA_LEVEL_PRESSURE_PASCALS = SEA_LEVEL_PRESSURE_HECTOPASCALS * 100.0;
@@ -217,7 +218,60 @@ public record DroneEnvironment(
 				adoptedSourceHumidity,
 				0.0,
 				1.0,
-				1.0
+				1.0,
+				Vec3.ZERO
+		);
+	}
+
+	/** Compatibility constructor for the pressure and body-ventilation atmosphere contract. */
+	public DroneEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double groundClearanceMeters,
+			double turbulenceIntensity,
+			double obstacleProximity,
+			double droneWakeIntensity,
+			double ceilingClearanceMeters,
+			double[] rotorThrustMultipliers,
+			double[] rotorFlowObstructions,
+			Vec3[] rotorFlowObstructionDirectionsBody,
+			double[] rotorWaterImmersions,
+			double waterImmersionIntensity,
+			double[] rotorPrecipitationWetnesses,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			double[] rotorFlowObstructionWallForceFactors,
+			double effectiveAmbientTemperatureCelsius,
+			double ambientHumidity,
+			double adoptedSourceHumidity,
+			double adoptedSourcePressureAnomalyPascals,
+			double motorEscVentilationFactor,
+			double batteryVentilationFactor
+	) {
+		this(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				groundClearanceMeters,
+				turbulenceIntensity,
+				obstacleProximity,
+				droneWakeIntensity,
+				ceilingClearanceMeters,
+				rotorThrustMultipliers,
+				rotorFlowObstructions,
+				rotorFlowObstructionDirectionsBody,
+				rotorWaterImmersions,
+				waterImmersionIntensity,
+				rotorPrecipitationWetnesses,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius,
+				rotorFlowObstructionWallForceFactors,
+				effectiveAmbientTemperatureCelsius,
+				ambientHumidity,
+				adoptedSourceHumidity,
+				adoptedSourcePressureAnomalyPascals,
+				motorEscVentilationFactor,
+				batteryVentilationFactor,
+				Vec3.ZERO
 		);
 	}
 
@@ -301,6 +355,22 @@ public record DroneEnvironment(
 			batteryVentilationFactor = 1.0;
 		}
 		batteryVentilationFactor = MathUtil.clamp(batteryVentilationFactor, 0.78, 1.0);
+		if (adoptedSourceGustVelocityWorldMetersPerSecond == null
+				|| !adoptedSourceGustVelocityWorldMetersPerSecond.isFinite()) {
+			adoptedSourceGustVelocityWorldMetersPerSecond = Vec3.ZERO;
+		} else if (adoptedSourceGustVelocityWorldMetersPerSecond.x() == 0.0
+				&& adoptedSourceGustVelocityWorldMetersPerSecond.y() == 0.0
+				&& adoptedSourceGustVelocityWorldMetersPerSecond.z() == 0.0) {
+			adoptedSourceGustVelocityWorldMetersPerSecond = Vec3.ZERO;
+		} else if (adoptedSourceGustVelocityWorldMetersPerSecond.x() < -30.0
+				|| adoptedSourceGustVelocityWorldMetersPerSecond.x() > 30.0
+				|| adoptedSourceGustVelocityWorldMetersPerSecond.y() < -30.0
+				|| adoptedSourceGustVelocityWorldMetersPerSecond.y() > 30.0
+				|| adoptedSourceGustVelocityWorldMetersPerSecond.z() < -30.0
+				|| adoptedSourceGustVelocityWorldMetersPerSecond.z() > 30.0) {
+			adoptedSourceGustVelocityWorldMetersPerSecond =
+					adoptedSourceGustVelocityWorldMetersPerSecond.clamp(-30.0, 30.0);
+		}
 	}
 
 	public static DroneEnvironment calm() {

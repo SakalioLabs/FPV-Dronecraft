@@ -36,6 +36,28 @@ public final class AerodynamicsAtmosphereCoupling {
 		return new Vec3(windX, windY, windZ).clamp(-30.0, 30.0);
 	}
 
+	/** Keeps the coherent A4MC gust separate from the mean-air filter and gates it exactly once. */
+	public static Vec3 adoptedAtmosphereGustVelocity(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere,
+			double sourceQuality
+	) {
+		if (atmosphere == null || !atmosphere.hasFlow() || sourceQuality <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+		double quality = MathUtil.clamp(sourceQuality, 0.0, 1.0);
+		double gustX = atmosphere.gustVelocityXMetersPerSecond() * quality;
+		double gustY = atmosphere.gustVerticalMetersPerSecond() * quality;
+		double gustZ = atmosphere.gustVelocityZMetersPerSecond() * quality;
+		if (gustX * gustX + gustY * gustY + gustZ * gustZ <= 1.0e-18) {
+			return Vec3.ZERO;
+		}
+		return new Vec3(
+				MathUtil.clamp(gustX, -30.0, 30.0),
+				MathUtil.clamp(gustY, -30.0, 30.0),
+				MathUtil.clamp(gustZ, -30.0, 30.0)
+		);
+	}
+
 	public static double adoptedAtmosphereTurbulence(
 			double fallbackTurbulence,
 			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere,

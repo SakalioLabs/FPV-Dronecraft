@@ -3692,6 +3692,87 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void coherentSourceGustJoinsTheTransientWindWithoutChangingMeanOrDryden() {
+		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		Vec3 meanWind = new Vec3(8.0, 0.0, 0.0);
+		Vec3 adoptedSourceGust = new Vec3(3.0, 4.0, 12.0);
+		DroneEnvironment environment = sourceGustEnvironment(meanWind, 0.0, adoptedSourceGust);
+
+		physics.step(idle, 0.005, environment);
+		physics.step(idle, 0.005, environment);
+
+		double sourceMagnitude = adoptedSourceGust.length();
+		double expectedScale = 0.22 * 0.72 * 12.0 / sourceMagnitude;
+		Vec3 expectedGust = adoptedSourceGust.multiply(expectedScale);
+		assertVecClose(expectedGust, physics.state().windGustVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(
+				meanWind,
+				physics.aerodynamicTransientStateSnapshot().meanWindVelocityWorldMetersPerSecond(),
+				1.0e-12
+		);
+		assertEquals(Vec3.ZERO, physics.state().windBurbleVelocityWorldMetersPerSecond());
+		assertEquals(Vec3.ZERO, physics.state().drydenTurbulenceVelocityWorldMetersPerSecond());
+		assertVecClose(
+				meanWind.add(expectedGust),
+				physics.state().effectiveWindVelocityWorldMetersPerSecond(),
+				1.0e-12
+		);
+
+		DronePhysics reversed = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneEnvironment reversedEnvironment = sourceGustEnvironment(
+				meanWind,
+				0.0,
+				adoptedSourceGust.multiply(-1.0)
+		);
+		reversed.step(idle, 0.005, reversedEnvironment);
+		reversed.step(idle, 0.005, reversedEnvironment);
+		assertVecClose(
+				expectedGust.multiply(-1.0),
+				reversed.state().windGustVelocityWorldMetersPerSecond(),
+				1.0e-12
+		);
+	}
+
+	@Test
+	void zeroSourceGustPreservesTheLegacyWindTraceExactly() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics legacy = new DronePhysics(config);
+		DronePhysics explicitNeutral = new DronePhysics(config);
+		DroneInput idle = DroneInput.idle();
+		Vec3 wind = new Vec3(10.0, 0.0, 0.0);
+		DroneEnvironment legacyEnvironment = new DroneEnvironment(
+				wind,
+				1.0,
+				6.0,
+				0.55
+		);
+		DroneEnvironment explicitNeutralEnvironment = sourceGustEnvironment(wind, 0.55, Vec3.ZERO);
+		long drydenHash = 0xcbf29ce484222325L;
+
+		for (int i = 0; i < 1800; i++) {
+			legacy.step(idle, 0.005, legacyEnvironment);
+			explicitNeutral.step(idle, 0.005, explicitNeutralEnvironment);
+			Vec3 dryden = explicitNeutral.state().drydenTurbulenceVelocityWorldMetersPerSecond();
+			drydenHash = (drydenHash ^ Double.doubleToRawLongBits(dryden.x())) * 0x100000001b3L;
+			drydenHash = (drydenHash ^ Double.doubleToRawLongBits(dryden.y())) * 0x100000001b3L;
+			drydenHash = (drydenHash ^ Double.doubleToRawLongBits(dryden.z())) * 0x100000001b3L;
+		}
+
+		assertEquals(legacy.aerodynamicTransientStateSnapshot(), explicitNeutral.aerodynamicTransientStateSnapshot());
+		assertEquals(
+				legacy.state().effectiveWindVelocityWorldMetersPerSecond(),
+				explicitNeutral.state().effectiveWindVelocityWorldMetersPerSecond()
+		);
+		assertEquals(0x81c227bb0d8c0c51L, drydenHash, "a741092d Dryden raw-bit trace changed");
+		assertEquals(
+				0x8fca93ca00512bd7L,
+				explicitNeutral.aerodynamicTransientStateSnapshot().drydenRandomState(),
+				"a741092d Dryden random call order changed"
+		);
+	}
+
+	@Test
 	void turbulentAirMassAddsGustAndWindShearTelemetry() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DroneInput idle = DroneInput.idle();
@@ -12894,6 +12975,38 @@ class DronePhysicsTest {
 				adoptedSourcePressureAnomalyPascals,
 				motorEscVentilationFactor,
 				batteryVentilationFactor
+		);
+	}
+
+	private static DroneEnvironment sourceGustEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double turbulenceIntensity,
+			Vec3 adoptedSourceGustVelocityWorldMetersPerSecond
+	) {
+		return new DroneEnvironment(
+				windVelocityWorldMetersPerSecond,
+				1.0,
+				6.0,
+				turbulenceIntensity,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				adoptedSourceGustVelocityWorldMetersPerSecond
 		);
 	}
 
