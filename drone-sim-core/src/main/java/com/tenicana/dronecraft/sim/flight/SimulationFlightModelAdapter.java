@@ -1,6 +1,5 @@
 package com.tenicana.dronecraft.sim.flight;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +18,9 @@ public final class SimulationFlightModelAdapter implements FlightModel {
 	private DroneConfig config = DroneConfig.racingQuad();
 	private DronePhysics physics = new DronePhysics(config);
 	private FlightModelDiagnostics diagnostics = FlightModelDiagnostics.empty();
+	private DroneEnvironment deferredDiagnosticsEnvironment = DroneEnvironment.calm();
+	private boolean deferredDiagnosticsConfigChanged;
+	private boolean diagnosticsDirty;
 
 	public SimulationFlightModelAdapter() {
 	}
@@ -44,6 +46,7 @@ public final class SimulationFlightModelAdapter implements FlightModel {
 		physics = new DronePhysics(config);
 		applySnapshot(context.initialState());
 		diagnostics = diagnosticsFor(List.of(), context.environment());
+		diagnosticsDirty = false;
 	}
 
 	@Override
@@ -55,6 +58,7 @@ public final class SimulationFlightModelAdapter implements FlightModel {
 		);
 		applySnapshot(safeState);
 		diagnostics = diagnosticsFor(List.of(new StateCorrection(StateCorrectionReason.RESET_TELEPORT, "RESET", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)), DroneEnvironment.calm());
+		diagnosticsDirty = false;
 	}
 
 	@Override
@@ -65,18 +69,18 @@ public final class SimulationFlightModelAdapter implements FlightModel {
 		);
 		List<StateCorrection> corrections = correction == null ? List.of() : List.of(correction);
 		diagnostics = diagnosticsFor(corrections, DroneEnvironment.calm());
+		diagnosticsDirty = false;
 	}
 
 	@Override
 	public FlightStepResult step(FlightStepContext context) {
-		List<StateCorrection> corrections = new ArrayList<>();
-		if (!context.config().equals(config)) {
-			physics.applyConfig(context.config());
-			config = context.config();
-			corrections.add(new StateCorrection(StateCorrectionReason.MODEL_INITIALIZATION, "CONFIG_APPLIED", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO));
-		}
+		boolean configChanged = synchronizeConfig(context.config());
+		List<StateCorrection> corrections = configChanged
+				? List.of(configAppliedCorrection())
+				: List.of();
 		physics.step(context.input(), context.dtSeconds(), context.environment());
 		diagnostics = diagnosticsFor(corrections, context.environment());
+		diagnosticsDirty = false;
 		return new FlightStepResult(
 				snapshot(),
 				actuatorOutput(),
@@ -84,6 +88,30 @@ public final class SimulationFlightModelAdapter implements FlightModel {
 				corrections,
 				diagnostics
 		);
+	}
+
+	@Override
+	public void stepStateOnly(
+			DroneInput input,
+			DroneEnvironment environment,
+			double dtSeconds,
+			long tick,
+			DroneConfig requestedConfig,
+			Map<String, String> modelConfiguration
+	) {
+		if (!Double.isFinite(dtSeconds) || dtSeconds <= 0.0) {
+			throw new IllegalArgumentException("dtSeconds must be finite and positive");
+		}
+		DroneEnvironment safeEnvironment = environment == null ? DroneEnvironment.calm() : environment;
+		boolean configChanged = synchronizeConfig(
+				Objects.requireNonNull(requestedConfig, "config")
+		);
+		deferredDiagnosticsConfigChanged = diagnosticsDirty
+				? deferredDiagnosticsConfigChanged || configChanged
+				: configChanged;
+		physics.step(input, dtSeconds, safeEnvironment);
+		deferredDiagnosticsEnvironment = safeEnvironment;
+		diagnosticsDirty = true;
 	}
 
 	@Override
@@ -102,11 +130,43 @@ public final class SimulationFlightModelAdapter implements FlightModel {
 
 	@Override
 	public FlightModelDiagnostics diagnostics() {
+		if (diagnosticsDirty) {
+			List<StateCorrection> corrections = deferredDiagnosticsConfigChanged
+					? List.of(configAppliedCorrection())
+					: List.of();
+			diagnostics = diagnosticsFor(corrections, deferredDiagnosticsEnvironment);
+			diagnosticsDirty = false;
+			deferredDiagnosticsConfigChanged = false;
+		}
 		return diagnostics;
 	}
 
 	public DronePhysics physics() {
 		return physics;
+	}
+
+	private boolean synchronizeConfig(DroneConfig requestedConfig) {
+		DroneConfig physicsConfig = physics.config();
+		if (requestedConfig == config && requestedConfig == physicsConfig) {
+			return false;
+		}
+		boolean adapterChanged = !requestedConfig.equals(config);
+		boolean physicsChanged = !requestedConfig.equals(physicsConfig);
+		if (physicsChanged) {
+			physics.applyConfig(requestedConfig);
+		}
+		config = requestedConfig;
+		return adapterChanged || physicsChanged;
+	}
+
+	private static StateCorrection configAppliedCorrection() {
+		return new StateCorrection(
+				StateCorrectionReason.MODEL_INITIALIZATION,
+				"CONFIG_APPLIED",
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO
+		);
 	}
 
 	private void applySnapshot(FlightStateSnapshot snapshot) {

@@ -47,6 +47,10 @@ class DroneEntityFlightModelRoutingTest {
 				source.indexOf("private void applyDebugFlight"),
 				source.indexOf("private void applyDebugMovement")
 		);
+		String simulationStepMethod = source.substring(
+				source.indexOf("private void stepSimulationFlightModel"),
+				source.indexOf("private void applyDebugMovement")
+		);
 		String directControlMethods = source.substring(
 				source.indexOf("private DroneInput directFailsafeInput"),
 				source.indexOf("private static final float DEBUG_ARM_THRUST_THRESHOLD")
@@ -191,7 +195,10 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(source.contains("FlightModel simulationFlightModel"), "DroneEntity should own simulation through the common FlightModel contract");
 		assertTrue(source.contains("FlightModel playableFlightModel"), "DroneEntity should own playable through the common FlightModel contract");
 		assertTrue(source.contains("FlightModelRouter flightModels"), "DroneEntity should route active models through the common facade");
-		assertTrue(source.contains("flightModels.step(new FlightStepContext("), "model steps should cross the common FlightStepContext boundary");
+		assertTrue(playableStepMethods.contains("flightModels.step(new FlightStepContext("), "rich playable steps should cross the common FlightStepContext boundary");
+		assertTrue(simulationStepMethod.contains("flightModels.stepStateOnly("), "high-rate simulation substeps should use the common state-only model boundary");
+		assertFalse(simulationStepMethod.contains("new FlightStepContext("), "state-only simulation substeps should not allocate a rich step context");
+		assertFalse(simulationStepMethod.contains("flightModels.snapshot()"), "state-only simulation substeps should not materialize a previous snapshot");
 		assertTrue(
 				tickMethod.indexOf("DroneDebugSettings.controlLoggingEnabled()") < tickMethod.indexOf("level().getEntitiesOfClass"),
 				"disabled ownerless logging must not perform a spatial entity query"

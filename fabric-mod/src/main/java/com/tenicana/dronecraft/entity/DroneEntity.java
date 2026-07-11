@@ -1037,14 +1037,14 @@ public class DroneEntity extends Entity {
 
 	private void stepSimulationFlightModel(DroneInput input, double dtSeconds, DroneEnvironment environment) {
 		flightModels.select(SimulationFlightModelAdapter.ID);
-		flightModels.step(new FlightStepContext(
+		flightModels.stepStateOnly(
 				input,
-				flightModels.snapshot(),
 				environment,
 				dtSeconds,
 				tickCount,
-				simulationRuntime.flightModelConfig()
-		));
+				simulationRuntime.flightModelConfig(),
+				Map.of()
+		);
 	}
 
 	private void applyDebugMovement(

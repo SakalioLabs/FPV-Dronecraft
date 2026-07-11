@@ -5,6 +5,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.tenicana.dronecraft.sim.DroneConfig;
+import com.tenicana.dronecraft.sim.DroneEnvironment;
+import com.tenicana.dronecraft.sim.DroneInput;
+
 public final class FlightModelRouter {
 	private final Map<String, FlightModel> models;
 	private FlightModel activeModel;
@@ -61,6 +65,17 @@ public final class FlightModelRouter {
 
 	public FlightStepResult step(FlightStepContext context) {
 		return activeModel.step(context);
+	}
+
+	public void stepStateOnly(
+			DroneInput input,
+			DroneEnvironment environment,
+			double dtSeconds,
+			long tick,
+			DroneConfig config,
+			Map<String, String> modelConfiguration
+	) {
+		activeModel.stepStateOnly(input, environment, dtSeconds, tick, config, modelConfiguration);
 	}
 
 	public FlightStateSnapshot snapshot() {

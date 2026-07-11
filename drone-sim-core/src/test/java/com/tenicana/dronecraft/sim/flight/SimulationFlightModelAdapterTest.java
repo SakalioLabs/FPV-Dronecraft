@@ -1,7 +1,13 @@
 package com.tenicana.dronecraft.sim.flight;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -103,6 +109,101 @@ class SimulationFlightModelAdapterTest {
 		);
 
 		assertQuaternionClose(resolvedAttitude, adapter.physics().state().estimatedOrientation(), 1.0e-12);
+	}
+
+	@Test
+	void stateOnlyStepMatchesRichStepAndRefreshesDiagnosticsOnDemand() {
+		DroneConfig config = deterministic(DroneConfig.racingQuad());
+		FlightStateSnapshot initial = new FlightStateSnapshot(
+				new Vec3(0.5, 12.0, -1.0),
+				new Vec3(2.0, -0.25, 1.5),
+				new Quaternion(0.98, 0.04, -0.16, 0.08).normalized(),
+				new Vec3(0.2, -0.1, 0.3),
+				FlightMode.ACRO,
+				true
+		);
+		DroneEnvironment environment = new DroneEnvironment(new Vec3(3.0, 0.5, -2.0), 0.96, Double.POSITIVE_INFINITY);
+		SimulationFlightModelAdapter rich = new SimulationFlightModelAdapter();
+		SimulationFlightModelAdapter stateOnly = new SimulationFlightModelAdapter();
+		rich.initialize(new FlightModelInitializationContext(config, initial, environment, 0L));
+		stateOnly.initialize(new FlightModelInitializationContext(config, initial, environment, 0L));
+		FlightModelDiagnostics diagnosticsBefore = stateOnly.diagnostics();
+
+		for (int tick = 0; tick < 20; tick++) {
+			DroneInput input = new DroneInput(
+					0.42 + tick * 0.012,
+					Math.sin(tick * 0.21) * 0.65,
+					Math.cos(tick * 0.17) * 0.55,
+					Math.sin(tick * 0.09) * 0.35,
+					true,
+					true,
+					FlightMode.ACRO
+			);
+			FlightStepResult richResult = rich.step(new FlightStepContext(
+					input,
+					rich.snapshot(),
+					environment,
+					0.005,
+					tick,
+					config
+			));
+			stateOnly.stepStateOnly(input, environment, 0.005, tick, config, Map.of());
+
+			FlightStateSnapshot actual = stateOnly.snapshot();
+			assertVecClose(richResult.nextState().positionWorldMeters(), actual.positionWorldMeters(), 1.0e-12);
+			assertVecClose(richResult.nextState().velocityWorldMetersPerSecond(), actual.velocityWorldMetersPerSecond(), 1.0e-12);
+			assertQuaternionClose(richResult.nextState().attitude(), actual.attitude(), 1.0e-12);
+			assertVecClose(richResult.nextState().angularVelocityBodyRadiansPerSecond(), actual.angularVelocityBodyRadiansPerSecond(), 1.0e-12);
+			assertQuaternionClose(rich.physics().state().estimatedOrientation(), stateOnly.physics().state().estimatedOrientation(), 1.0e-12);
+			assertEquals(rich.physics().state().batteryVoltage(), stateOnly.physics().state().batteryVoltage(), 1.0e-12);
+			assertArrayEquals(rich.physics().state().motorRpm(), stateOnly.physics().state().motorRpm(), 1.0e-12);
+			assertArrayEquals(rich.physics().state().rotorThrustNewtons(), stateOnly.physics().state().rotorThrustNewtons(), 1.0e-12);
+		}
+
+		FlightModelDiagnostics refreshed = stateOnly.diagnostics();
+		assertNotSame(diagnosticsBefore, refreshed);
+		assertTrue(refreshed.finite());
+		assertEquals(
+				stateOnly.physics().state().averageMotorRpm(),
+				Double.parseDouble(refreshed.values().get("average_motor_rpm")),
+				1.0e-12
+		);
+		assertSame(refreshed, stateOnly.diagnostics());
+		assertThrows(IllegalArgumentException.class, () -> stateOnly.stepStateOnly(
+				DroneInput.idle(),
+				environment,
+				Double.NaN,
+				21L,
+				config,
+				Map.of()
+		));
+	}
+
+	@Test
+	void stateOnlyStepSynchronizesExternallyAppliedConfigWithoutDelayedCorrection() {
+		DroneConfig config = deterministic(DroneConfig.racingQuad());
+		DroneConfig warmerBattery = config.withBattery(16.8, 16.7, 0.020, 20.0, 90.0);
+		SimulationFlightModelAdapter adapter = new SimulationFlightModelAdapter();
+		adapter.initialize(new FlightModelInitializationContext(config, FlightStateSnapshot.zero(FlightMode.HORIZON), DroneEnvironment.calm(), 0L));
+		adapter.physics().applyConfig(warmerBattery);
+
+		DroneInput input = new DroneInput(0.3, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
+		adapter.stepStateOnly(input, DroneEnvironment.calm(), 0.005, 1L, warmerBattery, Map.of());
+		for (int tick = 2; tick <= 10; tick++) {
+			adapter.stepStateOnly(input, DroneEnvironment.calm(), 0.005, tick, warmerBattery, Map.of());
+		}
+
+		assertEquals(warmerBattery, adapter.physics().config());
+		assertEquals(StateCorrectionReason.MODEL_INITIALIZATION, adapter.diagnostics().stateCorrections().get(0).reason());
+		FlightStepResult next = adapter.step(new FlightStepContext(
+				input,
+				adapter.snapshot(),
+				DroneEnvironment.calm(),
+				0.005,
+				11L,
+				warmerBattery
+		));
+		assertTrue(next.stateCorrections().isEmpty());
 	}
 
 	private static DroneConfig deterministic(DroneConfig config) {
