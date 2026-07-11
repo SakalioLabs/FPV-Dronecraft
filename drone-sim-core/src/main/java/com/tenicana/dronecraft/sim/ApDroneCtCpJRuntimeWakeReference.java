@@ -191,6 +191,16 @@ final class ApDroneCtCpJRuntimeWakeReference {
 		);
 		double thrustCoefficientCt = geometry.staticThrustCoefficientCt() * shapeCt / 0.120;
 		double powerCoefficientCp = geometry.staticPowerCoefficientCp() * shapeCp / 0.040;
+		double propellerThrustScale = MathUtil.clamp(
+				thrustCoefficientCt / geometry.staticThrustCoefficientCt(),
+				0.0,
+				2.0
+		);
+		double propellerPowerScale = MathUtil.clamp(
+				powerCoefficientCp / geometry.staticPowerCoefficientCp(),
+				0.0,
+				2.0
+		);
 
 		double advanceSpeed = advanceRatioJ * revolutionsPerSecond * geometry.diameterMeters();
 		double thrust = thrustCoefficientCt
@@ -329,7 +339,12 @@ final class ApDroneCtCpJRuntimeWakeReference {
 			diskLoadingStrength = MathUtil.clamp(thrust / geometry.maxThrustNewtons(), 0.0, 1.0);
 		}
 		out.set(
+				advanceRatioJ,
+				advanceSpeed,
 				thrust,
+				shaftTorque,
+				propellerThrustScale,
+				propellerPowerScale,
 				diskLoading,
 				diskLoadingStrength,
 				inducedVelocity,
@@ -444,7 +459,12 @@ final class ApDroneCtCpJRuntimeWakeReference {
 
 	static final class Sample {
 		private boolean applied;
+		private double advanceRatioJ;
+		private double axialAdvanceSpeedMetersPerSecond;
 		private double thrustNewtons;
+		private double shaftTorqueNewtonMeters;
+		private double propellerThrustScale;
+		private double propellerPowerScale;
 		private double diskLoadingNewtonsPerSquareMeter;
 		private double diskLoadingStrength;
 		private double idealInducedVelocityMetersPerSecond;
@@ -454,7 +474,12 @@ final class ApDroneCtCpJRuntimeWakeReference {
 
 		private void clear() {
 			applied = false;
+			advanceRatioJ = 0.0;
+			axialAdvanceSpeedMetersPerSecond = 0.0;
 			thrustNewtons = 0.0;
+			shaftTorqueNewtonMeters = 0.0;
+			propellerThrustScale = 0.0;
+			propellerPowerScale = 0.0;
 			diskLoadingNewtonsPerSquareMeter = 0.0;
 			diskLoadingStrength = 0.0;
 			idealInducedVelocityMetersPerSecond = 0.0;
@@ -464,7 +489,12 @@ final class ApDroneCtCpJRuntimeWakeReference {
 		}
 
 		private void set(
+				double advanceRatioJ,
+				double axialAdvanceSpeedMetersPerSecond,
 				double thrustNewtons,
+				double shaftTorqueNewtonMeters,
+				double propellerThrustScale,
+				double propellerPowerScale,
 				double diskLoadingNewtonsPerSquareMeter,
 				double diskLoadingStrength,
 				double idealInducedVelocityMetersPerSecond,
@@ -472,7 +502,12 @@ final class ApDroneCtCpJRuntimeWakeReference {
 				double farWakeEquivalentRadiusMeters,
 				double wakeTangentialVelocityMetersPerSecond
 		) {
+			this.advanceRatioJ = advanceRatioJ;
+			this.axialAdvanceSpeedMetersPerSecond = axialAdvanceSpeedMetersPerSecond;
 			this.thrustNewtons = thrustNewtons;
+			this.shaftTorqueNewtonMeters = shaftTorqueNewtonMeters;
+			this.propellerThrustScale = propellerThrustScale;
+			this.propellerPowerScale = propellerPowerScale;
 			this.diskLoadingNewtonsPerSquareMeter = diskLoadingNewtonsPerSquareMeter;
 			this.diskLoadingStrength = diskLoadingStrength;
 			this.idealInducedVelocityMetersPerSecond = idealInducedVelocityMetersPerSecond;
@@ -486,8 +521,28 @@ final class ApDroneCtCpJRuntimeWakeReference {
 			return applied;
 		}
 
+		double advanceRatioJ() {
+			return advanceRatioJ;
+		}
+
+		double axialAdvanceSpeedMetersPerSecond() {
+			return axialAdvanceSpeedMetersPerSecond;
+		}
+
 		double thrustNewtons() {
 			return thrustNewtons;
+		}
+
+		double shaftTorqueNewtonMeters() {
+			return shaftTorqueNewtonMeters;
+		}
+
+		double propellerThrustScale() {
+			return propellerThrustScale;
+		}
+
+		double propellerPowerScale() {
+			return propellerPowerScale;
 		}
 
 		double diskLoadingNewtonsPerSquareMeter() {

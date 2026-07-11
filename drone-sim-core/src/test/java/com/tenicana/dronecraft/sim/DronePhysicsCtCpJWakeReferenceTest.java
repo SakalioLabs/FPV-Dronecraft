@@ -128,7 +128,7 @@ class DronePhysicsCtCpJWakeReferenceTest {
 	}
 
 	@Test
-	void publicStepUsesTheReferenceOneSubstepAfterItWasProduced()
+	void publicStepUsesCurrentReferenceForForceAndCommittedReferenceForTheNextWakePass()
 			throws ReflectiveOperationException {
 		DroneConfig config = DroneConfig.apDrone();
 		DronePhysics enabled = new DronePhysics(config);
@@ -148,10 +148,25 @@ class DronePhysicsCtCpJWakeReferenceTest {
 		enabled.step(powered, 1.0e-6);
 		fallbackOnly.step(powered, 1.0e-6);
 
-		assertDroneStatesRawEqual(enabled.state(), fallbackOnly.state());
 		assertWakeTargetsEqual(enabled, fallbackOnly);
 		assertAllApplied(enabled);
 		assertAllCleared(fallbackOnly);
+		assertFalse(rawEqual(
+				enabled.state().rotorPropellerPowerScale(0),
+				fallbackOnly.state().rotorPropellerPowerScale(0)
+		));
+		assertFalse(rawEqual(
+				enabled.state().rotorThrustNewtons(0),
+				fallbackOnly.state().rotorThrustNewtons(0)
+		));
+		assertFalse(rawEqual(
+				enabled.state().motorAerodynamicTorqueNewtonMeters(0),
+				fallbackOnly.state().motorAerodynamicTorqueNewtonMeters(0)
+		));
+		assertFalse(rawEqual(
+				enabled.state().rotorInducedVelocityMetersPerSecond(0),
+				fallbackOnly.state().rotorInducedVelocityMetersPerSecond(0)
+		));
 
 		prepareStateForFlow(enabled, new Vec3(14.0, 0.0, 0.0));
 		prepareStateForFlow(fallbackOnly, new Vec3(14.0, 0.0, 0.0));
@@ -454,6 +469,10 @@ class DronePhysicsCtCpJWakeReferenceTest {
 			max = Math.max(max, value);
 		}
 		return max;
+	}
+
+	private static boolean rawEqual(double left, double right) {
+		return Double.doubleToRawLongBits(left) == Double.doubleToRawLongBits(right);
 	}
 
 	private static void assertAllCleared(DronePhysics physics) throws ReflectiveOperationException {

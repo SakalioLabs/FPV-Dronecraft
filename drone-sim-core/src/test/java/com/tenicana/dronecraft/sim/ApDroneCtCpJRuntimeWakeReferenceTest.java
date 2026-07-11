@@ -54,7 +54,12 @@ class ApDroneCtCpJRuntimeWakeReferenceTest {
 				> sample.idealInducedVelocityMetersPerSecond());
 		assertTrue(sample.farWakeEquivalentRadiusMeters() > 0.0);
 		assertTrue(sample.wakeTangentialVelocityMetersPerSecond() > 0.0);
+		assertRawBits(0x3FDA027525460AA6L, sample.advanceRatioJ());
+		assertRawBits(0x40150EDA8E566F78L, sample.axialAdvanceSpeedMetersPerSecond());
 		assertRawBits(0x3FDB54139D1F4E98L, sample.thrustNewtons());
+		assertRawBits(0x3F8361124616C602L, sample.shaftTorqueNewtonMeters());
+		assertRawBits(0x3FE8DDDDDDDDDDDEL, sample.propellerThrustScale());
+		assertRawBits(0x3FF44CCCCCCCCCCCL, sample.propellerPowerScale());
 		assertRawBits(0x4040331F7F83D466L, sample.diskLoadingNewtonsPerSquareMeter());
 		assertRawBits(0x3FA031D2BBECA05BL, sample.diskLoadingStrength());
 		assertRawBits(0x3FFDB617E8723164L, sample.idealInducedVelocityMetersPerSecond());
@@ -104,7 +109,12 @@ class ApDroneCtCpJRuntimeWakeReferenceTest {
 		);
 
 		assertFalse(sample.applied());
+		assertEquals(0.0, sample.advanceRatioJ(), 0.0);
+		assertEquals(0.0, sample.axialAdvanceSpeedMetersPerSecond(), 0.0);
 		assertEquals(0.0, sample.thrustNewtons(), 0.0);
+		assertEquals(0.0, sample.shaftTorqueNewtonMeters(), 0.0);
+		assertEquals(0.0, sample.propellerThrustScale(), 0.0);
+		assertEquals(0.0, sample.propellerPowerScale(), 0.0);
 		assertEquals(0.0, sample.diskLoadingNewtonsPerSquareMeter(), 0.0);
 		assertEquals(0.0, sample.diskLoadingStrength(), 0.0);
 		assertEquals(0.0, sample.idealInducedVelocityMetersPerSecond(), 0.0);
