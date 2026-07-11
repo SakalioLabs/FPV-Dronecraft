@@ -1,0 +1,639 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+def fpvDroneExpectedPhysicsSubstepsPerTick = 10
+def fpvDroneExpectedPhysicsDtSeconds = 0.005d
+def fpvDroneExpectedPhysicsRateHertz = 200.0d
+
+def fpvDroneRequiredSelfTestColumns = [
+		"game_time",
+		"tick",
+		"physics_substeps",
+		"physics_dt_s",
+		"physics_rate_hz",
+		"flight_model",
+		"x",
+		"y",
+		"z",
+		"speed_mps",
+		"armed",
+		"flight_mode",
+		"raw_link_active",
+		"control_throttle",
+		"control_armed",
+		"control_flight_mode",
+		"control_frame_error",
+		"motor_power",
+		"esc_command_error",
+		"esc_desync",
+		"airframe_rotor_count",
+		"avg_motor_rpm",
+		"motor_5_rpm",
+		"avg_motor_erpm100",
+		"motor_5_erpm100",
+		"avg_motor_einterval_us",
+		"motor_5_einterval_us",
+		"avg_motor_rpm_telemetry_valid",
+		"motor_5_rpm_telemetry_valid",
+		"avg_motor_accel_rad_s2",
+		"motor_commutation_ripple",
+		"motor_5_commutation_ripple",
+		"motor_phase_current_a",
+		"motor_5_phase_current_a",
+		"motor_current_ripple_a",
+		"motor_5_current_ripple_a",
+		"motor_torque_ripple_nm",
+		"motor_5_torque_ripple_nm",
+		"avg_motor_mechanical_loss_torque_nm",
+		"motor_5_mechanical_loss_torque_nm",
+		"avg_motor_shaft_power_w",
+		"motor_electrical_efficiency",
+		"motor_5_electrical_efficiency",
+		"motor_voltage_headroom",
+		"motor_5_voltage_headroom",
+		"motor_winding_resistance_scale",
+		"motor_5_winding_resistance_scale",
+		"avg_motor_target_rpm",
+		"motor_5_target_rpm",
+		"avg_motor_target_erpm100",
+		"motor_5_target_erpm100",
+		"avg_motor_target_einterval_us",
+		"motor_5_target_einterval_us",
+		"avg_motor_tracking_error",
+		"motor_5_tracking_error",
+		"avg_motor_actuator_authority",
+		"motor_5_actuator_authority",
+		"mixer_saturation",
+		"mixer_yaw_authority",
+		"mixer_min_axis_authority",
+		"mixer_low_saturation",
+		"mixer_high_saturation",
+		"mixer_low_headroom",
+		"mixer_high_headroom",
+		"pid_integral_relax_pitch",
+		"pid_integral_relax_yaw",
+		"pid_integral_relax_roll",
+		"avg_motor_cooling_factor",
+		"tune_cg_x_m",
+		"tune_cg_z_m",
+		"tune_imu_x_m",
+		"tune_imu_z_m",
+		"tune_cp_x_m",
+		"airframe_pressure_center_pitch_torque_nm",
+		"airframe_drag_imav_ratio",
+		"tune_rotor_outward_cant_deg",
+		"gyro_bias_pitch_dps",
+		"gyro_clip",
+		"gyro_notch_hz",
+		"gyro_notch_attenuation",
+		"gyro_notch_spread_hz",
+		"gyro_rpm_harmonic_notch_attenuation",
+		"gyro_blade_pass_notch_hz",
+		"gyro_blade_pass_notch_attenuation",
+		"gyro_blade_pass_notch_spread_hz",
+		"accel_bias_x_mps2",
+		"accel_clip",
+		"battery_voltage",
+		"battery_current_a",
+		"battery_current_limit",
+		"mqtb_hq5x4x3_current_a",
+		"mqtb_hq5x4x3_power_w",
+		"mqtb_hq5x4x3_current_ratio",
+		"mqtb_hq5x4x3_current_residual_a",
+		"battery_20pct_sag_current_a",
+		"battery_20pct_sag_current_margin",
+		"battery_regen_current_a",
+		"battery_voltage_spike_v",
+		"battery_bus_ripple_v",
+		"imu_supply_noise",
+		"battery_temp_c",
+		"battery_cooling_factor",
+		"battery_thermal_limit",
+		"rotor_0_health",
+		"rotor_1_health",
+		"rotor_2_health",
+		"rotor_3_health",
+		"rotor_5_thrust_n",
+		"rotor_5_force_y_n",
+		"rotor_5_torque_y_nm",
+		"rotor_5_health",
+		"prop_strike",
+		"prop_strike_severity",
+		"prop_strike_count",
+		"rotor_stall_intensity",
+		"rotor_damage_vibration",
+		"rotor_5_damage_vibration",
+		"rotor_translational_lift",
+		"rotor_aerodynamic_load",
+		"rotor_dynamic_inflow_tau_s",
+		"rotor_5_dynamic_inflow_tau_s",
+		"rotor_advance_ratio",
+		"rotor_prop_power_scale",
+		"rotor_5_prop_power_scale",
+		"rotor_axial_gust_thrust_scale",
+		"rotor_5_axial_gust_thrust_scale",
+		"rotor_reverse_flow_fraction",
+		"rotor_tip_mach",
+		"rotor_5_tip_mach",
+		"rotor_blade_aoa_deg",
+		"rotor_5_blade_element_stall",
+		"rotor_blade_dissymmetry",
+		"rotor_5_blade_dissymmetry",
+		"rotor_flapping_tilt_deg",
+		"rotor_5_flapping_tilt_deg",
+		"rotor_inflow_skew",
+		"rotor_wake_interference",
+		"rotor_wake_thrust_scale",
+		"rotor_5_wake_thrust_scale",
+		"rotor_coaxial_load_bias",
+		"rotor_5_coaxial_load_bias",
+		"rotor_coaxial_load_bias_target",
+		"rotor_coaxial_load_bias_clipping",
+		"rotor_coaxial_allocation_load",
+		"rotor_coaxial_allocation_ratio",
+		"rotor_coaxial_allocation_mech_gain_pct",
+		"rotor_coaxial_allocation_elec_gain_pct",
+		"rotor_coaxial_allocation_uncertainty_pct",
+		"rotor_wet_thrust_scale",
+		"rotor_5_wet_thrust_scale",
+		"rotor_wake_swirl_mps",
+		"rotor_5_wake_swirl_mps",
+		"rotor_windmilling",
+		"rotor_5_windmilling",
+		"rotor_arm_flex",
+		"rotor_5_arm_flex",
+		"rotor_surface_scrape",
+		"rotor_inertia_roll_torque_nm",
+		"rotor_active_braking_roll_torque_nm",
+		"rotor_acceleration_reaction_roll_torque_nm",
+		"rotor_gyroscopic_roll_torque_nm",
+		"rotor_angular_drag_roll_torque_nm",
+		"propwash_intensity",
+		"propwash_wake_intensity",
+		"vortex_ring_state",
+		"airframe_angular_drag_roll_torque_nm",
+		"airframe_lift_n",
+		"airframe_body_drag_n",
+		"linear_damping_drag_n",
+		"ground_effect_drag_n",
+		"rotor_wash_drag_n",
+		"rotor_wall_effect_n",
+		"contact_impact_mps",
+		"contact_slip_mps",
+		"contact_bounce_mps",
+		"contact_angular_impulse_dps",
+		"barometer_altitude_m",
+		"barometer_error_m",
+		"barometer_propwash_error_m",
+		"max_esc_temp_c",
+		"esc_thermal_limit",
+		"avg_esc_cooling_factor",
+		"airspeed_mps",
+		"angle_of_attack_deg",
+		"sideslip_deg",
+		"effective_wind_x_mps",
+		"effective_wind_y_mps",
+		"effective_wind_z_mps",
+		"wind_gust_speed_mps",
+		"wind_dryden_speed_mps",
+		"wind_burble_speed_mps",
+		"wind_shear_accel_mps2",
+		"drone_wake_intensity",
+		"water_immersion",
+		"precipitation_wetness",
+		"effective_air_density_ratio",
+		"ambient_temperature_c",
+		"rotor_0_water_immersion",
+		"rotor_5_water_immersion",
+		"rotor_0_precipitation_wetness",
+		"rotor_5_precipitation_wetness",
+		"ceiling_effect_multiplier",
+		"env_thrust_asymmetry",
+		"rotor_flow_obstruction",
+		"tune_rotor_blade_pitch_m",
+		"tune_rotor_blade_count",
+		"tune_motor_pole_pairs",
+		"tune_rotor_stall_loss",
+		"tune_rotor_imbalance",
+		"tune_esc_command_frame_rate_hz",
+		"tune_esc_command_resolution_steps"
+]
+
+def fpvDroneSelfTestReportDirectory = { file("run/fpvdrone-selftest") }
+
+def fpvDroneSelfTestReports = {
+	def directory = fpvDroneSelfTestReportDirectory()
+	if (!directory.isDirectory()) {
+		return []
+	}
+	return (directory.listFiles({ candidate ->
+		candidate.name.startsWith("server-selftest-") && candidate.name.endsWith(".json")
+	} as FileFilter) ?: []) as List
+}
+
+def fpvDroneWriteSelfTestMarker = { Task task, String expectedFlightModel, String expectedControlMode ->
+	def eulaFile = file("run/eula.txt")
+	def eulaAccepted = eulaFile.isFile() && eulaFile.readLines("UTF-8").any {
+		it.trim().equalsIgnoreCase("eula=true")
+	}
+	if (!eulaAccepted) {
+		throw new GradleException("${task.path} requires ${eulaFile} to contain eula=true. Review Mojang's EULA before running the self-test.")
+	}
+
+	def existingReports = fpvDroneSelfTestReports().collectEntries { report ->
+		[(report.canonicalPath): [last_modified: report.lastModified(), length: report.length()]]
+	}
+	def startedAt = System.currentTimeMillis()
+	def markerDirectory = layout.buildDirectory.dir("fpvdrone-selftest-markers").get().asFile
+	markerDirectory.mkdirs()
+	def marker = new File(markerDirectory, "${task.name}-${startedAt}-${UUID.randomUUID()}.json")
+	marker.setText(JsonOutput.prettyPrint(JsonOutput.toJson([
+			task                 : task.path,
+			expected_flight_model: expectedFlightModel,
+			expected_control_mode: expectedControlMode,
+			started_at_millis    : startedAt,
+			existing_reports     : existingReports
+	])), "UTF-8")
+	task.extensions.extraProperties.set("fpvDroneSelfTestMarker", marker)
+	logger.lifecycle("FPV Dronecraft self-test marker written: {}", marker)
+}
+
+def fpvDroneLatestSelfTestReport = { File marker ->
+	if (marker == null || !marker.isFile()) {
+		throw new GradleException("FPV Dronecraft self-test marker was not created for the current run.")
+	}
+	def markerData = new JsonSlurper().parse(marker)
+	def startedAt = (markerData.started_at_millis ?: marker.lastModified()) as long
+	def existingReports = markerData.existing_reports instanceof Map ? markerData.existing_reports : [:]
+	def reports = fpvDroneSelfTestReports().findAll { report ->
+		def previous = existingReports[report.canonicalPath]
+		def changedSinceMarker = previous == null
+				|| (previous.last_modified as long) != report.lastModified()
+				|| (previous.length as long) != report.length()
+		changedSinceMarker && report.lastModified() >= startedAt && report.lastModified() >= marker.lastModified()
+	}
+	if (reports.isEmpty()) {
+		throw new GradleException("No new FPV Dronecraft server self-test JSON report was created after marker ${marker} in ${fpvDroneSelfTestReportDirectory()}.")
+	}
+	return reports.sort { left, right ->
+		def timestampOrder = left.lastModified() <=> right.lastModified()
+		timestampOrder != 0 ? timestampOrder : left.name <=> right.name
+	}.last()
+}
+
+def fpvDroneValidateSelfTestReport = { File reportFile, String expectedFlightModel, String expectedControlMode, int expectedDurationTicks ->
+	def report = new JsonSlurper().parse(reportFile)
+	if (report.passed != true) {
+		throw new GradleException("FPV Dronecraft server self-test failed: ${report.reason}; report ${reportFile}")
+	}
+	def flightModel = report.flight_model?.toString()?.toLowerCase()
+	if (!(flightModel in ["simulation", "playable"])) {
+		throw new GradleException("FPV Dronecraft server self-test report has an unknown flight_model=${report.flight_model}: ${reportFile}")
+	}
+	def flightMode = report.flight_mode?.toString()?.toLowerCase()
+	if (!(flightMode in ["acro", "angle", "horizon"])) {
+		throw new GradleException("FPV Dronecraft server self-test report has an unknown flight_mode=${report.flight_mode}: ${reportFile}")
+	}
+	def selfTestControlMode = report.self_test_control_mode?.toString()?.toLowerCase()
+	if (!(selfTestControlMode in ["acro", "angle", "horizon"])) {
+		throw new GradleException("FPV Dronecraft server self-test report has an unknown self_test_control_mode=${report.self_test_control_mode}: ${reportFile}")
+	}
+	if (flightModel != expectedFlightModel) {
+		throw new GradleException("FPV Dronecraft server self-test report flight_model=${flightModel} does not match expected flight_model=${expectedFlightModel}: ${reportFile}")
+	}
+	if (selfTestControlMode != expectedControlMode || flightMode != expectedControlMode) {
+		throw new GradleException("FPV Dronecraft server self-test report control modes flight_mode=${flightMode}, self_test_control_mode=${selfTestControlMode} do not match expected control_mode=${expectedControlMode}: ${reportFile}")
+	}
+
+	def csvPath = report.csv?.toString()
+	if (csvPath == null || csvPath.isBlank()) {
+		throw new GradleException("FPV Dronecraft server self-test report does not reference a CSV file: ${reportFile}")
+	}
+
+	def csvFile = new File(csvPath)
+	if (!csvFile.isAbsolute()) {
+		csvFile = file(csvPath)
+	}
+	if (!csvFile.isFile()) {
+		throw new GradleException("FPV Dronecraft server self-test CSV does not exist: ${csvFile}")
+	}
+
+	def lines = csvFile.readLines("UTF-8").findAll { !it.isBlank() }
+	if (lines.size() < 2) {
+		throw new GradleException("FPV Dronecraft server self-test CSV has no samples: ${csvFile}")
+	}
+
+	def header = lines[0].split(",", -1)
+	def headerSet = header as Set
+	def missingColumns = fpvDroneRequiredSelfTestColumns.findAll { !headerSet.contains(it) }
+	if (!missingColumns.isEmpty()) {
+		throw new GradleException("FPV Dronecraft server self-test CSV is missing columns ${missingColumns}: ${csvFile}")
+	}
+
+	def rows = lines.drop(1).collect { it.split(",", -1) }
+	def mismatchedRow = rows.findIndexOf { it.length != header.length }
+	if (mismatchedRow >= 0) {
+		throw new GradleException("FPV Dronecraft server self-test CSV row ${mismatchedRow + 2} does not match ${header.length} header columns: ${csvFile}")
+	}
+	def flightModelColumn = header.toList().indexOf("flight_model")
+	def wrongFlightModelRow = rows.findIndexOf { it[flightModelColumn].toLowerCase() != expectedFlightModel }
+	if (wrongFlightModelRow >= 0) {
+		throw new GradleException("FPV Dronecraft server self-test CSV row ${wrongFlightModelRow + 2} did not record flight_model=${expectedFlightModel}: ${csvFile}")
+	}
+	def tickColumn = header.toList().indexOf("tick")
+	def physicsSubstepsColumn = header.toList().indexOf("physics_substeps")
+	def physicsDtColumn = header.toList().indexOf("physics_dt_s")
+	def physicsRateColumn = header.toList().indexOf("physics_rate_hz")
+	rows.eachWithIndex { row, rowIndex ->
+		try {
+			def tick = Integer.parseInt(row[tickColumn])
+			def physicsSubsteps = Integer.parseInt(row[physicsSubstepsColumn])
+			def physicsDt = Double.parseDouble(row[physicsDtColumn])
+			def physicsRate = Double.parseDouble(row[physicsRateColumn])
+			if (tick != rowIndex + 1
+					|| physicsSubsteps != fpvDroneExpectedPhysicsSubstepsPerTick
+					|| Math.abs(physicsDt - fpvDroneExpectedPhysicsDtSeconds) > 1.0e-9d
+					|| Math.abs(physicsRate - fpvDroneExpectedPhysicsRateHertz) > 1.0e-9d) {
+				throw new GradleException("FPV Dronecraft server self-test CSV row ${rowIndex + 2} violates the 200 Hz physics sampling contract: tick=${tick}, substeps=${physicsSubsteps}, dt=${physicsDt}, rate=${physicsRate}: ${csvFile}")
+			}
+		} catch (NumberFormatException ignored) {
+			throw new GradleException("FPV Dronecraft server self-test CSV row ${rowIndex + 2} has non-numeric physics sampling values: ${csvFile}")
+		}
+	}
+	def flightModeColumn = header.toList().indexOf("flight_mode")
+	def controlFlightModeColumn = header.toList().indexOf("control_flight_mode")
+	def armedColumn = header.toList().indexOf("armed")
+	def controlArmedColumn = header.toList().indexOf("control_armed")
+	def motorPowerColumn = header.toList().indexOf("motor_power")
+	def csvNumberOrZero = { value ->
+		try {
+			return value.toString() as double
+		} catch (Exception ignored) {
+			return 0.0d
+		}
+	}
+	def activeFlightRows = rows.findAll {
+		it[armedColumn].toBoolean()
+				|| it[controlArmedColumn].toBoolean()
+				|| csvNumberOrZero(it[motorPowerColumn]) > 0.08d
+	}
+	if (activeFlightRows.isEmpty()) {
+		throw new GradleException("FPV Dronecraft server self-test CSV did not record any active flight samples: ${csvFile}")
+	}
+	def wrongFlightModeRow = rows.findIndexOf {
+		(it[armedColumn].toBoolean()
+				|| it[controlArmedColumn].toBoolean()
+				|| csvNumberOrZero(it[motorPowerColumn]) > 0.08d)
+				&& (it[flightModeColumn].toLowerCase() != expectedControlMode
+				|| it[controlFlightModeColumn].toLowerCase() != expectedControlMode)
+	}
+	if (wrongFlightModeRow >= 0) {
+		throw new GradleException("FPV Dronecraft server self-test active CSV row ${wrongFlightModeRow + 2} did not record control_mode=${expectedControlMode}: ${csvFile}")
+	}
+
+	def csvText = csvFile.getText("UTF-8")
+	if (csvText.contains("NaN") || csvText.contains("Infinity")) {
+		throw new GradleException("FPV Dronecraft server self-test CSV contains non-finite values: ${csvFile}")
+	}
+
+	def sampleCount = (report.sample_count ?: 0) as int
+	def durationTicks = (report.duration_ticks ?: 0) as int
+	if (sampleCount != lines.size() - 1) {
+		throw new GradleException("FPV Dronecraft server self-test sample count mismatch: report=${sampleCount} csv=${lines.size() - 1}")
+	}
+	if (durationTicks <= 0 || sampleCount < durationTicks) {
+		throw new GradleException("FPV Dronecraft server self-test did not record enough samples: duration=${durationTicks} samples=${sampleCount}")
+	}
+	if (durationTicks != expectedDurationTicks) {
+		throw new GradleException("FPV Dronecraft server self-test duration=${durationTicks} ticks does not match configured duration=${expectedDurationTicks} ticks: ${reportFile}")
+	}
+	if (sampleCount != expectedDurationTicks) {
+		throw new GradleException("FPV Dronecraft server self-test sample_count=${sampleCount} does not match configured duration=${expectedDurationTicks} ticks: ${reportFile}")
+	}
+	def physicsSubstepsPerTick = (report.physics_substeps_per_tick ?: 0) as int
+	def physicsDtSeconds = (report.physics_dt_s ?: 0.0d) as double
+	def physicsRateHertz = (report.physics_rate_hz ?: 0.0d) as double
+	if (physicsSubstepsPerTick != fpvDroneExpectedPhysicsSubstepsPerTick
+			|| Math.abs(physicsDtSeconds - fpvDroneExpectedPhysicsDtSeconds) > 1.0e-9d
+			|| Math.abs(physicsRateHertz - fpvDroneExpectedPhysicsRateHertz) > 1.0e-9d) {
+		throw new GradleException("FPV Dronecraft server self-test report violates the 200 Hz physics sampling contract: substeps=${physicsSubstepsPerTick}, dt=${physicsDtSeconds}, rate=${physicsRateHertz}: ${reportFile}")
+	}
+	def playableFlightModel = flightModel == "playable"
+	def minimumAltitudeGain = playableFlightModel ? 0.30 : 0.45
+	def minimumSpeed = playableFlightModel ? 0.20 : 0.35
+	def minimumAirspeed = playableFlightModel ? 0.10 : 0.25
+	def reportedMaxSpeed = (report.max_speed_mps ?: 0.0) as double
+	def reportedMaxAirspeed = (report.max_airspeed_mps ?: 0.0) as double
+	def motionAirspeed = playableFlightModel ? Math.max(reportedMaxAirspeed, reportedMaxSpeed) : reportedMaxAirspeed
+	if ((report.max_altitude_gain_m ?: 0.0) <= minimumAltitudeGain) {
+		throw new GradleException("FPV Dronecraft server self-test did not climb enough: ${report.max_altitude_gain_m}m")
+	}
+	if (reportedMaxSpeed <= minimumSpeed || motionAirspeed <= minimumAirspeed) {
+		throw new GradleException("FPV Dronecraft server self-test did not move enough: speed=${report.max_speed_mps} airspeed=${report.max_airspeed_mps} motionAirspeed=${motionAirspeed}")
+	}
+	if ((report.max_motor_power ?: 0.0) <= 0.08) {
+		throw new GradleException("FPV Dronecraft server self-test did not exercise motor power.")
+	}
+	if (playableFlightModel && (report.max_avg_motor_rpm_telemetry_rpm ?: 0.0) <= 1000.0) {
+		throw new GradleException("FPV Dronecraft playable self-test did not report active motor RPM telemetry.")
+	}
+	if (playableFlightModel) {
+		def maxPlayableAverageMotorRpm = (report.max_avg_motor_rpm_telemetry_rpm ?: 0.0) as double
+		if (maxPlayableAverageMotorRpm > 11000.0) {
+			throw new GradleException("FPV Dronecraft playable self-test reported implausibly high average motor RPM telemetry: ${maxPlayableAverageMotorRpm}")
+		}
+		def maxPlayableFinalSpeed = selfTestControlMode == "acro" ? 34.0 : 0.08
+		if (((report.final_speed_mps ?: 0.0) as double) > maxPlayableFinalSpeed) {
+			throw new GradleException("FPV Dronecraft playable self-test finished while still moving too fast for ${selfTestControlMode}: ${report.final_speed_mps}m/s")
+		}
+		if (selfTestControlMode != "acro" && ((report.final_horizontal_distance_m ?: 0.0) as double) > 1.10) {
+			throw new GradleException("FPV Dronecraft playable assisted self-test drifted too far from takeoff point: ${report.final_horizontal_distance_m}m")
+		}
+		if ((report.playable_neutral_sample_count ?: 0) < 20) {
+			throw new GradleException("FPV Dronecraft playable self-test did not record enough neutral-stick flight samples: ${report.playable_neutral_sample_count}")
+		}
+		if (selfTestControlMode == "acro") {
+			def maxAcroVisualAttitude = Math.max((report.max_playable_visual_pitch_deg ?: 0.0) as double, (report.max_playable_visual_roll_deg ?: 0.0) as double)
+			if (maxAcroVisualAttitude < 8.0 || ((report.max_playable_visual_yaw_rate_dps ?: 0.0) as double) < 8.0) {
+				throw new GradleException("FPV Dronecraft playable Acro self-test did not exercise attitude/yaw authority enough: attitude=${maxAcroVisualAttitude} yaw=${report.max_playable_visual_yaw_rate_dps}")
+			}
+			if (((report.max_playable_neutral_visual_yaw_rate_dps ?: 0.0) as double) > 0.35) {
+				throw new GradleException("FPV Dronecraft playable Acro self-test did not settle yaw rate after centered sticks: yaw=${report.max_playable_neutral_visual_yaw_rate_dps}")
+			}
+		} else if ((report.max_playable_neutral_visual_pitch_deg ?: 0.0) > 1.5
+				|| (report.max_playable_neutral_visual_roll_deg ?: 0.0) > 1.5
+				|| (report.max_playable_neutral_visual_yaw_rate_dps ?: 0.0) > 0.35) {
+			throw new GradleException("FPV Dronecraft playable neutral-stick self-test drifted: pitch=${report.max_playable_neutral_visual_pitch_deg} roll=${report.max_playable_neutral_visual_roll_deg} yaw=${report.max_playable_neutral_visual_yaw_rate_dps}")
+		}
+	}
+	if (!playableFlightModel && ((report.max_battery_current_a ?: 0.0) <= 1.5 || (report.max_battery_sag_v ?: 0.0) <= 0.01)) {
+		throw new GradleException("FPV Dronecraft server self-test did not exercise the powertrain enough.")
+	}
+	def missingReportFields = [
+			"airframe_rotor_count",
+			"max_battery_effective_resistance_ohm",
+			"max_battery_soc_resistance_scale",
+			"max_battery_temp_resistance_scale",
+			"max_battery_polarization_resistance_scale",
+			"playable_neutral_sample_count",
+			"max_playable_neutral_visual_pitch_deg",
+			"max_playable_neutral_visual_roll_deg",
+			"max_playable_neutral_visual_yaw_rate_dps",
+			"max_avg_motor_rpm_telemetry_rpm",
+			"max_motor_5_rpm_telemetry_rpm",
+			"max_avg_motor_erpm100",
+			"max_motor_5_erpm100",
+			"min_avg_motor_einterval_us",
+			"min_motor_5_einterval_us",
+			"max_avg_motor_rpm_telemetry_valid",
+			"max_motor_5_rpm_telemetry_valid",
+			"final_altitude_gain_m",
+			"final_horizontal_distance_m",
+			"max_gyro_notch_hz",
+			"max_gyro_notch_attenuation",
+			"max_gyro_notch_spread_hz",
+			"max_gyro_rpm_harmonic_notch_attenuation",
+			"max_gyro_blade_pass_notch_hz",
+			"max_gyro_blade_pass_notch_attenuation",
+			"max_gyro_blade_pass_notch_spread_hz",
+			"max_vortex_ring_thrust_buffet",
+			"max_vortex_ring_buffet_force_n",
+			"max_rotor_induced_velocity_mps",
+			"max_rotor_inflow_lag_loss_percent",
+			"max_rotor_dynamic_inflow_tau_s",
+			"max_rotor_translational_lift",
+			"max_rotor_propeller_advance_ratio_j",
+			"max_rotor_propeller_thrust_loss_percent",
+			"max_rotor_propeller_power_loss_percent",
+			"max_rotor_reverse_flow",
+			"max_rotor_low_reynolds_loss",
+			"max_rotor_blade_pass_ripple",
+			"max_rotor_damage_vibration",
+			"max_rotor_wet_thrust_loss_percent",
+			"max_rotor_coaxial_load_bias",
+			"max_rotor_coaxial_load_bias_target",
+			"max_rotor_coaxial_load_bias_clipping",
+			"max_rotor_coaxial_allocation_load",
+			"max_rotor_coaxial_allocation_ratio",
+			"max_rotor_coaxial_allocation_mech_gain_pct",
+			"max_rotor_coaxial_allocation_elec_gain_pct",
+			"max_rotor_coaxial_allocation_uncertainty_pct",
+			"max_ground_effect_leveling_torque_nm",
+			"max_airframe_body_drag_n",
+			"max_linear_damping_drag_n",
+			"max_airframe_drag_along_flow_n",
+			"max_airframe_drag_equivalent_linear_k",
+			"max_airframe_drag_equivalent_cda_m2",
+			"max_airframe_drag_imav_ratio"
+	].findAll { !report.containsKey(it) }
+	if (!missingReportFields.isEmpty()) {
+		throw new GradleException("FPV Dronecraft server self-test JSON is missing fields ${missingReportFields}: ${reportFile}")
+	}
+	def airframeRotorCount = (report.airframe_rotor_count ?: 4) as int
+	if (!playableFlightModel) {
+		if ((report.max_battery_effective_resistance_ohm ?: 0.0) <= 0.001
+				|| (report.max_battery_soc_resistance_scale ?: 0.0) < 1.0
+				|| (report.max_battery_temp_resistance_scale ?: 0.0) < 1.0
+				|| (report.max_battery_polarization_resistance_scale ?: 0.0) < 1.0) {
+			throw new GradleException("FPV Dronecraft server self-test did not report valid battery resistance split telemetry.")
+		}
+		def averageRpmTelemetryMissing = (report.max_avg_motor_rpm_telemetry_valid ?: 0.0) < 0.5
+				|| (report.max_avg_motor_rpm_telemetry_rpm ?: 0.0) <= 100.0
+				|| (report.max_avg_motor_erpm100 ?: 0.0) <= 5.0
+				|| (report.min_avg_motor_einterval_us ?: 65535.0) <= 0.0
+				|| (report.min_avg_motor_einterval_us ?: 65535.0) >= 65535.0
+		def motor5RpmTelemetryMissing = airframeRotorCount > 5 && (
+				(report.max_motor_5_rpm_telemetry_valid ?: 0.0) < 0.5
+						|| (report.max_motor_5_rpm_telemetry_rpm ?: 0.0) <= 100.0
+						|| (report.max_motor_5_erpm100 ?: 0.0) <= 5.0
+						|| (report.min_motor_5_einterval_us ?: 65535.0) <= 0.0
+						|| (report.min_motor_5_einterval_us ?: 65535.0) >= 65535.0
+		)
+		if (averageRpmTelemetryMissing || motor5RpmTelemetryMissing) {
+			throw new GradleException("FPV Dronecraft server self-test did not exercise Betaflight-style RPM telemetry.")
+		}
+		def gyroNotchAttenuationPeak = Math.max(
+				Math.max(report.max_gyro_notch_attenuation ?: 0.0, report.max_gyro_blade_pass_notch_attenuation ?: 0.0),
+				report.max_gyro_rpm_harmonic_notch_attenuation ?: 0.0
+		)
+		if ((report.max_gyro_notch_hz ?: 0.0) <= 1.0
+				|| (report.max_gyro_blade_pass_notch_hz ?: 0.0) <= (report.max_gyro_notch_hz ?: 0.0)
+				|| gyroNotchAttenuationPeak <= 0.0001
+				|| (report.max_gyro_notch_spread_hz ?: -1.0) < 0.0
+				|| (report.max_gyro_blade_pass_notch_spread_hz ?: -1.0) < 0.0) {
+			throw new GradleException("FPV Dronecraft server self-test did not exercise RPM-driven gyro notch telemetry.")
+		}
+		if ((report.max_rotor_induced_velocity_mps ?: 0.0) <= 0.01
+				|| (report.max_rotor_dynamic_inflow_tau_s ?: 0.0) <= 0.0
+				|| (report.max_rotor_propeller_advance_ratio_j ?: 0.0) <= 0.0) {
+			throw new GradleException("FPV Dronecraft server self-test did not report active rotor inflow/advance telemetry.")
+		}
+		def nonNegativeAerodynamicFields = [
+				"max_vortex_ring_thrust_buffet",
+				"max_vortex_ring_buffet_force_n",
+				"max_rotor_inflow_lag_loss_percent",
+				"max_rotor_translational_lift",
+				"max_rotor_propeller_thrust_loss_percent",
+				"max_rotor_propeller_power_loss_percent",
+				"max_rotor_reverse_flow",
+				"max_rotor_low_reynolds_loss",
+				"max_rotor_blade_pass_ripple",
+				"max_rotor_damage_vibration",
+				"max_rotor_wet_thrust_loss_percent"
+		]
+		def invalidAerodynamicFields = nonNegativeAerodynamicFields.findAll {
+			!report.containsKey(it) || ((report[it] ?: 0.0) as double) < 0.0
+		}
+		if (!invalidAerodynamicFields.isEmpty()) {
+			throw new GradleException("FPV Dronecraft server self-test reported invalid aerodynamic telemetry ranges: ${invalidAerodynamicFields}.")
+		}
+		if (airframeRotorCount > 5 && ((report.max_rotor_coaxial_load_bias ?: 0.0) <= 0.005
+				|| (report.max_rotor_coaxial_load_bias_target ?: 0.0) + 1.0e-6 < (report.max_rotor_coaxial_load_bias ?: 0.0)
+				|| (report.max_rotor_coaxial_load_bias_clipping ?: -1.0) < 0.0
+				|| (report.max_rotor_coaxial_allocation_load ?: 0.0) <= 0.01
+				|| (report.max_rotor_coaxial_allocation_ratio ?: 1.0) <= 1.0
+				|| (report.max_rotor_coaxial_allocation_mech_gain_pct ?: 0.0) <= 0.0
+				|| (report.max_rotor_coaxial_allocation_elec_gain_pct ?: 0.0) <= 0.0
+				|| (report.max_rotor_coaxial_allocation_uncertainty_pct ?: -1.0) < 0.0)) {
+			throw new GradleException("FPV Dronecraft server self-test did not exercise coaxial X8 allocation telemetry.")
+		}
+		if ((report.max_ground_effect_leveling_torque_nm ?: -1.0) < 0.0) {
+			throw new GradleException("FPV Dronecraft server self-test reported an invalid ground-effect leveling torque range.")
+		}
+		if ((report.max_airframe_drag_along_flow_n ?: 0.0) <= 0.001
+				|| (report.max_airframe_drag_equivalent_linear_k ?: 0.0) <= 0.001
+				|| (report.max_airframe_drag_equivalent_cda_m2 ?: 0.0) <= 0.001
+				|| (report.max_airframe_drag_imav_ratio ?: 0.0) <= 0.001) {
+			throw new GradleException("FPV Dronecraft server self-test did not report active airframe drag calibration telemetry.")
+		}
+		if ((report.max_airframe_body_drag_n ?: -1.0) < 0.0
+				|| (report.max_linear_damping_drag_n ?: -1.0) < 0.0) {
+			throw new GradleException("FPV Dronecraft server self-test reported invalid airframe drag force ranges.")
+		}
+	}
+
+	logger.lifecycle("FPV Dronecraft {} {} server self-test report validated: {}", flightModel, selfTestControlMode, reportFile)
+}
+
+ext.fpvDroneValidateSelfTestReport = fpvDroneValidateSelfTestReport
+
+ext.fpvDroneConfigureSelfTestTask = { Task task, String expectedFlightModel, String expectedControlMode, int expectedDurationTicks ->
+	def flightModel = expectedFlightModel.toLowerCase()
+	def controlMode = expectedControlMode.toLowerCase()
+	if (!(flightModel in ["simulation", "playable"])) {
+		throw new GradleException("Unsupported FPV Dronecraft self-test flight model: ${expectedFlightModel}")
+	}
+	if (!(controlMode in ["acro", "angle", "horizon"])) {
+		throw new GradleException("Unsupported FPV Dronecraft self-test control mode: ${expectedControlMode}")
+	}
+
+	task.doFirst {
+		fpvDroneWriteSelfTestMarker(task, flightModel, controlMode)
+	}
+	task.doLast {
+		def marker = task.extensions.extraProperties.has("fpvDroneSelfTestMarker")
+				? task.extensions.extraProperties.get("fpvDroneSelfTestMarker") as File
+				: null
+		fpvDroneValidateSelfTestReport(fpvDroneLatestSelfTestReport(marker), flightModel, controlMode, expectedDurationTicks)
+	}
+}

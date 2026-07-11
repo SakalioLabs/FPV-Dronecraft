@@ -3,6 +3,8 @@ plugins {
 	id "net.neoforged.moddev"
 }
 
+apply from: rootProject.file("gradle/fpvdrone-selftest-validation.gradle")
+
 base {
 	archivesName = "${rootProject.archives_base_name}-neoforge"
 }
@@ -25,6 +27,19 @@ configurations {
 }
 
 def gameTestReport = layout.buildDirectory.file("reports/gametest/results.xml")
+def fpvDroneSelfTestSecondsProperty = providers.gradleProperty("fpvdroneSelfTestSeconds").orElse("12")
+def fpvDroneSelfTestSeconds = {
+	def rawSeconds = fpvDroneSelfTestSecondsProperty.get().trim()
+	try {
+		def seconds = Integer.parseInt(rawSeconds)
+		if (seconds < 6 || seconds > 60) {
+			throw new GradleException("fpvdroneSelfTestSeconds must be an integer from 6 through 60, but was '${rawSeconds}'.")
+		}
+		return seconds
+	} catch (NumberFormatException ignored) {
+		throw new GradleException("fpvdroneSelfTestSeconds must be an integer from 6 through 60, but was '${rawSeconds}'.")
+	}
+}()
 def requiredGameTests = [
 		"fpvdrone:racing_quad_diagnostic_climbs_in_game",
 		"fpvdrone:new_drone_starts_in_stable_angle_mode",
@@ -69,10 +84,48 @@ neoForge {
 			server()
 			loadedMods.set([mods.fpvdrone] as Set)
 			programArgument "--nogui"
+			programArgument "--port"
+			programArgument "0"
 			systemProperty "fpvdrone.selftest", "true"
-			systemProperty "fpvdrone.selftest.seconds", "12"
+			systemProperty "fpvdrone.selftest.seconds", fpvDroneSelfTestSeconds.toString()
 			systemProperty "fpvdrone.selftest.flight_model", "simulation"
 			systemProperty "fpvdrone.selftest.control_mode", "angle"
+		}
+
+		playableServerSelfTest {
+			server()
+			loadedMods.set([mods.fpvdrone] as Set)
+			programArgument "--nogui"
+			programArgument "--port"
+			programArgument "0"
+			systemProperty "fpvdrone.selftest", "true"
+			systemProperty "fpvdrone.selftest.seconds", fpvDroneSelfTestSeconds.toString()
+			systemProperty "fpvdrone.selftest.flight_model", "playable"
+			systemProperty "fpvdrone.selftest.control_mode", "angle"
+		}
+
+		playableHorizonServerSelfTest {
+			server()
+			loadedMods.set([mods.fpvdrone] as Set)
+			programArgument "--nogui"
+			programArgument "--port"
+			programArgument "0"
+			systemProperty "fpvdrone.selftest", "true"
+			systemProperty "fpvdrone.selftest.seconds", fpvDroneSelfTestSeconds.toString()
+			systemProperty "fpvdrone.selftest.flight_model", "playable"
+			systemProperty "fpvdrone.selftest.control_mode", "horizon"
+		}
+
+		playableAcroServerSelfTest {
+			server()
+			loadedMods.set([mods.fpvdrone] as Set)
+			programArgument "--nogui"
+			programArgument "--port"
+			programArgument "0"
+			systemProperty "fpvdrone.selftest", "true"
+			systemProperty "fpvdrone.selftest.seconds", fpvDroneSelfTestSeconds.toString()
+			systemProperty "fpvdrone.selftest.flight_model", "playable"
+			systemProperty "fpvdrone.selftest.control_mode", "acro"
 		}
 
 		gameTestServer {
@@ -126,6 +179,19 @@ neoForge.ideSyncTask(generateModMetadata)
 
 tasks.test {
 	useJUnitPlatform()
+}
+
+[
+		"runServerSelfTest"                 : ["simulation", "angle"],
+		"runPlayableServerSelfTest"         : ["playable", "angle"],
+		"runPlayableHorizonServerSelfTest"  : ["playable", "horizon"],
+		"runPlayableAcroServerSelfTest"     : ["playable", "acro"]
+].each { taskName, expected ->
+	tasks.named(taskName) { task ->
+		group = "verification"
+		description = "Runs and validates the ${expected[0]} ${expected[1]} FPV Dronecraft dedicated-server self-test."
+		fpvDroneConfigureSelfTestTask(task, expected[0], expected[1], Math.multiplyExact(fpvDroneSelfTestSeconds, 20))
+	}
 }
 
 tasks.named("runGameTestServer") {
