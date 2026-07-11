@@ -46,6 +46,16 @@ class RotorFlowObstructionModelTest {
 	}
 
 	@Test
+	void legacyResultConstructorPreservesThePreviousFullWallForceBehavior() {
+		assertEquals(1.0,
+				new RotorFlowObstructionModel.Result(0.70, new Vec3(1.0, 0.0, 0.0)).wallForceGeometryFactor(),
+				0.0);
+		assertEquals(0.0,
+				new RotorFlowObstructionModel.Result(0.0, Vec3.ZERO).wallForceGeometryFactor(),
+				0.0);
+	}
+
+	@Test
 	void clearDistancesReturnNoRotorFlowObstruction() {
 		double[] distances = new double[ROTOR_PLANE_DIRECTIONS.length];
 		for (int i = 0; i < distances.length; i++) {
@@ -60,6 +70,7 @@ class RotorFlowObstructionModelTest {
 
 		assertEquals(0.0, result.intensity(), 1.0e-9);
 		assertEquals(0.0, result.directionBody().length(), 1.0e-9);
+		assertEquals(0.0, result.wallForceGeometryFactor(), 1.0e-9);
 	}
 
 	@Test
@@ -73,6 +84,12 @@ class RotorFlowObstructionModelTest {
 		);
 
 		double nearestRayOnly = RotorFlowObstructionModel.proximityFromDistance(clearance, MAX_DISTANCE);
+		assertEquals(0.9139311852712282, result.wallForceGeometryFactor(), 1.0e-12);
+		assertEquals(
+				result.wallForceGeometryFactor(),
+				RotorFlowObstructionModel.wallForceGeometryFactor(0.2, 0.747060078104662),
+				1.0e-12
+		);
 		assertTrue(result.intensity() > 0.65, () -> "intensity=" + result.intensity());
 		assertTrue(result.intensity() < nearestRayOnly * 0.86,
 				() -> "intensity=" + result.intensity() + " nearestRayOnly=" + nearestRayOnly);
@@ -120,6 +137,12 @@ class RotorFlowObstructionModelTest {
 		assertTrue(far.intensity() < close.intensity() * 0.55,
 				() -> "close=" + close.intensity() + " far=" + far.intensity());
 		assertTrue(far.intensity() > 0.20, () -> "far=" + far.intensity());
+		assertEquals(0.5827482523739896, far.wallForceGeometryFactor(), 1.0e-12);
+		assertEquals(
+				far.wallForceGeometryFactor(),
+				RotorFlowObstructionModel.wallForceGeometryFactor(1.20, 0.0),
+				1.0e-12
+		);
 	}
 
 	@Test

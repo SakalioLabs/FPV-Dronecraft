@@ -165,6 +165,8 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(rotorEnvironmentMethods.contains("simulationRuntime.rotorPlaneWorldDirection("), "rotor sample directions should be projected by SimulationFlightRuntime");
 		assertTrue(rotorEnvironmentMethods.contains("simulationRuntime.weightedGroundEffectThrustMultiplier("), "ground effect weighting should be projected by SimulationFlightRuntime");
 		assertTrue(rotorEnvironmentMethods.contains("simulationRuntime.weightedCeilingEffectThrustMultiplier("), "ceiling effect weighting should be projected by SimulationFlightRuntime");
+		assertTrue(rotorEnvironmentMethods.contains("obstruction.wallForceGeometryFactor()"), "wall force should reuse the sampled rotor obstruction geometry");
+		assertTrue(rotorEnvironmentMethods.contains("flowObstructionWallForceFactors[i] = flowObstruction.wallForceFactor()"), "wall force geometry should be carried per rotor");
 		assertFalse(rotorEnvironmentMethods.contains("simulationRuntime.state()"), "rotor environment sampling should not read DroneState directly");
 		assertFalse(rotorEnvironmentMethods.contains("simulationRuntime.config()"), "rotor environment sampling should not read DroneConfig directly");
 		assertTrue(movementMethods.contains("simulationRuntime.movementState()"), "movement state should be projected by SimulationFlightRuntime");

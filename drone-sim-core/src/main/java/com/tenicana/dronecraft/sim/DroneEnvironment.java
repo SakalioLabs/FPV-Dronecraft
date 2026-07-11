@@ -15,7 +15,8 @@ public record DroneEnvironment(
 		double waterImmersionIntensity,
 		double[] rotorPrecipitationWetnesses,
 		double precipitationWetnessIntensity,
-		double ambientTemperatureCelsius
+		double ambientTemperatureCelsius,
+		double[] rotorFlowObstructionWallForceFactors
 ) {
 	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
 	private static final double STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN = 288.15;
@@ -32,6 +33,24 @@ public record DroneEnvironment(
 	private static final double MAX_CEILING_EFFECT_EXTRA_THRUST_FRACTION = 0.38;
 	private static final double PARTIAL_SURFACE_NEGLIGIBLE_DIAMETER_OVER_PROP_DIAMETER = 0.5;
 	private static final double PARTIAL_SURFACE_FULL_LIKE_DIAMETER_OVER_PROP_DIAMETER = 1.0;
+	private static final double[] EMPTY_DOUBLE_ARRAY = new double[0];
+	private static final DroneEnvironment CALM = new DroneEnvironment(
+			Vec3.ZERO,
+			1.0,
+			Double.POSITIVE_INFINITY,
+			0.0,
+			0.0,
+			0.0,
+			Double.POSITIVE_INFINITY,
+			null,
+			null,
+			null,
+			null,
+			0.0,
+			null,
+			0.0,
+			25.0
+	);
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters) {
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, 0.0);
@@ -65,6 +84,10 @@ public record DroneEnvironment(
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, null, 0.0);
 	}
 
+	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorFlowObstructionWallForceFactors) {
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, null, 0.0, null, 0.0, 25.0, rotorFlowObstructionWallForceFactors);
+	}
+
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double waterImmersionIntensity) {
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, null, waterImmersionIntensity);
 	}
@@ -83,6 +106,10 @@ public record DroneEnvironment(
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double precipitationWetnessIntensity, double ambientTemperatureCelsius) {
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, null, precipitationWetnessIntensity, ambientTemperatureCelsius);
+	}
+
+	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius) {
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, null);
 	}
 
 	public DroneEnvironment {
@@ -114,6 +141,7 @@ public record DroneEnvironment(
 		rotorThrustMultipliers = sanitizeRotorThrustMultipliers(rotorThrustMultipliers);
 		rotorFlowObstructions = sanitizeUnitArray(rotorFlowObstructions);
 		rotorFlowObstructionDirectionsBody = sanitizeDirectionArray(rotorFlowObstructionDirectionsBody);
+		rotorFlowObstructionWallForceFactors = sanitizeUnitArrayOrOne(rotorFlowObstructionWallForceFactors);
 		rotorWaterImmersions = sanitizeUnitArray(rotorWaterImmersions);
 		rotorPrecipitationWetnesses = sanitizeUnitArray(rotorPrecipitationWetnesses);
 		if (!Double.isFinite(waterImmersionIntensity)) {
@@ -131,7 +159,7 @@ public record DroneEnvironment(
 	}
 
 	public static DroneEnvironment calm() {
-		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0);
+		return CALM;
 	}
 
 	public static double standardAtmospherePressureRatio(double altitudeMeters) {
@@ -412,24 +440,78 @@ public record DroneEnvironment(
 			return 1.0;
 		}
 
-		double weightedMultiplier = 0.0;
+		double supportedWeightedMultiplier = 0.0;
+		double supportedWeight = 0.0;
 		double totalWeight = 0.0;
 		for (int i = 0; i < clearancesMeters.length; i++) {
 			double weight = weights != null && i < weights.length ? weights[i] : 1.0;
 			if (!Double.isFinite(weight) || weight <= 0.0) {
 				continue;
 			}
+			totalWeight += weight;
 			double clearance = clearancesMeters[i];
+			if (!Double.isFinite(clearance)) {
+				continue;
+			}
 			double multiplier = ceiling
 					? ceilingEffectThrustMultiplier(config, clearance)
 					: groundEffectThrustMultiplier(config, clearance);
-			weightedMultiplier += multiplier * weight;
-			totalWeight += weight;
+			supportedWeightedMultiplier += multiplier * weight;
+			supportedWeight += weight;
 		}
-		if (totalWeight <= 1.0e-9) {
+		if (totalWeight <= 1.0e-9 || supportedWeight <= 1.0e-9) {
 			return 1.0;
 		}
-		return MathUtil.clamp(weightedMultiplier / totalWeight, 0.35, 2.0);
+		if (supportedWeight == totalWeight) {
+			return MathUtil.clamp(supportedWeightedMultiplier / totalWeight, 0.35, 2.0);
+		}
+		double partialSurfaceGate = partialSurfaceCoverageGate(config, supportedWeight / totalWeight);
+		double supportedAverageMultiplier = supportedWeightedMultiplier / supportedWeight;
+		return MathUtil.clamp(1.0 + (supportedAverageMultiplier - 1.0) * partialSurfaceGate, 0.35, 2.0);
+	}
+
+	public static double weightedSurfaceEffectSupportCoverage(double[] clearancesMeters, double[] weights) {
+		if (clearancesMeters == null || clearancesMeters.length == 0) {
+			return 0.0;
+		}
+		double supportedWeight = 0.0;
+		double totalWeight = 0.0;
+		for (int i = 0; i < clearancesMeters.length; i++) {
+			double weight = weights != null && i < weights.length ? weights[i] : 1.0;
+			if (!Double.isFinite(weight) || weight <= 0.0) {
+				continue;
+			}
+			totalWeight += weight;
+			if (Double.isFinite(clearancesMeters[i])) {
+				supportedWeight += weight;
+			}
+		}
+		return totalWeight <= 1.0e-9
+				? 0.0
+				: MathUtil.clamp(supportedWeight / totalWeight, 0.0, 1.0);
+	}
+
+	public static double partialSurfaceCoverageGate(DroneConfig config, double supportedCoverageFraction) {
+		return partialSurfaceEffectGate(
+				config,
+				partialSurfaceCoveragePatchDiameterMeters(config, supportedCoverageFraction)
+		);
+	}
+
+	public static double partialSurfaceCoveragePatchDiameterMeters(DroneConfig config, double supportedCoverageFraction) {
+		if (config == null || config.rotors().isEmpty() || !Double.isFinite(supportedCoverageFraction)) {
+			return 0.0;
+		}
+		double coverage = MathUtil.clamp(supportedCoverageFraction, 0.0, 1.0);
+		if (coverage <= 0.0) {
+			return 0.0;
+		}
+		RotorSpec rotor = config.rotors().get(0);
+		double propellerDiameterMeters = rotor.radiusMeters() * 2.0;
+		if (propellerDiameterMeters <= 1.0e-9) {
+			return 0.0;
+		}
+		return propellerDiameterMeters * Math.sqrt(coverage);
 	}
 
 	private static double smoothStep(double edge0, double edge1, double value) {
@@ -497,6 +579,17 @@ public record DroneEnvironment(
 
 	public Vec3[] rotorFlowObstructionDirectionsBody() {
 		return rotorFlowObstructionDirectionsBody.clone();
+	}
+
+	public double rotorFlowObstructionWallForceFactor(int rotorIndex) {
+		if (rotorIndex >= 0 && rotorIndex < rotorFlowObstructionWallForceFactors.length) {
+			return rotorFlowObstructionWallForceFactors[rotorIndex];
+		}
+		return rotorFlowObstruction(rotorIndex) > 1.0e-6 ? 1.0 : 0.0;
+	}
+
+	public double[] rotorFlowObstructionWallForceFactors() {
+		return rotorFlowObstructionWallForceFactors.clone();
 	}
 
 	public double rotorWaterImmersion(int rotorIndex) {
@@ -568,6 +661,21 @@ public record DroneEnvironment(
 		for (int i = 0; i < sanitized.length; i++) {
 			if (!Double.isFinite(sanitized[i])) {
 				sanitized[i] = 0.0;
+			}
+			sanitized[i] = MathUtil.clamp(sanitized[i], 0.0, 1.0);
+		}
+		return sanitized;
+	}
+
+	private static double[] sanitizeUnitArrayOrOne(double[] values) {
+		if (values == null || values.length == 0) {
+			return EMPTY_DOUBLE_ARRAY;
+		}
+
+		double[] sanitized = values.clone();
+		for (int i = 0; i < sanitized.length; i++) {
+			if (!Double.isFinite(sanitized[i])) {
+				sanitized[i] = 1.0;
 			}
 			sanitized[i] = MathUtil.clamp(sanitized[i], 0.0, 1.0);
 		}
