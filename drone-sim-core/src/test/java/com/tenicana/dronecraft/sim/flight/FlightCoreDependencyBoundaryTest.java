@@ -15,13 +15,14 @@ class FlightCoreDependencyBoundaryTest {
 	private static final List<String> FORBIDDEN_DEPENDENCIES = List.of(
 			"net.minecraft",
 			"net.fabricmc",
+			"net.neoforged",
 			"com.mojang",
 			"Vec3d",
 			"Entity"
 	);
 
 	@Test
-	void flightContractPackageHasNoMinecraftOrFabricDependencies() throws IOException {
+	void flightContractPackageHasNoMinecraftOrLoaderDependencies() throws IOException {
 		Path flightPackage = projectDir().resolve("src/main/java/com/tenicana/dronecraft/sim/flight");
 		try (var files = Files.walk(flightPackage)) {
 			for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {

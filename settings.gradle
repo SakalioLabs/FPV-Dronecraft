@@ -9,6 +9,10 @@ pluginManagement {
 	}
 }
 
+plugins {
+	id "org.gradle.toolchains.foojay-resolver-convention" version "1.0.0"
+}
+
 dependencyResolutionManagement {
 	repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
 	repositories {
@@ -21,4 +25,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "fpv-dronecraft"
-include("drone-sim-core", "fabric-mod")
+include("drone-sim-core", "fabric-mod", "neoforge-mod")
