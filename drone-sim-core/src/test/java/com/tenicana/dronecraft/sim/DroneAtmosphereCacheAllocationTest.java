@@ -141,6 +141,73 @@ class DroneAtmosphereCacheAllocationTest {
 	}
 
 	@Test
+	void localFlowCacheResolveAllocatesZeroBytesAfterWarmup() {
+		ThreadMXBean threadBean = allocationTrackingBean();
+		long threadId = Thread.currentThread().threadId();
+		DroneConfig config = DroneConfig.racingQuad();
+		DronePhysics.LocalFlowCache equalPrimitiveCache = new DronePhysics.LocalFlowCache(config.rotors().size());
+		DronePhysics.LocalFlowCache alternatingCache = new DronePhysics.LocalFlowCache(config.rotors().size());
+		Vec3 derivativeX = new Vec3(0.0, 70.0, 0.0);
+		DroneEnvironment activeA = localFlowEnvironment(
+				Vec3.ZERO,
+				derivativeX,
+				Vec3.ZERO,
+				new Vec3(70_000.0, 0.0, 0.0)
+		);
+		DroneEnvironment activeB = localFlowEnvironment(
+				new Vec3(8.0, -2.0, 4.0),
+				derivativeX,
+				Vec3.ZERO,
+				new Vec3(70_000.0, 0.0, 0.0)
+		);
+		DroneEnvironment mirrored = localFlowEnvironment(
+				Vec3.ZERO,
+				new Vec3(0.0, -70.0, 0.0),
+				Vec3.ZERO,
+				new Vec3(-70_000.0, 0.0, 0.0)
+		);
+
+		assertTrue(equalPrimitiveCache.resolve(activeA, config));
+		assertTrue(alternatingCache.resolve(activeA, config));
+		long warmupEqualRecomputations = 0L;
+		long warmupAlternatingRecomputations = 0L;
+		double checksum = 0.0;
+		for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+			warmupEqualRecomputations += equalPrimitiveCache.resolve(activeB, config) ? 1L : 0L;
+			warmupEqualRecomputations += equalPrimitiveCache.resolve(activeA, config) ? 1L : 0L;
+			warmupAlternatingRecomputations += alternatingCache.resolve(mirrored, config) ? 1L : 0L;
+			checksum += Math.abs(alternatingCache.localWindDeltaY(0))
+					+ Math.abs(alternatingCache.diskWindGradientX(0));
+			warmupAlternatingRecomputations += alternatingCache.resolve(activeA, config) ? 1L : 0L;
+			checksum += Math.abs(alternatingCache.localWindDeltaY(0))
+					+ Math.abs(alternatingCache.diskWindGradientX(0));
+		}
+		assertEquals(0L, warmupEqualRecomputations);
+		assertEquals(2L * WARMUP_ITERATIONS, warmupAlternatingRecomputations);
+		assertTrue(checksum > 0.0);
+
+		long probe = threadBean.getThreadAllocatedBytes(threadId);
+		Assumptions.assumeTrue(probe >= 0L);
+		long allocatedBefore = threadBean.getThreadAllocatedBytes(threadId);
+		long equalRecomputations = 0L;
+		long alternatingRecomputations = 0L;
+		for (int i = 0; i < MEASURED_ITERATIONS; i++) {
+			equalRecomputations += equalPrimitiveCache.resolve(activeB, config) ? 1L : 0L;
+			equalRecomputations += equalPrimitiveCache.resolve(activeA, config) ? 1L : 0L;
+			alternatingRecomputations += alternatingCache.resolve(mirrored, config) ? 1L : 0L;
+			checksum += Math.abs(alternatingCache.diskWindGradientX(0));
+			alternatingRecomputations += alternatingCache.resolve(activeA, config) ? 1L : 0L;
+			checksum += Math.abs(alternatingCache.diskWindGradientX(0));
+		}
+		long allocatedAfter = threadBean.getThreadAllocatedBytes(threadId);
+
+		assertEquals(0L, equalRecomputations);
+		assertEquals(2L * MEASURED_ITERATIONS, alternatingRecomputations);
+		assertTrue(Double.isFinite(checksum));
+		assertEquals(0L, allocatedAfter - allocatedBefore);
+	}
+
+	@Test
 	void ablCacheResolveAllocatesZeroBytesAcrossIdentityHitsAndPrimitiveChanges() {
 		ThreadMXBean threadBean = allocationTrackingBean();
 		long threadId = Thread.currentThread().threadId();
@@ -311,6 +378,44 @@ class DroneAtmosphereCacheAllocationTest {
 				Vec3.ZERO,
 				stability,
 				mixing
+		);
+	}
+
+	private static DroneEnvironment localFlowEnvironment(
+			Vec3 wind,
+			Vec3 derivativeX,
+			Vec3 derivativeZ,
+			Vec3 pressureGradient
+	) {
+		return new DroneEnvironment(
+				wind,
+				1.0,
+				6.0,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				Vec3.ZERO,
+				0.0,
+				0.0,
+				derivativeX,
+				derivativeZ,
+				pressureGradient
 		);
 	}
 

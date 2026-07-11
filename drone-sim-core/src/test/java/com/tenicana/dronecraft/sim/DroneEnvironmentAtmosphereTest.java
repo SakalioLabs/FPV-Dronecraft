@@ -6,6 +6,28 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import org.junit.jupiter.api.Test;
 
 class DroneEnvironmentAtmosphereTest {
+	private static final Class<?>[] LEGACY_ATMOSPHERE_CONSTRUCTOR_PREFIX = {
+			Vec3.class,
+			double.class,
+			double.class,
+			double.class,
+			double.class,
+			double.class,
+			double.class,
+			double[].class,
+			double[].class,
+			Vec3[].class,
+			double[].class,
+			double.class,
+			double[].class,
+			double.class,
+			double.class,
+			double[].class,
+			double.class,
+			double.class,
+			double.class
+	};
+
 	@Test
 	void legacyConstructorDerivesCompactAtmospherePrimitives() {
 		DroneEnvironment environment = legacyEnvironment(0.85, 35.0, 1.0);
@@ -51,6 +73,91 @@ class DroneEnvironmentAtmosphereTest {
 		DroneEnvironment signedZero = explicitAblEnvironment(-0.0, -0.0);
 		assertRawEquals(0.0, signedZero.adoptedAblStability());
 		assertRawEquals(0.0, signedZero.adoptedAblMixingStrength());
+	}
+
+	@Test
+	void adoptedSpatialGradientsAreFiniteClampedAndPreserveInRangeInstances() {
+		Vec3 windDerivativeX = new Vec3(120.0, -240.0, 360.0);
+		Vec3 windDerivativeZ = new Vec3(-1200.0, 1200.0, 0.5);
+		Vec3 pressureGradient = new Vec3(200000.0, -200000.0, 750.0);
+		DroneEnvironment inRange = explicitGradientEnvironment(
+				windDerivativeX,
+				windDerivativeZ,
+				pressureGradient
+		);
+
+		assertSame(windDerivativeX, inRange.adoptedWindDerivativeAlongBodyXPerMeter());
+		assertSame(windDerivativeZ, inRange.adoptedWindDerivativeAlongBodyZPerMeter());
+		assertSame(pressureGradient, inRange.adoptedPressureGradientBodyPascalsPerMeter());
+
+		DroneEnvironment clamped = explicitGradientEnvironment(
+				new Vec3(1201.0, -1800.0, 120.0),
+				new Vec3(-1201.0, 1750.0, -1900.0),
+				new Vec3(220000.0, -250000.0, 90000.0)
+		);
+		assertEquals(
+				new Vec3(1200.0, -1200.0, 120.0),
+				clamped.adoptedWindDerivativeAlongBodyXPerMeter()
+		);
+		assertEquals(
+				new Vec3(-1200.0, 1200.0, -1200.0),
+				clamped.adoptedWindDerivativeAlongBodyZPerMeter()
+		);
+		assertEquals(
+				new Vec3(200000.0, -200000.0, 90000.0),
+				clamped.adoptedPressureGradientBodyPascalsPerMeter()
+		);
+	}
+
+	@Test
+	void adoptedSpatialGradientsRejectNonFiniteVectorsAndNormalizeNeutralZero() {
+		DroneEnvironment nonFinite = explicitGradientEnvironment(
+				null,
+				new Vec3(1.0, Double.NaN, 3.0),
+				new Vec3(Double.NEGATIVE_INFINITY, 2.0, 3.0)
+		);
+		assertSame(Vec3.ZERO, nonFinite.adoptedWindDerivativeAlongBodyXPerMeter());
+		assertSame(Vec3.ZERO, nonFinite.adoptedWindDerivativeAlongBodyZPerMeter());
+		assertSame(Vec3.ZERO, nonFinite.adoptedPressureGradientBodyPascalsPerMeter());
+
+		DroneEnvironment signedZero = explicitGradientEnvironment(
+				new Vec3(-0.0, 0.0, -0.0),
+				new Vec3(0.0, -0.0, 0.0),
+				new Vec3(-0.0, -0.0, 0.0)
+		);
+		assertSame(Vec3.ZERO, signedZero.adoptedWindDerivativeAlongBodyXPerMeter());
+		assertSame(Vec3.ZERO, signedZero.adoptedWindDerivativeAlongBodyZPerMeter());
+		assertSame(Vec3.ZERO, signedZero.adoptedPressureGradientBodyPascalsPerMeter());
+	}
+
+	@Test
+	void legacyAtmosphereConstructorDescriptorsDefaultSpatialGradientsToNeutral() throws NoSuchMethodException {
+		assertLegacyAtmosphereConstructorDescriptor();
+		assertLegacyAtmosphereConstructorDescriptor(double.class, double.class, double.class);
+		assertLegacyAtmosphereConstructorDescriptor(double.class, double.class, double.class, Vec3.class);
+		assertLegacyAtmosphereConstructorDescriptor(
+				double.class,
+				double.class,
+				double.class,
+				Vec3.class,
+				double.class,
+				double.class
+		);
+
+		DroneEnvironment[] legacyEnvironments = {
+				explicitEnvironment(20.0, 30.0, 0.20, 0.10, 0.75),
+				explicitFlowEnvironment(1200.0, 0.83, 0.88),
+				explicitSourceGustEnvironment(new Vec3(1.0, 2.0, 3.0)),
+				explicitAblEnvironment(-0.4, 0.7)
+		};
+		for (DroneEnvironment environment : legacyEnvironments) {
+			assertSame(Vec3.ZERO, environment.adoptedWindDerivativeAlongBodyXPerMeter());
+			assertSame(Vec3.ZERO, environment.adoptedWindDerivativeAlongBodyZPerMeter());
+			assertSame(Vec3.ZERO, environment.adoptedPressureGradientBodyPascalsPerMeter());
+		}
+		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedWindDerivativeAlongBodyXPerMeter());
+		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedWindDerivativeAlongBodyZPerMeter());
+		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedPressureGradientBodyPascalsPerMeter());
 	}
 
 	@Test
@@ -412,6 +519,68 @@ class DroneEnvironmentAtmosphereTest {
 				Vec3.ZERO,
 				stability,
 				mixingStrength
+		);
+	}
+
+	private static DroneEnvironment explicitGradientEnvironment(
+			Vec3 windDerivativeAlongBodyXPerMeter,
+			Vec3 windDerivativeAlongBodyZPerMeter,
+			Vec3 pressureGradientBodyPascalsPerMeter
+	) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				Vec3.ZERO,
+				0.0,
+				0.0,
+				windDerivativeAlongBodyXPerMeter,
+				windDerivativeAlongBodyZPerMeter,
+				pressureGradientBodyPascalsPerMeter
+		);
+	}
+
+	private static void assertLegacyAtmosphereConstructorDescriptor(Class<?>... trailingTypes)
+			throws NoSuchMethodException {
+		Class<?>[] descriptor = new Class<?>[
+				LEGACY_ATMOSPHERE_CONSTRUCTOR_PREFIX.length + trailingTypes.length
+		];
+		System.arraycopy(
+				LEGACY_ATMOSPHERE_CONSTRUCTOR_PREFIX,
+				0,
+				descriptor,
+				0,
+				LEGACY_ATMOSPHERE_CONSTRUCTOR_PREFIX.length
+		);
+		System.arraycopy(
+				trailingTypes,
+				0,
+				descriptor,
+				LEGACY_ATMOSPHERE_CONSTRUCTOR_PREFIX.length,
+				trailingTypes.length
+		);
+		assertEquals(
+				descriptor.length,
+				DroneEnvironment.class.getConstructor(descriptor).getParameterCount()
 		);
 	}
 

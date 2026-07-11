@@ -338,6 +338,8 @@ public class DroneEntity extends Entity {
 	private double collisionSoundContactPeakImpact;
 	private DroneEnvironment lastEnvironment = DroneEnvironment.calm();
 	private DroneEnvironmentOverride environmentOverride = DroneEnvironmentOverride.natural();
+	private final SimulationFlightRuntime.A4mcSharedStencilCache a4mcSharedStencil =
+			new SimulationFlightRuntime.A4mcSharedStencilCache();
 	private final DroneBlackboxRecorder blackbox = new DroneBlackboxRecorder();
 
 	private record ObstacleAirflow(Vec3 windVelocityWorldMetersPerSecond, double obstacleProximity, double turbulenceBoost) {
@@ -1395,7 +1397,10 @@ public class DroneEntity extends Entity {
 				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality),
 				AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality),
 				AerodynamicsAtmosphereCoupling.adoptedAblStability(externalAtmosphere, sourceQuality),
-				AerodynamicsAtmosphereCoupling.adoptedAblMixingStrength(externalAtmosphere, sourceQuality)
+				AerodynamicsAtmosphereCoupling.adoptedAblMixingStrength(externalAtmosphere, sourceQuality),
+				a4mcSharedStencil.adoptedWindDerivativeAlongBodyXPerMeter(simulationRuntime),
+				a4mcSharedStencil.adoptedWindDerivativeAlongBodyZPerMeter(simulationRuntime),
+				a4mcSharedStencil.adoptedPressureGradientBodyPascalsPerMeter(simulationRuntime)
 		);
 	}
 
@@ -1453,22 +1458,137 @@ public class DroneEntity extends Entity {
 				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality),
 				AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality),
 				AerodynamicsAtmosphereCoupling.adoptedAblStability(externalAtmosphere, sourceQuality),
-				AerodynamicsAtmosphereCoupling.adoptedAblMixingStrength(externalAtmosphere, sourceQuality)
+				AerodynamicsAtmosphereCoupling.adoptedAblMixingStrength(externalAtmosphere, sourceQuality),
+				a4mcSharedStencil.adoptedWindDerivativeAlongBodyXPerMeter(simulationRuntime),
+				a4mcSharedStencil.adoptedWindDerivativeAlongBodyZPerMeter(simulationRuntime),
+				a4mcSharedStencil.adoptedPressureGradientBodyPascalsPerMeter(simulationRuntime)
 		);
 	}
 
 	private Aerodynamics4McAtmosphereBridge.AtmosphereSample sampleAerodynamicsAtmosphere() {
 		if (environmentOverride.windEnabled()) {
-			return Aerodynamics4McAtmosphereBridge.AtmosphereSample.unavailable();
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample unavailable =
+					Aerodynamics4McAtmosphereBridge.AtmosphereSample.unavailable();
+			a4mcSharedStencil.acceptsCenter(unavailable, 0.0, true);
+			return unavailable;
 		}
-		return level() instanceof ServerLevel serverLevel
-				? Aerodynamics4McAtmosphereBridge.sampleGameplay(
-						serverLevel,
-						getX(),
-						getY() + physicsCenterYOffsetMeters(),
-						getZ()
-				)
-				: Aerodynamics4McAtmosphereBridge.AtmosphereSample.unavailable();
+		if (!(level() instanceof ServerLevel serverLevel)) {
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample unavailable =
+					Aerodynamics4McAtmosphereBridge.AtmosphereSample.unavailable();
+			a4mcSharedStencil.acceptsCenter(unavailable, 0.0, false);
+			return unavailable;
+		}
+
+		double centerX = getX();
+		double centerY = getY() + physicsCenterYOffsetMeters();
+		double centerZ = getZ();
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample center = sampleAerodynamicsAtmosphereAt(
+				serverLevel,
+				centerX,
+				centerY,
+				centerZ
+		);
+		updateA4mcSharedStencil(serverLevel, center, centerX, centerY, centerZ);
+		return center;
+	}
+
+	private static Aerodynamics4McAtmosphereBridge.AtmosphereSample sampleAerodynamicsAtmosphereAt(
+			ServerLevel serverLevel,
+			double positionX,
+			double positionY,
+			double positionZ
+	) {
+		return Aerodynamics4McAtmosphereBridge.sampleGameplay(
+				serverLevel,
+				positionX,
+				positionY,
+				positionZ
+		);
+	}
+
+	private void updateA4mcSharedStencil(
+			ServerLevel serverLevel,
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample center,
+			double centerX,
+			double centerY,
+			double centerZ
+	) {
+		double centerQuality = atmosphereSourceQuality(center);
+		if (!a4mcSharedStencil.acceptsCenter(center, centerQuality, false)) {
+			return;
+		}
+		long currentTick = serverLevel.getGameTime();
+		if (!a4mcSharedStencil.shouldRefresh(currentTick)) {
+			return;
+		}
+
+		double radiusMeters = ROTOR_DISK_SURFACE_SAMPLE_RADIUS_SCALE
+				* simulationRuntime.representativeRotorRadiusMeters();
+		if (!SimulationFlightRuntime.isValidA4mcStencilRadius(radiusMeters)) {
+			a4mcSharedStencil.clear();
+			return;
+		}
+
+		Vec3 centerMeanWind = new Vec3(
+				center.meanVelocityX(),
+				center.meanVelocityY(),
+				center.meanVelocityZ()
+		);
+		Vec3 bodyXWorld = simulationRuntime.bodyXWorldDirection();
+		Vec3 bodyZWorld = simulationRuntime.bodyZWorldDirection();
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample positiveX = sampleAerodynamicsAtmosphereAt(
+				serverLevel,
+				centerX + bodyXWorld.x() * radiusMeters,
+				centerY + bodyXWorld.y() * radiusMeters,
+				centerZ + bodyXWorld.z() * radiusMeters
+		);
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample negativeX = sampleAerodynamicsAtmosphereAt(
+				serverLevel,
+				centerX - bodyXWorld.x() * radiusMeters,
+				centerY - bodyXWorld.y() * radiusMeters,
+				centerZ - bodyXWorld.z() * radiusMeters
+		);
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample positiveZ = sampleAerodynamicsAtmosphereAt(
+				serverLevel,
+				centerX + bodyZWorld.x() * radiusMeters,
+				centerY + bodyZWorld.y() * radiusMeters,
+				centerZ + bodyZWorld.z() * radiusMeters
+		);
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample negativeZ = sampleAerodynamicsAtmosphereAt(
+				serverLevel,
+				centerX - bodyZWorld.x() * radiusMeters,
+				centerY - bodyZWorld.y() * radiusMeters,
+				centerZ - bodyZWorld.z() * radiusMeters
+		);
+
+		Vec3 windDerivativeAlongBodyXWorld = SimulationFlightRuntime.centralDifference(
+				SimulationFlightRuntime.adoptedA4mcStencilWind(centerMeanWind, positiveX),
+				SimulationFlightRuntime.adoptedA4mcStencilWind(centerMeanWind, negativeX),
+				radiusMeters
+		);
+		Vec3 windDerivativeAlongBodyZWorld = SimulationFlightRuntime.centralDifference(
+				SimulationFlightRuntime.adoptedA4mcStencilWind(centerMeanWind, positiveZ),
+				SimulationFlightRuntime.adoptedA4mcStencilWind(centerMeanWind, negativeZ),
+				radiusMeters
+		);
+		Vec3 pressureGradientBody = SimulationFlightRuntime.adoptedA4mcStencilPressureGradient(
+				center,
+				centerQuality,
+				positiveX,
+				negativeX,
+				positiveZ,
+				negativeZ,
+				radiusMeters
+		);
+		Vec3 pressureGradientWorld = bodyXWorld.multiply(pressureGradientBody.x())
+				.add(bodyZWorld.multiply(pressureGradientBody.z()));
+		a4mcSharedStencil.update(
+				windDerivativeAlongBodyXWorld,
+				windDerivativeAlongBodyZWorld,
+				pressureGradientWorld,
+				simulationRuntime.orientation(),
+				currentTick
+		);
 	}
 
 	private static double atmosphereSourceQuality(
@@ -3781,6 +3901,7 @@ public class DroneEntity extends Entity {
 
 	public void applyEnvironmentOverride(DroneEnvironmentOverride override) {
 		environmentOverride = override == null ? DroneEnvironmentOverride.natural() : override;
+		a4mcSharedStencil.clear();
 	}
 
 	public void applyConfig(DroneConfig config) {
@@ -4230,6 +4351,7 @@ public class DroneEntity extends Entity {
 				densityEnabled,
 				input.getDoubleOr("env_density", 1.0)
 		);
+		a4mcSharedStencil.clear();
 	}
 
 	private void saveConfig(ValueOutput output) {

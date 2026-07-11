@@ -25,11 +25,18 @@ public record DroneEnvironment(
 		double batteryVentilationFactor,
 		Vec3 adoptedSourceGustVelocityWorldMetersPerSecond,
 		double adoptedAblStability,
-		double adoptedAblMixingStrength
+		double adoptedAblMixingStrength,
+		Vec3 adoptedWindDerivativeAlongBodyXPerMeter,
+		Vec3 adoptedWindDerivativeAlongBodyZPerMeter,
+		Vec3 adoptedPressureGradientBodyPascalsPerMeter
 ) {
 	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
 	private static final double SEA_LEVEL_PRESSURE_PASCALS = SEA_LEVEL_PRESSURE_HECTOPASCALS * 100.0;
 	private static final double MAX_SOURCE_PRESSURE_ANOMALY_PASCALS = 5000.0;
+	// Preserve the downstream 12 m/s disk-gradient and 1600 Pa pressure-response ranges even
+	// for the 0.038 m minimum supported rotor radius with a 0.72 R stencil.
+	private static final double MAX_ADOPTED_WIND_DERIVATIVE_PER_METER = 1200.0;
+	private static final double MAX_ADOPTED_PRESSURE_GRADIENT_PASCALS_PER_METER = 200000.0;
 	private static final long WIND_SOURCE_FULL_TRUST_AGE_TICKS = 40L;
 	private static final long WIND_SOURCE_ZERO_TRUST_AGE_TICKS = 160L;
 	private static final double STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN = 288.15;
@@ -336,6 +343,66 @@ public record DroneEnvironment(
 		);
 	}
 
+	/** Compatibility constructor for the ABL contract that predates spatial flow gradients. */
+	public DroneEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double groundClearanceMeters,
+			double turbulenceIntensity,
+			double obstacleProximity,
+			double droneWakeIntensity,
+			double ceilingClearanceMeters,
+			double[] rotorThrustMultipliers,
+			double[] rotorFlowObstructions,
+			Vec3[] rotorFlowObstructionDirectionsBody,
+			double[] rotorWaterImmersions,
+			double waterImmersionIntensity,
+			double[] rotorPrecipitationWetnesses,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			double[] rotorFlowObstructionWallForceFactors,
+			double effectiveAmbientTemperatureCelsius,
+			double ambientHumidity,
+			double adoptedSourceHumidity,
+			double adoptedSourcePressureAnomalyPascals,
+			double motorEscVentilationFactor,
+			double batteryVentilationFactor,
+			Vec3 adoptedSourceGustVelocityWorldMetersPerSecond,
+			double adoptedAblStability,
+			double adoptedAblMixingStrength
+	) {
+		this(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				groundClearanceMeters,
+				turbulenceIntensity,
+				obstacleProximity,
+				droneWakeIntensity,
+				ceilingClearanceMeters,
+				rotorThrustMultipliers,
+				rotorFlowObstructions,
+				rotorFlowObstructionDirectionsBody,
+				rotorWaterImmersions,
+				waterImmersionIntensity,
+				rotorPrecipitationWetnesses,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius,
+				rotorFlowObstructionWallForceFactors,
+				effectiveAmbientTemperatureCelsius,
+				ambientHumidity,
+				adoptedSourceHumidity,
+				adoptedSourcePressureAnomalyPascals,
+				motorEscVentilationFactor,
+				batteryVentilationFactor,
+				adoptedSourceGustVelocityWorldMetersPerSecond,
+				adoptedAblStability,
+				adoptedAblMixingStrength,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO
+		);
+	}
+
 	public DroneEnvironment {
 		if (windVelocityWorldMetersPerSecond == null) {
 			windVelocityWorldMetersPerSecond = Vec3.ZERO;
@@ -446,6 +513,33 @@ public record DroneEnvironment(
 		if (adoptedAblMixingStrength == 0.0) {
 			adoptedAblMixingStrength = 0.0;
 		}
+		adoptedWindDerivativeAlongBodyXPerMeter = sanitizeAdoptedGradient(
+				adoptedWindDerivativeAlongBodyXPerMeter,
+				MAX_ADOPTED_WIND_DERIVATIVE_PER_METER
+		);
+		adoptedWindDerivativeAlongBodyZPerMeter = sanitizeAdoptedGradient(
+				adoptedWindDerivativeAlongBodyZPerMeter,
+				MAX_ADOPTED_WIND_DERIVATIVE_PER_METER
+		);
+		adoptedPressureGradientBodyPascalsPerMeter = sanitizeAdoptedGradient(
+				adoptedPressureGradientBodyPascalsPerMeter,
+				MAX_ADOPTED_PRESSURE_GRADIENT_PASCALS_PER_METER
+		);
+	}
+
+	private static Vec3 sanitizeAdoptedGradient(Vec3 value, double maxAbsComponent) {
+		if (value == null || !value.isFinite()) {
+			return Vec3.ZERO;
+		}
+		if (value.x() == 0.0 && value.y() == 0.0 && value.z() == 0.0) {
+			return Vec3.ZERO;
+		}
+		if (value.x() < -maxAbsComponent || value.x() > maxAbsComponent
+				|| value.y() < -maxAbsComponent || value.y() > maxAbsComponent
+				|| value.z() < -maxAbsComponent || value.z() > maxAbsComponent) {
+			return value.clamp(-maxAbsComponent, maxAbsComponent);
+		}
+		return value;
 	}
 
 	public static DroneEnvironment calm() {

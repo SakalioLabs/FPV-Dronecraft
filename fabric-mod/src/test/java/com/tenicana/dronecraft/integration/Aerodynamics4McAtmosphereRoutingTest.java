@@ -14,31 +14,68 @@ import org.junit.jupiter.api.Test;
 
 class Aerodynamics4McAtmosphereRoutingTest {
 	@Test
-	void entitySamplesOneCompactAtmosphereAndFlowPointForBothEnvironmentPaths() throws IOException {
+	void entityRoutesOneBodyCenterAndOneSharedFourPointStencilToBothEnvironmentPaths() throws IOException {
 		String source = Files.readString(droneEntitySource(), StandardCharsets.UTF_8);
+		String runtimeSource = Files.readString(simulationFlightRuntimeSource(), StandardCharsets.UTF_8);
 		String advanced = between(source, "private DroneEnvironment sampleEnvironment()", "private DroneEnvironment sampleActiveEnvironment");
 		String stageOne = between(source, "private DroneEnvironment samplePlayableStageOneEnvironment()", "private Aerodynamics4McAtmosphereBridge.AtmosphereSample sampleAerodynamicsAtmosphere");
 		String bridge = between(source, "private Aerodynamics4McAtmosphereBridge.AtmosphereSample sampleAerodynamicsAtmosphere", "private static double atmosphereSourceQuality");
+		String centerSampling = between(
+				source,
+				"private Aerodynamics4McAtmosphereBridge.AtmosphereSample sampleAerodynamicsAtmosphere()",
+				"private static Aerodynamics4McAtmosphereBridge.AtmosphereSample sampleAerodynamicsAtmosphereAt"
+		);
+		String stencil = between(source, "private void updateA4mcSharedStencil", "private static double atmosphereSourceQuality");
+		String cacheAndMath = between(
+				runtimeSource,
+				"static final class A4mcSharedStencilCache",
+				"SimulationFlightRuntime(DroneConfig config)"
+		);
 		String rotorSampling = between(source, "private PrecipitationWetness samplePrecipitationWetness", "private DroneWakeAirflow sampleDroneWakeAirflow");
 
 		assertEquals(1, occurrences(advanced, "sampleAerodynamicsAtmosphere()"));
 		assertEquals(1, occurrences(stageOne, "sampleAerodynamicsAtmosphere()"));
 		assertEquals(1, occurrences(bridge, "Aerodynamics4McAtmosphereBridge.sampleGameplay"));
 		assertEquals(1, occurrences(source, "Aerodynamics4McAtmosphereBridge.sampleGameplay"),
-				"the entity must expose exactly one body-center A4MC sampling site");
+				"all center and stencil probes must share one cached bridge call site");
+		assertEquals(6, occurrences(source, "sampleAerodynamicsAtmosphereAt("),
+				"only one helper declaration, one center probe, and four shared edge probes are allowed");
+		assertEquals(1, occurrences(centerSampling, "sampleAerodynamicsAtmosphereAt("),
+				"the body center must still be sampled on every environment frame");
+		assertEquals(4, occurrences(stencil, "sampleAerodynamicsAtmosphereAt("),
+				"the compact stencil must remain exactly +/-body-X and +/-body-Z");
 		int explicitOverride = bridge.indexOf("if (environmentOverride.windEnabled())");
-		int unavailableReturn = bridge.indexOf(
-				"return Aerodynamics4McAtmosphereBridge.AtmosphereSample.unavailable();",
-				explicitOverride
-		);
+		int unavailableReturn = bridge.indexOf("return unavailable;", explicitOverride);
 		int gameplaySample = bridge.indexOf("Aerodynamics4McAtmosphereBridge.sampleGameplay");
 		assertTrue(explicitOverride >= 0
 					&& unavailableReturn > explicitOverride
 					&& unavailableReturn < gameplaySample,
 				"an explicit wind override must return an unavailable sample before any A4MC adoption");
-		assertFalse(bridge.contains("entityPhysicsPosition()"), "the absent-mod path must not allocate a simulation Vec3");
+		assertTrue(centerSampling.contains("a4mcSharedStencil.acceptsCenter(unavailable, 0.0, true)"),
+				"an explicit wind override must synchronously clear the shared stencil cache");
+		assertTrue(stencil.contains("a4mcSharedStencil.shouldRefresh(currentTick)"));
+		assertTrue(stencil.contains("ROTOR_DISK_SURFACE_SAMPLE_RADIUS_SCALE"));
+		assertTrue(stencil.contains("representativeRotorRadiusMeters()"));
+		assertFalse(stencil.contains("for ("), "the shared stencil must not grow into a per-rotor sampling loop");
+		assertFalse(stencil.contains("new Aerodynamics4McAtmosphereBridge.AtmosphereSample["));
+		assertFalse(stencil.contains("new Vec3["));
+		assertFalse(stencil.contains("record "));
+		assertFalse(stencil.contains("Map<"));
+		assertTrue(cacheAndMath.contains("windDerivativeAlongStencilXWorldPerMeter"));
+		assertTrue(cacheAndMath.contains("windDerivativeAlongStencilZWorldPerMeter"));
+		assertTrue(cacheAndMath.contains("stencilOrientation"));
+		assertTrue(cacheAndMath.contains("pressureGradientWorldPascalsPerMeter = Vec3.ZERO"),
+				"a newly coarse center must clear cached pressure without waiting for the next stencil tick");
+		assertTrue(cacheAndMath.contains("runtime.worldVectorToBody"),
+				"cached world derivatives must be reprojected through the current body attitude");
+		assertFalse(cacheAndMath.contains("new Aerodynamics4McAtmosphereBridge.AtmosphereSample["));
+		assertFalse(cacheAndMath.contains("new Vec3["));
+		assertFalse(cacheAndMath.contains("record "));
+		assertFalse(cacheAndMath.contains("Map<"));
 		assertFalse(rotorSampling.contains("Aerodynamics4McAtmosphereBridge"),
-				"single-point flow sampling must not expand into per-rotor probes");
+				"the shared stencil must not expand into per-rotor probes");
+		assertFalse(rotorSampling.contains("sampleAerodynamicsAtmosphereAt("),
+				"a per-rotor environment loop must never call the shared A4MC sampling helper");
 		assertEquals(0, occurrences(rotorSampling, "sampleAerodynamicsAtmosphere()"),
 				"rotor environment sampling must reuse compact body primitives instead of sampling A4MC");
 
@@ -68,6 +105,12 @@ class Aerodynamics4McAtmosphereRoutingTest {
 		assertFalse(stageOne.contains("externalAtmosphere.ablMixingStrength()"));
 		assertTrue(stageOne.contains("effectiveAmbientTemperature"), "the default playable path must receive adopted source temperature");
 		assertTrue(stageOne.contains("adoptedSourceHumidity"), "the default playable path must receive quality-gated source humidity");
+		assertTrue(advanced.contains("a4mcSharedStencil.adoptedWindDerivativeAlongBodyXPerMeter(simulationRuntime)"));
+		assertTrue(advanced.contains("a4mcSharedStencil.adoptedWindDerivativeAlongBodyZPerMeter(simulationRuntime)"));
+		assertTrue(advanced.contains("a4mcSharedStencil.adoptedPressureGradientBodyPascalsPerMeter(simulationRuntime)"));
+		assertTrue(stageOne.contains("a4mcSharedStencil.adoptedWindDerivativeAlongBodyXPerMeter(simulationRuntime)"));
+		assertTrue(stageOne.contains("a4mcSharedStencil.adoptedWindDerivativeAlongBodyZPerMeter(simulationRuntime)"));
+		assertTrue(stageOne.contains("a4mcSharedStencil.adoptedPressureGradientBodyPascalsPerMeter(simulationRuntime)"));
 	}
 
 	@Test
@@ -99,6 +142,10 @@ class Aerodynamics4McAtmosphereRoutingTest {
 
 	private static Path droneEntitySource() {
 		return locate("fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java");
+	}
+
+	private static Path simulationFlightRuntimeSource() {
+		return locate("fabric-mod/src/main/java/com/tenicana/dronecraft/entity/SimulationFlightRuntime.java");
 	}
 
 	private static Path fabricManifest() {
