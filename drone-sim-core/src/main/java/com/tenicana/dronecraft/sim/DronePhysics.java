@@ -110,6 +110,7 @@ public final class DronePhysics {
 	private RotorWakeRotorGeometry[] rotorWakeRotorGeometry;
 	private RotorWakePairGeometry[] rotorWakePairGeometry;
 	private int[] rotorWakePairStartByReceiver;
+	private boolean rotorCtCpJWakeReferenceEnabled;
 	private final boolean[] rotorWakeSourceActive;
 	private final double[] rotorWakeSourceSpinRatio;
 	private final double[] rotorWakeSourceInducedVelocityMetersPerSecond;
@@ -118,6 +119,14 @@ public final class DronePhysics {
 	private final double[] rotorWakeSourceConvectionDirectionX;
 	private final double[] rotorWakeSourceConvectionDirectionY;
 	private final double[] rotorWakeSourceConvectionDirectionZ;
+	private final boolean[] rotorCtCpJWakeReferenceApplied;
+	private final double[] rotorCtCpJWakeReferenceIdealInducedVelocityMetersPerSecond;
+	private final double[] rotorCtCpJWakeReferenceFarWakeAxialExcessVelocityMetersPerSecond;
+	private final double[] rotorCtCpJWakeReferenceFarWakeEquivalentRadiusMeters;
+	private final double[] rotorCtCpJWakeReferenceTangentialVelocityMetersPerSecond;
+	private final double[] rotorCtCpJWakeReferenceDiskLoadingStrength;
+	private final ApDroneCtCpJRuntimeWakeReference.Sample rotorCtCpJWakeReferenceScratch =
+			new ApDroneCtCpJRuntimeWakeReference.Sample();
 	private final RotorConvectedWakeScratch rotorConvectedWakeScratch = new RotorConvectedWakeScratch();
 	private final double[] rotorSurfaceEffectThrustMultipliers;
 	private final double[] rotorConingIntensity;
@@ -391,7 +400,8 @@ public final class DronePhysics {
 			Vec3 armFromCenterOfMassBody,
 			double sqrtWakeLagRadiusScale,
 			double swirlVelocityLimitMetersPerSecond,
-			double wakeShedding
+			double wakeShedding,
+			ApDroneCtCpJRuntimeWakeReference.RotorGeometry ctCpJWakeReferenceGeometry
 	) {
 	}
 
@@ -614,6 +624,12 @@ public final class DronePhysics {
 		this.rotorWakeSourceConvectionDirectionX = new double[config.rotors().size()];
 		this.rotorWakeSourceConvectionDirectionY = new double[config.rotors().size()];
 		this.rotorWakeSourceConvectionDirectionZ = new double[config.rotors().size()];
+		this.rotorCtCpJWakeReferenceApplied = new boolean[config.rotors().size()];
+		this.rotorCtCpJWakeReferenceIdealInducedVelocityMetersPerSecond = new double[config.rotors().size()];
+		this.rotorCtCpJWakeReferenceFarWakeAxialExcessVelocityMetersPerSecond = new double[config.rotors().size()];
+		this.rotorCtCpJWakeReferenceFarWakeEquivalentRadiusMeters = new double[config.rotors().size()];
+		this.rotorCtCpJWakeReferenceTangentialVelocityMetersPerSecond = new double[config.rotors().size()];
+		this.rotorCtCpJWakeReferenceDiskLoadingStrength = new double[config.rotors().size()];
 		this.rotorSurfaceEffectThrustMultipliers = new double[config.rotors().size()];
 		this.rotorConingIntensity = new double[config.rotors().size()];
 		this.rotorConingVelocity = new double[config.rotors().size()];
@@ -670,6 +686,7 @@ public final class DronePhysics {
 		this.config = config;
 		rebuildMixerCaches();
 		rebuildRotorWakeCaches();
+		clearRotorCtCpJWakeReferences();
 		pitchPid.setGains(config.pitchGains());
 		yawPid.setGains(config.yawGains());
 		rollPid.setGains(config.rollGains());
@@ -824,6 +841,7 @@ public final class DronePhysics {
 		if (dynamicState == null) {
 			return;
 		}
+		clearRotorCtCpJWakeReferences();
 
 		double[] motorOmega = dynamicState.motorOmegaRadiansPerSecond();
 		double[] escOutput = dynamicState.escOutputCommand();
@@ -914,6 +932,7 @@ public final class DronePhysics {
 	}
 
 	public void restoreDirectFlightTelemetry(DroneInput input, double[] motorPower, double[] motorRpm, double[] rotorThrustNewtons) {
+		clearRotorCtCpJWakeReferences();
 		DroneInput normalized = input == null ? DroneInput.idle() : input.normalized();
 		state.setRawControlInput(normalized);
 		state.setProcessedControlInput(normalized);
@@ -952,6 +971,7 @@ public final class DronePhysics {
 	}
 
 	public void clearDirectFlightTelemetry(DroneInput input) {
+		clearRotorCtCpJWakeReferences();
 		DroneInput normalized = input == null ? DroneInput.idle() : input.normalized();
 		state.setRawControlInput(normalized);
 		state.setProcessedControlInput(normalized);
@@ -999,6 +1019,7 @@ public final class DronePhysics {
 		if (transientState == null) {
 			return;
 		}
+		clearRotorCtCpJWakeReferences();
 
 		meanWindVelocityWorldMetersPerSecond = transientState.meanWindVelocityWorldMetersPerSecond().clamp(-80.0, 80.0);
 		windBurbleVelocityWorldMetersPerSecond = transientState.windBurbleVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
@@ -1095,6 +1116,7 @@ public final class DronePhysics {
 		Arrays.fill(rotorWakeInterferenceIntensity, 0.0);
 		Arrays.fill(rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond, Vec3.ZERO);
 		Arrays.fill(rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond, Vec3.ZERO);
+		clearRotorCtCpJWakeReferences();
 		Arrays.fill(rotorSurfaceEffectThrustMultipliers, 1.0);
 		Arrays.fill(rotorConingIntensity, 0.0);
 		Arrays.fill(rotorConingVelocity, 0.0);
@@ -1182,6 +1204,17 @@ public final class DronePhysics {
 		Vec3 totalTorqueBody = Vec3.ZERO;
 		double voltageScale = MathUtil.clamp(state.batteryVoltage() / config.nominalBatteryVoltage(), 0.55, 1.03);
 		double airDensity = atmosphereCache.effectiveAirDensityRatio();
+		double ctCpJReferenceAirDensityKgPerCubicMeter = 0.0;
+		double ctCpJReferenceDensityViscosityRatio = 0.0;
+		if (rotorCtCpJWakeReferenceEnabled) {
+			ctCpJReferenceAirDensityKgPerCubicMeter =
+					ApDroneCtCpJRuntimeWakeReference.runtimeAirDensityKgPerCubicMeter(airDensity);
+			ctCpJReferenceDensityViscosityRatio =
+					ApDroneCtCpJRuntimeWakeReference.runtimeDensityViscosityRatio(
+							ctCpJReferenceAirDensityKgPerCubicMeter,
+							dynamicViscosityRatio
+					);
+		}
 		double waterImmersion = environment.waterImmersionIntensity();
 		double precipitationWetness = environment.precipitationWetnessIntensity();
 		Vec3 effectiveWindVelocityWorld = updateAirMassWind(environment, dtSeconds);
@@ -1423,6 +1456,17 @@ public final class DronePhysics {
 					dynamicViscosityRatio
 			);
 			state.setRotorReynoldsIndex(i, rotorReynoldsIndex);
+			if (rotorCtCpJWakeReferenceEnabled) {
+				updateRotorCtCpJWakeReference(
+						i,
+						aerodynamicRotor,
+						rotorRelativeAirVelocityBody,
+						aerodynamicOmega,
+						ctCpJReferenceAirDensityKgPerCubicMeter,
+						speedOfSoundMetersPerSecond,
+						ctCpJReferenceDensityViscosityRatio
+				);
+			}
 			double lowReynoldsLoss = rotorLowReynoldsLossFromIndex(
 					aerodynamicRotor,
 					aerodynamicOmega,
@@ -4847,11 +4891,34 @@ public final class DronePhysics {
 				RotorSpec source = sourceGeometry.rotor();
 				Vec3 sourceAxisBody = sourceGeometry.axisBody();
 				double sourceSpinRatio = rotorWakeSourceSpinRatio[sourceIndex];
-				double sourceInducedVelocity = rotorWakeSourceInducedVelocityMetersPerSecond[sourceIndex];
-				double axialLateralFactor = pairGeometry.axialWakeOverlap() > 1.0e-6
-						&& crossflowFlush > 1.0e-6
-						? pairGeometry.fallbackAxialLateralFactor()
-						: 0.0;
+				double fallbackSourceInducedVelocity =
+						rotorWakeSourceInducedVelocityMetersPerSecond[sourceIndex];
+				double sourceInducedVelocity = rotorCtCpJWakeReferenceEnabled
+						? rotorCtCpJWakeAxialExcessVelocityMetersPerSecond(
+								sourceIndex,
+								source,
+								pairGeometry.downstreamDistanceMeters(),
+								fallbackSourceInducedVelocity
+						)
+						: fallbackSourceInducedVelocity;
+				double axialLateralFactor = 0.0;
+				if (pairGeometry.axialWakeOverlap() > 1.0e-6 && crossflowFlush > 1.0e-6) {
+					if (rotorCtCpJWakeReferenceEnabled && hasRotorCtCpJWakeCoreReference(sourceIndex)) {
+						double wakeRadius = rotorCtCpJWakeCoreRadiusMeters(
+								sourceIndex,
+								source,
+								pairGeometry.downstreamDistanceMeters(),
+								pairGeometry.fallbackAxialWakeRadiusMeters()
+						);
+						axialLateralFactor = 1.0 - smoothStep(
+								wakeRadius * 0.35,
+								wakeRadius + receiver.radiusMeters() * 0.85,
+								pairGeometry.axialLateralDistanceMeters()
+						);
+					} else {
+						axialLateralFactor = pairGeometry.fallbackAxialLateralFactor();
+					}
+				}
 				double axialContributionFactor = Math.max(
 						0.0,
 						pairGeometry.axialWakeOverlap() * axialLateralFactor * crossflowFlush
@@ -4873,8 +4940,13 @@ public final class DronePhysics {
 					continue;
 				}
 
+				double wakeMomentumStrength = rotorCtCpJWakeReferenceEnabled
+						&& rotorCtCpJWakeReferenceApplied[sourceIndex]
+						&& rotorCtCpJWakeReferenceDiskLoadingStrength[sourceIndex] > 0.0
+						? rotorCtCpJWakeReferenceDiskLoadingStrength[sourceIndex]
+						: sourceSpinRatio * sourceSpinRatio;
 				double contribution = MathUtil.clamp(
-						sourceSpinRatio * sourceSpinRatio * wakeGeometryFactor
+						wakeMomentumStrength * wakeGeometryFactor
 								* (0.70 + 0.18 * pairGeometry.radiusMatch()),
 						0.0,
 						1.0
@@ -4888,7 +4960,14 @@ public final class DronePhysics {
 						)
 						: pairGeometry.axialCoaxialCoreFactor();
 				double swirlCapture = MathUtil.clamp(0.34 + 0.26 * coaxialCoreFactor + 0.14 * sourceSpinRatio, 0.0, 0.78);
-				double swirlVelocity = contribution * sourceInducedVelocity * swirlCapture;
+				double referenceTangentialVelocity =
+						rotorCtCpJWakeReferenceTangentialVelocityMetersPerSecond[sourceIndex];
+				double swirlVelocity = rotorCtCpJWakeReferenceEnabled
+						&& rotorCtCpJWakeReferenceApplied[sourceIndex]
+						&& Double.isFinite(referenceTangentialVelocity)
+						&& referenceTangentialVelocity > 0.0
+						? contribution * swirlCapture * referenceTangentialVelocity
+						: contribution * sourceInducedVelocity * swirlCapture;
 				Vec3 swirlDirection = convectedDominates
 						? rotorWakeSwirlDirection(
 								sourceAxisBody,
@@ -4977,6 +5056,140 @@ public final class DronePhysics {
 		rotorWakeSourceConvectionDirectionX[sourceIndex] = 0.0;
 		rotorWakeSourceConvectionDirectionY[sourceIndex] = 0.0;
 		rotorWakeSourceConvectionDirectionZ[sourceIndex] = 0.0;
+	}
+
+	private void clearRotorCtCpJWakeReferences() {
+		Arrays.fill(rotorCtCpJWakeReferenceApplied, false);
+		Arrays.fill(rotorCtCpJWakeReferenceIdealInducedVelocityMetersPerSecond, 0.0);
+		Arrays.fill(rotorCtCpJWakeReferenceFarWakeAxialExcessVelocityMetersPerSecond, 0.0);
+		Arrays.fill(rotorCtCpJWakeReferenceFarWakeEquivalentRadiusMeters, 0.0);
+		Arrays.fill(rotorCtCpJWakeReferenceTangentialVelocityMetersPerSecond, 0.0);
+		Arrays.fill(rotorCtCpJWakeReferenceDiskLoadingStrength, 0.0);
+	}
+
+	private void updateRotorCtCpJWakeReference(
+			int rotorIndex,
+			RotorSpec aerodynamicRotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			double speedOfSoundMetersPerSecond,
+			double densityViscosityRatio
+	) {
+		rotorCtCpJWakeReferenceApplied[rotorIndex] = false;
+		rotorCtCpJWakeReferenceIdealInducedVelocityMetersPerSecond[rotorIndex] = 0.0;
+		rotorCtCpJWakeReferenceFarWakeAxialExcessVelocityMetersPerSecond[rotorIndex] = 0.0;
+		rotorCtCpJWakeReferenceFarWakeEquivalentRadiusMeters[rotorIndex] = 0.0;
+		rotorCtCpJWakeReferenceTangentialVelocityMetersPerSecond[rotorIndex] = 0.0;
+		rotorCtCpJWakeReferenceDiskLoadingStrength[rotorIndex] = 0.0;
+
+		RotorWakeRotorGeometry rotorGeometry = rotorWakeRotorGeometry[rotorIndex];
+		ApDroneCtCpJRuntimeWakeReference.sampleInto(
+				rotorGeometry.ctCpJWakeReferenceGeometry(),
+				aerodynamicRotor.thrustAxisBody(),
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				speedOfSoundMetersPerSecond,
+				densityViscosityRatio,
+				rotorCtCpJWakeReferenceScratch
+		);
+		if (!rotorCtCpJWakeReferenceScratch.applied()) {
+			return;
+		}
+
+		double referenceAxialAdvanceSpeed = Math.max(
+				0.0,
+				relativeAirVelocityBody.dot(rotorGeometry.axisBody())
+		);
+		rotorCtCpJWakeReferenceIdealInducedVelocityMetersPerSecond[rotorIndex] =
+				rotorCtCpJWakeReferenceScratch.idealInducedVelocityMetersPerSecond();
+		rotorCtCpJWakeReferenceFarWakeAxialExcessVelocityMetersPerSecond[rotorIndex] = Math.max(
+				0.0,
+				rotorCtCpJWakeReferenceScratch.farWakeAxialVelocityMetersPerSecond()
+						- referenceAxialAdvanceSpeed
+		);
+		rotorCtCpJWakeReferenceFarWakeEquivalentRadiusMeters[rotorIndex] =
+				rotorCtCpJWakeReferenceScratch.farWakeEquivalentRadiusMeters();
+		rotorCtCpJWakeReferenceTangentialVelocityMetersPerSecond[rotorIndex] =
+				rotorCtCpJWakeReferenceScratch.wakeTangentialVelocityMetersPerSecond();
+		rotorCtCpJWakeReferenceDiskLoadingStrength[rotorIndex] =
+				rotorCtCpJWakeReferenceScratch.diskLoadingStrength();
+		rotorCtCpJWakeReferenceApplied[rotorIndex] = true;
+	}
+
+	private double rotorCtCpJWakeAxialExcessVelocityMetersPerSecond(
+			int sourceIndex,
+			RotorSpec source,
+			double downstreamDistanceMeters,
+			double fallbackSourceInducedVelocityMetersPerSecond
+	) {
+		if (!rotorCtCpJWakeReferenceApplied[sourceIndex]) {
+			return fallbackSourceInducedVelocityMetersPerSecond;
+		}
+		double idealInducedVelocity =
+				rotorCtCpJWakeReferenceIdealInducedVelocityMetersPerSecond[sourceIndex];
+		if (!Double.isFinite(idealInducedVelocity) || idealInducedVelocity <= 0.0) {
+			return fallbackSourceInducedVelocityMetersPerSecond;
+		}
+		double farWakeExcessVelocity =
+				rotorCtCpJWakeReferenceFarWakeAxialExcessVelocityMetersPerSecond[sourceIndex];
+		if (!Double.isFinite(farWakeExcessVelocity)) {
+			farWakeExcessVelocity = idealInducedVelocity;
+		}
+		if (farWakeExcessVelocity <= 1.0e-6) {
+			return idealInducedVelocity;
+		}
+		double sourceRadius = Math.max(1.0e-6, source.radiusMeters());
+		double downstreamDistance = Math.max(0.0, downstreamDistanceMeters);
+		double farWakeBlend = smoothStep(
+				sourceRadius * 0.35,
+				sourceRadius * 4.0,
+				downstreamDistance
+		);
+		double wakeExcessVelocity = idealInducedVelocity
+				+ (farWakeExcessVelocity - idealInducedVelocity) * farWakeBlend;
+		return Double.isFinite(wakeExcessVelocity) ? Math.max(0.0, wakeExcessVelocity) : 0.0;
+	}
+
+	private boolean hasRotorCtCpJWakeCoreReference(int sourceIndex) {
+		double farWakeRadius = rotorCtCpJWakeReferenceFarWakeEquivalentRadiusMeters[sourceIndex];
+		return rotorCtCpJWakeReferenceApplied[sourceIndex]
+				&& Double.isFinite(farWakeRadius)
+				&& farWakeRadius > 1.0e-6;
+	}
+
+	private double rotorCtCpJWakeCoreRadiusMeters(
+			int sourceIndex,
+			RotorSpec source,
+			double downstreamDistanceMeters,
+			double fallbackWakeRadiusMeters
+	) {
+		double sourceRadius = Math.max(1.0e-6, source.radiusMeters());
+		double fallback = Double.isFinite(fallbackWakeRadiusMeters)
+				? Math.max(0.0, fallbackWakeRadiusMeters)
+				: 0.0;
+		if (fallback <= 1.0e-6) {
+			fallback = sourceRadius;
+		}
+		if (!hasRotorCtCpJWakeCoreReference(sourceIndex)) {
+			return fallback;
+		}
+		double farWakeRadius = rotorCtCpJWakeReferenceFarWakeEquivalentRadiusMeters[sourceIndex];
+		double downstreamDistance = Double.isFinite(downstreamDistanceMeters)
+				? Math.max(0.0, downstreamDistanceMeters)
+				: 0.0;
+		double contraction = smoothStep(
+				sourceRadius * 0.35,
+				sourceRadius * 4.0,
+				downstreamDistance
+		);
+		double contractedRadius = sourceRadius + (farWakeRadius - sourceRadius) * contraction;
+		return MathUtil.clamp(
+				contractedRadius,
+				sourceRadius * 0.35,
+				Math.max(sourceRadius, fallback)
+		);
 	}
 
 	private static Vec3 clampRotorWakeSwirlVelocity(RotorSpec receiver, Vec3 swirlVelocityBodyMetersPerSecond) {
@@ -5088,7 +5301,19 @@ public final class DronePhysics {
 		double wakeAgeSeconds = alongConvectionMeters / Math.max(1.0, transverseSpeed);
 		double wakeDropMeters = sourceInducedVelocityMetersPerSecond * wakeAgeSeconds;
 		double axialMissMeters = pairGeometry.receiverBelowSourceMeters() - wakeDropMeters;
-		double wakeRadius = sourceRadius + wakeDropMeters * 0.38 + alongConvectionMeters * 0.045;
+		double wakeRadius;
+		if (rotorCtCpJWakeReferenceEnabled && hasRotorCtCpJWakeCoreReference(sourceIndex)) {
+			double fallbackContractedRadius = sourceRadius + wakeDropMeters * 0.38;
+			double contractedRadius = rotorCtCpJWakeCoreRadiusMeters(
+					sourceIndex,
+					source,
+					wakeDropMeters,
+					fallbackContractedRadius
+			);
+			wakeRadius = Math.max(0.0, contractedRadius + alongConvectionMeters * 0.045);
+		} else {
+			wakeRadius = sourceRadius + wakeDropMeters * 0.38 + alongConvectionMeters * 0.045;
+		}
 		double alongCapture = smoothStep(
 				pairGeometry.alongCaptureStartMeters(),
 				pairGeometry.alongCaptureEndMeters(),
@@ -6843,6 +7068,9 @@ public final class DronePhysics {
 
 	private void rebuildRotorWakeCaches() {
 		int rotorCount = config.rotors().size();
+		boolean ctCpJWakeReferenceEligible =
+				ApDroneCtCpJRuntimeWakeReference.hasEligibleRotorSet(config);
+		rotorCtCpJWakeReferenceEnabled = ctCpJWakeReferenceEligible;
 		RotorWakeRotorGeometry[] rotorGeometry = new RotorWakeRotorGeometry[rotorCount];
 		for (int rotorIndex = 0; rotorIndex < rotorCount; rotorIndex++) {
 			RotorSpec rotor = config.rotors().get(rotorIndex);
@@ -6857,7 +7085,10 @@ public final class DronePhysics {
 					armFromCenterOfMassBody,
 					Math.sqrt(radiusScale),
 					rotorWakeSwirlVelocityLimitMetersPerSecond(rotor),
-					smoothStep(0.0004, 0.0028, rotor.diskDragCoefficient())
+					smoothStep(0.0004, 0.0028, rotor.diskDragCoefficient()),
+					ctCpJWakeReferenceEligible
+							? ApDroneCtCpJRuntimeWakeReference.geometry(rotor)
+							: null
 			);
 		}
 
