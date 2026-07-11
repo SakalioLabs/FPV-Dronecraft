@@ -2,6 +2,8 @@ package com.tenicana.dronecraft.sim;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tenicana.dronecraft.sim.tools.OfflineFlightRecorder;
@@ -9,6 +11,7 @@ import com.tenicana.dronecraft.sim.tools.OfflineFlightRecorder;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -1442,6 +1445,61 @@ class DronePhysicsTest {
 				() -> "lingeringSwirl=" + lingeringSwirl + " clearedSwirl=" + clearedSwirl);
 		assertTrue(clearedWake < 0.04, () -> "clearedWake=" + clearedWake);
 		assertTrue(clearedSwirl < 0.04, () -> "clearedSwirl=" + clearedSwirl);
+	}
+
+	@Test
+	void rotorWakeScratchBuffersAreReusedAndClearedOnInstantRelease() throws ReflectiveOperationException {
+		DroneConfig config = directControl(DroneConfig.coaxialX8())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput powered = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		for (int i = 0; i < 240; i++) {
+			holdInStillAir(physics);
+			physics.step(powered, 0.005);
+		}
+
+		Field targetIntensityField = privateField("rotorWakeInterferenceTargetIntensity");
+		Field targetDownwashField = privateField("rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond");
+		Field targetSwirlField = privateField("rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond");
+		Field filteredIntensityField = privateField("rotorWakeInterferenceIntensity");
+		Field filteredDownwashField = privateField("rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond");
+		Field filteredSwirlField = privateField("rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond");
+		double[] targetIntensity = (double[]) targetIntensityField.get(physics);
+		Vec3[] targetDownwash = (Vec3[]) targetDownwashField.get(physics);
+		Vec3[] targetSwirl = (Vec3[]) targetSwirlField.get(physics);
+		double[] filteredIntensity = (double[]) filteredIntensityField.get(physics);
+		Vec3[] filteredDownwash = (Vec3[]) filteredDownwashField.get(physics);
+		Vec3[] filteredSwirl = (Vec3[]) filteredSwirlField.get(physics);
+		assertNotSame(targetIntensity, filteredIntensity);
+		assertNotSame(targetDownwash, filteredDownwash);
+		assertNotSame(targetSwirl, filteredSwirl);
+		assertTrue(max(targetIntensity) > 0.20);
+
+		Method updateWake = DronePhysics.class.getDeclaredMethod(
+				"updateRotorWakeInterference",
+				boolean.class,
+				Vec3.class,
+				double.class
+		);
+		updateWake.setAccessible(true);
+		updateWake.invoke(physics, false, Vec3.ZERO, 0.0);
+
+		assertSame(targetIntensity, targetIntensityField.get(physics));
+		assertSame(targetDownwash, targetDownwashField.get(physics));
+		assertSame(targetSwirl, targetSwirlField.get(physics));
+		assertSame(filteredIntensity, filteredIntensityField.get(physics));
+		assertSame(filteredDownwash, filteredDownwashField.get(physics));
+		assertSame(filteredSwirl, filteredSwirlField.get(physics));
+		for (int i = 0; i < config.rotors().size(); i++) {
+			assertEquals(0.0, targetIntensity[i], 0.0);
+			assertSame(Vec3.ZERO, targetDownwash[i]);
+			assertSame(Vec3.ZERO, targetSwirl[i]);
+			assertEquals(0.0, filteredIntensity[i], 0.0);
+			assertSame(Vec3.ZERO, filteredDownwash[i]);
+			assertSame(Vec3.ZERO, filteredSwirl[i]);
+		}
 	}
 
 	@Test
@@ -12272,6 +12330,20 @@ class DronePhysicsTest {
 			torque = torque.add(DronePhysics.rotorTorqueCoefficientPerThrust(rotor, arm).multiply(deltas[i]));
 		}
 		return torque;
+	}
+
+	private static Field privateField(String name) throws NoSuchFieldException {
+		Field field = DronePhysics.class.getDeclaredField(name);
+		field.setAccessible(true);
+		return field;
+	}
+
+	private static double max(double[] values) {
+		double max = Double.NEGATIVE_INFINITY;
+		for (double value : values) {
+			max = Math.max(max, value);
+		}
+		return max;
 	}
 
 	private static double sum(double[] values) {

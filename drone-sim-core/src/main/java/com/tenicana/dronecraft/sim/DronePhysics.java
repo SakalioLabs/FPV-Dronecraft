@@ -103,6 +103,9 @@ public final class DronePhysics {
 	private final double[] rotorWakeInterferenceIntensity;
 	private final Vec3[] rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond;
 	private final Vec3[] rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond;
+	private final double[] rotorWakeInterferenceTargetIntensity;
+	private final Vec3[] rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond;
+	private final Vec3[] rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond;
 	private final double[] rotorSurfaceEffectThrustMultipliers;
 	private final double[] rotorConingIntensity;
 	private final double[] rotorConingVelocity;
@@ -365,28 +368,6 @@ public final class DronePhysics {
 		private static final RotorBladeStallBuffet IDLE = new RotorBladeStallBuffet(1.0, Vec3.ZERO, 0.0);
 	}
 
-	private record RotorWakeInterference(
-			double[] intensity,
-			Vec3[] downwashVelocityBodyMetersPerSecond,
-			Vec3[] swirlVelocityBodyMetersPerSecond
-	) {
-		private double intensity(int index) {
-			return index >= 0 && index < intensity.length ? intensity[index] : 0.0;
-		}
-
-		private Vec3 downwashVelocityBodyMetersPerSecond(int index) {
-			return index >= 0 && index < downwashVelocityBodyMetersPerSecond.length
-					? downwashVelocityBodyMetersPerSecond[index]
-					: Vec3.ZERO;
-		}
-
-		private Vec3 swirlVelocityBodyMetersPerSecond(int index) {
-			return index >= 0 && index < swirlVelocityBodyMetersPerSecond.length
-					? swirlVelocityBodyMetersPerSecond[index]
-					: Vec3.ZERO;
-		}
-	}
-
 	private record RotorWakeFlow(double axialDescentSpeedMetersPerSecond, double transverseSpeedMetersPerSecond) {
 	}
 
@@ -515,6 +496,9 @@ public final class DronePhysics {
 		this.rotorWakeInterferenceIntensity = new double[config.rotors().size()];
 		this.rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond = new Vec3[config.rotors().size()];
 		this.rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond = new Vec3[config.rotors().size()];
+		this.rotorWakeInterferenceTargetIntensity = new double[config.rotors().size()];
+		this.rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond = new Vec3[config.rotors().size()];
+		this.rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond = new Vec3[config.rotors().size()];
 		this.rotorSurfaceEffectThrustMultipliers = new double[config.rotors().size()];
 		this.rotorConingIntensity = new double[config.rotors().size()];
 		this.rotorConingVelocity = new double[config.rotors().size()];
@@ -542,6 +526,8 @@ public final class DronePhysics {
 		Arrays.fill(this.rotorWallEffectForceBodyFiltered, Vec3.ZERO);
 		Arrays.fill(this.rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond, Vec3.ZERO);
 		Arrays.fill(this.rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond, Vec3.ZERO);
+		Arrays.fill(this.rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond, Vec3.ZERO);
+		Arrays.fill(this.rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond, Vec3.ZERO);
 		Arrays.fill(this.rotorBladeElementThrustScale, 1.0);
 		Arrays.fill(this.rotorBladeDissymmetryThrustScale, 1.0);
 		Arrays.fill(this.rotorSurfaceEffectThrustMultipliers, 1.0);
@@ -1087,7 +1073,7 @@ public final class DronePhysics {
 		updateAirframeSeparatedFlowIntensity(relativeAirVelocityBody, dtSeconds);
 		Vec3 airframeDragBody = updateAirframeBodyDragForce(relativeAirVelocityBody, airDensity, dtSeconds);
 		Vec3 angularVelocityBody = state.angularVelocityBodyRadiansPerSecond();
-		RotorWakeInterference rotorWakeInterference = updateRotorWakeInterference(input.armed(), relativeAirVelocityBody, dtSeconds);
+		updateRotorWakeInterference(input.armed(), relativeAirVelocityBody, dtSeconds);
 		double vortexRingStateSum = 0.0;
 		double vortexRingThrustBuffetAmplitudeSum = 0.0;
 		double vortexRingMaxThrustBuffetAmplitude = 0.0;
@@ -1200,9 +1186,9 @@ public final class DronePhysics {
 			commandedOmega = applyMotorMechanicalLoss(rotor, commandedOmega, mechanicalLossTorque, dtSeconds);
 			state.setMotorMechanicalLossTorqueNewtonMeters(i, mechanicalLossTorque);
 
-			double wakeInterference = rotorWakeInterference.intensity(i);
+			double wakeInterference = rotorWakeInterferenceIntensity[i];
 			state.setRotorWakeInterferenceIntensity(i, wakeInterference);
-			Vec3 wakeSwirlVelocityBody = rotorWakeInterference.swirlVelocityBodyMetersPerSecond(i);
+			Vec3 wakeSwirlVelocityBody = rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i];
 			double wakeSwirlSpeed = wakeSwirlVelocityBody.length();
 			state.setRotorWakeSwirlVelocityMetersPerSecond(i, wakeSwirlSpeed);
 			Vec3 nominalRotorArmBody = rotor.positionBodyMeters().subtract(config.centerOfMassOffsetBodyMeters());
@@ -1211,7 +1197,7 @@ public final class DronePhysics {
 			RotorSpec aerodynamicRotor = rotorWithArmFlexedThrustAxis(rotor, nominalRotorArmBody, previousRotorArmFlex);
 			Vec3 rotorRelativeAirVelocityBody = relativeAirVelocityBody
 					.add(angularVelocityBody.cross(rotorArmBody))
-					.add(rotorWakeInterference.downwashVelocityBodyMetersPerSecond(i))
+					.add(rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i])
 					.add(wakeSwirlVelocityBody);
 			double windmillingIntensity = rotorWindmillingIntensity(aerodynamicRotor, rotorRelativeAirVelocityBody, escElectricalOutput);
 			state.setRotorWindmillingIntensity(i, windmillingIntensity);
@@ -4561,28 +4547,25 @@ public final class DronePhysics {
 		return MathUtil.clamp(0.22 * Math.pow(severity, 0.82) * spinRatio, 0.0, 1.0);
 	}
 
-	private RotorWakeInterference updateRotorWakeInterference(boolean armed, Vec3 relativeAirVelocityBody, double dtSeconds) {
-		RotorWakeInterference target = calculateSteadyRotorWakeInterference(armed, relativeAirVelocityBody);
+	private void updateRotorWakeInterference(boolean armed, Vec3 relativeAirVelocityBody, double dtSeconds) {
+		calculateSteadyRotorWakeInterference(armed, relativeAirVelocityBody);
 		int rotorCount = config.rotors().size();
 		if (dtSeconds <= 0.0) {
 			for (int i = 0; i < rotorCount; i++) {
-				rotorWakeInterferenceIntensity[i] = target.intensity(i);
-				rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i] = target.downwashVelocityBodyMetersPerSecond(i);
-				rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i] = target.swirlVelocityBodyMetersPerSecond(i);
+				rotorWakeInterferenceIntensity[i] = rotorWakeInterferenceTargetIntensity[i];
+				rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i] = rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond[i];
+				rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i] = rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond[i];
 			}
-			return target;
+			return;
 		}
 
-		double[] intensity = new double[rotorCount];
-		Vec3[] downwash = new Vec3[rotorCount];
-		Vec3[] swirl = new Vec3[rotorCount];
 		double crossflowSpeed = Math.hypot(relativeAirVelocityBody.x(), relativeAirVelocityBody.z());
 		double crossflowFlush = smoothStep(2.5, 9.0, crossflowSpeed);
 		for (int i = 0; i < rotorCount; i++) {
 			RotorSpec rotor = config.rotors().get(i);
-			double targetIntensity = target.intensity(i);
-			Vec3 targetDownwash = target.downwashVelocityBodyMetersPerSecond(i);
-			Vec3 targetSwirl = target.swirlVelocityBodyMetersPerSecond(i);
+			double targetIntensity = rotorWakeInterferenceTargetIntensity[i];
+			Vec3 targetDownwash = rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond[i];
+			Vec3 targetSwirl = rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond[i];
 			Vec3 previousDownwash = rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i];
 			Vec3 previousSwirl = rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i];
 			double previousIntensity = rotorWakeInterferenceIntensity[i];
@@ -4619,22 +4602,19 @@ public final class DronePhysics {
 			rotorWakeInterferenceIntensity[i] = MathUtil.clamp(filteredIntensity, 0.0, 1.0);
 			rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i] = filteredDownwash.clamp(-12.0, 12.0);
 			rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i] = clampRotorWakeSwirlVelocity(rotor, filteredSwirl);
-			intensity[i] = rotorWakeInterferenceIntensity[i];
-			downwash[i] = rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i];
-			swirl[i] = rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i];
 		}
-		return new RotorWakeInterference(intensity, downwash, swirl);
 	}
 
-	private RotorWakeInterference calculateSteadyRotorWakeInterference(boolean armed, Vec3 relativeAirVelocityBody) {
+	private void calculateSteadyRotorWakeInterference(boolean armed, Vec3 relativeAirVelocityBody) {
 		int rotorCount = config.rotors().size();
-		double[] intensity = new double[rotorCount];
-		Vec3[] downwash = new Vec3[rotorCount];
-		Vec3[] swirl = new Vec3[rotorCount];
+		double[] intensity = rotorWakeInterferenceTargetIntensity;
+		Vec3[] downwash = rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond;
+		Vec3[] swirl = rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond;
+		Arrays.fill(intensity, 0.0);
 		Arrays.fill(downwash, Vec3.ZERO);
 		Arrays.fill(swirl, Vec3.ZERO);
 		if (!armed || rotorCount < 2) {
-			return new RotorWakeInterference(intensity, downwash, swirl);
+			return;
 		}
 
 		double crossflowSpeed = Math.hypot(relativeAirVelocityBody.x(), relativeAirVelocityBody.z());
@@ -4718,7 +4698,6 @@ public final class DronePhysics {
 			downwash[receiverIndex] = receiverDownwash.clamp(-12.0, 12.0);
 			swirl[receiverIndex] = clampRotorWakeSwirlVelocity(receiver, receiverSwirl);
 		}
-		return new RotorWakeInterference(intensity, downwash, swirl);
 	}
 
 	private static Vec3 clampRotorWakeSwirlVelocity(RotorSpec receiver, Vec3 swirlVelocityBodyMetersPerSecond) {
