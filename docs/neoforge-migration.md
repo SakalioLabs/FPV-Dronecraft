@@ -1,0 +1,47 @@
+# NeoForge Migration Ledger
+
+This document is the release gate for the `NeoForge` branch. A migration unit is
+complete only after its focused checks pass, the resulting commit is pushed, and
+the branch remains usable as the base for the next unit.
+
+## Architecture Rules
+
+- `drone-sim-core` remains loader- and Minecraft-independent.
+- Loader APIs stay in the `neoforge-mod` composition and event adapter classes.
+- Registry holders do not escape the registry package. Gameplay code receives
+  vanilla `EntityType`, `Item`, and `SoundEvent` values through narrow accessors.
+- Network payload records remain transport-only. Validation and gameplay state
+  changes run through the existing control/domain services on the server thread.
+- Client-only classes are registered from a client distribution entry point and
+  must not be loaded by a dedicated server.
+- Physics, tuning, and telemetry behavior stay frozen during loader migration.
+  Behavioral changes require a later, separately verified unit.
+
+## Migration Units
+
+| Unit | Scope | Required verification | Status | Evidence |
+| --- | --- | --- | --- | --- |
+| 0 | Create `NeoForge` from `master` | Local and remote refs resolve to the same base SHA | Complete | Remote branch created from `629006dd` |
+| 1 | NeoForge build scaffold and metadata | `:neoforge-mod:build`; inspect metadata and embedded core jar | Complete | `5fac5494`; `DronePhysics.class` present in jar-in-jar core |
+| 2 | Stabilize the Fabric comparison gate | `:fabric-mod:runGameTest` passes all required tests | Complete | `3827b9b5`; 9/9 GameTests pass |
+| 3 | Enable branch CI | Parse workflow; push triggers `NeoForge` checks | Complete | `5d0fbce7` |
+| 4 | Server/common gameplay vertical slice | Core tests, NeoForge compile/tests, payload codec tests, dedicated-server smoke test | In progress | Pending |
+| 5 | Client input and configuration | Focused input/config tests and client launch | Pending | Pending |
+| 6 | Client rendering, HUD, audio, and Mixins | Focused tests, client launch, dedicated-server launch | Pending | Pending |
+| 7 | NeoForge GameTests and server self-tests | GameTest server plus simulation/angle/horizon/acro self-tests | Pending | Pending |
+| 8 | CI, distributions, documentation, and final packaging | Full build, clean jar audit, clean client/server install | Pending | Pending |
+
+## Verification Policy
+
+Run checks serially because Loom and ModDevGradle share generated Minecraft and
+class-output caches in this workspace. Golden traces must never be regenerated
+during migration.
+
+```powershell
+$env:FPVDRONE_UPDATE_GOLDEN_TRACES = "false"
+.\gradlew.bat --no-daemon --no-parallel --max-workers=1 :drone-sim-core:test
+.\gradlew.bat --no-daemon --no-parallel --max-workers=1 :neoforge-mod:build
+```
+
+Every completed unit is committed independently and pushed to
+`origin/NeoForge` before work begins on the next dependent unit.
