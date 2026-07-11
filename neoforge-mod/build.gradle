@@ -5,6 +5,7 @@ plugins {
 
 apply from: rootProject.file("gradle/fpvdrone-selftest-validation.gradle")
 apply from: rootProject.file("gradle/fpvdrone-neoforge-distributions.gradle")
+apply from: rootProject.file("gradle/fpvdrone-neoforge-packaging-validation.gradle")
 
 base {
 	archivesName = "${rootProject.archives_base_name}-neoforge"

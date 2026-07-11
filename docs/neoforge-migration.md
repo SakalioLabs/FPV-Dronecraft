@@ -34,7 +34,7 @@ the branch remains usable as the base for the next unit.
 | 7c | Cross-loader command authorization | Real Brigadier-tree permission tests in both loader modules | Complete | This commit; read-only status/preset paths stay public and 12 mutation boundaries require GameMaster |
 | 8a | License and archive baseline | Root license matches metadata; production jar contains `META-INF/LICENSE` | Complete | This commit; standard MIT text attributed to SakalioLabs |
 | 8b | NeoForge preset distributions | Build legacy and candidate variants from the standard NeoForge jar | Complete | This commit; standard `jar`/`jarJar` graph, byte-identical legacy copy, candidate changes only the preset resource |
-| 8c | NeoForge packaging verifier | Validate metadata, nested core, Mixins, exclusions, and preset variants | Pending | Pending |
+| 8c | NeoForge packaging verifier | Validate metadata, nested core, Mixins, exclusions, and preset variants | Complete | This commit; three archives pass structural gates and seven isolated corrupt fixtures fail with exact error codes |
 | 8d | CI and installation documentation | NeoForge-native gates and accurate four-language installation paths | Pending | Pending |
 | 8e | Production-jar clean instances | Clean dedicated-server and client title-screen smoke tests | Pending | Pending |
 

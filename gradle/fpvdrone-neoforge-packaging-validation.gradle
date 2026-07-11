@@ -1,0 +1,707 @@
+import groovy.json.JsonSlurper
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.security.MessageDigest
+import java.util.jar.Manifest
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+
+def fpvPkgBaseJarTask = tasks.named("jar", Jar)
+def fpvPkgExpectedVersion = project.version.toString()
+def fpvPkgExpectedBaseJarName = "${rootProject.archives_base_name}-neoforge-${fpvPkgExpectedVersion}.jar"
+def fpvPkgCoreJar = rootProject.layout.projectDirectory.file("drone-sim-core/build/libs/drone-sim-core-${fpvPkgExpectedVersion}.jar")
+def fpvPkgLegacyJar = layout.buildDirectory.file("fpvdrone-distributions/legacy-heavy-racing-quad.jar")
+def fpvPkgCandidateJar = layout.buildDirectory.file("fpvdrone-distributions/5inch-agile-candidate.jar")
+def fpvPkgPresetEntry = "assets/fpvdrone/default_playable_preset.txt"
+def fpvPkgLegacyPreset = "legacy_heavy_racing_quad\n"
+def fpvPkgCandidatePreset = "5inch_agile_candidate\n"
+def fpvPkgExpectedMinecraftVersion = project.minecraft_version.toString()
+def fpvPkgExpectedNeoForgeVersion = project.neoforge_version.toString()
+def fpvPkgExpectedToml = [
+		'license="MIT"',
+		'issueTrackerURL="https://github.com/SakalioLabs/FPV-Dronecraft/issues"',
+		'',
+		'[[mods]]',
+		'modId="fpvdrone"',
+		"version=\"${fpvPkgExpectedVersion}\"",
+		'displayName="FPV Dronecraft"',
+		'displayURL="https://github.com/SakalioLabs/FPV-Dronecraft"',
+		'authors="Teni, Codex"',
+		"description='''",
+		'A high-frequency multirotor drone simulation prototype for Minecraft.',
+		"'''",
+		'',
+		'[[mixins]]',
+		'config="fpvdrone.client.mixins.json"',
+		'',
+		'[[dependencies.fpvdrone]]',
+		'modId="neoforge"',
+		'type="required"',
+		"versionRange=\"[${fpvPkgExpectedNeoForgeVersion},)\"",
+		'ordering="NONE"',
+		'side="BOTH"',
+		'',
+		'[[dependencies.fpvdrone]]',
+		'modId="minecraft"',
+		'type="required"',
+		"versionRange=\"[${fpvPkgExpectedMinecraftVersion}]\"",
+		'ordering="NONE"',
+		'side="BOTH"',
+		''
+].join("\n")
+def fpvPkgExpectedMixinClasses = [
+		"CameraMixin",
+		"FramerateLimitTrackerAccessor",
+		"GameRendererMixin",
+		"MinecraftAttackSanitizerMixin",
+		"MinecraftCameraStateAccessor",
+		"MinecraftFramerateLimitTrackerAccessor"
+]
+def fpvPkgRequiredEntries = [
+		"META-INF/MANIFEST.MF",
+		"META-INF/neoforge.mods.toml",
+		"META-INF/jarjar/metadata.json",
+		"META-INF/LICENSE",
+		"fpvdrone.client.mixins.json",
+		"com/tenicana/dronecraft/FpvDronecraftMod.class",
+		"com/tenicana/dronecraft/client/FpvDronecraftClient.class",
+		"com/tenicana/dronecraft/entity/DroneEntity.class",
+		fpvPkgPresetEntry,
+		"assets/fpvdrone/sounds.json",
+		"assets/fpvdrone/items/drone_controller.json",
+		"assets/fpvdrone/models/item/drone_controller.json",
+		"assets/fpvdrone/lang/en_us.json",
+		"assets/fpvdrone/textures/entity/drone.png",
+		"assets/fpvdrone/sounds/drone/motor_loop.ogg"
+] as Set
+
+def fpvPkgFail = { String code, String message ->
+	throw new GradleException("[FPV-PKG:${code}] ${message}")
+}
+
+def fpvPkgRequire = { boolean condition, String code, String message ->
+	if (!condition) {
+		fpvPkgFail(code, message)
+	}
+}
+
+def fpvPkgCloseResources = { List<Closeable> resources, Throwable primaryFailure ->
+	Throwable firstCloseFailure = null
+	resources.findAll { resource -> resource != null }.each { resource ->
+		try {
+			resource.close()
+		} catch (Throwable closeFailure) {
+			if (primaryFailure != null) {
+				if (!primaryFailure.is(closeFailure)) {
+					primaryFailure.addSuppressed(closeFailure)
+				}
+			} else if (firstCloseFailure == null) {
+				firstCloseFailure = closeFailure
+			} else if (!firstCloseFailure.is(closeFailure)) {
+				firstCloseFailure.addSuppressed(closeFailure)
+			}
+		}
+	}
+	if (primaryFailure == null && firstCloseFailure != null) {
+		throw firstCloseFailure
+	}
+}
+
+def fpvPkgSha256Bytes = { byte[] bytes ->
+	MessageDigest.getInstance("SHA-256")
+			.digest(bytes)
+			.collect { value -> String.format("%02x", value & 0xff) }
+			.join()
+}
+
+def fpvPkgSha256File = { File file ->
+	def digest = MessageDigest.getInstance("SHA-256")
+	file.withInputStream { input ->
+		byte[] buffer = new byte[8192]
+		int read
+		while ((read = input.read(buffer)) >= 0) {
+			if (read > 0) {
+				digest.update(buffer, 0, read)
+			}
+		}
+	}
+	digest.digest()
+			.collect { value -> String.format("%02x", value & 0xff) }
+			.join()
+}
+
+def fpvPkgValidateEntryPath = { String entryName, boolean directory, String archiveLabel ->
+	fpvPkgRequire(entryName != null && !entryName.isEmpty(), "PATH", "${archiveLabel} contains an empty ZIP entry name.")
+	fpvPkgRequire(!entryName.startsWith("/") && !entryName.startsWith("\\"), "PATH", "${archiveLabel} contains an absolute entry: ${entryName}")
+	fpvPkgRequire(!(entryName ==~ /(?i)^[a-z]:.*/), "PATH", "${archiveLabel} contains a drive-qualified entry: ${entryName}")
+	fpvPkgRequire(!entryName.contains("\\"), "PATH", "${archiveLabel} contains a backslash entry: ${entryName}")
+
+	for (int index = 0; index < entryName.length(); index++) {
+		char value = entryName.charAt(index)
+		fpvPkgRequire(value >= 0x20 && value != 0x7f, "PATH", "${archiveLabel} contains a control character in an entry name.")
+	}
+
+	String[] segments = entryName.split("/", -1)
+	int segmentCount = segments.length
+	if (directory && entryName.endsWith("/")) {
+		segmentCount--
+	}
+	fpvPkgRequire(segmentCount > 0, "PATH", "${archiveLabel} contains an invalid root entry: ${entryName}")
+	for (int index = 0; index < segmentCount; index++) {
+		String segment = segments[index]
+		fpvPkgRequire(!segment.isEmpty(), "PATH", "${archiveLabel} contains an empty path segment: ${entryName}")
+		fpvPkgRequire(segment != "." && segment != "..", "PATH", "${archiveLabel} contains path traversal: ${entryName}")
+	}
+}
+
+def fpvPkgScanZipInput = { InputStream source, String archiveLabel, boolean captureFiles ->
+	def allNames = new LinkedHashSet<String>()
+	def fileNames = new LinkedHashSet<String>()
+	def contents = new LinkedHashMap<String, byte[]>()
+	long totalUncompressedBytes = 0L
+	ZipInputStream zipInput = null
+	Throwable primaryFailure = null
+	try {
+		zipInput = new ZipInputStream(new BufferedInputStream(source), StandardCharsets.UTF_8)
+		def entry
+		byte[] buffer = new byte[8192]
+		while ((entry = zipInput.nextEntry) != null) {
+			String entryName = entry.name
+			fpvPkgValidateEntryPath(entryName, entry.directory, archiveLabel)
+			fpvPkgRequire(allNames.add(entryName), "DUPLICATE", "${archiveLabel} contains duplicate entry '${entryName}'.")
+
+			long entryBytes = 0L
+			ByteArrayOutputStream captured = captureFiles && !entry.directory ? new ByteArrayOutputStream() : null
+			int read
+			while ((read = zipInput.read(buffer)) >= 0) {
+				if (read == 0) {
+					continue
+				}
+				entryBytes += read
+				totalUncompressedBytes += read
+				fpvPkgRequire(entryBytes <= 64L * 1024L * 1024L, "ZIP_LIMIT", "${archiveLabel} entry '${entryName}' exceeds 64 MiB uncompressed.")
+				fpvPkgRequire(totalUncompressedBytes <= 256L * 1024L * 1024L, "ZIP_LIMIT", "${archiveLabel} exceeds 256 MiB uncompressed.")
+				if (captured != null) {
+					captured.write(buffer, 0, read)
+				}
+			}
+			zipInput.closeEntry()
+			if (!entry.directory) {
+				fpvPkgRequire(fileNames.add(entryName), "DUPLICATE", "${archiveLabel} contains duplicate file entry '${entryName}'.")
+				if (captured != null) {
+					contents.put(entryName, captured.toByteArray())
+				}
+			}
+		}
+	} catch (Throwable failure) {
+		if (failure instanceof GradleException) {
+			primaryFailure = failure
+			throw failure
+		}
+		primaryFailure = new GradleException("[FPV-PKG:ZIP] Cannot read ${archiveLabel} as a complete ZIP archive: ${failure.message}", failure)
+		throw primaryFailure
+	} finally {
+		fpvPkgCloseResources([zipInput, zipInput == null ? source : null], primaryFailure)
+	}
+	fpvPkgRequire(!fileNames.isEmpty(), "ZIP", "${archiveLabel} contains no files.")
+	[allNames: allNames, fileNames: fileNames, contents: contents]
+}
+
+def fpvPkgScanZipFile = { File archive, String archiveLabel ->
+	fpvPkgRequire(archive.isFile(), "MISSING", "${archiveLabel} was not created: ${archive}")
+	fpvPkgScanZipInput(new FileInputStream(archive), archiveLabel, false)
+}
+
+def fpvPkgContainsAscii = { byte[] bytes, String needle ->
+	byte[] expected = needle.getBytes(StandardCharsets.US_ASCII)
+	if (expected.length == 0 || expected.length > bytes.length) {
+		return false
+	}
+	for (int offset = 0; offset <= bytes.length - expected.length; offset++) {
+		boolean matches = true
+		for (int index = 0; index < expected.length; index++) {
+			if (bytes[offset + index] != expected[index]) {
+				matches = false
+				break
+			}
+		}
+		if (matches) {
+			return true
+		}
+	}
+	false
+}
+
+def fpvPkgForbiddenEntryReason = { String entryName, boolean nestedCore ->
+	String lowerName = entryName.toLowerCase(Locale.ROOT)
+	if (lowerName == "license" || lowerName == "meta-inf/mods.toml") {
+		return "misplaced loader or license metadata"
+	}
+	if (lowerName == "data/fpvdrone/structure/empty.nbt") {
+		return "GameTest structure fixture"
+	}
+	if (lowerName.startsWith("org/junit/") || lowerName.startsWith("org/opentest4j/") || lowerName.startsWith("org/hamcrest/")) {
+		return "bundled test framework"
+	}
+	if (lowerName == "build/" || lowerName.startsWith("build/") || lowerName == "run/" || lowerName.startsWith("run/") ||
+			lowerName == ".git/" || lowerName.startsWith(".git/")) {
+		return "workspace artifact"
+	}
+	if (lowerName == "fabric.mod.json" || lowerName.startsWith("fabric/") || lowerName.contains("/fabric/") ||
+			lowerName.startsWith("net/fabricmc/") || lowerName.contains("/net/fabricmc/") ||
+			lowerName.contains("fabric-loader") || lowerName.contains("fabric-api")) {
+		return "Fabric artifact"
+	}
+	if (lowerName.startsWith("test/") || lowerName.startsWith("tests/") || lowerName.contains("/test/") ||
+			lowerName.contains("/tests/") || lowerName.contains("gametest")) {
+		return "test or GameTest artifact"
+	}
+	String productionSelfTest = "com/tenicana/dronecraft/diagnostic/droneserverselftest"
+	boolean allowedProductionSelfTest = lowerName == "${productionSelfTest}.class" || lowerName.startsWith("${productionSelfTest}\$")
+	if (!allowedProductionSelfTest && lowerName ==~ /.*(?:test|tests)(?:\$[^\/]*)?\.class/) {
+		return "test class"
+	}
+	if (lowerName.contains("golden")) {
+		return "golden fixture"
+	}
+	if (lowerName.startsWith("src/") || lowerName.contains("/src/") || lowerName.startsWith("sources/") ||
+			lowerName.contains("/sources/") || lowerName.endsWith(".java") || lowerName.endsWith(".groovy") ||
+			lowerName.endsWith(".kt") || lowerName.endsWith(".scala") || lowerName.endsWith("-sources.jar")) {
+		return "source artifact"
+	}
+	String fileName = lowerName.substring(lowerName.lastIndexOf('/') + 1)
+	if (lowerName.startsWith("meta-inf/") && (fileName.startsWith("sig-") || fileName.endsWith(".sf") ||
+			fileName.endsWith(".rsa") || fileName.endsWith(".dsa") || fileName.endsWith(".ec") || fileName.endsWith(".sig"))) {
+		return "signature artifact"
+	}
+	if (!nestedCore && lowerName.startsWith("com/tenicana/dronecraft/sim/")) {
+		return "flattened drone-sim-core class"
+	}
+	null
+}
+
+def fpvPkgCheckForbiddenContent = { String entryName, byte[] bytes, String archiveLabel ->
+	String lowerName = entryName.toLowerCase(Locale.ROOT)
+	boolean scannable = lowerName.endsWith(".class") || lowerName.endsWith(".json") || lowerName.endsWith(".toml") ||
+			lowerName.endsWith(".properties") || lowerName.endsWith(".txt") || lowerName.endsWith(".xml") ||
+			lowerName.endsWith(".mf")
+	if (!scannable) {
+		return
+	}
+	["net/fabricmc", "fabric.mod.json", "fabric-loader", "fabric-api"].each { marker ->
+		fpvPkgRequire(!fpvPkgContainsAscii(bytes, marker), "FORBIDDEN", "${archiveLabel} entry '${entryName}' contains Fabric marker '${marker}'.")
+	}
+}
+
+def fpvPkgParseJson = { byte[] bytes, String entryName, String archiveLabel ->
+	try {
+		new JsonSlurper().parseText(new String(bytes, StandardCharsets.UTF_8))
+	} catch (Exception failure) {
+		fpvPkgFail("JSON", "${archiveLabel} entry '${entryName}' is not valid JSON: ${failure.message}")
+	}
+}
+
+def fpvPkgValidateToml = { byte[] bytes, String archiveLabel ->
+	String text = new String(bytes, StandardCharsets.UTF_8)
+	fpvPkgRequire(!text.contains('${'), "TEMPLATE", "${archiveLabel} contains an unresolved TOML template token.")
+	byte[] expectedBytes = fpvPkgExpectedToml.getBytes(StandardCharsets.UTF_8)
+	fpvPkgRequire(Arrays.equals(bytes, expectedBytes), "TOML", "${archiveLabel} META-INF/neoforge.mods.toml must exactly match the canonical UTF-8/LF metadata contract (expected ${expectedBytes.length} bytes, found ${bytes.length}).")
+}
+
+def fpvPkgValidateMixin = { byte[] bytes, Set<String> fileNames, String archiveLabel ->
+	def mixin = fpvPkgParseJson(bytes, "fpvdrone.client.mixins.json", archiveLabel)
+	fpvPkgRequire(mixin instanceof Map, "MIXIN", "${archiveLabel} mixin config must be a JSON object.")
+	fpvPkgRequire(mixin.keySet() == (["required", "package", "compatibilityLevel", "client", "injectors"] as Set), "MIXIN", "${archiveLabel} mixin config fields are not canonical.")
+	fpvPkgRequire(mixin.required == true, "MIXIN", "${archiveLabel} mixin config must be required.")
+	fpvPkgRequire(mixin.package == "com.tenicana.dronecraft.client.mixin", "MIXIN", "${archiveLabel} mixin package is incorrect.")
+	fpvPkgRequire(mixin.compatibilityLevel == "JAVA_21", "MIXIN", "${archiveLabel} mixin compatibility level must be JAVA_21.")
+	fpvPkgRequire(mixin.client instanceof List, "MIXIN", "${archiveLabel} mixin client list is missing.")
+	def actualClientMixins = mixin.client.collect { value -> value.toString() }
+	fpvPkgRequire(actualClientMixins == fpvPkgExpectedMixinClasses, "MIXIN", "${archiveLabel} client mixins must be exactly ${fpvPkgExpectedMixinClasses}, but were ${actualClientMixins}.")
+	fpvPkgRequire(mixin.injectors instanceof Map && mixin.injectors.keySet() == (["defaultRequire"] as Set) && mixin.injectors.defaultRequire == 1, "MIXIN", "${archiveLabel} mixin injectors must set only defaultRequire=1.")
+	fpvPkgExpectedMixinClasses.each { mixinClass ->
+		String classEntry = "com/tenicana/dronecraft/client/mixin/${mixinClass}.class"
+		fpvPkgRequire(fileNames.contains(classEntry), "MIXIN", "${archiveLabel} is missing mixin class '${classEntry}'.")
+	}
+}
+
+def fpvPkgValidateJarJarMetadata = { byte[] bytes, Set<String> fileNames, String archiveLabel ->
+	def metadata = fpvPkgParseJson(bytes, "META-INF/jarjar/metadata.json", archiveLabel)
+	fpvPkgRequire(metadata instanceof Map && metadata.keySet() == (["jars"] as Set), "JARJAR", "${archiveLabel} jarjar metadata must contain only the jars array.")
+	fpvPkgRequire(metadata.jars instanceof List && metadata.jars.size() == 1, "JARJAR", "${archiveLabel} must embed exactly one jarjar dependency.")
+	def nested = metadata.jars[0]
+	fpvPkgRequire(nested instanceof Map && nested.keySet() == (["identifier", "version", "path", "isObfuscated"] as Set), "JARJAR", "${archiveLabel} jarjar dependency fields are not canonical.")
+	fpvPkgRequire(nested.identifier instanceof Map && nested.identifier.keySet() == (["group", "artifact"] as Set), "JARJAR", "${archiveLabel} jarjar identifier is malformed.")
+	fpvPkgRequire(nested.version instanceof Map && nested.version.keySet() == (["range", "artifactVersion"] as Set), "JARJAR", "${archiveLabel} jarjar version is malformed.")
+	fpvPkgRequire(nested.identifier.group == "com.tenicana.dronecraft" && nested.identifier.artifact == "drone-sim-core", "JARJAR", "${archiveLabel} jarjar coordinate must be com.tenicana.dronecraft:drone-sim-core.")
+	fpvPkgRequire(nested.version.artifactVersion == fpvPkgExpectedVersion && nested.version.range == "[${fpvPkgExpectedVersion},)", "JARJAR", "${archiveLabel} jarjar version must be ${fpvPkgExpectedVersion} with range [${fpvPkgExpectedVersion},).")
+	String expectedPath = "META-INF/jarjar/com.tenicana.dronecraft.drone-sim-core-${fpvPkgExpectedVersion}.jar"
+	fpvPkgRequire(nested.path == expectedPath, "JARJAR", "${archiveLabel} nested core path must be '${expectedPath}', but was '${nested.path}'.")
+	fpvPkgRequire(nested.isObfuscated == false, "JARJAR", "${archiveLabel} nested core must declare isObfuscated=false.")
+	fpvPkgRequire(fileNames.contains(expectedPath), "MISSING", "${archiveLabel} is missing nested core '${expectedPath}'.")
+	def nestedJars = fileNames.findAll { entryName -> entryName.toLowerCase(Locale.ROOT).endsWith(".jar") }
+	fpvPkgRequire(nestedJars == ([expectedPath] as Set), "JARJAR", "${archiveLabel} must contain only nested core '${expectedPath}', but contained ${nestedJars}.")
+	expectedPath
+}
+
+def fpvPkgValidateNestedCore = { byte[] nestedBytes, File coreJar, String archiveLabel ->
+	fpvPkgRequire(fpvPkgSha256Bytes(nestedBytes) == fpvPkgSha256File(coreJar), "CORE_SHA", "${archiveLabel} nested drone-sim-core bytes do not match ${coreJar}.")
+	def nestedScan = fpvPkgScanZipInput(new ByteArrayInputStream(nestedBytes), "${archiveLabel} nested drone-sim-core", true)
+	def requiredCoreClasses = [
+			"com/tenicana/dronecraft/sim/DronePhysics.class",
+			"com/tenicana/dronecraft/sim/flight/FlightModel.class",
+			"com/tenicana/dronecraft/sim/flight/FlightModelRouter.class"
+	] as Set
+	requiredCoreClasses.each { classEntry ->
+		fpvPkgRequire(nestedScan.fileNames.contains(classEntry), "CORE_CLASS", "${archiveLabel} nested core is missing '${classEntry}'.")
+	}
+	nestedScan.fileNames.each { entryName ->
+		String reason = fpvPkgForbiddenEntryReason(entryName, true)
+		fpvPkgRequire(reason == null, "FORBIDDEN", "${archiveLabel} nested core contains ${reason}: ${entryName}")
+		fpvPkgCheckForbiddenContent(entryName, nestedScan.contents[entryName], "${archiveLabel} nested core")
+	}
+}
+
+def fpvPkgValidateArchive = { File archive, File coreJar, String expectedPreset, String archiveLabel ->
+	def scan = fpvPkgScanZipFile(archive, archiveLabel)
+	scan.allNames.each { entryName ->
+		String reason = fpvPkgForbiddenEntryReason(entryName, false)
+		fpvPkgRequire(reason == null, "FORBIDDEN", "${archiveLabel} contains ${reason}: ${entryName}")
+	}
+	ZipFile zipFile = null
+	Throwable primaryFailure = null
+	try {
+		zipFile = new ZipFile(archive, StandardCharsets.UTF_8)
+		def zipAllNames = new LinkedHashSet<String>()
+		def zipFileNames = new LinkedHashSet<String>()
+		def shaByEntry = new LinkedHashMap<String, String>()
+		def entries = zipFile.entries()
+		while (entries.hasMoreElements()) {
+			def entry = entries.nextElement()
+			fpvPkgRequire(zipAllNames.add(entry.name), "DUPLICATE", "${archiveLabel} central directory repeats entry '${entry.name}'.")
+			if (entry.directory) {
+				continue
+			}
+			fpvPkgRequire(zipFileNames.add(entry.name), "DUPLICATE", "${archiveLabel} central directory repeats file entry '${entry.name}'.")
+			byte[] entryBytes = zipFile.getInputStream(entry).withCloseable { input -> input.bytes }
+			shaByEntry.put(entry.name, fpvPkgSha256Bytes(entryBytes))
+			String reason = fpvPkgForbiddenEntryReason(entry.name, false)
+			fpvPkgRequire(reason == null, "FORBIDDEN", "${archiveLabel} contains ${reason}: ${entry.name}")
+			if (!entry.name.toLowerCase(Locale.ROOT).endsWith(".jar")) {
+				fpvPkgCheckForbiddenContent(entry.name, entryBytes, archiveLabel)
+			}
+			if (entry.name.toLowerCase(Locale.ROOT).endsWith(".json")) {
+				fpvPkgParseJson(entryBytes, entry.name, archiveLabel)
+			}
+		}
+		fpvPkgRequire(zipAllNames == scan.allNames && zipFileNames == scan.fileNames, "ZIP", "${archiveLabel} local and central ZIP entry sets disagree.")
+
+		def missingEntries = fpvPkgRequiredEntries.findAll { entryName -> !zipFileNames.contains(entryName) }
+		fpvPkgRequire(missingEntries.isEmpty(), "MISSING", "${archiveLabel} is missing required entries: ${missingEntries.sort()}")
+		def readEntry = { String entryName ->
+			def entry = zipFile.getEntry(entryName)
+			fpvPkgRequire(entry != null && !entry.directory, "MISSING", "${archiveLabel} is missing required file '${entryName}'.")
+			zipFile.getInputStream(entry).withCloseable { input -> input.bytes }
+		}
+
+		def manifest = new Manifest(new ByteArrayInputStream(readEntry("META-INF/MANIFEST.MF")))
+		fpvPkgRequire(manifest.mainAttributes.getValue("Manifest-Version") != null, "MANIFEST", "${archiveLabel} manifest has no Manifest-Version.")
+		fpvPkgValidateToml(readEntry("META-INF/neoforge.mods.toml"), archiveLabel)
+		fpvPkgValidateMixin(readEntry("fpvdrone.client.mixins.json"), zipFileNames, archiveLabel)
+		String nestedPath = fpvPkgValidateJarJarMetadata(readEntry("META-INF/jarjar/metadata.json"), zipFileNames, archiveLabel)
+		fpvPkgValidateNestedCore(readEntry(nestedPath), coreJar, archiveLabel)
+
+		byte[] expectedLicense = Files.readAllBytes(rootProject.file("LICENSE").toPath())
+		fpvPkgRequire(Arrays.equals(readEntry("META-INF/LICENSE"), expectedLicense), "LICENSE", "${archiveLabel} META-INF/LICENSE does not exactly match the repository LICENSE.")
+		byte[] expectedPresetBytes = expectedPreset.getBytes(StandardCharsets.UTF_8)
+		fpvPkgRequire(Arrays.equals(readEntry(fpvPkgPresetEntry), expectedPresetBytes), "PRESET", "${archiveLabel} preset must be exactly '${expectedPreset.replace("\n", "\\n")}'.")
+
+		[allNames: zipAllNames, fileNames: zipFileNames, shaByEntry: shaByEntry]
+	} catch (Throwable failure) {
+		if (failure instanceof GradleException) {
+			primaryFailure = failure
+			throw failure
+		}
+		primaryFailure = new GradleException("[FPV-PKG:ZIP] Cannot validate ${archiveLabel}: ${failure.message}", failure)
+		throw primaryFailure
+	} finally {
+		fpvPkgCloseResources([zipFile], primaryFailure)
+	}
+}
+
+def fpvPkgCompareCandidate = { Map base, Map candidate, String archiveLabel ->
+	fpvPkgRequire(base.allNames == candidate.allNames, "VARIANT", "${archiveLabel} entry set differs from the production jar.")
+	base.fileNames.findAll { entryName -> entryName != fpvPkgPresetEntry }.each { entryName ->
+		fpvPkgRequire(base.shaByEntry[entryName] == candidate.shaByEntry[entryName], "VARIANT", "${archiveLabel} changed non-preset entry '${entryName}'.")
+	}
+}
+
+def fpvPkgWriteMutatedArchive = { File source, File destination, Map<String, byte[]> replacements,
+		Set<String> removals, Map<String, byte[]> additions ->
+	destination.parentFile.mkdirs()
+	Files.deleteIfExists(destination.toPath())
+	def seen = new LinkedHashSet<String>()
+	ZipInputStream zipInput = null
+	ZipOutputStream zipOutput = null
+	Throwable primaryFailure = null
+	try {
+		zipInput = new ZipInputStream(new BufferedInputStream(new FileInputStream(source)), StandardCharsets.UTF_8)
+		zipOutput = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(destination)), StandardCharsets.UTF_8)
+		byte[] buffer = new byte[8192]
+		def entry
+		while ((entry = zipInput.nextEntry) != null) {
+			String entryName = entry.name
+			fpvPkgRequire(seen.add(entryName), "DUPLICATE", "Packaging verifier fixture source repeats '${entryName}'.")
+			ByteArrayOutputStream captured = new ByteArrayOutputStream()
+			int read
+			while ((read = zipInput.read(buffer)) >= 0) {
+				if (read > 0) {
+					captured.write(buffer, 0, read)
+				}
+			}
+			zipInput.closeEntry()
+			if (removals.contains(entryName)) {
+				continue
+			}
+
+			def outputEntry = new ZipEntry(entryName)
+			outputEntry.time = 0L
+			zipOutput.putNextEntry(outputEntry)
+			if (!entry.directory) {
+				byte[] outputBytes = replacements.containsKey(entryName) ? replacements[entryName] : captured.toByteArray()
+				zipOutput.write(outputBytes)
+			}
+			zipOutput.closeEntry()
+		}
+
+		fpvPkgRequire(seen.containsAll(replacements.keySet()), "SELFTEST", "Packaging verifier fixture replacement target is missing from ${source}.")
+		fpvPkgRequire(seen.containsAll(removals), "SELFTEST", "Packaging verifier fixture removal target is missing from ${source}.")
+		additions.each { entryName, entryBytes ->
+			fpvPkgRequire(!seen.contains(entryName), "SELFTEST", "Packaging verifier fixture addition duplicates '${entryName}'.")
+			fpvPkgValidateEntryPath(entryName, false, "packaging verifier fixture")
+			def outputEntry = new ZipEntry(entryName)
+			outputEntry.time = 0L
+			zipOutput.putNextEntry(outputEntry)
+			zipOutput.write(entryBytes)
+			zipOutput.closeEntry()
+		}
+	} catch (Throwable failure) {
+		primaryFailure = failure
+		throw failure
+	} finally {
+		fpvPkgCloseResources([zipOutput, zipInput], primaryFailure)
+	}
+}
+
+def fpvPkgPatchLastAsciiOccurrence = { File archive, String from, String to ->
+	byte[] fromBytes = from.getBytes(StandardCharsets.US_ASCII)
+	byte[] toBytes = to.getBytes(StandardCharsets.US_ASCII)
+	fpvPkgRequire(fromBytes.length == toBytes.length, "SELFTEST", "Central-directory fixture names must have equal byte lengths.")
+	byte[] archiveBytes = Files.readAllBytes(archive.toPath())
+	def occurrences = []
+	for (int offset = 0; offset <= archiveBytes.length - fromBytes.length; offset++) {
+		boolean matches = true
+		for (int index = 0; index < fromBytes.length; index++) {
+			if (archiveBytes[offset + index] != fromBytes[index]) {
+				matches = false
+				break
+			}
+		}
+		if (matches) {
+			occurrences.add(offset)
+		}
+	}
+	fpvPkgRequire(occurrences.size() == 2, "SELFTEST", "Expected one local and one central occurrence of '${from}', but found ${occurrences.size()}.")
+	System.arraycopy(toBytes, 0, archiveBytes, occurrences.last(), toBytes.length)
+	Files.write(archive.toPath(), archiveBytes)
+}
+
+def verifyNeoForgeJar = tasks.register("verifyNeoForgeJar") {
+	group = "verification"
+	description = "Verifies the production NeoForge jar packaging contract."
+	dependsOn(fpvPkgBaseJarTask, ":drone-sim-core:jar")
+	inputs.files(fpvPkgBaseJarTask.flatMap { it.archiveFile }, fpvPkgCoreJar)
+
+	doLast {
+		File archive = fpvPkgBaseJarTask.get().archiveFile.get().asFile
+		File coreJar = fpvPkgCoreJar.asFile
+		fpvPkgRequire(archive.name == fpvPkgExpectedBaseJarName, "FILENAME", "NeoForge production jar must be named '${fpvPkgExpectedBaseJarName}', but was '${archive.name}'.")
+		fpvPkgValidateArchive(archive, coreJar, fpvPkgLegacyPreset, "NeoForge production jar")
+		logger.lifecycle("NeoForge production packaging verified: {}", archive)
+	}
+}
+
+def verifyNeoForgePresetJars = tasks.register("verifyNeoForgePresetJars") {
+	group = "verification"
+	description = "Verifies the NeoForge legacy and candidate preset distribution jars."
+	dependsOn(verifyNeoForgeJar, "playablePresetJars")
+	inputs.files(fpvPkgBaseJarTask.flatMap { it.archiveFile }, fpvPkgLegacyJar, fpvPkgCandidateJar, fpvPkgCoreJar)
+
+	doLast {
+		File baseJar = fpvPkgBaseJarTask.get().archiveFile.get().asFile
+		File legacyJar = fpvPkgLegacyJar.get().asFile
+		File candidateJar = fpvPkgCandidateJar.get().asFile
+		File coreJar = fpvPkgCoreJar.asFile
+		def base = fpvPkgValidateArchive(baseJar, coreJar, fpvPkgLegacyPreset, "NeoForge production jar")
+		def legacy = fpvPkgValidateArchive(legacyJar, coreJar, fpvPkgLegacyPreset, "NeoForge legacy preset jar")
+		def candidate = fpvPkgValidateArchive(candidateJar, coreJar, fpvPkgCandidatePreset, "NeoForge candidate preset jar")
+
+		fpvPkgRequire(fpvPkgSha256File(baseJar) == fpvPkgSha256File(legacyJar), "LEGACY_SHA", "Legacy preset jar must be a byte-for-byte copy of the production jar.")
+		fpvPkgRequire(base.allNames == legacy.allNames, "LEGACY_SHA", "Legacy preset jar entry set differs from the production jar.")
+		fpvPkgCompareCandidate(base, candidate, "Candidate preset jar")
+		logger.lifecycle("NeoForge preset packaging verified: {}, {}", legacyJar, candidateJar)
+	}
+}
+
+def testNeoForgePackagingVerifier = tasks.register("testNeoForgePackagingVerifier") {
+	group = "verification"
+	description = "Exercises the NeoForge packaging verifier against isolated negative fixtures."
+	dependsOn(verifyNeoForgePresetJars)
+	inputs.files(fpvPkgBaseJarTask.flatMap { it.archiveFile }, fpvPkgLegacyJar, fpvPkgCandidateJar, fpvPkgCoreJar)
+
+	doLast {
+		File baseJar = fpvPkgBaseJarTask.get().archiveFile.get().asFile
+		File legacyJar = fpvPkgLegacyJar.get().asFile
+		File candidateJar = fpvPkgCandidateJar.get().asFile
+		File coreJar = fpvPkgCoreJar.asFile
+		def productionJars = [baseJar, legacyJar, candidateJar]
+		def beforeHashes = productionJars.collectEntries { archive -> [(archive.canonicalPath): fpvPkgSha256File(archive)] }
+		File fixtureDirectory = new File(temporaryDir, "negative-fixtures")
+		fixtureDirectory.mkdirs()
+		String temporaryRoot = temporaryDir.canonicalPath + File.separator
+
+		def fixture = { String name, File source, Map<String, byte[]> replacements = [:],
+				Set<String> removals = [] as Set, Map<String, byte[]> additions = [:] ->
+			File output = new File(fixtureDirectory, name)
+			fpvPkgRequire(output.canonicalPath.startsWith(temporaryRoot), "SELFTEST", "Negative fixture escaped task temporaryDir: ${output}")
+			fpvPkgWriteMutatedArchive(source, output, replacements, removals, additions)
+			output
+		}
+		def expectCode = { String expectedCode, Closure action ->
+			GradleException rejection = null
+			try {
+				action.call()
+			} catch (GradleException failure) {
+				String expectedMarker = "[FPV-PKG:${expectedCode}]"
+				fpvPkgRequire(failure.message != null && failure.message.startsWith(expectedMarker), "SELFTEST", "Expected ${expectedMarker}, but verifier reported '${failure.message}'.")
+				logger.lifecycle("Packaging verifier negative fixture rejected: {}", failure.message)
+				rejection = failure
+			}
+			fpvPkgRequire(rejection != null, "SELFTEST", "Expected packaging verifier failure [FPV-PKG:${expectedCode}], but fixture passed.")
+			rejection
+		}
+		def closeAttempts = []
+		Closeable firstFailingClose = ({ ->
+			closeAttempts.add("first")
+			throw new IOException("first close failure")
+		} as Closeable)
+		Closeable secondFailingClose = ({ ->
+			closeAttempts.add("second")
+			throw new IOException("second close failure")
+		} as Closeable)
+		Throwable primaryCloseFailure = new IOException("primary failure")
+		fpvPkgCloseResources([firstFailingClose, secondFailingClose], primaryCloseFailure)
+		fpvPkgRequire(closeAttempts == ["first", "second"], "SELFTEST", "Close helper did not attempt every resource in order: ${closeAttempts}")
+		fpvPkgRequire(primaryCloseFailure.suppressed*.message == ["first close failure", "second close failure"], "SELFTEST", "Close helper did not preserve both close failures as suppressed exceptions.")
+
+		Throwable verifierFailure = null
+		try {
+			File fabricMetadata = fixture(
+					"forbidden-fabric-metadata.jar",
+					baseJar,
+					[:],
+					[] as Set,
+					["fabric.mod.json": "{}\n".getBytes(StandardCharsets.UTF_8)]
+			)
+			expectCode("FORBIDDEN") {
+				fpvPkgValidateArchive(fabricMetadata, coreJar, fpvPkgLegacyPreset, "forbidden Fabric fixture")
+			}
+
+			File missingJarJarMetadata = fixture(
+					"missing-jarjar-metadata.jar",
+					baseJar,
+					[:],
+					["META-INF/jarjar/metadata.json"] as Set
+			)
+			expectCode("MISSING") {
+				fpvPkgValidateArchive(missingJarJarMetadata, coreJar, fpvPkgLegacyPreset, "missing jarjar metadata fixture")
+			}
+
+			File invalidToml = fixture(
+					"invalid-neoforge-toml.jar",
+					baseJar,
+					["META-INF/neoforge.mods.toml": (fpvPkgExpectedToml + "this is not valid TOML\n").getBytes(StandardCharsets.UTF_8)]
+			)
+			expectCode("TOML") {
+				fpvPkgValidateArchive(invalidToml, coreJar, fpvPkgLegacyPreset, "invalid TOML fixture")
+			}
+
+			File invalidResourceJson = fixture(
+					"invalid-resource-json.jar",
+					baseJar,
+					["assets/fpvdrone/sounds.json": "{\n".getBytes(StandardCharsets.UTF_8)]
+			)
+			expectCode("JSON") {
+				fpvPkgValidateArchive(invalidResourceJson, coreJar, fpvPkgLegacyPreset, "invalid ordinary JSON fixture")
+			}
+
+			File badPreset = fixture(
+					"bad-preset.jar",
+					baseJar,
+					[(fpvPkgPresetEntry): "not_a_real_preset\n".getBytes(StandardCharsets.UTF_8)]
+			)
+			expectCode("PRESET") {
+				fpvPkgValidateArchive(badPreset, coreJar, fpvPkgLegacyPreset, "bad preset fixture")
+			}
+
+			File tamperedCandidate = fixture(
+					"candidate-non-preset-tamper.jar",
+					candidateJar,
+					["assets/fpvdrone/sounds.json": "{}\n".getBytes(StandardCharsets.UTF_8)]
+			)
+			expectCode("VARIANT") {
+				def base = fpvPkgValidateArchive(baseJar, coreJar, fpvPkgLegacyPreset, "NeoForge production jar")
+				def tampered = fpvPkgValidateArchive(tamperedCandidate, coreJar, fpvPkgCandidatePreset, "tampered candidate fixture")
+				fpvPkgCompareCandidate(base, tampered, "Tampered candidate fixture")
+			}
+
+			String centralA = "fpvdrone-central-a.txt"
+			String centralB = "fpvdrone-central-b.txt"
+			File duplicateCentralDirectory = fixture(
+					"duplicate-central-directory.jar",
+					baseJar,
+					[:],
+					[] as Set,
+					[(centralA): new byte[0], (centralB): new byte[0]]
+			)
+			fpvPkgPatchLastAsciiOccurrence(duplicateCentralDirectory, centralB, centralA)
+			def duplicateFailure = expectCode("DUPLICATE") {
+				fpvPkgValidateArchive(duplicateCentralDirectory, coreJar, fpvPkgLegacyPreset, "duplicate central-directory fixture")
+			}
+			fpvPkgRequire(duplicateFailure.message.contains("central directory repeats entry"), "SELFTEST", "Duplicate fixture did not reach the central-directory uniqueness gate: ${duplicateFailure.message}")
+		} catch (Throwable failure) {
+			verifierFailure = failure
+		} finally {
+			productionJars.each { archive ->
+				fpvPkgRequire(fpvPkgSha256File(archive) == beforeHashes[archive.canonicalPath], "SELFTEST", "Packaging verifier self-test modified production artifact ${archive}.")
+			}
+		}
+		if (verifierFailure != null) {
+			throw verifierFailure
+		}
+		logger.lifecycle("NeoForge packaging verifier negative fixtures passed without modifying production artifacts.")
+	}
+}
+
+def verifyNeoForgePackaging = tasks.register("verifyNeoForgePackaging") {
+	group = "verification"
+	description = "Runs all NeoForge packaging verification gates."
+	dependsOn(verifyNeoForgeJar, verifyNeoForgePresetJars, testNeoForgePackagingVerifier)
+}
+
+tasks.named("check") {
+	dependsOn(verifyNeoForgePackaging)
+}
