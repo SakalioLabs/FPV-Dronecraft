@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 
 class Aerodynamics4McAtmosphereRoutingTest {
 	@Test
-	void entitySamplesOneCompactThermalPointForBothEnvironmentPaths() throws IOException {
+	void entitySamplesOneCompactAtmosphereAndFlowPointForBothEnvironmentPaths() throws IOException {
 		String source = Files.readString(droneEntitySource(), StandardCharsets.UTF_8);
 		String advanced = between(source, "private DroneEnvironment sampleEnvironment()", "private DroneEnvironment sampleActiveEnvironment");
 		String stageOne = between(source, "private DroneEnvironment samplePlayableStageOneEnvironment()", "private Aerodynamics4McAtmosphereBridge.AtmosphereSample sampleAerodynamicsAtmosphere");
@@ -24,9 +24,30 @@ class Aerodynamics4McAtmosphereRoutingTest {
 		assertEquals(1, occurrences(advanced, "sampleAerodynamicsAtmosphere()"));
 		assertEquals(1, occurrences(stageOne, "sampleAerodynamicsAtmosphere()"));
 		assertEquals(1, occurrences(bridge, "Aerodynamics4McAtmosphereBridge.sampleGameplay"));
-		assertTrue(bridge.contains("environmentOverride.windEnabled()"), "an explicit wind override must suppress A4MC thermal adoption");
+		assertEquals(1, occurrences(source, "Aerodynamics4McAtmosphereBridge.sampleGameplay"),
+				"the entity must expose exactly one body-center A4MC sampling site");
+		assertTrue(bridge.contains("environmentOverride.windEnabled()"),
+				"an explicit wind override must suppress all A4MC atmosphere and flow adoption");
 		assertFalse(bridge.contains("entityPhysicsPosition()"), "the absent-mod path must not allocate a simulation Vec3");
-		assertFalse(rotorSampling.contains("Aerodynamics4McAtmosphereBridge"), "thermal sampling must not expand into per-rotor probes");
+		assertFalse(rotorSampling.contains("Aerodynamics4McAtmosphereBridge"),
+				"single-point flow sampling must not expand into per-rotor probes");
+		assertEquals(0, occurrences(rotorSampling, "sampleAerodynamicsAtmosphere()"),
+				"rotor environment sampling must reuse compact body primitives instead of sampling A4MC");
+
+		assertTrue(advanced.contains("adoptedAtmosphereWind("));
+		assertTrue(advanced.contains("weatherWindMetersPerSecond()"),
+				"the advanced path must blend A4MC mean wind with Minecraft weather wind");
+		assertTrue(stageOne.contains("adoptedAtmosphereWind("));
+		assertTrue(stageOne.contains("Vec3.ZERO"),
+				"the stage-one path must blend A4MC mean wind from the legacy zero-wind baseline");
+		assertTrue(advanced.contains("adoptedAtmosphereTurbulence("));
+		assertTrue(stageOne.contains("adoptedAtmosphereTurbulence("));
+		assertTrue(advanced.contains("adoptedAtmospherePressureAnomalyPascals(externalAtmosphere, sourceQuality)"));
+		assertTrue(stageOne.contains("adoptedAtmospherePressureAnomalyPascals(externalAtmosphere, sourceQuality)"));
+		assertTrue(advanced.contains("motorEscVentilationFactor(externalAtmosphere, sourceQuality)"));
+		assertTrue(stageOne.contains("motorEscVentilationFactor(externalAtmosphere, sourceQuality)"));
+		assertTrue(advanced.contains("batteryVentilationFactor(externalAtmosphere, sourceQuality)"));
+		assertTrue(stageOne.contains("batteryVentilationFactor(externalAtmosphere, sourceQuality)"));
 		assertTrue(stageOne.contains("effectiveAmbientTemperature"), "the default playable path must receive adopted source temperature");
 		assertTrue(stageOne.contains("adoptedSourceHumidity"), "the default playable path must receive quality-gated source humidity");
 	}

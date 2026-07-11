@@ -4394,6 +4394,36 @@ class DronePhysicsTest {
 		assertFalse(cache.resolve(sameAtmosphereDifferentWind));
 		assertAtmosphereCacheMatchesPureFunctions(cache, sameAtmosphereDifferentWind);
 
+		DroneEnvironment sameAtmosphereDifferentVentilation = atmosphereEnvironment(
+				new Vec3(-3.0, 4.0, 8.0),
+				1.0,
+				0.80,
+				42.0,
+				42.0,
+				0.80,
+				0.0,
+				0.0,
+				0.83,
+				0.881
+		);
+		assertFalse(cache.resolve(sameAtmosphereDifferentVentilation));
+		assertAtmosphereCacheMatchesPureFunctions(cache, sameAtmosphereDifferentVentilation);
+
+		DroneEnvironment changedPressure = atmosphereEnvironment(
+				Vec3.ZERO,
+				1.0,
+				0.80,
+				42.0,
+				42.0,
+				0.80,
+				0.0,
+				2400.0,
+				0.83,
+				0.881
+		);
+		assertTrue(cache.resolve(changedPressure));
+		assertAtmosphereCacheMatchesPureFunctions(cache, changedPressure);
+
 		DroneEnvironment lowerDensity = atmosphereEnvironment(Vec3.ZERO, 0.82, 0.80, 42.0);
 		assertTrue(cache.resolve(lowerDensity));
 		assertAtmosphereCacheMatchesPureFunctions(cache, lowerDensity);
@@ -4623,7 +4653,7 @@ class DronePhysicsTest {
 	}
 
 	@Test
-	void adoptedTemperatureDrivesThermalExchangeAndZeroQualityPrimitivesStayBitwiseDry() {
+	void adoptedTemperatureDrivesThermalExchangeAndNeutralFlowPrimitivesStayBitwiseLegacy() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withPitchGains(zeroGains)
@@ -4693,6 +4723,18 @@ class DronePhysicsTest {
 				baseline.state().maxRotorIcingSeverity(),
 				qualityZero.state().maxRotorIcingSeverity()
 		);
+		assertVecRawBitsEqual(
+				baseline.state().effectiveWindVelocityWorldMetersPerSecond(),
+				qualityZero.state().effectiveWindVelocityWorldMetersPerSecond()
+		);
+		assertVecRawBitsEqual(
+				baseline.state().windGustVelocityWorldMetersPerSecond(),
+				qualityZero.state().windGustVelocityWorldMetersPerSecond()
+		);
+		assertVecRawBitsEqual(
+				baseline.state().drydenTurbulenceVelocityWorldMetersPerSecond(),
+				qualityZero.state().drydenTurbulenceVelocityWorldMetersPerSecond()
+		);
 		assertTrue(adoptedHot.state().averageMotorTemperatureCelsius()
 				> baseline.state().averageMotorTemperatureCelsius() + 3.5,
 				() -> "baselineMotor=" + baseline.state().averageMotorTemperatureCelsius()
@@ -4703,6 +4745,96 @@ class DronePhysicsTest {
 						+ " adoptedHotEsc=" + adoptedHot.state().averageEscTemperatureCelsius());
 		assertTrue(adoptedHot.state().batteryTemperatureCelsius()
 				> baseline.state().batteryTemperatureCelsius() + 20.0);
+	}
+
+	@Test
+	void compactPressureAnomalyChangesEffectiveDensityAndRotorThrust() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DroneEnvironment lowPressure = atmosphereEnvironment(
+				Vec3.ZERO, 1.0, 0.0, 25.0, 25.0, 0.0, 0.0, -4500.0, 1.0, 1.0
+		);
+		DroneEnvironment highPressure = atmosphereEnvironment(
+				Vec3.ZERO, 1.0, 0.0, 25.0, 25.0, 0.0, 0.0, 4500.0, 1.0, 1.0
+		);
+		DronePhysics low = new DronePhysics(config);
+		DronePhysics high = new DronePhysics(config);
+		DroneInput input = new DroneInput(0.62, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 500; i++) {
+			holdInStillAir(low);
+			holdInStillAir(high);
+			low.step(input, 0.005, lowPressure);
+			high.step(input, 0.005, highPressure);
+		}
+
+		assertTrue(highPressure.effectiveAirDensityRatio()
+				> lowPressure.effectiveAirDensityRatio() * 1.08);
+		assertTrue(averageRotorThrust(high.state())
+				> averageRotorThrust(low.state()) * 1.025,
+				() -> "low=" + averageRotorThrust(low.state())
+						+ " high=" + averageRotorThrust(high.state()));
+	}
+
+	@Test
+	void compactLocalVoxelShelterReducesBodyCoolingWithoutRotorArrays() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.20, 200.0, 240.0);
+		DroneEnvironment cleanAir = atmosphereEnvironment(
+				Vec3.ZERO, 1.0, 0.0, 25.0, 25.0, 0.0, 0.0, 0.0, 1.0, 1.0
+		);
+		DroneEnvironment shelteredAir = atmosphereEnvironment(
+				Vec3.ZERO, 1.0, 0.0, 25.0, 25.0, 0.0, 0.0, 0.0, 0.83, 0.881
+		);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics sheltered = new DronePhysics(config);
+		clean.step(DroneInput.idle(), 0.005, cleanAir);
+		sheltered.step(DroneInput.idle(), 0.005, shelteredAir);
+		for (int i = 0; i < clean.state().motorCount(); i++) {
+			clean.state().setMotorTemperatureCelsius(i, 110.0);
+			sheltered.state().setMotorTemperatureCelsius(i, 110.0);
+			clean.state().setEscTemperatureCelsius(i, 110.0);
+			sheltered.state().setEscTemperatureCelsius(i, 110.0);
+		}
+		clean.state().setBatteryTemperatureCelsius(110.0);
+		sheltered.state().setBatteryTemperatureCelsius(110.0);
+
+		for (int i = 0; i < 300; i++) {
+			holdInStillAir(clean);
+			holdInStillAir(sheltered);
+			clean.step(DroneInput.idle(), 0.005, cleanAir);
+			sheltered.step(DroneInput.idle(), 0.005, shelteredAir);
+		}
+
+		assertEquals(
+				0.83,
+				sheltered.state().averageMotorCoolingFactor()
+						/ clean.state().averageMotorCoolingFactor(),
+				1.0e-12
+		);
+		assertEquals(
+				0.83,
+				sheltered.state().averageEscCoolingFactor()
+						/ clean.state().averageEscCoolingFactor(),
+				1.0e-12
+		);
+		assertEquals(
+				0.881,
+				sheltered.state().batteryCoolingFactor() / clean.state().batteryCoolingFactor(),
+				1.0e-12
+		);
+		assertTrue(sheltered.state().averageMotorTemperatureCelsius()
+				> clean.state().averageMotorTemperatureCelsius());
+		assertTrue(sheltered.state().averageEscTemperatureCelsius()
+				> clean.state().averageEscTemperatureCelsius());
+		assertTrue(sheltered.state().batteryTemperatureCelsius()
+				> clean.state().batteryTemperatureCelsius());
 	}
 
 	@Test
@@ -12713,6 +12845,32 @@ class DronePhysicsTest {
 			double ambientHumidity,
 			double adoptedSourceHumidity
 	) {
+		return atmosphereEnvironment(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius,
+				effectiveAmbientTemperatureCelsius,
+				ambientHumidity,
+				adoptedSourceHumidity,
+				0.0,
+				1.0,
+				1.0
+		);
+	}
+
+	private static DroneEnvironment atmosphereEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			double effectiveAmbientTemperatureCelsius,
+			double ambientHumidity,
+			double adoptedSourceHumidity,
+			double adoptedSourcePressureAnomalyPascals,
+			double motorEscVentilationFactor,
+			double batteryVentilationFactor
+	) {
 		return new DroneEnvironment(
 				windVelocityWorldMetersPerSecond,
 				airDensityRatio,
@@ -12732,7 +12890,10 @@ class DronePhysicsTest {
 				null,
 				effectiveAmbientTemperatureCelsius,
 				ambientHumidity,
-				adoptedSourceHumidity
+				adoptedSourceHumidity,
+				adoptedSourcePressureAnomalyPascals,
+				motorEscVentilationFactor,
+				batteryVentilationFactor
 		);
 	}
 
@@ -12763,7 +12924,10 @@ class DronePhysicsTest {
 		double expectedDensityRatio = MathUtil.clamp(
 				environment.airDensityRatio()
 						* (fallbackTemperatureKelvin / effectiveTemperatureKelvin)
-						* densityMultiplier,
+						* densityMultiplier
+						* DroneEnvironment.pressureAirDensityMultiplier(
+								environment.adoptedSourcePressureAnomalyPascals()
+						),
 				0.35,
 				1.35
 		);
@@ -12860,6 +13024,12 @@ class DronePhysicsTest {
 
 	private static void assertRawBitsEqual(double expected, double actual) {
 		assertEquals(Double.doubleToRawLongBits(expected), Double.doubleToRawLongBits(actual));
+	}
+
+	private static void assertVecRawBitsEqual(Vec3 expected, Vec3 actual) {
+		assertRawBitsEqual(expected.x(), actual.x());
+		assertRawBitsEqual(expected.y(), actual.y());
+		assertRawBitsEqual(expected.z(), actual.z());
 	}
 
 	private static void holdInStillAir(DronePhysics physics) {

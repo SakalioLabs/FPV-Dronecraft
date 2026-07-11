@@ -19,9 +19,14 @@ public record DroneEnvironment(
 		double[] rotorFlowObstructionWallForceFactors,
 		double effectiveAmbientTemperatureCelsius,
 		double ambientHumidity,
-		double adoptedSourceHumidity
+		double adoptedSourceHumidity,
+		double adoptedSourcePressureAnomalyPascals,
+		double motorEscVentilationFactor,
+		double batteryVentilationFactor
 ) {
 	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
+	private static final double SEA_LEVEL_PRESSURE_PASCALS = SEA_LEVEL_PRESSURE_HECTOPASCALS * 100.0;
+	private static final double MAX_SOURCE_PRESSURE_ANOMALY_PASCALS = 5000.0;
 	private static final long WIND_SOURCE_FULL_TRUST_AGE_TICKS = 40L;
 	private static final long WIND_SOURCE_ZERO_TRUST_AGE_TICKS = 160L;
 	private static final double STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN = 288.15;
@@ -165,6 +170,57 @@ public record DroneEnvironment(
 		);
 	}
 
+	/**
+	 * Compatibility constructor for the compact thermal atmosphere contract that predates the
+	 * pressure and body-ventilation primitives.
+	 */
+	public DroneEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double groundClearanceMeters,
+			double turbulenceIntensity,
+			double obstacleProximity,
+			double droneWakeIntensity,
+			double ceilingClearanceMeters,
+			double[] rotorThrustMultipliers,
+			double[] rotorFlowObstructions,
+			Vec3[] rotorFlowObstructionDirectionsBody,
+			double[] rotorWaterImmersions,
+			double waterImmersionIntensity,
+			double[] rotorPrecipitationWetnesses,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			double[] rotorFlowObstructionWallForceFactors,
+			double effectiveAmbientTemperatureCelsius,
+			double ambientHumidity,
+			double adoptedSourceHumidity
+	) {
+		this(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				groundClearanceMeters,
+				turbulenceIntensity,
+				obstacleProximity,
+				droneWakeIntensity,
+				ceilingClearanceMeters,
+				rotorThrustMultipliers,
+				rotorFlowObstructions,
+				rotorFlowObstructionDirectionsBody,
+				rotorWaterImmersions,
+				waterImmersionIntensity,
+				rotorPrecipitationWetnesses,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius,
+				rotorFlowObstructionWallForceFactors,
+				effectiveAmbientTemperatureCelsius,
+				ambientHumidity,
+				adoptedSourceHumidity,
+				0.0,
+				1.0,
+				1.0
+		);
+	}
+
 	public DroneEnvironment {
 		if (windVelocityWorldMetersPerSecond == null) {
 			windVelocityWorldMetersPerSecond = Vec3.ZERO;
@@ -229,6 +285,22 @@ public record DroneEnvironment(
 				0.0,
 				1.0
 		);
+		if (!Double.isFinite(adoptedSourcePressureAnomalyPascals)) {
+			adoptedSourcePressureAnomalyPascals = 0.0;
+		}
+		adoptedSourcePressureAnomalyPascals = MathUtil.clamp(
+				adoptedSourcePressureAnomalyPascals,
+				-MAX_SOURCE_PRESSURE_ANOMALY_PASCALS,
+				MAX_SOURCE_PRESSURE_ANOMALY_PASCALS
+		);
+		if (!Double.isFinite(motorEscVentilationFactor)) {
+			motorEscVentilationFactor = 1.0;
+		}
+		motorEscVentilationFactor = MathUtil.clamp(motorEscVentilationFactor, 0.72, 1.0);
+		if (!Double.isFinite(batteryVentilationFactor)) {
+			batteryVentilationFactor = 1.0;
+		}
+		batteryVentilationFactor = MathUtil.clamp(batteryVentilationFactor, 0.78, 1.0);
 	}
 
 	public static DroneEnvironment calm() {
@@ -360,9 +432,25 @@ public record DroneEnvironment(
 								ambientTemperatureCelsius,
 								effectiveAmbientTemperatureCelsius
 						)
-						* moistAirDensityMultiplier(effectiveAmbientTemperatureCelsius, ambientHumidity),
+						* moistAirDensityMultiplier(effectiveAmbientTemperatureCelsius, ambientHumidity)
+						* pressureAirDensityMultiplier(adoptedSourcePressureAnomalyPascals),
 				0.35,
 				1.35
+		);
+	}
+
+	public static double pressureAirDensityMultiplier(double pressureAnomalyPascals) {
+		double anomaly = Double.isFinite(pressureAnomalyPascals)
+				? MathUtil.clamp(
+						pressureAnomalyPascals,
+						-MAX_SOURCE_PRESSURE_ANOMALY_PASCALS,
+						MAX_SOURCE_PRESSURE_ANOMALY_PASCALS
+				)
+				: 0.0;
+		return MathUtil.clamp(
+				(SEA_LEVEL_PRESSURE_PASCALS + anomaly) / SEA_LEVEL_PRESSURE_PASCALS,
+				0.90,
+				1.10
 		);
 	}
 

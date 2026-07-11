@@ -12,6 +12,9 @@ class DroneEnvironmentAtmosphereTest {
 		assertRawEquals(35.0, environment.effectiveAmbientTemperatureCelsius());
 		assertRawEquals(1.0, environment.ambientHumidity());
 		assertRawEquals(0.0, environment.adoptedSourceHumidity());
+		assertRawEquals(0.0, environment.adoptedSourcePressureAnomalyPascals());
+		assertRawEquals(1.0, environment.motorEscVentilationFactor());
+		assertRawEquals(1.0, environment.batteryVentilationFactor());
 		assertRawEquals(0.85 * 0.9789925675447962, environment.effectiveAirDensityRatio());
 
 		DroneEnvironment dry = legacyEnvironment(1.0, 35.0, 0.0);
@@ -94,6 +97,37 @@ class DroneEnvironmentAtmosphereTest {
 		double expected = temperatureMultiplier * 0.9789925675447962;
 
 		assertRawEquals(expected, environment.effectiveAirDensityRatio());
+	}
+
+	@Test
+	void adoptedPressureAndBodyVentilationAreSanitizedAndAppliedOnce() {
+		DroneEnvironment positivePressure = explicitFlowEnvironment(4500.0, 0.83, 0.881);
+		DroneEnvironment negativePressure = explicitFlowEnvironment(-4500.0, 0.83, 0.881);
+		double positiveMultiplier = (101325.0 + 4500.0) / 101325.0;
+		double negativeMultiplier = (101325.0 - 4500.0) / 101325.0;
+
+		assertRawEquals(positiveMultiplier, positivePressure.effectiveAirDensityRatio());
+		assertRawEquals(negativeMultiplier, negativePressure.effectiveAirDensityRatio());
+		assertRawEquals(0.83, positivePressure.motorEscVentilationFactor());
+		assertRawEquals(0.881, positivePressure.batteryVentilationFactor());
+		assertRawEquals(
+				positiveMultiplier,
+				DroneEnvironment.pressureAirDensityMultiplier(4500.0)
+		);
+
+		DroneEnvironment sanitized = explicitFlowEnvironment(
+				Double.POSITIVE_INFINITY,
+				Double.NaN,
+				-5.0
+		);
+		assertRawEquals(0.0, sanitized.adoptedSourcePressureAnomalyPascals());
+		assertRawEquals(1.0, sanitized.motorEscVentilationFactor());
+		assertRawEquals(0.78, sanitized.batteryVentilationFactor());
+
+		DroneEnvironment clamped = explicitFlowEnvironment(9000.0, 0.0, 2.0);
+		assertRawEquals(5000.0, clamped.adoptedSourcePressureAnomalyPascals());
+		assertRawEquals(0.72, clamped.motorEscVentilationFactor());
+		assertRawEquals(1.0, clamped.batteryVentilationFactor());
 	}
 
 	@Test
@@ -240,6 +274,37 @@ class DroneEnvironmentAtmosphereTest {
 				effectiveAmbientTemperatureCelsius,
 				ambientHumidity,
 				adoptedSourceHumidity
+		);
+	}
+
+	private static DroneEnvironment explicitFlowEnvironment(
+			double pressureAnomalyPascals,
+			double motorEscVentilationFactor,
+			double batteryVentilationFactor
+	) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				pressureAnomalyPascals,
+				motorEscVentilationFactor,
+				batteryVentilationFactor
 		);
 	}
 

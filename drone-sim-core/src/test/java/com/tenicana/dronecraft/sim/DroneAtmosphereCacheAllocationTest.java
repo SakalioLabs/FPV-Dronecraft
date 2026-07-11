@@ -95,6 +95,50 @@ class DroneAtmosphereCacheAllocationTest {
 		assertEquals(0L, totalAllocatedBytes);
 	}
 
+	@Test
+	void drydenCoefficientsResolveOnceAndAllocateZeroAcrossRepeatedSubsteps() {
+		ThreadMXBean threadBean = allocationTrackingBean();
+		long threadId = Thread.currentThread().threadId();
+		DronePhysics.DrydenStepCache cache = new DronePhysics.DrydenStepCache();
+		DroneEnvironment environment = new DroneEnvironment(
+				new Vec3(9.0, 0.5, -2.0),
+				1.0,
+				6.0,
+				0.85
+		);
+		Vec3 targetMeanWind = new Vec3(8.5, 0.5, -1.8);
+
+		assertTrue(cache.resolve(environment, targetMeanWind, 0.005));
+		long warmupRecomputations = 0L;
+		for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+			warmupRecomputations += cache.resolve(environment, targetMeanWind, 0.005) ? 1L : 0L;
+		}
+		assertEquals(0L, warmupRecomputations);
+
+		long probe = threadBean.getThreadAllocatedBytes(threadId);
+		Assumptions.assumeTrue(probe >= 0L);
+		long allocatedBefore = threadBean.getThreadAllocatedBytes(threadId);
+		long recomputations = 0L;
+		for (int i = 0; i < MEASURED_ITERATIONS; i++) {
+			recomputations += cache.resolve(environment, targetMeanWind, 0.005) ? 1L : 0L;
+		}
+		long allocatedAfter = threadBean.getThreadAllocatedBytes(threadId);
+
+		assertEquals(0L, recomputations);
+		assertEquals(0L, allocatedAfter - allocatedBefore);
+		assertTrue(cache.resolve(environment, targetMeanWind, 0.010));
+		assertTrue(cache.resolve(environment, new Vec3(8.6, 0.5, -1.8), 0.010));
+		assertEquals(false, cache.resolve(environment, new Vec3(8.6, 0.5, -1.8), 0.010));
+		assertTrue(cache.resolve(
+				new DroneEnvironment(new Vec3(9.0, 0.5, -2.0), 1.0, 6.0, 0.85),
+				targetMeanWind,
+				0.010
+		));
+		DroneEnvironment inactive = new DroneEnvironment(Vec3.ZERO, 1.0, 6.0, 0.0);
+		assertTrue(cache.resolve(inactive, Vec3.ZERO, 0.010));
+		assertEquals(false, cache.resolve(inactive, Vec3.ZERO, 0.010));
+	}
+
 	private static ThreadMXBean allocationTrackingBean() {
 		java.lang.management.ThreadMXBean platformBean = ManagementFactory.getThreadMXBean();
 		Assumptions.assumeTrue(platformBean instanceof ThreadMXBean);

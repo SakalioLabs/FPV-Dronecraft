@@ -9,10 +9,11 @@ import net.minecraft.server.level.ServerLevel;
 import com.tenicana.dronecraft.sim.Vec3;
 
 /**
- * Optional, single-point thermal sampling from Aerodynamics4MC.
+ * Optional, single-point atmosphere and flow sampling from Aerodynamics4MC.
  *
- * <p>The bridge deliberately binds only the compact atmosphere contract needed by gameplay. It
- * does not expose A4MC's wind vectors, L2 solver types, or diagnostic source metadata.</p>
+ * <p>The bridge deliberately keeps the gameplay contract compact: one body-center sample becomes
+ * scalar flow, pressure, shelter, and thermal primitives. It does not expose L2 solver types,
+ * source metadata, per-rotor arrays, or any additional world sampling.</p>
  */
 public final class Aerodynamics4McAtmosphereBridge {
 	private static final String MOD_ID = "aerodynamics4mc";
@@ -89,12 +90,28 @@ public final class Aerodynamics4McAtmosphereBridge {
 					policyClass
 			);
 			Class<?> sampleClass = sampleGameplay.getReturnType();
+			Method meanVelocityVector = methodOrNull(sampleClass, "meanVelocityVector");
+			Method gustVelocityVector = methodOrNull(sampleClass, "gustVelocityVector");
 			return new ReflectionSampler(
 					sampleGameplay,
 					gameplayServerOnlyPolicy,
 					sampleClass.getMethod("hasFlow"),
 					sampleClass.getMethod("isTrustedForGameplay"),
 					sampleClass.getMethod("confidence"),
+					meanVelocityVector,
+					vectorMethodOrNull(meanVelocityVector, "x"),
+					vectorMethodOrNull(meanVelocityVector, "y"),
+					vectorMethodOrNull(meanVelocityVector, "z"),
+					gustVelocityVector,
+					vectorMethodOrNull(gustVelocityVector, "x"),
+					vectorMethodOrNull(gustVelocityVector, "y"),
+					vectorMethodOrNull(gustVelocityVector, "z"),
+					methodOrNull(sampleClass, "turbulenceIntensity"),
+					methodOrNull(sampleClass, "windShearMagnitudePerBlock"),
+					methodOrNull(sampleClass, "shelterFactor"),
+					methodOrNull(sampleClass, "updraftMetersPerSecond"),
+					methodOrNull(sampleClass, "hasLocalL2Modifier"),
+					firstMethodOrNull(sampleClass, "pressureAnomalyPascals", "pressure"),
 					methodOrNull(sampleClass, "hasTemperature"),
 					methodOrNull(sampleClass, "temperatureKelvin"),
 					methodOrNull(sampleClass, "hasHumidity"),
@@ -119,6 +136,20 @@ public final class Aerodynamics4McAtmosphereBridge {
 		} catch (NoSuchMethodException ignored) {
 			return null;
 		}
+	}
+
+	private static Method firstMethodOrNull(Class<?> owner, String... names) {
+		for (String name : names) {
+			Method method = methodOrNull(owner, name);
+			if (method != null) {
+				return method;
+			}
+		}
+		return null;
+	}
+
+	private static Method vectorMethodOrNull(Method vectorAccessor, String name) {
+		return vectorAccessor == null ? null : methodOrNull(vectorAccessor.getReturnType(), name);
 	}
 
 	interface Sampler {
@@ -152,6 +183,20 @@ public final class Aerodynamics4McAtmosphereBridge {
 		private final Method hasFlow;
 		private final Method isTrustedForGameplay;
 		private final Method confidence;
+		private final Method meanVelocityVector;
+		private final Method meanVectorX;
+		private final Method meanVectorY;
+		private final Method meanVectorZ;
+		private final Method gustVelocityVector;
+		private final Method gustVectorX;
+		private final Method gustVectorY;
+		private final Method gustVectorZ;
+		private final Method turbulenceIntensity;
+		private final Method windShearMagnitudePerBlock;
+		private final Method shelterFactor;
+		private final Method updraftMetersPerSecond;
+		private final Method hasLocalL2Modifier;
+		private final Method pressureAnomalyPascals;
 		private final Method hasTemperature;
 		private final Method temperatureKelvin;
 		private final Method hasHumidity;
@@ -167,6 +212,20 @@ public final class Aerodynamics4McAtmosphereBridge {
 				Method hasFlow,
 				Method isTrustedForGameplay,
 				Method confidence,
+				Method meanVelocityVector,
+				Method meanVectorX,
+				Method meanVectorY,
+				Method meanVectorZ,
+				Method gustVelocityVector,
+				Method gustVectorX,
+				Method gustVectorY,
+				Method gustVectorZ,
+				Method turbulenceIntensity,
+				Method windShearMagnitudePerBlock,
+				Method shelterFactor,
+				Method updraftMetersPerSecond,
+				Method hasLocalL2Modifier,
+				Method pressureAnomalyPascals,
 				Method hasTemperature,
 				Method temperatureKelvin,
 				Method hasHumidity,
@@ -180,6 +239,20 @@ public final class Aerodynamics4McAtmosphereBridge {
 			this.hasFlow = hasFlow;
 			this.isTrustedForGameplay = isTrustedForGameplay;
 			this.confidence = confidence;
+			this.meanVelocityVector = meanVelocityVector;
+			this.meanVectorX = meanVectorX;
+			this.meanVectorY = meanVectorY;
+			this.meanVectorZ = meanVectorZ;
+			this.gustVelocityVector = gustVelocityVector;
+			this.gustVectorX = gustVectorX;
+			this.gustVectorY = gustVectorY;
+			this.gustVectorZ = gustVectorZ;
+			this.turbulenceIntensity = turbulenceIntensity;
+			this.windShearMagnitudePerBlock = windShearMagnitudePerBlock;
+			this.shelterFactor = shelterFactor;
+			this.updraftMetersPerSecond = updraftMetersPerSecond;
+			this.hasLocalL2Modifier = hasLocalL2Modifier;
+			this.pressureAnomalyPascals = pressureAnomalyPascals;
 			this.hasTemperature = hasTemperature;
 			this.temperatureKelvin = temperatureKelvin;
 			this.hasHumidity = hasHumidity;
@@ -221,6 +294,41 @@ public final class Aerodynamics4McAtmosphereBridge {
 						&& humidity != null
 						&& bool(hasHumidity, sample);
 				double sampleHumidity = sampleHasHumidity ? number(humidity.invoke(sample)) : 0.0;
+				Object meanVector = vector(
+						meanVelocityVector,
+						meanVectorX,
+						meanVectorY,
+						meanVectorZ,
+						sample
+				);
+				boolean hasMeanVelocity = meanVector != null;
+				double meanVelocityX = hasMeanVelocity ? vectorNumber(meanVectorX, meanVector) : 0.0;
+				double meanVelocityY = hasMeanVelocity ? vectorNumber(meanVectorY, meanVector) : 0.0;
+				double meanVelocityZ = hasMeanVelocity ? vectorNumber(meanVectorZ, meanVector) : 0.0;
+				hasMeanVelocity = hasMeanVelocity
+						&& Double.isFinite(meanVelocityX)
+						&& Double.isFinite(meanVelocityY)
+						&& Double.isFinite(meanVelocityZ);
+
+				Object gustVector = vector(
+						gustVelocityVector,
+						gustVectorX,
+						gustVectorY,
+						gustVectorZ,
+						sample
+				);
+				double gustX = gustVector == null ? 0.0 : vectorNumber(gustVectorX, gustVector);
+				double gustY = gustVector == null ? 0.0 : vectorNumber(gustVectorY, gustVector);
+				double gustZ = gustVector == null ? 0.0 : vectorNumber(gustVectorZ, gustVector);
+				boolean hasGustVelocity = gustVector != null
+						&& Double.isFinite(gustX)
+						&& Double.isFinite(gustY)
+						&& Double.isFinite(gustZ);
+				if (hasGustVelocity) {
+					gustX = clamp(gustX, -30.0, 30.0);
+					gustY = clamp(gustY, -30.0, 30.0);
+					gustZ = clamp(gustZ, -30.0, 30.0);
+				}
 				long freshnessAgeTicks = freshnessAgeTicks(
 						currentTick,
 						optionalLong(l1Epoch, sample),
@@ -232,6 +340,18 @@ public final class Aerodynamics4McAtmosphereBridge {
 						bool(isTrustedForGameplay, sample),
 						number(confidence.invoke(sample)),
 						freshnessAgeTicks,
+						hasMeanVelocity,
+						meanVelocityX,
+						meanVelocityY,
+						meanVelocityZ,
+						optionalNumber(turbulenceIntensity, sample),
+						optionalNumber(windShearMagnitudePerBlock, sample),
+						optionalNumber(shelterFactor, sample),
+						optionalNumber(updraftMetersPerSecond, sample),
+						hasGustVelocity ? Math.sqrt(gustX * gustX + gustY * gustY + gustZ * gustZ) : 0.0,
+						hasGustVelocity ? gustY : 0.0,
+						optionalBool(hasLocalL2Modifier, sample),
+						optionalNumber(pressureAnomalyPascals, sample),
 						sampleHasTemperature,
 						temperatureCelsius,
 						sampleHasHumidity,
@@ -253,6 +373,32 @@ public final class Aerodynamics4McAtmosphereBridge {
 
 	private static double number(Object value) {
 		return value instanceof Number number ? number.doubleValue() : Double.NaN;
+	}
+
+	private static double optionalNumber(Method method, Object target) throws ReflectiveOperationException {
+		return method == null ? 0.0 : number(method.invoke(target));
+	}
+
+	private static boolean optionalBool(Method method, Object target) throws ReflectiveOperationException {
+		return method != null && bool(method, target);
+	}
+
+	private static Object vector(
+			Method accessor,
+			Method x,
+			Method y,
+			Method z,
+			Object target
+	) throws ReflectiveOperationException {
+		return accessor == null || x == null || y == null || z == null ? null : accessor.invoke(target);
+	}
+
+	private static double vectorNumber(Method component, Object vector) throws ReflectiveOperationException {
+		return number(component.invoke(vector));
+	}
+
+	private static double clamp(double value, double min, double max) {
+		return Math.max(min, Math.min(max, value));
 	}
 
 	private static long optionalLong(Method method, Object target) throws ReflectiveOperationException {
@@ -280,6 +426,18 @@ public final class Aerodynamics4McAtmosphereBridge {
 			boolean trustedForGameplay,
 			double confidence,
 			long freshnessAgeTicks,
+			boolean hasMeanVelocity,
+			double meanVelocityX,
+			double meanVelocityY,
+			double meanVelocityZ,
+			double turbulenceIntensity,
+			double windShearMagnitudePerBlock,
+			double shelterFactor,
+			double updraftMetersPerSecond,
+			double gustSpeedMetersPerSecond,
+			double gustVerticalMetersPerSecond,
+			boolean localVoxelFlow,
+			double pressureAnomalyPascals,
 			boolean hasTemperature,
 			double temperatureCelsius,
 			boolean hasHumidity,
@@ -292,6 +450,18 @@ public final class Aerodynamics4McAtmosphereBridge {
 				-1L,
 				false,
 				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
 				false,
 				0.0
 		);
@@ -299,6 +469,31 @@ public final class Aerodynamics4McAtmosphereBridge {
 		public AtmosphereSample {
 			confidence = finiteClamped(confidence, 0.0, 1.0, 0.0);
 			freshnessAgeTicks = freshnessAgeTicks < 0L ? -1L : freshnessAgeTicks;
+			if (!hasFlow) {
+				trustedForGameplay = false;
+				hasMeanVelocity = false;
+				localVoxelFlow = false;
+			}
+			if (!hasMeanVelocity
+					|| !Double.isFinite(meanVelocityX)
+					|| !Double.isFinite(meanVelocityY)
+					|| !Double.isFinite(meanVelocityZ)) {
+				hasMeanVelocity = false;
+				meanVelocityX = 0.0;
+				meanVelocityY = 0.0;
+				meanVelocityZ = 0.0;
+			} else {
+				meanVelocityX = clamp(meanVelocityX, -30.0, 30.0);
+				meanVelocityY = clamp(meanVelocityY, -30.0, 30.0);
+				meanVelocityZ = clamp(meanVelocityZ, -30.0, 30.0);
+			}
+			turbulenceIntensity = finiteClamped(turbulenceIntensity, 0.0, 1.5, 0.0);
+			windShearMagnitudePerBlock = finiteClamped(windShearMagnitudePerBlock, 0.0, 5.0, 0.0);
+			shelterFactor = finiteClamped(shelterFactor, 0.0, 1.0, 0.0);
+			updraftMetersPerSecond = finiteClamped(updraftMetersPerSecond, -12.0, 12.0, 0.0);
+			gustSpeedMetersPerSecond = finiteClamped(gustSpeedMetersPerSecond, 0.0, 60.0, 0.0);
+			gustVerticalMetersPerSecond = finiteClamped(gustVerticalMetersPerSecond, -30.0, 30.0, 0.0);
+			pressureAnomalyPascals = finiteClamped(pressureAnomalyPascals, -5000.0, 5000.0, 0.0);
 			if (!hasTemperature || !Double.isFinite(temperatureCelsius)) {
 				hasTemperature = false;
 				temperatureCelsius = 0.0;

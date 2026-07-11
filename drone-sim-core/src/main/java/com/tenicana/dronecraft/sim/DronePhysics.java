@@ -149,6 +149,7 @@ public final class DronePhysics {
 	private final double[] gyroBladePassVibrationPhases;
 	private final double[] rotorArmFlexIntensity;
 	private final double[] rotorArmFlexVelocity;
+	private final double[] motorCoolingBeforeBodyVentilation;
 	private final Vec3[] rotorFlappingTiltBody;
 	private final Vec3[] previousRotorForceBodyNewtons;
 	private final Vec3[] previousRotorTorqueBodyNewtonMeters;
@@ -205,6 +206,7 @@ public final class DronePhysics {
 	private long drydenRandomState = 0x6A09E667F3BCC909L;
 	private double drydenSpareGaussian;
 	private boolean hasDrydenSpareGaussian;
+	private final DrydenStepCache drydenStepCache = new DrydenStepCache();
 	private boolean windModelInitialized;
 	private boolean batteryThermalInitialized;
 	private Vec3 previousTargetRatesRadiansPerSecond = Vec3.ZERO;
@@ -452,6 +454,7 @@ public final class DronePhysics {
 		private long effectiveAmbientTemperatureCelsiusBits;
 		private long ambientHumidityBits;
 		private long adoptedSourceHumidityBits;
+		private long adoptedSourcePressureAnomalyPascalsBits;
 		private double effectiveAirDensityRatio;
 		private double effectiveAmbientTemperatureCelsius;
 		private double speedOfSoundMetersPerSecond;
@@ -471,12 +474,16 @@ public final class DronePhysics {
 					Double.doubleToRawLongBits(safeEnvironment.effectiveAmbientTemperatureCelsius());
 			long nextAmbientHumidityBits = Double.doubleToRawLongBits(safeEnvironment.ambientHumidity());
 			long nextAdoptedSourceHumidityBits = Double.doubleToRawLongBits(safeEnvironment.adoptedSourceHumidity());
+			long nextAdoptedSourcePressureAnomalyPascalsBits =
+					Double.doubleToRawLongBits(safeEnvironment.adoptedSourcePressureAnomalyPascals());
 			if (environmentIdentity == null
 					|| nextAirDensityRatioBits != airDensityRatioBits
 					|| nextAmbientTemperatureCelsiusBits != ambientTemperatureCelsiusBits
 					|| nextEffectiveAmbientTemperatureCelsiusBits != effectiveAmbientTemperatureCelsiusBits
 					|| nextAmbientHumidityBits != ambientHumidityBits
-					|| nextAdoptedSourceHumidityBits != adoptedSourceHumidityBits) {
+					|| nextAdoptedSourceHumidityBits != adoptedSourceHumidityBits
+					|| nextAdoptedSourcePressureAnomalyPascalsBits
+							!= adoptedSourcePressureAnomalyPascalsBits) {
 				double fallbackTemperatureCelsius = safeEnvironment.ambientTemperatureCelsius();
 				double sourceTemperatureCelsius = safeEnvironment.effectiveAmbientTemperatureCelsius();
 				if (!Double.isFinite(fallbackTemperatureCelsius)) {
@@ -551,7 +558,10 @@ public final class DronePhysics {
 				effectiveAirDensityRatio = MathUtil.clamp(
 						safeEnvironment.airDensityRatio()
 								* (fallbackTemperatureKelvin / sourceTemperatureKelvin)
-								* densityMultiplier,
+								* densityMultiplier
+								* DroneEnvironment.pressureAirDensityMultiplier(
+										safeEnvironment.adoptedSourcePressureAnomalyPascals()
+								),
 						0.35,
 						1.35
 				);
@@ -580,6 +590,8 @@ public final class DronePhysics {
 				effectiveAmbientTemperatureCelsiusBits = nextEffectiveAmbientTemperatureCelsiusBits;
 				ambientHumidityBits = nextAmbientHumidityBits;
 				adoptedSourceHumidityBits = nextAdoptedSourceHumidityBits;
+				adoptedSourcePressureAnomalyPascalsBits =
+						nextAdoptedSourcePressureAnomalyPascalsBits;
 				environmentIdentity = safeEnvironment;
 				return true;
 			}
@@ -611,6 +623,96 @@ public final class DronePhysics {
 			return frozenHumidityIcingWetness;
 		}
 
+	}
+
+	/** Reuses immutable Dryden coefficients across the substeps of one environment sample. */
+	static final class DrydenStepCache {
+		private DroneEnvironment environmentIdentity;
+		private long targetWindXBits;
+		private long targetWindYBits;
+		private long targetWindZBits;
+		private long dtSecondsBits;
+		private boolean active;
+		private double decayAlpha;
+		private double longitudinalPhi;
+		private double lateralPhi;
+		private double verticalPhi;
+		private double longitudinalInnovationScale;
+		private double lateralInnovationScale;
+		private double verticalInnovationScale;
+		private double lateralLagAlpha;
+		private double verticalLagAlpha;
+		private Vec3 longitudinalAxis = new Vec3(1.0, 0.0, 0.0);
+		private Vec3 lateralAxis = new Vec3(0.0, 0.0, 1.0);
+		private Vec3 verticalAxis = new Vec3(0.0, 1.0, 0.0);
+
+		boolean resolve(DroneEnvironment environment, Vec3 targetMeanWind, double dtSeconds) {
+			DroneEnvironment safeEnvironment = environment == null ? DroneEnvironment.calm() : environment;
+			Vec3 safeTargetMeanWind = targetMeanWind == null ? Vec3.ZERO : targetMeanWind;
+			long nextTargetWindXBits = Double.doubleToRawLongBits(safeTargetMeanWind.x());
+			long nextTargetWindYBits = Double.doubleToRawLongBits(safeTargetMeanWind.y());
+			long nextTargetWindZBits = Double.doubleToRawLongBits(safeTargetMeanWind.z());
+			long nextDtSecondsBits = Double.doubleToRawLongBits(dtSeconds);
+			if (safeEnvironment == environmentIdentity
+					&& nextTargetWindXBits == targetWindXBits
+					&& nextTargetWindYBits == targetWindYBits
+					&& nextTargetWindZBits == targetWindZBits
+					&& nextDtSecondsBits == dtSecondsBits) {
+				return false;
+			}
+
+			double windSpeed = safeTargetMeanWind.length();
+			double atmosphericTurbulence = atmosphericDrydenIntensity(safeEnvironment);
+			active = atmosphericTurbulence > 1.0e-6 && windSpeed > 0.5 && dtSeconds > 0.0;
+			if (active) {
+				DrydenTurbulenceModel.Parameters dryden = DrydenTurbulenceModel.lowAltitude(
+						drydenReferenceAltitudeMeters(safeEnvironment),
+						windSpeed
+				);
+				double intensityScale = MathUtil.clamp(atmosphericTurbulence / 1.8, 0.0, 1.0);
+				double longitudinalTau = MathUtil.clamp(
+						dryden.longitudinalTimeConstantSeconds(),
+						0.10,
+						12.0
+				);
+				double lateralTau = MathUtil.clamp(
+						dryden.lateralTimeConstantSeconds(),
+						0.10,
+						12.0
+				);
+				double verticalTau = MathUtil.clamp(
+						dryden.verticalTimeConstantSeconds(),
+						0.05,
+						6.0
+				);
+				longitudinalPhi = Math.exp(-dtSeconds / Math.max(1.0e-6, longitudinalTau));
+				lateralPhi = Math.exp(-dtSeconds / Math.max(1.0e-6, lateralTau));
+				verticalPhi = Math.exp(-dtSeconds / Math.max(1.0e-6, verticalTau));
+				longitudinalInnovationScale = dryden.longitudinalSigmaMetersPerSecond()
+						* intensityScale
+						* Math.sqrt(Math.max(0.0, 1.0 - longitudinalPhi * longitudinalPhi));
+				lateralInnovationScale = dryden.lateralSigmaMetersPerSecond()
+						* intensityScale
+						* Math.sqrt(Math.max(0.0, 1.0 - lateralPhi * lateralPhi));
+				verticalInnovationScale = dryden.verticalSigmaMetersPerSecond()
+						* intensityScale
+						* Math.sqrt(Math.max(0.0, 1.0 - verticalPhi * verticalPhi));
+				lateralLagAlpha = 1.0 - lateralPhi;
+				verticalLagAlpha = 1.0 - verticalPhi;
+				longitudinalAxis = horizontalWindAxis(safeTargetMeanWind);
+				lateralAxis = new Vec3(-longitudinalAxis.z(), 0.0, longitudinalAxis.x());
+				verticalAxis = new Vec3(0.0, 1.0, 0.0);
+			} else {
+				decayAlpha = MathUtil.expSmoothing(dtSeconds, 0.35);
+			}
+
+			environmentIdentity = safeEnvironment;
+			targetWindXBits = nextTargetWindXBits;
+			targetWindYBits = nextTargetWindYBits;
+			targetWindZBits = nextTargetWindZBits;
+			dtSecondsBits = nextDtSecondsBits;
+			return true;
+		}
 	}
 
 	public static double betaflightErpm100FromMechanicalRpm(double mechanicalRpm) {
@@ -768,6 +870,8 @@ public final class DronePhysics {
 		this.gyroBladePassVibrationPhases = new double[config.rotors().size()];
 		this.rotorArmFlexIntensity = new double[config.rotors().size()];
 		this.rotorArmFlexVelocity = new double[config.rotors().size()];
+		this.motorCoolingBeforeBodyVentilation = new double[config.rotors().size()];
+		Arrays.fill(this.motorCoolingBeforeBodyVentilation, 1.0);
 		this.rotorFlappingTiltBody = new Vec3[config.rotors().size()];
 		this.previousRotorForceBodyNewtons = new Vec3[config.rotors().size()];
 		this.previousRotorTorqueBodyNewtonMeters = new Vec3[config.rotors().size()];
@@ -7194,10 +7298,9 @@ public final class DronePhysics {
 	}
 
 	private Vec3 updateDrydenTurbulence(DroneEnvironment environment, Vec3 targetMeanWind, double dtSeconds) {
-		double windSpeed = targetMeanWind.length();
-		double atmosphericTurbulence = atmosphericDrydenIntensity(environment);
-		if (atmosphericTurbulence <= 1.0e-6 || windSpeed <= 0.5 || dtSeconds <= 0.0) {
-			double alpha = MathUtil.expSmoothing(dtSeconds, 0.35);
+		drydenStepCache.resolve(environment, targetMeanWind, dtSeconds);
+		if (!drydenStepCache.active) {
+			double alpha = drydenStepCache.decayAlpha;
 			drydenFirstOrderVelocityWorldMetersPerSecond =
 					drydenFirstOrderVelocityWorldMetersPerSecond.multiply(1.0 - alpha);
 			drydenTransverseLagVelocityWorldMetersPerSecond =
@@ -7206,15 +7309,9 @@ public final class DronePhysics {
 			return drydenTurbulenceVelocityWorldMetersPerSecond;
 		}
 
-		DrydenTurbulenceModel.Parameters dryden = DrydenTurbulenceModel.lowAltitude(drydenReferenceAltitudeMeters(environment), windSpeed);
-		double intensityScale = MathUtil.clamp(atmosphericTurbulence / 1.8, 0.0, 1.0);
-		double longitudinalTau = MathUtil.clamp(dryden.longitudinalTimeConstantSeconds(), 0.10, 12.0);
-		double lateralTau = MathUtil.clamp(dryden.lateralTimeConstantSeconds(), 0.10, 12.0);
-		double verticalTau = MathUtil.clamp(dryden.verticalTimeConstantSeconds(), 0.05, 6.0);
-
-		Vec3 longitudinalAxis = horizontalWindAxis(targetMeanWind);
-		Vec3 lateralAxis = new Vec3(-longitudinalAxis.z(), 0.0, longitudinalAxis.x());
-		Vec3 verticalAxis = new Vec3(0.0, 1.0, 0.0);
+		Vec3 longitudinalAxis = drydenStepCache.longitudinalAxis;
+		Vec3 lateralAxis = drydenStepCache.lateralAxis;
+		Vec3 verticalAxis = drydenStepCache.verticalAxis;
 		double currentLongitudinal = drydenFirstOrderVelocityWorldMetersPerSecond.dot(longitudinalAxis);
 		double currentLateral = drydenFirstOrderVelocityWorldMetersPerSecond.dot(lateralAxis);
 		double currentVertical = drydenFirstOrderVelocityWorldMetersPerSecond.dot(verticalAxis);
@@ -7222,24 +7319,29 @@ public final class DronePhysics {
 		double currentVerticalLag = drydenTransverseLagVelocityWorldMetersPerSecond.dot(verticalAxis);
 		double longitudinalFirstOrder = updateDrydenAxis(
 				currentLongitudinal,
-				dryden.longitudinalSigmaMetersPerSecond() * intensityScale,
-				longitudinalTau,
-				dtSeconds
+				drydenStepCache.longitudinalPhi,
+				drydenStepCache.longitudinalInnovationScale
 		);
 		double lateralFirstOrder = updateDrydenAxis(
 				currentLateral,
-				dryden.lateralSigmaMetersPerSecond() * intensityScale,
-				lateralTau,
-				dtSeconds
+				drydenStepCache.lateralPhi,
+				drydenStepCache.lateralInnovationScale
 		);
 		double verticalFirstOrder = updateDrydenAxis(
 				currentVertical,
-				dryden.verticalSigmaMetersPerSecond() * intensityScale,
-				verticalTau,
-				dtSeconds
+				drydenStepCache.verticalPhi,
+				drydenStepCache.verticalInnovationScale
 		);
-		double lateralLag = updateDrydenLag(currentLateralLag, lateralFirstOrder, lateralTau, dtSeconds);
-		double verticalLag = updateDrydenLag(currentVerticalLag, verticalFirstOrder, verticalTau, dtSeconds);
+		double lateralLag = updateDrydenLag(
+				currentLateralLag,
+				lateralFirstOrder,
+				drydenStepCache.lateralLagAlpha
+		);
+		double verticalLag = updateDrydenLag(
+				currentVerticalLag,
+				verticalFirstOrder,
+				drydenStepCache.verticalLagAlpha
+		);
 		double lateral = DrydenTurbulenceModel.shapeTransverseAxis(lateralFirstOrder, lateralLag);
 		double vertical = DrydenTurbulenceModel.shapeTransverseAxis(verticalFirstOrder, verticalLag);
 
@@ -7258,14 +7360,11 @@ public final class DronePhysics {
 		return MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.8);
 	}
 
-	private double updateDrydenAxis(double currentValue, double sigmaMetersPerSecond, double timeConstantSeconds, double dtSeconds) {
-		double phi = Math.exp(-dtSeconds / Math.max(1.0e-6, timeConstantSeconds));
-		double innovationScale = sigmaMetersPerSecond * Math.sqrt(Math.max(0.0, 1.0 - phi * phi));
+	private double updateDrydenAxis(double currentValue, double phi, double innovationScale) {
 		return currentValue * phi + innovationScale * nextDrydenGaussian();
 	}
 
-	private static double updateDrydenLag(double currentValue, double targetValue, double timeConstantSeconds, double dtSeconds) {
-		double alpha = MathUtil.expSmoothing(dtSeconds, Math.max(1.0e-6, timeConstantSeconds));
+	private static double updateDrydenLag(double currentValue, double targetValue, double alpha) {
 		return currentValue + (targetValue - currentValue) * alpha;
 	}
 
@@ -10245,7 +10344,7 @@ public final class DronePhysics {
 			);
 			double temperature = state.motorTemperatureCelsius(i);
 			double heatRate = config.motorThermalRiseCelsiusPerSecond() * power * power;
-			double coolingFactor = motorCoolingFactor(
+			double coolingBeforeBodyVentilation = motorCoolingFactorBeforeBodyVentilation(
 					rotor,
 					relativeAirVelocityBody,
 					angularVelocityBody,
@@ -10253,6 +10352,12 @@ public final class DronePhysics {
 					i,
 					densityFactor,
 					moistAirCoolingMultiplier
+			);
+			motorCoolingBeforeBodyVentilation[i] = coolingBeforeBodyVentilation;
+			double coolingFactor = MathUtil.clamp(
+					coolingBeforeBodyVentilation * environment.motorEscVentilationFactor(),
+					0.20,
+					4.0
 			);
 			state.setMotorCoolingFactor(i, coolingFactor);
 			double coolingRate = config.motorCoolingRatePerSecond()
@@ -10321,17 +10426,24 @@ public final class DronePhysics {
 			double moistAirCooling
 	) {
 		double rotorWashCooling = 0.45 * state.motorPower(config, rotorIndex) * (0.35 + 0.65 * state.escElectricalOutputCommand(rotorIndex));
-		double boardAirflow = 0.58 + 0.42 * state.motorCoolingFactor(rotorIndex) + rotorWashCooling;
+		double boardAirflow = 0.58
+				+ 0.42 * motorCoolingBeforeBodyVentilation[rotorIndex]
+				+ rotorWashCooling;
 		double obstructionLoss = 1.0 - 0.36 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - 0.78 * recirculatedAirCoolingLoss(environment);
 		return MathUtil.clamp(
-				boardAirflow * densityFactor * moistAirCooling * obstructionLoss * recirculationEfficiency,
+				boardAirflow
+						* densityFactor
+						* moistAirCooling
+						* obstructionLoss
+						* recirculationEfficiency
+						* environment.motorEscVentilationFactor(),
 				0.20,
 				4.0
 		);
 	}
 
-	private double motorCoolingFactor(
+	private double motorCoolingFactorBeforeBodyVentilation(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
 			Vec3 angularVelocityBody,
@@ -10479,7 +10591,8 @@ public final class DronePhysics {
 		double airCooling = (0.55 + 0.45 * airspeedCooling + rotorWashCooling)
 				* densityFactor
 				* moistAirCooling
-				* recirculationEfficiency;
+				* recirculationEfficiency
+				* environment.batteryVentilationFactor();
 		double wetCooling = 1.40 * MathUtil.clamp(environment.waterImmersionIntensity(), 0.0, 1.0)
 				+ 0.22 * MathUtil.clamp(environment.precipitationWetnessIntensity(), 0.0, 1.0);
 		return MathUtil.clamp(airCooling + wetCooling, 0.20, 4.0);
