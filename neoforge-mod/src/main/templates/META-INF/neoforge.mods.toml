@@ -11,6 +11,9 @@ description='''
 A high-frequency multirotor drone simulation prototype for Minecraft.
 '''
 
+[[mixins]]
+config="fpvdrone.client.mixins.json"
+
 [[dependencies.fpvdrone]]
 modId="neoforge"
 type="required"

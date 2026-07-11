@@ -28,7 +28,7 @@ the branch remains usable as the base for the next unit.
 | 4 | Server/common gameplay vertical slice | Core tests, NeoForge compile/tests, payload codec tests, dedicated-server smoke test | Complete | This commit; 305 JUnit tests and 240-sample simulation self-test |
 | 5a | Client configuration, state, and input algorithms | Focused input/config tests, full build, dedicated-server smoke | Complete | This commit; 79 focused tests, 384 total tests, server self-test |
 | 5b | Client lifecycle, key mappings, controller I/O, and networking | Focused controls tests, full build, dedicated-server smoke | Complete | This commit; 9 focused tests, 393 total tests, server self-test |
-| 6 | Client rendering, HUD, audio, and Mixins | Focused tests, client launch, dedicated-server launch | Pending | Pending |
+| 6 | Client rendering, HUD, audio, and Mixins | Focused tests, client launch, dedicated-server launch | Complete | This commit; 419 JUnit tests, six client Mixins applied at title-screen launch, 240-sample dedicated-server self-test |
 | 7 | NeoForge GameTests and server self-tests | GameTest server plus simulation/angle/horizon/acro self-tests | Pending | Pending |
 | 8 | CI, distributions, documentation, and final packaging | Full build, clean jar audit, clean client/server install | Pending | Pending |
 
