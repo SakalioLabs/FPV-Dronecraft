@@ -12,24 +12,62 @@ java {
 	withSourcesJar()
 }
 
+sourceSets {
+	gameTest {
+		compileClasspath += sourceSets.main.output
+		runtimeClasspath += sourceSets.main.output
+	}
+}
+
+configurations {
+	gameTestImplementation.extendsFrom implementation
+	gameTestRuntimeOnly.extendsFrom runtimeOnly
+}
+
+def gameTestReport = layout.buildDirectory.file("reports/gametest/results.xml")
+def requiredGameTests = [
+		"fpvdrone:racing_quad_diagnostic_climbs_in_game",
+		"fpvdrone:new_drone_starts_in_stable_angle_mode",
+		"fpvdrone:drone_entity_playable_route_executes_through_router",
+		"fpvdrone:drone_entity_simulation_route_executes_through_router",
+		"fpvdrone:direct_flight_disarm_clears_playable_attitude",
+		"fpvdrone:direct_flight_respects_ceiling_collision",
+		"fpvdrone:direct_flight_link_loss_uses_playable_failsafe",
+		"fpvdrone:controller_reuses_nearest_owned_drone"
+] as Set
+
 neoForge {
 	enable {
 		version = project.neoforge_version
 		disableRecompilation = true
+		enabledSourceSets = [sourceSets.main, sourceSets.gameTest] as Set
+	}
+
+	mods {
+		fpvdrone {
+			sourceSet(sourceSets.main)
+		}
+
+		fpvdrone_gametest {
+			sourceSet(sourceSets.gameTest)
+		}
 	}
 
 	runs {
 		client {
 			client()
+			loadedMods.set([mods.fpvdrone] as Set)
 		}
 
 		server {
 			server()
+			loadedMods.set([mods.fpvdrone] as Set)
 			programArgument "--nogui"
 		}
 
 		serverSelfTest {
 			server()
+			loadedMods.set([mods.fpvdrone] as Set)
 			programArgument "--nogui"
 			systemProperty "fpvdrone.selftest", "true"
 			systemProperty "fpvdrone.selftest.seconds", "12"
@@ -39,7 +77,12 @@ neoForge {
 
 		gameTestServer {
 			type = "gameTestServer"
-			systemProperty "neoforge.enabledGameTestNamespaces", "fpvdrone"
+			sourceSet = sourceSets.gameTest
+			loadedMods.set([mods.fpvdrone, mods.fpvdrone_gametest] as Set)
+			programArgument "--tests"
+			programArgument "fpvdrone:*"
+			programArgument "--report"
+			programArgument gameTestReport.get().asFile.absolutePath
 		}
 
 		configureEach {
@@ -47,15 +90,10 @@ neoForge {
 		}
 	}
 
-	mods {
-		fpvdrone {
-			sourceSet(sourceSets.main)
-		}
-	}
-
 	unitTest {
 		enable()
 		testedMod = mods.fpvdrone
+		loadedMods = [mods.fpvdrone] as Set
 	}
 }
 
@@ -88,4 +126,36 @@ neoForge.ideSyncTask(generateModMetadata)
 
 tasks.test {
 	useJUnitPlatform()
+}
+
+tasks.named("runGameTestServer") {
+	doFirst {
+		File reportFile = gameTestReport.get().asFile
+		delete(reportFile)
+		reportFile.parentFile.mkdirs()
+	}
+
+	doLast {
+		File reportFile = gameTestReport.get().asFile
+		if (!reportFile.isFile()) {
+			throw new GradleException("NeoForge GameTest report was not created: ${reportFile}")
+		}
+
+		def document = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+				.newDocumentBuilder()
+				.parse(reportFile)
+		def testCases = document.getElementsByTagName("testcase")
+		def actualGameTests = (0..<testCases.length)
+				.collect { index -> testCases.item(index).getAttribute("name") }
+				.toSet()
+		int tests = testCases.length
+		int failures = document.getElementsByTagName("failure").length
+		int errors = document.getElementsByTagName("error").length
+		if (tests != requiredGameTests.size() || actualGameTests != requiredGameTests || failures != 0 || errors != 0) {
+			throw new GradleException(
+					"NeoForge GameTest gate mismatch: expected=${requiredGameTests.sort()}, actual=${actualGameTests.sort()}, failures=${failures}, errors=${errors}: ${reportFile}"
+			)
+		}
+		logger.lifecycle("NeoForge GameTest gate passed: {} tests, {} failures, {} errors", tests, failures, errors)
+	}
 }

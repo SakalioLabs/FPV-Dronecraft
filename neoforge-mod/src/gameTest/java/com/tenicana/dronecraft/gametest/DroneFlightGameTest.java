@@ -1,0 +1,349 @@
+package com.tenicana.dronecraft.gametest;
+
+import java.util.Locale;
+import java.util.UUID;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.GameTestAssertException;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Blocks;
+
+import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder.RecordingSource;
+import com.tenicana.dronecraft.control.DroneControlManager;
+import com.tenicana.dronecraft.debug.DroneDebugSettings;
+import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
+import com.tenicana.dronecraft.entity.DroneEntity;
+import com.tenicana.dronecraft.registry.DroneEntityTypes;
+import com.tenicana.dronecraft.sim.DroneConfig;
+import com.tenicana.dronecraft.sim.DroneInput;
+import com.tenicana.dronecraft.sim.FlightMode;
+import com.tenicana.dronecraft.sim.Vec3;
+import com.tenicana.dronecraft.sim.flight.FlightModelCapabilities;
+import com.tenicana.dronecraft.sim.flight.SimulationFlightModelAdapter;
+
+public final class DroneFlightGameTest {
+	private static final UUID TEST_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f002");
+	private static final UUID RESET_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f003");
+	private static final UUID CEILING_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f004");
+	private static final UUID FAILSAFE_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f005");
+	private static final UUID ROUTE_PLAYABLE_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f006");
+	private static final UUID ROUTE_SIMULATION_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f007");
+	private static final String LEGACY_PLAYABLE_MODEL_ID = "legacy_playable_direct";
+	private static final int DURATION_TICKS = 260;
+	private static final int ASSERT_TICKS = 170;
+	private static final DroneInput SAFE_HORIZON_ARM = new DroneInput(0.02, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
+
+	private DroneFlightGameTest() {
+	}
+
+	public static void racingQuadDiagnosticClimbsInGame(GameTestHelper context) {
+		DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 4, 1));
+		DroneEntity drone = new DroneEntity(DroneEntityTypes.drone(), level);
+		drone.applyConfig(DroneConfig.racingQuad(), "racing_quad");
+		drone.setOwner(TEST_OWNER);
+		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		level.addFreshEntity(drone);
+
+		double initialY = drone.getY();
+		drone.blackbox().startRecording(RecordingSource.SCRIPTED_DIAGNOSTIC, true);
+		DroneControlManager.startDiagnostic(TEST_OWNER, drone.tickCount, DURATION_TICKS);
+
+		context.runAfterDelay(160, () -> {
+			float yawRadians = drone.getRenderYawRadians();
+			assertTrue(Math.abs(yawRadians) > 0.006f, "direct flight did not yaw enough to verify camera units: " + yawRadians);
+			assertTrue(Math.abs(yawRadians) < 0.50f, "render yaw is not radians: " + yawRadians);
+		});
+
+		context.runAfterDelay(ASSERT_TICKS, () -> {
+			DroneControlManager.stopDiagnostic(TEST_OWNER);
+			drone.blackbox().stopRecording(RecordingSource.SCRIPTED_DIAGNOSTIC);
+			assertTrue(!drone.isRemoved(), "drone was removed during GameTest");
+			assertTrue(drone.tickCount > 120, "drone did not tick enough in GameTest: " + drone.tickCount);
+			assertTrue(drone.blackbox().size() > 120, "blackbox did not collect enough samples: " + drone.blackbox().size());
+			assertTrue(drone.getY() > initialY + 0.35, String.format(
+					Locale.ROOT,
+					"drone did not climb: initial=%.3f final=%.3f",
+					initialY,
+					drone.getY()
+			));
+			assertTrue(Double.isFinite(drone.getSpeedMetersPerSecond()), "drone speed became non-finite");
+			assertTrue(Math.abs(drone.getRenderYawRadians()) < Math.PI * 2.0, "render yaw is not radians: " + drone.getRenderYawRadians());
+			assertTrue(Math.abs(drone.getRenderPitchRadians()) < Math.toRadians(45.0), "render pitch is not a playable attitude: " + drone.getRenderPitchRadians());
+			assertTrue(Math.abs(drone.getRenderRollRadians()) < Math.toRadians(50.0), "render roll is not a playable attitude: " + drone.getRenderRollRadians());
+			assertTrue(drone.getAverageMotorRpm() > 2000.0f, "direct flight did not animate motor RPM: " + drone.getAverageMotorRpm());
+			assertTrue(drone.getAverageMotorRpm() < 18000.0f, "direct flight RPM is implausibly high: " + drone.getAverageMotorRpm());
+			drone.discard();
+			context.succeed();
+		});
+	}
+
+	public static void newDroneStartsInStableAngleMode(GameTestHelper context) {
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 4, 1));
+		DroneEntity drone = new DroneEntity(DroneEntityTypes.drone(), level);
+		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		level.addFreshEntity(drone);
+
+		context.runAfterDelay(2, () -> {
+			assertTrue(drone.getFlightMode() == FlightMode.DEFAULT_FIRST_FLIGHT, "new drone did not default to stable angle mode: " + drone.getFlightMode());
+			drone.discard();
+			context.succeed();
+		});
+	}
+
+	public static void droneEntityPlayableRouteExecutesThroughRouter(GameTestHelper context) {
+		DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 5, 1));
+		DroneEntity drone = new DroneEntity(DroneEntityTypes.drone(), level);
+		drone.applyConfig(DroneConfig.racingQuad(), "racing_quad");
+		drone.setOwner(ROUTE_PLAYABLE_OWNER);
+		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		level.addFreshEntity(drone);
+
+		double initialY = drone.getY();
+		DroneInput climb = new DroneInput(0.58, 0.22, 0.0, 0.12, true, true, FlightMode.HORIZON);
+		DroneInput reset = new DroneInput(0.0, 0.0, 0.0, 0.0, false, true, FlightMode.HORIZON);
+		scheduleInput(context, drone, ROUTE_PLAYABLE_OWNER, 1, 1, SAFE_HORIZON_ARM);
+		scheduleInput(context, drone, ROUTE_PLAYABLE_OWNER, 5, 54, climb);
+		scheduleInput(context, drone, ROUTE_PLAYABLE_OWNER, 72, 88, reset);
+
+		context.runAfterDelay(55, () -> {
+			assertTrue(LEGACY_PLAYABLE_MODEL_ID.equals(drone.activeFlightModelIdForDiagnostics()), "playable entity did not execute through playable router model: " + drone.activeFlightModelIdForDiagnostics());
+			assertTrue(LEGACY_PLAYABLE_MODEL_ID.equals(drone.fixedFlightModelIdForDiagnostics()), "playable entity did not pin its fixed model: " + drone.fixedFlightModelIdForDiagnostics());
+			FlightModelCapabilities capabilities = drone.activeFlightModelCapabilitiesForDiagnostics();
+			assertTrue(capabilities.motorTelemetry(), "playable router did not expose motor telemetry capability");
+			assertTrue(capabilities.assistedStateCorrection(), "playable router did not expose assisted correction capability");
+			assertTrue(capabilities.lossyStateMapping(), "playable router did not expose lossy mapping capability");
+			assertTrue(drone.activeFlightModelSnapshotFiniteForDiagnostics(), "playable router snapshot became non-finite");
+			assertTrue(drone.getY() > initialY + 0.10, String.format(Locale.ROOT, "playable entity did not move in open air: initial=%.3f current=%.3f", initialY, drone.getY()));
+			assertModelPositionMatchesEntity(drone, "playable");
+			DroneDebugSettings.setFlightModelMode(FlightModelMode.SIMULATION);
+		});
+
+		context.runAfterDelay(66, () -> {
+			assertTrue(LEGACY_PLAYABLE_MODEL_ID.equals(drone.fixedFlightModelIdForDiagnostics()), "active playable entity changed fixed model after global mode switch: " + drone.fixedFlightModelIdForDiagnostics());
+			assertTrue(LEGACY_PLAYABLE_MODEL_ID.equals(drone.activeFlightModelIdForDiagnostics()), "active playable entity changed router model after global mode switch: " + drone.activeFlightModelIdForDiagnostics());
+		});
+
+		context.runAfterDelay(96, () -> {
+			assertTrue(LEGACY_PLAYABLE_MODEL_ID.equals(drone.activeFlightModelIdForDiagnostics()), "playable reset silently changed route: " + drone.activeFlightModelIdForDiagnostics());
+			assertTrue(drone.activeFlightModelSnapshotFiniteForDiagnostics(), "playable reset produced non-finite router snapshot");
+			assertModelPositionMatchesEntity(drone, "playable reset");
+			assertTrue(Math.abs(drone.getRenderPitchRadians()) < Math.toRadians(5.0), "playable reset kept stale pitch: " + drone.getRenderPitchRadians());
+			assertTrue(Math.abs(drone.getRenderRollRadians()) < Math.toRadians(5.0), "playable reset kept stale roll: " + drone.getRenderRollRadians());
+			DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
+			drone.discard();
+			context.succeed();
+		});
+	}
+
+	public static void droneEntitySimulationRouteExecutesThroughRouter(GameTestHelper context) {
+		DroneDebugSettings.setFlightModelMode(FlightModelMode.SIMULATION);
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 6, 1));
+		DroneEntity drone = new DroneEntity(DroneEntityTypes.drone(), level);
+		drone.applyConfig(DroneConfig.racingQuad(), "racing_quad");
+		drone.setOwner(ROUTE_SIMULATION_OWNER);
+		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		level.addFreshEntity(drone);
+
+		double initialY = drone.getY();
+		DroneInput input = new DroneInput(0.62, 0.18, -0.08, 0.10, true, true, FlightMode.HORIZON);
+		scheduleInput(context, drone, ROUTE_SIMULATION_OWNER, 1, 1, SAFE_HORIZON_ARM);
+		scheduleInput(context, drone, ROUTE_SIMULATION_OWNER, 5, 80, input);
+
+		context.runAfterDelay(95, () -> {
+			assertTrue(SimulationFlightModelAdapter.ID.equals(drone.activeFlightModelIdForDiagnostics()), "simulation entity did not execute through simulation router model: " + drone.activeFlightModelIdForDiagnostics());
+			assertTrue(SimulationFlightModelAdapter.ID.equals(drone.fixedFlightModelIdForDiagnostics()), "simulation entity did not pin its fixed model: " + drone.fixedFlightModelIdForDiagnostics());
+			FlightModelCapabilities capabilities = drone.activeFlightModelCapabilitiesForDiagnostics();
+			assertTrue(capabilities.motorTelemetry(), "simulation router did not expose motor telemetry capability");
+			assertTrue(capabilities.highFidelityPowertrain(), "simulation router did not expose high-fidelity powertrain capability");
+			assertTrue(capabilities.environmentalAero(), "simulation router did not expose environmental aero capability");
+			assertTrue(drone.activeFlightModelSnapshotFiniteForDiagnostics(), "simulation router snapshot became non-finite");
+			assertTrue(Double.isFinite(drone.getSpeedMetersPerSecond()), "simulation entity speed became non-finite");
+			assertTrue(Math.abs(drone.getY() - initialY) > 0.01 || drone.getSpeedMetersPerSecond() > 0.05, String.format(
+					Locale.ROOT,
+					"simulation entity did not integrate movement: initialY=%.3f currentY=%.3f speed=%.3f",
+					initialY,
+					drone.getY(),
+					drone.getSpeedMetersPerSecond()
+			));
+			assertModelPositionMatchesEntity(drone, "simulation");
+			DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
+		});
+
+		context.runAfterDelay(112, () -> {
+			assertTrue(SimulationFlightModelAdapter.ID.equals(drone.fixedFlightModelIdForDiagnostics()), "active simulation entity changed fixed model after global mode switch: " + drone.fixedFlightModelIdForDiagnostics());
+			assertTrue(SimulationFlightModelAdapter.ID.equals(drone.activeFlightModelIdForDiagnostics()), "active simulation entity changed router model after global mode switch: " + drone.activeFlightModelIdForDiagnostics());
+			drone.discard();
+			context.succeed();
+		});
+	}
+
+	public static void directFlightDisarmClearsPlayableAttitude(GameTestHelper context) {
+		DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 5, 1));
+		DroneEntity drone = new DroneEntity(DroneEntityTypes.drone(), level);
+		drone.applyConfig(DroneConfig.racingQuad(), "racing_quad");
+		drone.setOwner(RESET_OWNER);
+		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		level.addFreshEntity(drone);
+
+		DroneInput tilted = new DroneInput(0.45, 0.95, -0.80, 0.0, true, true, FlightMode.HORIZON);
+		DroneInput disarmed = new DroneInput(0.0, 0.0, 0.0, 0.0, false, true, FlightMode.HORIZON);
+		DroneInput centeredRearm = new DroneInput(0.20, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
+		scheduleInput(context, drone, RESET_OWNER, 1, 1, SAFE_HORIZON_ARM);
+		scheduleInput(context, drone, RESET_OWNER, 5, 36, tilted);
+		scheduleInput(context, drone, RESET_OWNER, 43, 55, disarmed);
+		scheduleInput(context, drone, RESET_OWNER, 58, 70, centeredRearm);
+
+		context.runAfterDelay(40, () -> {
+			assertTrue(
+					Math.abs(drone.getRenderPitchRadians()) > Math.toRadians(12.0),
+					"test did not build enough pitch attitude before disarm: " + drone.getRenderPitchRadians()
+			);
+			assertTrue(
+					Math.abs(drone.getRenderRollRadians()) > Math.toRadians(10.0),
+					"test did not build enough roll attitude before disarm: " + drone.getRenderRollRadians()
+			);
+		});
+
+		context.runAfterDelay(62, () -> {
+			assertTrue(
+					Math.abs(drone.getRenderPitchRadians()) < Math.toRadians(5.0),
+					"direct flight kept stale pitch after disarm/rearm: " + drone.getRenderPitchRadians()
+			);
+			assertTrue(
+					Math.abs(drone.getRenderRollRadians()) < Math.toRadians(5.0),
+					"direct flight kept stale roll after disarm/rearm: " + drone.getRenderRollRadians()
+			);
+			drone.discard();
+			context.succeed();
+		});
+	}
+
+	public static void directFlightRespectsCeilingCollision(GameTestHelper context) {
+		DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 4, 1));
+		BlockPos ceiling = context.absolutePos(new BlockPos(1, 5, 1));
+		level.setBlock(ceiling, Blocks.STONE.defaultBlockState(), 3);
+
+		DroneEntity drone = new DroneEntity(DroneEntityTypes.drone(), level);
+		drone.applyConfig(DroneConfig.racingQuad(), "racing_quad");
+		drone.setOwner(CEILING_OWNER);
+		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		level.addFreshEntity(drone);
+
+		double initialY = drone.getY();
+		DroneInput climb = new DroneInput(1.0, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
+		scheduleInput(context, drone, CEILING_OWNER, 1, 1, SAFE_HORIZON_ARM);
+		scheduleInput(context, drone, CEILING_OWNER, 5, 80, climb);
+
+		context.runAfterDelay(90, () -> {
+			assertTrue(
+					drone.getY() < initialY + 0.75,
+					String.format(Locale.ROOT, "direct flight ignored ceiling collision: initial=%.3f final=%.3f", initialY, drone.getY())
+			);
+			assertTrue(
+					drone.getDeltaMovement().y() <= 0.01,
+					"direct flight kept upward velocity after ceiling collision: " + drone.getDeltaMovement().y()
+			);
+			drone.discard();
+			context.succeed();
+		});
+	}
+
+	public static void directFlightLinkLossUsesPlayableFailsafe(GameTestHelper context) {
+		DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 5, 1));
+		DroneEntity drone = new DroneEntity(DroneEntityTypes.drone(), level);
+		drone.applyConfig(DroneConfig.racingQuad(), "racing_quad");
+		drone.setOwner(FAILSAFE_OWNER);
+		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		level.addFreshEntity(drone);
+
+		double initialY = drone.getY();
+		double[] speedBeforeLoss = new double[1];
+		DroneInput cruise = new DroneInput(0.56, 0.36, 0.20, 0.0, true, true, FlightMode.HORIZON);
+		scheduleInput(context, drone, FAILSAFE_OWNER, 1, 1, SAFE_HORIZON_ARM);
+		scheduleInput(context, drone, FAILSAFE_OWNER, 5, 40, cruise);
+
+		context.runAfterDelay(42, () -> {
+			speedBeforeLoss[0] = drone.getSpeedMetersPerSecond();
+			assertTrue(drone.getY() > initialY + 0.12, String.format(
+					Locale.ROOT,
+					"test did not build airborne state before link loss: initial=%.3f current=%.3f",
+					initialY,
+					drone.getY()
+			));
+			assertTrue(speedBeforeLoss[0] > 0.15, "test did not build enough cruise speed before link loss: " + speedBeforeLoss[0]);
+			assertTrue(!drone.isControlFailsafeActive(), "failsafe activated before control packets timed out");
+		});
+
+		context.runAfterDelay(58, () -> {
+			assertTrue(drone.isControlFailsafeActive(), "direct flight did not enter playable failsafe after link loss");
+			assertTrue(drone.getFlightMode() == FlightMode.DEFAULT_FIRST_FLIGHT, "direct failsafe did not fall back to stable angle mode: " + drone.getFlightMode());
+			assertTrue(!drone.isRawControlLinkActive(), "raw control link stayed active during failsafe");
+			assertTrue(!drone.isProcessedControlLinkActive(), "processed control link stayed active during failsafe");
+			assertTrue(drone.getControlLinkLossSeconds() > 0.0f, "failsafe did not report link-loss time");
+			assertTrue(
+					drone.getSpeedMetersPerSecond() <= speedBeforeLoss[0] + 0.25,
+					String.format(Locale.ROOT, "failsafe accelerated unexpectedly: before=%.3f after=%.3f", speedBeforeLoss[0], drone.getSpeedMetersPerSecond())
+			);
+			assertTrue(
+					drone.getY() > initialY - 0.05,
+					String.format(Locale.ROOT, "failsafe dropped too abruptly: initial=%.3f current=%.3f", initialY, drone.getY())
+			);
+			assertTrue(
+					Math.abs(drone.getRenderPitchRadians()) < Math.toRadians(24.0),
+					"failsafe did not level pitch enough for playable recovery: " + drone.getRenderPitchRadians()
+			);
+			assertTrue(
+					Math.abs(drone.getRenderRollRadians()) < Math.toRadians(24.0),
+					"failsafe did not level roll enough for playable recovery: " + drone.getRenderRollRadians()
+			);
+			drone.discard();
+			context.succeed();
+		});
+	}
+
+	private static void scheduleInput(GameTestHelper context, DroneEntity drone, UUID owner, int firstTick, int lastTick, DroneInput input) {
+		for (int tick = firstTick; tick <= lastTick; tick += 4) {
+			context.runAfterDelay(tick, () -> DroneControlManager.update(owner, input, drone.tickCount));
+		}
+	}
+
+	private static void assertModelPositionMatchesEntity(DroneEntity drone, String label) {
+		Vec3 modelPosition = drone.activeFlightModelPositionWorldMetersForDiagnostics();
+		assertClose(modelPosition.x(), drone.getX(), 0.03, label + " model position x was not resolved back to entity");
+		assertClose(modelPosition.y(), drone.getY() + drone.getPhysicsCenterYOffsetMeters(), 0.03, label + " model position y was not resolved back to entity physics center");
+		assertClose(modelPosition.z(), drone.getZ(), 0.03, label + " model position z was not resolved back to entity");
+	}
+
+	private static void assertClose(double expected, double actual, double tolerance, String message) {
+		if (!Double.isFinite(expected) || !Double.isFinite(actual) || Math.abs(expected - actual) > tolerance) {
+			throw new GameTestAssertException(Component.literal(String.format(
+					Locale.ROOT,
+					"%s: expected=%.6f actual=%.6f tolerance=%.6f",
+					message,
+					expected,
+					actual,
+					tolerance
+			)), 0);
+		}
+	}
+
+	private static void assertTrue(boolean condition, String message) {
+		if (!condition) {
+			throw new GameTestAssertException(Component.literal(message), 0);
+		}
+	}
+}

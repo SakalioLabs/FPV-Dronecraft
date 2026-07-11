@@ -29,7 +29,8 @@ the branch remains usable as the base for the next unit.
 | 5a | Client configuration, state, and input algorithms | Focused input/config tests, full build, dedicated-server smoke | Complete | This commit; 79 focused tests, 384 total tests, server self-test |
 | 5b | Client lifecycle, key mappings, controller I/O, and networking | Focused controls tests, full build, dedicated-server smoke | Complete | This commit; 9 focused tests, 393 total tests, server self-test |
 | 6 | Client rendering, HUD, audio, and Mixins | Focused tests, client launch, dedicated-server launch | Complete | This commit; 419 JUnit tests, six client Mixins applied at title-screen launch, 240-sample dedicated-server self-test |
-| 7 | NeoForge GameTests and server self-tests | GameTest server plus simulation/angle/horizon/acro self-tests | Pending | Pending |
+| 7a | NeoForge-native GameTests | GameTest server runs exactly eight required integration tests | Complete | This commit; 8/8 NeoForge GameTests and XML report gate |
+| 7b | NeoForge server self-test matrix | Simulation plus playable angle/horizon/acro self-tests and report validation | Pending | Pending |
 | 8 | CI, distributions, documentation, and final packaging | Full build, clean jar audit, clean client/server install | Pending | Pending |
 
 ## Verification Policy
@@ -42,6 +43,7 @@ during migration.
 $env:FPVDRONE_UPDATE_GOLDEN_TRACES = "false"
 .\gradlew.bat --no-daemon --no-parallel --max-workers=1 :drone-sim-core:test
 .\gradlew.bat --no-daemon --no-parallel --max-workers=1 :neoforge-mod:build
+.\gradlew.bat --no-daemon --no-parallel --max-workers=1 :neoforge-mod:runGameTestServer
 .\gradlew.bat --no-daemon --no-parallel --max-workers=1 :neoforge-mod:runServerSelfTest
 ```
 

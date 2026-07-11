@@ -1,0 +1,17 @@
+license="MIT"
+
+[[mods]]
+modId="fpvdrone_gametest"
+version="1.0.0"
+displayName="FPV Dronecraft Game Tests"
+authors="Teni, Codex"
+description='''
+NeoForge-only integration tests for FPV Dronecraft.
+'''
+
+[[dependencies.fpvdrone_gametest]]
+modId="fpvdrone"
+type="required"
+versionRange="[0.1.0,)"
+ordering="AFTER"
+side="SERVER"
