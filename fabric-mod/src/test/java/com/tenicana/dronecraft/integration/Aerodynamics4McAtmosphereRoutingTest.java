@@ -31,6 +31,11 @@ class Aerodynamics4McAtmosphereRoutingTest {
 				"static final class A4mcSharedStencilCache",
 				"SimulationFlightRuntime(DroneConfig config)"
 		);
+		String localVoxelReduction = between(
+				runtimeSource,
+				"static double compactLocalStaticPressureExposure",
+				"static final class A4mcSharedStencilCache"
+		);
 		String pressureCenterReduction = between(
 				runtimeSource,
 				"Vec3 compactLocalPressureCenterOffsetBodyMeters",
@@ -77,6 +82,12 @@ class Aerodynamics4McAtmosphereRoutingTest {
 		assertFalse(cacheAndMath.contains("new Vec3["));
 		assertFalse(cacheAndMath.contains("record "));
 		assertFalse(cacheAndMath.contains("Map<"));
+		assertTrue(localVoxelReduction.contains("compactLocalVoxelMeanObstruction"));
+		assertFalse(localVoxelReduction.contains("new double["));
+		assertFalse(localVoxelReduction.contains("new Vec3["));
+		assertFalse(localVoxelReduction.contains("record "));
+		assertFalse(localVoxelReduction.contains("Map<"));
+		assertFalse(localVoxelReduction.contains("Aerodynamics4McAtmosphereBridge.sampleGameplay"));
 		assertTrue(pressureCenterReduction.contains("LOCAL_PRESSURE_CENTER_OBSTRUCTION_WEIGHT"));
 		assertTrue(pressureCenterReduction.contains("LOCAL_PRESSURE_CENTER_PRESSURE_WEIGHT"));
 		assertFalse(pressureCenterReduction.contains("new double["),
@@ -131,6 +142,16 @@ class Aerodynamics4McAtmosphereRoutingTest {
 		assertTrue(stageOne.contains("externalAtmosphere.localVoxelFlow() ? sourceQuality : 0.0"));
 		assertTrue(advanced.contains("localPressureCenterOffset"));
 		assertTrue(stageOne.contains("localPressureCenterOffset"));
+		assertTrue(advanced.contains("compactLocalStaticPressureExposure("));
+		assertTrue(stageOne.contains("compactLocalStaticPressureExposure("));
+		assertTrue(advanced.contains("compactLocalVoxelVentilationMultiplier("));
+		assertTrue(stageOne.contains("compactLocalVoxelVentilationMultiplier("));
+		assertTrue(advanced.contains("localStaticPressureExposure"));
+		assertTrue(stageOne.contains("localStaticPressureExposure"));
+		assertEquals(1, occurrences(advanced, "compactLocalVoxelMeanObstruction("),
+				"advanced local-voxel coupling must reduce rotor obstruction only once per frame");
+		assertEquals(0, occurrences(stageOne, "compactLocalVoxelMeanObstruction("),
+				"stage one has no rotor obstruction arrays to reduce");
 	}
 
 	@Test

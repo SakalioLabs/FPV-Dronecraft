@@ -149,6 +149,20 @@ class DroneEnvironmentAtmosphereTest {
 	}
 
 	@Test
+	void adoptedLocalStaticPressureExposureIsFiniteClampedAndLegacyNeutral() {
+		assertRawEquals(0.0, explicitLocalPressureCenterEnvironment(Vec3.ZERO)
+				.adoptedLocalStaticPressureExposure());
+		assertRawEquals(0.0, explicitLocalStaticPressureEnvironment(Double.NaN)
+				.adoptedLocalStaticPressureExposure());
+		assertRawEquals(0.0, explicitLocalStaticPressureEnvironment(-0.5)
+				.adoptedLocalStaticPressureExposure());
+		assertRawEquals(0.65, explicitLocalStaticPressureEnvironment(0.65)
+				.adoptedLocalStaticPressureExposure());
+		assertRawEquals(1.0, explicitLocalStaticPressureEnvironment(2.0)
+				.adoptedLocalStaticPressureExposure());
+	}
+
+	@Test
 	void legacyAtmosphereConstructorDescriptorsDefaultSpatialGradientsToNeutral() throws NoSuchMethodException {
 		assertLegacyAtmosphereConstructorDescriptor();
 		assertLegacyAtmosphereConstructorDescriptor(double.class, double.class, double.class);
@@ -172,6 +186,10 @@ class DroneEnvironmentAtmosphereTest {
 				Vec3.class,
 				Vec3.class
 		);
+		assertLegacyAtmosphereConstructorDescriptor(
+				double.class, double.class, double.class, Vec3.class, double.class, double.class,
+				Vec3.class, Vec3.class, Vec3.class, Vec3.class
+		);
 
 		DroneEnvironment[] legacyEnvironments = {
 				explicitEnvironment(20.0, 30.0, 0.20, 0.10, 0.75),
@@ -184,11 +202,13 @@ class DroneEnvironmentAtmosphereTest {
 			assertSame(Vec3.ZERO, environment.adoptedWindDerivativeAlongBodyZPerMeter());
 			assertSame(Vec3.ZERO, environment.adoptedPressureGradientBodyPascalsPerMeter());
 			assertSame(Vec3.ZERO, environment.adoptedLocalPressureCenterOffsetBodyMeters());
+			assertRawEquals(0.0, environment.adoptedLocalStaticPressureExposure());
 		}
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedWindDerivativeAlongBodyXPerMeter());
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedWindDerivativeAlongBodyZPerMeter());
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedPressureGradientBodyPascalsPerMeter());
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedLocalPressureCenterOffsetBodyMeters());
+		assertRawEquals(0.0, DroneEnvironment.calm().adoptedLocalStaticPressureExposure());
 	}
 
 	@Test
@@ -621,6 +641,17 @@ class DroneEnvironmentAtmosphereTest {
 				Vec3.ZERO,
 				Vec3.ZERO,
 				localPressureCenterOffset
+		);
+	}
+
+	private static DroneEnvironment explicitLocalStaticPressureEnvironment(double exposure) {
+		DroneEnvironment base = explicitLocalPressureCenterEnvironment(Vec3.ZERO);
+		return new DroneEnvironment(
+				base.windVelocityWorldMetersPerSecond(), base.airDensityRatio(), base.groundClearanceMeters(),
+				base.turbulenceIntensity(), base.obstacleProximity(), base.droneWakeIntensity(),
+				base.ceilingClearanceMeters(), null, null, null, null, 0.0, null, 0.0, 25.0, null,
+				25.0, 0.0, 0.0, 0.0, 1.0, 1.0, Vec3.ZERO, 0.0, 0.0,
+				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, exposure
 		);
 	}
 

@@ -58,6 +58,33 @@ class SimulationFlightRuntimeTest {
 		assertEquals(Vec3.ZERO, runtime.worldVectorToBody(null));
 	}
 
+	@Test
+	void compactLocalVoxelCouplingIsQualityGatedBoundedAndAllocationFreeByContract() {
+		double[] obstruction = {0.20, 0.40, 0.60, 0.80};
+		double[] wallFactor = {1.0, 0.5, 1.0, 0.5};
+		double meanObstruction = SimulationFlightRuntime.compactLocalVoxelMeanObstruction(obstruction, wallFactor);
+		assertEquals(0.35, meanObstruction, 1.0e-12);
+
+		assertEquals(0.0, SimulationFlightRuntime.compactLocalStaticPressureExposure(
+				0.0, 1.0, meanObstruction), 0.0);
+		assertEquals(1.0, SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				0.0, meanObstruction, false), 0.0);
+		assertEquals(1.0, SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				0.0, meanObstruction, true), 0.0);
+
+		double exposure = SimulationFlightRuntime.compactLocalStaticPressureExposure(
+				1.0, 0.60, meanObstruction);
+		double motor = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				1.0, meanObstruction, false);
+		double pack = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				1.0, meanObstruction, true);
+		assertEquals(0.782, exposure, 1.0e-12);
+		assertEquals(0.817, motor, 1.0e-12);
+		assertEquals(0.885, pack, 1.0e-12);
+		assertEquals(0.53, SimulationFlightRuntime.compactLocalStaticPressureExposure(
+				1.0, 0.0, 0.0), 1.0e-12);
+	}
+
 	private static void assertVecEquals(Vec3 expected, Vec3 actual) {
 		assertEquals(expected.x(), actual.x(), 1.0e-12);
 		assertEquals(expected.y(), actual.y(), 1.0e-12);

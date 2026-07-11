@@ -6570,6 +6570,51 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void localVoxelStaticPressureProducesSignedBoundedPortErrorAndNeutralRecovery() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorImbalanceIntensity(0.0);
+		DronePhysics positivePressure = new DronePhysics(config);
+		DronePhysics negativePressure = new DronePhysics(config);
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics legacyNeutral = new DronePhysics(config);
+		DroneEnvironment high = localStaticPressureEnvironment(800.0, 1.0);
+		DroneEnvironment low = localStaticPressureEnvironment(-800.0, 1.0);
+
+		for (int i = 0; i < 180; i++) {
+			for (DronePhysics physics : new DronePhysics[] {positivePressure, negativePressure, neutral, legacyNeutral}) {
+				physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+				physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+				physics.state().setOrientation(Quaternion.IDENTITY);
+				physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			}
+			positivePressure.step(DroneInput.idle(), 0.005, high);
+			negativePressure.step(DroneInput.idle(), 0.005, low);
+			neutral.step(DroneInput.idle(), 0.005, localStaticPressureEnvironment(800.0, 0.0));
+			legacyNeutral.step(DroneInput.idle(), 0.005, legacyLocalStaticPressureEnvironment(800.0));
+		}
+
+		double highError = positivePressure.state().barometerPressurePortErrorMeters();
+		double lowError = negativePressure.state().barometerPressurePortErrorMeters();
+		assertTrue(highError < -0.62, () -> "highPressureError=" + highError);
+		assertTrue(lowError > 0.62, () -> "lowPressureError=" + lowError);
+		assertEquals(Math.abs(highError), Math.abs(lowError), 0.03);
+		assertEquals(
+				Double.doubleToRawLongBits(legacyNeutral.state().barometerPressurePortErrorMeters()),
+				Double.doubleToRawLongBits(neutral.state().barometerPressurePortErrorMeters())
+		);
+
+		for (int i = 0; i < 260; i++) {
+			positivePressure.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			positivePressure.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			positivePressure.state().setOrientation(Quaternion.IDENTITY);
+			positivePressure.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			positivePressure.step(DroneInput.idle(), 0.005, DroneEnvironment.calm());
+		}
+		assertEquals(0.0, positivePressure.state().barometerPressurePortErrorMeters(), 0.002);
+	}
+
+	@Test
 	void barometerStaticPortPressureErrorBuildsAndRecoversWithLag() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
@@ -13793,6 +13838,24 @@ class DronePhysicsTest {
 				Vec3.ZERO,
 				Vec3.ZERO,
 				localPressureCenterOffsetBodyMeters
+		);
+	}
+
+	private static DroneEnvironment localStaticPressureEnvironment(double pressureAnomalyPascals, double exposure) {
+		return new DroneEnvironment(
+				Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0,
+				Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null,
+				25.0, 0.0, 0.0, pressureAnomalyPascals, 1.0, 1.0, Vec3.ZERO, 0.0, 0.0,
+				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, exposure
+		);
+	}
+
+	private static DroneEnvironment legacyLocalStaticPressureEnvironment(double pressureAnomalyPascals) {
+		return new DroneEnvironment(
+				Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0,
+				Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null,
+				25.0, 0.0, 0.0, pressureAnomalyPascals, 1.0, 1.0, Vec3.ZERO, 0.0, 0.0,
+				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO
 		);
 	}
 

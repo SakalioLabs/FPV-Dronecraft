@@ -1376,6 +1376,25 @@ public class DroneEntity extends Entity {
 		Vec3 windDerivativeAlongBodyZ = a4mcSharedStencil.adoptedWindDerivativeAlongBodyZPerMeter(simulationRuntime);
 		Vec3 pressureGradientBody = a4mcSharedStencil.adoptedPressureGradientBodyPascalsPerMeter(simulationRuntime);
 		double localVoxelQuality = externalAtmosphere.localVoxelFlow() ? sourceQuality : 0.0;
+		double localVoxelMeanObstruction = SimulationFlightRuntime.compactLocalVoxelMeanObstruction(
+				rotorEffects.flowObstructions(),
+				rotorEffects.flowObstructionWallForceFactors()
+		);
+		double localStaticPressureExposure = SimulationFlightRuntime.compactLocalStaticPressureExposure(
+				localVoxelQuality,
+				externalAtmosphere.shelterFactor(),
+				localVoxelMeanObstruction
+		);
+		double localMotorVentilation = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				localVoxelQuality,
+				localVoxelMeanObstruction,
+				false
+		);
+		double localPackVentilation = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				localVoxelQuality,
+				localVoxelMeanObstruction,
+				true
+		);
 		Vec3 localPressureCenterOffset = simulationRuntime.compactLocalPressureCenterOffsetBodyMeters(
 				pressureGradientBody,
 				localVoxelQuality,
@@ -1403,15 +1422,18 @@ public class DroneEntity extends Entity {
 				ambientHumidity,
 				adoptedSourceHumidity,
 				AerodynamicsAtmosphereCoupling.adoptedAtmospherePressureAnomalyPascals(externalAtmosphere, sourceQuality),
-				AerodynamicsAtmosphereCoupling.motorEscVentilationFactor(externalAtmosphere, sourceQuality),
-				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.motorEscVentilationFactor(externalAtmosphere, sourceQuality)
+						* localMotorVentilation,
+				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality)
+						* localPackVentilation,
 				AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality),
 				AerodynamicsAtmosphereCoupling.adoptedAblStability(externalAtmosphere, sourceQuality),
 				AerodynamicsAtmosphereCoupling.adoptedAblMixingStrength(externalAtmosphere, sourceQuality),
 				windDerivativeAlongBodyX,
 				windDerivativeAlongBodyZ,
 				pressureGradientBody,
-				localPressureCenterOffset
+				localPressureCenterOffset,
+				localStaticPressureExposure
 		);
 	}
 
@@ -1444,6 +1466,17 @@ public class DroneEntity extends Entity {
 		Vec3 windDerivativeAlongBodyZ = a4mcSharedStencil.adoptedWindDerivativeAlongBodyZPerMeter(simulationRuntime);
 		Vec3 pressureGradientBody = a4mcSharedStencil.adoptedPressureGradientBodyPascalsPerMeter(simulationRuntime);
 		double localVoxelQuality = externalAtmosphere.localVoxelFlow() ? sourceQuality : 0.0;
+		double localStaticPressureExposure = SimulationFlightRuntime.compactLocalStaticPressureExposure(
+				localVoxelQuality,
+				externalAtmosphere.shelterFactor(),
+				0.0
+		);
+		double localMotorVentilation = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				localVoxelQuality, 0.0, false
+		);
+		double localPackVentilation = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				localVoxelQuality, 0.0, true
+		);
 		Vec3 localPressureCenterOffset = simulationRuntime.compactLocalPressureCenterOffsetBodyMeters(
 				pressureGradientBody,
 				localVoxelQuality,
@@ -1475,15 +1508,18 @@ public class DroneEntity extends Entity {
 				adoptedSourceHumidity,
 				adoptedSourceHumidity,
 				AerodynamicsAtmosphereCoupling.adoptedAtmospherePressureAnomalyPascals(externalAtmosphere, sourceQuality),
-				AerodynamicsAtmosphereCoupling.motorEscVentilationFactor(externalAtmosphere, sourceQuality),
-				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.motorEscVentilationFactor(externalAtmosphere, sourceQuality)
+						* localMotorVentilation,
+				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality)
+						* localPackVentilation,
 				AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality),
 				AerodynamicsAtmosphereCoupling.adoptedAblStability(externalAtmosphere, sourceQuality),
 				AerodynamicsAtmosphereCoupling.adoptedAblMixingStrength(externalAtmosphere, sourceQuality),
 				windDerivativeAlongBodyX,
 				windDerivativeAlongBodyZ,
 				pressureGradientBody,
-				localPressureCenterOffset
+				localPressureCenterOffset,
+				localStaticPressureExposure
 		);
 	}
 

@@ -11093,7 +11093,17 @@ public final class DronePhysics {
 	}
 
 	private double calculateSteadyBarometerPressurePortErrorMeters(DroneEnvironment environment) {
-		return barometerDynamicPressureErrorMeters(environment);
+		double dynamicPressureError = barometerDynamicPressureErrorMeters(environment);
+		double localExposure = environment.adoptedLocalStaticPressureExposure();
+		if (localExposure <= 1.0e-9) {
+			return dynamicPressureError;
+		}
+		double density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER
+				* MathUtil.clamp(cachedEffectiveAirDensityRatio(environment), 0.35, 1.35);
+		double pressureHeightMeters = -environment.adoptedSourcePressureAnomalyPascals()
+				/ Math.max(1.0e-6, density * config.gravityMetersPerSecondSquared());
+		double localStaticError = MathUtil.clamp(pressureHeightMeters * localExposure, -0.65, 0.65);
+		return MathUtil.clamp(dynamicPressureError + localStaticError, -1.8, 2.2);
 	}
 
 	private double calculateSteadyBarometerPropwashErrorMeters(DroneEnvironment environment) {

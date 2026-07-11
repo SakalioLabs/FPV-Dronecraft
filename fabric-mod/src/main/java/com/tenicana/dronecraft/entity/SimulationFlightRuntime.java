@@ -36,9 +36,67 @@ final class SimulationFlightRuntime {
 	private static final double LOCAL_PRESSURE_CENTER_MAX_WIND_EQUIVALENT_METERS_PER_SECOND = 2.4;
 	private static final double LOCAL_PRESSURE_CENTER_OBSTRUCTION_WEIGHT = 0.35;
 	private static final double LOCAL_PRESSURE_CENTER_PRESSURE_WEIGHT = 0.85;
+	private static final double LOCAL_VOXEL_MOTOR_COVERAGE_LOSS = 0.12;
+	private static final double LOCAL_VOXEL_MOTOR_OBSTRUCTION_LOSS = 0.18;
+	private static final double LOCAL_VOXEL_PACK_COVERAGE_LOSS = 0.08;
+	private static final double LOCAL_VOXEL_PACK_OBSTRUCTION_LOSS = 0.10;
 
 	private DronePhysics physics;
 	private FlightModel flightModel;
+
+	static double compactLocalStaticPressureExposure(
+			double localVoxelSourceQuality,
+			double sourceShelterFactor,
+			double meanRotorObstruction
+	) {
+		double quality = MathUtil.clamp(localVoxelSourceQuality, 0.0, 1.0);
+		if (quality <= A4MC_STENCIL_MIN_SOURCE_QUALITY) {
+			return 0.0;
+		}
+		double obstruction = MathUtil.clamp(meanRotorObstruction, 0.0, 1.0);
+		return MathUtil.clamp(
+				0.35
+						+ 0.35 * MathUtil.clamp(sourceShelterFactor, 0.0, 1.0) * quality
+						+ 0.18 * quality
+						+ 0.12 * obstruction * quality,
+				0.25,
+				1.0
+		);
+	}
+
+	static double compactLocalVoxelVentilationMultiplier(
+			double localVoxelSourceQuality,
+			double meanRotorObstruction,
+			boolean batteryPack
+	) {
+		double quality = MathUtil.clamp(localVoxelSourceQuality, 0.0, 1.0);
+		if (quality <= A4MC_STENCIL_MIN_SOURCE_QUALITY) {
+			return 1.0;
+		}
+		double obstruction = MathUtil.clamp(meanRotorObstruction, 0.0, 1.0);
+		double coverageLoss = batteryPack ? LOCAL_VOXEL_PACK_COVERAGE_LOSS : LOCAL_VOXEL_MOTOR_COVERAGE_LOSS;
+		double obstructionLoss = batteryPack ? LOCAL_VOXEL_PACK_OBSTRUCTION_LOSS : LOCAL_VOXEL_MOTOR_OBSTRUCTION_LOSS;
+		double minimum = batteryPack ? 0.78 : 0.72;
+		return MathUtil.clamp(1.0 - quality * (coverageLoss + obstructionLoss * obstruction), minimum, 1.0);
+	}
+
+	static double compactLocalVoxelMeanObstruction(
+			double[] rotorFlowObstructions,
+			double[] rotorFlowObstructionWallForceFactors
+	) {
+		if (rotorFlowObstructions == null || rotorFlowObstructions.length == 0) {
+			return 0.0;
+		}
+		double sum = 0.0;
+		for (int i = 0; i < rotorFlowObstructions.length; i++) {
+			double wallFactor = rotorFlowObstructionWallForceFactors != null
+					&& i < rotorFlowObstructionWallForceFactors.length
+					? MathUtil.clamp(rotorFlowObstructionWallForceFactors[i], 0.0, 1.0)
+					: 1.0;
+			sum += MathUtil.clamp(rotorFlowObstructions[i], 0.0, 1.0) * wallFactor;
+		}
+		return MathUtil.clamp(sum / rotorFlowObstructions.length, 0.0, 1.0);
+	}
 
 	static final class A4mcSharedStencilCache {
 		private Vec3 windDerivativeAlongStencilXWorldPerMeter = Vec3.ZERO;
