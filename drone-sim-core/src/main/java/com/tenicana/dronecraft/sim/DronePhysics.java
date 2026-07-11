@@ -1743,8 +1743,7 @@ public final class DronePhysics {
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
 					thrust,
-					environment.rotorFlowObstruction(i),
-					environment.rotorFlowObstructionDirectionBody(i),
+					environment,
 					dtSeconds
 			);
 			rotorWallEffectForceSum = rotorWallEffectForceSum.add(wallEffectForceBody);
@@ -3102,6 +3101,49 @@ public final class DronePhysics {
 			Vec3 relativeAirVelocityBody,
 			double omegaRadiansPerSecond,
 			double thrustNewtons,
+			DroneEnvironment environment,
+			double dtSeconds
+	) {
+		double obstruction = environment.rotorFlowObstruction(index);
+		Vec3 obstructionDirectionBody = Vec3.ZERO;
+		double wallForceFactor = 1.0;
+		if (obstruction > 1.0e-6) {
+			obstructionDirectionBody = environment.rotorFlowObstructionDirectionBody(index);
+			wallForceFactor = environment.rotorFlowObstructionWallForceFactor(index);
+		}
+		// Keep the neutral/full-geometry path on the original helper so the default flight path
+		// retains its established allocation and floating-point behavior.
+		if (wallForceFactor >= 1.0) {
+			return updateRotorWallEffectForce(
+					index,
+					rotor,
+					relativeAirVelocityBody,
+					omegaRadiansPerSecond,
+					thrustNewtons,
+					obstruction,
+					obstructionDirectionBody,
+					dtSeconds
+			);
+		}
+		return updateRotorWallEffectForceWithGeometry(
+				index,
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				thrustNewtons,
+				obstruction,
+				obstructionDirectionBody,
+				wallForceFactor,
+				dtSeconds
+		);
+	}
+
+	private Vec3 updateRotorWallEffectForce(
+			int index,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double thrustNewtons,
 			double obstruction,
 			Vec3 obstructionDirectionBody,
 			double dtSeconds
@@ -3113,6 +3155,47 @@ public final class DronePhysics {
 				thrustNewtons,
 				obstruction,
 				obstructionDirectionBody
+		);
+		if (dtSeconds <= 0.0) {
+			rotorWallEffectForceBodyFiltered[index] = target;
+			return rotorWallEffectForceBodyFiltered[index];
+		}
+
+		double targetMagnitude = target.length();
+		double previousMagnitude = rotorWallEffectForceBodyFiltered[index].length();
+		double obstructionScale = MathUtil.clamp(obstruction, 0.0, 1.0);
+		double buildTimeConstant = MathUtil.clamp(0.040 - 0.012 * obstructionScale, 0.024, 0.046);
+		double releaseTimeConstant = MathUtil.clamp(0.095 + 0.045 * obstructionScale, 0.080, 0.145);
+		double timeConstant = targetMagnitude > previousMagnitude ? buildTimeConstant : releaseTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		rotorWallEffectForceBodyFiltered[index] = rotorWallEffectForceBodyFiltered[index]
+				.add(target.subtract(rotorWallEffectForceBodyFiltered[index]).multiply(alpha))
+				.clamp(-4.0, 4.0);
+		if (targetMagnitude <= 1.0e-6 && rotorWallEffectForceBodyFiltered[index].lengthSquared() < 1.0e-8) {
+			rotorWallEffectForceBodyFiltered[index] = Vec3.ZERO;
+		}
+		return rotorWallEffectForceBodyFiltered[index];
+	}
+
+	private Vec3 updateRotorWallEffectForceWithGeometry(
+			int index,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double thrustNewtons,
+			double obstruction,
+			Vec3 obstructionDirectionBody,
+			double wallForceFactor,
+			double dtSeconds
+	) {
+		Vec3 target = calculateSteadyRotorWallEffectForce(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				thrustNewtons,
+				obstruction,
+				obstructionDirectionBody,
+				wallForceFactor
 		);
 		if (dtSeconds <= 0.0) {
 			rotorWallEffectForceBodyFiltered[index] = target;
@@ -3164,6 +3247,44 @@ public final class DronePhysics {
 				* MathUtil.clamp(0.110 + 0.450 * wallCushion, 0.0, 0.45)
 				* blockage
 				* speedWashout;
+		return lateralDirection.multiply(-forceMagnitude).clamp(-4.0, 4.0);
+	}
+
+	static Vec3 calculateSteadyRotorWallEffectForce(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double thrustNewtons,
+			double obstruction,
+			Vec3 obstructionDirectionBody,
+			double wallForceFactor
+	) {
+		obstruction = MathUtil.clamp(obstruction, 0.0, 1.0);
+		wallForceFactor = MathUtil.clamp(wallForceFactor, 0.0, 1.0);
+		if (obstruction <= 1.0e-6
+				|| wallForceFactor <= 1.0e-6
+				|| thrustNewtons <= 1.0e-6
+				|| obstructionDirectionBody == null) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 lateralDirection = new Vec3(obstructionDirectionBody.x(), 0.0, obstructionDirectionBody.z()).normalized();
+		if (lateralDirection.lengthSquared() <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		double thrustFraction = MathUtil.clamp(thrustNewtons / rotor.maxThrustNewtons(), 0.0, 1.15);
+		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
+		double speedWashout = 1.0 - MathUtil.clamp(transverseSpeed / 12.0, 0.0, 0.78);
+		double blockage = Math.pow(obstruction, 1.18);
+		double wallCushion = blockage * spinRatio * (0.35 + 0.65 * thrustFraction) * speedWashout;
+		double diskPressureForce = Math.max(thrustNewtons, rotor.maxThrustNewtons() * spinRatio * spinRatio * 0.70);
+		double forceMagnitude = diskPressureForce
+				* MathUtil.clamp(0.110 + 0.450 * wallCushion, 0.0, 0.45)
+				* blockage
+				* speedWashout
+				* wallForceFactor;
 		return lateralDirection.multiply(-forceMagnitude).clamp(-4.0, 4.0);
 	}
 

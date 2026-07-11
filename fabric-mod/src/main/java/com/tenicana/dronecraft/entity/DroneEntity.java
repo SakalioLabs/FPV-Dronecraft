@@ -345,13 +345,25 @@ public class DroneEntity extends Entity {
 		private static final DroneWakeAirflow CALM = new DroneWakeAirflow(Vec3.ZERO, 0.0, 0.0);
 	}
 
-	private record RotorEnvironmentEffects(double[] thrustMultipliers, double[] flowObstructions, Vec3[] flowObstructionDirectionsBody, double maxFlowObstruction) {
+	private record RotorEnvironmentEffects(
+			double[] thrustMultipliers,
+			double[] flowObstructions,
+			Vec3[] flowObstructionDirectionsBody,
+			double[] flowObstructionWallForceFactors,
+			double maxFlowObstruction
+	) {
 		private static RotorEnvironmentEffects calm(int rotorCount) {
 			double[] multipliers = new double[rotorCount];
 			for (int i = 0; i < multipliers.length; i++) {
 				multipliers[i] = 1.0;
 			}
-			return new RotorEnvironmentEffects(multipliers, new double[rotorCount], new Vec3[rotorCount], 0.0);
+			return new RotorEnvironmentEffects(
+					multipliers,
+					new double[rotorCount],
+					new Vec3[rotorCount],
+					new double[rotorCount],
+					0.0
+			);
 		}
 	}
 
@@ -373,8 +385,8 @@ public class DroneEntity extends Entity {
 	private record RotorDiskSurfaceSample(double[] groundClearancesMeters, double[] ceilingClearancesMeters, double[] weights) {
 	}
 
-	private record RotorFlowObstruction(double intensity, Vec3 directionBody) {
-		private static final RotorFlowObstruction CLEAR = new RotorFlowObstruction(0.0, Vec3.ZERO);
+	private record RotorFlowObstruction(double intensity, Vec3 directionBody, double wallForceFactor) {
+		private static final RotorFlowObstruction CLEAR = new RotorFlowObstruction(0.0, Vec3.ZERO, 0.0);
 	}
 
 	public static int physicsStepsPerTick() {
@@ -1345,7 +1357,8 @@ public class DroneEntity extends Entity {
 				waterImmersion.averageImmersion(),
 				precipitationWetness.rotorWetnesses(),
 				precipitationWetness.averageWetness(),
-				ambientTemperature
+				ambientTemperature,
+				rotorEffects.flowObstructionWallForceFactors()
 		);
 	}
 
@@ -1537,6 +1550,7 @@ public class DroneEntity extends Entity {
 		double[] multipliers = new double[rotorCount];
 		double[] flowObstructions = new double[rotorCount];
 		Vec3[] flowObstructionDirectionsBody = new Vec3[rotorCount];
+		double[] flowObstructionWallForceFactors = new double[rotorCount];
 		double maxFlowObstruction = 0.0;
 		Vec3 bodyCenterWorld = entityPhysicsPosition();
 		RotorPlaneSampleDirection[] rotorPlaneDirections = rotorPlaneSampleDirections();
@@ -1548,6 +1562,7 @@ public class DroneEntity extends Entity {
 			double flowObstructionIntensity = flowObstruction.intensity();
 			flowObstructionDirectionsBody[i] = flowObstruction.directionBody();
 			flowObstructions[i] = flowObstructionIntensity;
+			flowObstructionWallForceFactors[i] = flowObstruction.wallForceFactor();
 			maxFlowObstruction = Math.max(maxFlowObstruction, flowObstructionIntensity);
 			double obstructionThrustMultiplier = RotorFlowObstructionModel.thrustMultiplier(flowObstructionIntensity);
 			multipliers[i] = simulationRuntime.weightedGroundEffectThrustMultiplier(
@@ -1560,7 +1575,13 @@ public class DroneEntity extends Entity {
 					)
 					* obstructionThrustMultiplier;
 		}
-		return new RotorEnvironmentEffects(multipliers, flowObstructions, flowObstructionDirectionsBody, maxFlowObstruction);
+		return new RotorEnvironmentEffects(
+				multipliers,
+				flowObstructions,
+				flowObstructionDirectionsBody,
+				flowObstructionWallForceFactors,
+				maxFlowObstruction
+		);
 	}
 
 	private RotorDiskSurfaceSample rotorDiskSurfaceSample(Vec3 rotorCenterWorld, RotorSpec rotor, RotorPlaneSampleDirection[] sampleDirections) {
@@ -1622,7 +1643,11 @@ public class DroneEntity extends Entity {
 		);
 		return obstruction.intensity() <= 1.0e-6
 				? RotorFlowObstruction.CLEAR
-				: new RotorFlowObstruction(obstruction.intensity(), obstruction.directionBody());
+				: new RotorFlowObstruction(
+						obstruction.intensity(),
+						obstruction.directionBody(),
+						obstruction.wallForceGeometryFactor()
+				);
 	}
 
 	private DroneWakeAirflow sampleDroneWakeAirflow() {

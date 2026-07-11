@@ -3317,8 +3317,10 @@ public final class OfflineFlightRecorder {
 				rotorFlow.directionsBody(),
 				null,
 				0.0,
+				null,
 				frame.precipitationWetnessIntensity(),
-				ambientTemperatureCelsius
+				ambientTemperatureCelsius,
+				rotorFlow.wallForceFactors()
 		);
 	}
 
@@ -3330,6 +3332,7 @@ public final class OfflineFlightRecorder {
 		int rotorCount = config.rotors().size();
 		double[] obstructions = new double[rotorCount];
 		Vec3[] directions = new Vec3[rotorCount];
+		double[] wallForceFactors = new double[rotorCount];
 		double bodyCenterClearance = maxRotorProjection(config, WALL_SKIM_DIRECTION_BODY)
 				+ WALL_SKIM_CLOSEST_ROTOR_CLEARANCE_METERS;
 		double maxIntensity = 0.0;
@@ -3345,10 +3348,11 @@ public final class OfflineFlightRecorder {
 			);
 			obstructions[i] = result.intensity();
 			directions[i] = result.directionBody();
+			wallForceFactors[i] = result.wallForceGeometryFactor();
 			maxIntensity = Math.max(maxIntensity, result.intensity());
 		}
 
-		return new RotorFlowObstructionProfile(obstructions, directions, maxIntensity);
+		return new RotorFlowObstructionProfile(obstructions, directions, wallForceFactors, maxIntensity);
 	}
 
 	private static double maxRotorProjection(DroneConfig config, Vec3 directionBody) {
@@ -4317,8 +4321,13 @@ public final class OfflineFlightRecorder {
 	) {
 	}
 
-	private record RotorFlowObstructionProfile(double[] obstructions, Vec3[] directionsBody, double maxIntensity) {
-		private static final RotorFlowObstructionProfile CLEAR = new RotorFlowObstructionProfile(null, null, 0.0);
+	private record RotorFlowObstructionProfile(
+			double[] obstructions,
+			Vec3[] directionsBody,
+			double[] wallForceFactors,
+			double maxIntensity
+	) {
+		private static final RotorFlowObstructionProfile CLEAR = new RotorFlowObstructionProfile(null, null, null, 0.0);
 
 		private double[] thrustMultipliers() {
 			if (obstructions == null || obstructions.length == 0) {
