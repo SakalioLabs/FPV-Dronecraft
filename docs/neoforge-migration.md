@@ -38,7 +38,7 @@ the branch remains usable as the base for the next unit.
 | 8d | NeoForge-native CI | NeoForge tests, GameTest, packaging artifacts, and four server self-tests run remotely | Complete | `29169520426`; 14 successful jobs and 6 inspected artifacts |
 | 8e | Installation and release documentation | Accurate four-language requirements, artifact paths, and no false NeoForge release link | Complete | This commit; README and dedicated NeoForge installation guide |
 | 8f | Production-jar clean client | Isolated production client reaches a resource-complete title screen | Complete | This commit; `CLIENT in PROD`, exact three-mod list, six Mixins, UUID-bound 20-tick report |
-| 8g | Production-jar clean server | Isolated official NeoForge dedicated server completes the self-test | Pending | Pending |
+| 8g | Production-jar clean server | Isolated official NeoForge dedicated server completes the self-test | Complete | This commit; official installer SHA pinned, `DEDICATED_SERVER in PROD`, exact three-mod list, validated 240-sample report |
 
 ## Verification Policy
 
@@ -57,6 +57,10 @@ $env:FPVDRONE_UPDATE_GOLDEN_TRACES = "false"
 .\gradlew.bat --no-daemon --no-parallel --max-workers=1 :neoforge-mod:runPlayableHorizonServerSelfTest
 .\gradlew.bat --no-daemon --no-parallel --max-workers=1 :neoforge-mod:runPlayableAcroServerSelfTest
 ```
+
+Reports produced outside the development run directory can be checked by the
+same strict JSON/CSV validator with `:neoforge-mod:validateExternalServerSelfTest`
+and the four required `fpvdroneExternalSelfTest*` Gradle properties.
 
 Global debug mutation, fault-injection, environment override, and tuning mutation
 commands require Minecraft's GameMaster permission in both loader modules.

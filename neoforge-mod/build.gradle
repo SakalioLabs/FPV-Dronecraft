@@ -202,6 +202,37 @@ tasks.test {
 	}
 }
 
+tasks.register("validateExternalServerSelfTest") {
+	group = "verification"
+	description = "Validates a server self-test report produced by an isolated production NeoForge instance."
+
+	doLast {
+		def reportPath = providers.gradleProperty("fpvdroneExternalSelfTestReport").orNull
+		def flightModel = providers.gradleProperty("fpvdroneExternalSelfTestFlightModel").orNull
+		def controlMode = providers.gradleProperty("fpvdroneExternalSelfTestControlMode").orNull
+		def durationText = providers.gradleProperty("fpvdroneExternalSelfTestDurationTicks").orNull
+		if ([reportPath, flightModel, controlMode, durationText].any { it == null || it.trim().isEmpty() }) {
+			throw new GradleException("External self-test validation requires report, flight model, control mode, and duration tick properties.")
+		}
+
+		int durationTicks
+		try {
+			durationTicks = Integer.parseInt(durationText.trim())
+		} catch (NumberFormatException ignored) {
+			throw new GradleException("fpvdroneExternalSelfTestDurationTicks must be a positive integer, but was '${durationText}'.")
+		}
+		if (durationTicks <= 0) {
+			throw new GradleException("fpvdroneExternalSelfTestDurationTicks must be a positive integer, but was '${durationText}'.")
+		}
+
+		File reportFile = file(reportPath)
+		if (!reportFile.isFile()) {
+			throw new GradleException("External server self-test report does not exist: ${reportFile}")
+		}
+		fpvDroneValidateSelfTestReport(reportFile, flightModel, controlMode, durationTicks)
+	}
+}
+
 tasks.named("runGameTestServer") {
 	doFirst {
 		File reportFile = gameTestReport.get().asFile
