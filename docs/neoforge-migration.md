@@ -8,7 +8,7 @@ the branch remains usable as the base for the next unit.
 
 - `drone-sim-core` remains loader- and Minecraft-independent.
 - Loader APIs stay in the `neoforge-mod` composition and event adapter classes.
-- Registry holders do not escape the registry package. Gameplay code receives
+- Registry holders stay private to registration adapter classes. Gameplay code receives
   vanilla `EntityType`, `Item`, and `SoundEvent` values through narrow accessors.
 - Network payload records remain transport-only. Validation and gameplay state
   changes run through the existing control/domain services on the server thread.
@@ -25,7 +25,7 @@ the branch remains usable as the base for the next unit.
 | 1 | NeoForge build scaffold and metadata | `:neoforge-mod:build`; inspect metadata and embedded core jar | Complete | `5fac5494`; `DronePhysics.class` present in jar-in-jar core |
 | 2 | Stabilize the Fabric comparison gate | `:fabric-mod:runGameTest` passes all required tests | Complete | `3827b9b5`; 9/9 GameTests pass |
 | 3 | Enable branch CI | Parse workflow; push triggers `NeoForge` checks | Complete | `5d0fbce7` |
-| 4 | Server/common gameplay vertical slice | Core tests, NeoForge compile/tests, payload codec tests, dedicated-server smoke test | In progress | Pending |
+| 4 | Server/common gameplay vertical slice | Core tests, NeoForge compile/tests, payload codec tests, dedicated-server smoke test | Complete | This commit; 305 JUnit tests and 240-sample simulation self-test |
 | 5 | Client input and configuration | Focused input/config tests and client launch | Pending | Pending |
 | 6 | Client rendering, HUD, audio, and Mixins | Focused tests, client launch, dedicated-server launch | Pending | Pending |
 | 7 | NeoForge GameTests and server self-tests | GameTest server plus simulation/angle/horizon/acro self-tests | Pending | Pending |
@@ -41,7 +41,13 @@ during migration.
 $env:FPVDRONE_UPDATE_GOLDEN_TRACES = "false"
 .\gradlew.bat --no-daemon --no-parallel --max-workers=1 :drone-sim-core:test
 .\gradlew.bat --no-daemon --no-parallel --max-workers=1 :neoforge-mod:build
+.\gradlew.bat --no-daemon --no-parallel --max-workers=1 :neoforge-mod:runServerSelfTest
 ```
+
+Before a public dedicated-server release, add permission gates to the global
+debug, fault-injection, environment, and tuning commands in both loader modules.
+This is tracked separately so loader migration does not silently change normal
+player command behavior.
 
 Every completed unit is committed independently and pushed to
 `origin/NeoForge` before work begins on the next dependent unit.

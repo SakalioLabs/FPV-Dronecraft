@@ -28,6 +28,15 @@ neoForge {
 			programArgument "--nogui"
 		}
 
+		serverSelfTest {
+			server()
+			programArgument "--nogui"
+			systemProperty "fpvdrone.selftest", "true"
+			systemProperty "fpvdrone.selftest.seconds", "12"
+			systemProperty "fpvdrone.selftest.flight_model", "simulation"
+			systemProperty "fpvdrone.selftest.control_mode", "angle"
+		}
+
 		gameTestServer {
 			type = "gameTestServer"
 			systemProperty "neoforge.enabledGameTestNamespaces", "fpvdrone"
@@ -42,6 +51,11 @@ neoForge {
 		fpvdrone {
 			sourceSet(sourceSets.main)
 		}
+	}
+
+	unitTest {
+		enable()
+		testedMod = mods.fpvdrone
 	}
 }
 
