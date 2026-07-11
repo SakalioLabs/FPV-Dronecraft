@@ -206,6 +206,7 @@ public final class DronePhysics {
 	private long drydenRandomState = 0x6A09E667F3BCC909L;
 	private double drydenSpareGaussian;
 	private boolean hasDrydenSpareGaussian;
+	private final AblCache ablCache = new AblCache();
 	private final DrydenStepCache drydenStepCache = new DrydenStepCache();
 	private boolean windModelInitialized;
 	private boolean batteryThermalInitialized;
@@ -625,6 +626,138 @@ public final class DronePhysics {
 
 	}
 
+	/** Caches quality-gated ABL shape multipliers once per immutable environment sample. */
+	static final class AblCache {
+		private DroneEnvironment environmentIdentity;
+		private boolean initialized;
+		private long stabilityBits;
+		private long mixingBits;
+		private boolean neutral = true;
+		private double boundaryDeficitMultiplier = 1.0;
+		private double boundaryDirtyAirMultiplier = 1.0;
+		private double wakeCoherenceMultiplier = 1.0;
+		private double wakeBuildTimeScaleMultiplier = 1.0;
+		private double wakeReleaseTimeScaleMultiplier = 1.0;
+		private double drydenIntensityMultiplier = 1.0;
+		private double drydenConvectiveFloorCoefficient;
+		private double drydenHorizontalTimeScaleMultiplier = 1.0;
+		private double drydenVerticalTimeScaleMultiplier = 1.0;
+		private double sourceGustHorizontalMultiplier = 1.0;
+		private double sourceGustVerticalMultiplier = 1.0;
+
+		boolean resolve(DroneEnvironment environment) {
+			DroneEnvironment safeEnvironment = environment == null ? DroneEnvironment.calm() : environment;
+			if (safeEnvironment == environmentIdentity) {
+				return false;
+			}
+
+			double stability = safeEnvironment.adoptedAblStability();
+			double mixing = safeEnvironment.adoptedAblMixingStrength();
+			long nextStabilityBits = Double.doubleToRawLongBits(stability);
+			long nextMixingBits = Double.doubleToRawLongBits(mixing);
+			if (initialized && nextStabilityBits == stabilityBits && nextMixingBits == mixingBits) {
+				environmentIdentity = safeEnvironment;
+				return false;
+			}
+
+			if (mixing == 0.0 && stability >= 0.0) {
+				setNeutral();
+			} else {
+				neutral = false;
+				double unstable = Math.max(0.0, stability);
+				double stable = Math.max(0.0, -stability);
+				double mixedUnstable = unstable * mixing;
+				double stableSuppression = stable * (0.75 + 0.25 * (1.0 - mixing));
+				double drydenStableSuppression = stable * (0.85 + 0.15 * (1.0 - mixing));
+				boundaryDeficitMultiplier = MathUtil.clamp(
+						1.0 - 0.22 * mixing - 0.35 * mixedUnstable + 0.32 * stableSuppression,
+						0.55,
+						1.35
+				);
+				boundaryDirtyAirMultiplier = MathUtil.clamp(
+						1.0 - 0.10 * mixing - 0.22 * mixedUnstable + 0.28 * stableSuppression,
+						0.60,
+						1.35
+				);
+				wakeCoherenceMultiplier = MathUtil.clamp(
+						1.0 + 0.16 * stableSuppression - 0.14 * mixedUnstable - 0.04 * mixing,
+						0.78,
+						1.18
+				);
+				wakeBuildTimeScaleMultiplier = MathUtil.clamp(
+						1.0 - 0.08 * stableSuppression + 0.12 * mixedUnstable + 0.04 * mixing,
+						0.86,
+						1.18
+				);
+				wakeReleaseTimeScaleMultiplier = MathUtil.clamp(
+						1.0 + 0.34 * stableSuppression - 0.28 * mixedUnstable - 0.08 * mixing,
+						0.64,
+						1.36
+				);
+				drydenIntensityMultiplier = MathUtil.clamp(
+						1.0 + 0.18 * mixing + 0.42 * mixedUnstable - 0.34 * drydenStableSuppression,
+						0.55,
+						1.70
+				);
+				drydenConvectiveFloorCoefficient = 0.22 * mixedUnstable;
+				drydenHorizontalTimeScaleMultiplier = MathUtil.clamp(
+						1.0 - 0.16 * mixing - 0.24 * mixedUnstable + 0.45 * stableSuppression,
+						0.55,
+						1.55
+				);
+				drydenVerticalTimeScaleMultiplier = MathUtil.clamp(
+						1.0 - 0.25 * mixing - 0.30 * mixedUnstable + 0.70 * stableSuppression,
+						0.45,
+						1.80
+				);
+				sourceGustHorizontalMultiplier = MathUtil.clamp(
+						1.0 + 0.06 * mixing + 0.10 * mixedUnstable - 0.12 * stableSuppression,
+						0.76,
+						1.18
+				);
+				sourceGustVerticalMultiplier = MathUtil.clamp(
+						1.0 + 0.22 * mixing + 0.44 * mixedUnstable - 0.52 * stableSuppression,
+						0.45,
+						1.55
+				);
+			}
+
+			environmentIdentity = safeEnvironment;
+			stabilityBits = nextStabilityBits;
+			mixingBits = nextMixingBits;
+			initialized = true;
+			return true;
+		}
+
+		private void setNeutral() {
+			neutral = true;
+			boundaryDeficitMultiplier = 1.0;
+			boundaryDirtyAirMultiplier = 1.0;
+			wakeCoherenceMultiplier = 1.0;
+			wakeBuildTimeScaleMultiplier = 1.0;
+			wakeReleaseTimeScaleMultiplier = 1.0;
+			drydenIntensityMultiplier = 1.0;
+			drydenConvectiveFloorCoefficient = 0.0;
+			drydenHorizontalTimeScaleMultiplier = 1.0;
+			drydenVerticalTimeScaleMultiplier = 1.0;
+			sourceGustHorizontalMultiplier = 1.0;
+			sourceGustVerticalMultiplier = 1.0;
+		}
+
+		boolean neutral() { return neutral; }
+		double boundaryDeficitMultiplier() { return boundaryDeficitMultiplier; }
+		double boundaryDirtyAirMultiplier() { return boundaryDirtyAirMultiplier; }
+		double wakeCoherenceMultiplier() { return wakeCoherenceMultiplier; }
+		double wakeBuildTimeScaleMultiplier() { return wakeBuildTimeScaleMultiplier; }
+		double wakeReleaseTimeScaleMultiplier() { return wakeReleaseTimeScaleMultiplier; }
+		double drydenIntensityMultiplier() { return drydenIntensityMultiplier; }
+		double drydenConvectiveFloorCoefficient() { return drydenConvectiveFloorCoefficient; }
+		double drydenHorizontalTimeScaleMultiplier() { return drydenHorizontalTimeScaleMultiplier; }
+		double drydenVerticalTimeScaleMultiplier() { return drydenVerticalTimeScaleMultiplier; }
+		double sourceGustHorizontalMultiplier() { return sourceGustHorizontalMultiplier; }
+		double sourceGustVerticalMultiplier() { return sourceGustVerticalMultiplier; }
+	}
+
 	/** Reuses immutable Dryden coefficients across the substeps of one environment sample. */
 	static final class DrydenStepCache {
 		private DroneEnvironment environmentIdentity;
@@ -632,6 +765,8 @@ public final class DronePhysics {
 		private long targetWindYBits;
 		private long targetWindZBits;
 		private long dtSecondsBits;
+		private long ablStabilityBits;
+		private long ablMixingBits;
 		private boolean active;
 		private double decayAlpha;
 		private double longitudinalPhi;
@@ -647,22 +782,36 @@ public final class DronePhysics {
 		private Vec3 verticalAxis = new Vec3(0.0, 1.0, 0.0);
 
 		boolean resolve(DroneEnvironment environment, Vec3 targetMeanWind, double dtSeconds) {
+			return resolve(environment, targetMeanWind, dtSeconds, null);
+		}
+
+		boolean resolve(
+				DroneEnvironment environment,
+				Vec3 targetMeanWind,
+				double dtSeconds,
+				AblCache ablCache
+		) {
 			DroneEnvironment safeEnvironment = environment == null ? DroneEnvironment.calm() : environment;
 			Vec3 safeTargetMeanWind = targetMeanWind == null ? Vec3.ZERO : targetMeanWind;
 			long nextTargetWindXBits = Double.doubleToRawLongBits(safeTargetMeanWind.x());
 			long nextTargetWindYBits = Double.doubleToRawLongBits(safeTargetMeanWind.y());
 			long nextTargetWindZBits = Double.doubleToRawLongBits(safeTargetMeanWind.z());
 			long nextDtSecondsBits = Double.doubleToRawLongBits(dtSeconds);
+			boolean neutralAbl = ablCache == null || ablCache.neutral();
+			long nextAblStabilityBits = neutralAbl ? 0L : ablCache.stabilityBits;
+			long nextAblMixingBits = neutralAbl ? 0L : ablCache.mixingBits;
 			if (safeEnvironment == environmentIdentity
 					&& nextTargetWindXBits == targetWindXBits
 					&& nextTargetWindYBits == targetWindYBits
 					&& nextTargetWindZBits == targetWindZBits
-					&& nextDtSecondsBits == dtSecondsBits) {
+					&& nextDtSecondsBits == dtSecondsBits
+					&& nextAblStabilityBits == ablStabilityBits
+					&& nextAblMixingBits == ablMixingBits) {
 				return false;
 			}
 
 			double windSpeed = safeTargetMeanWind.length();
-			double atmosphericTurbulence = atmosphericDrydenIntensity(safeEnvironment);
+			double atmosphericTurbulence = atmosphericDrydenIntensity(safeEnvironment, ablCache);
 			active = atmosphericTurbulence > 1.0e-6 && windSpeed > 0.5 && dtSeconds > 0.0;
 			if (active) {
 				DrydenTurbulenceModel.Parameters dryden = DrydenTurbulenceModel.lowAltitude(
@@ -670,21 +819,45 @@ public final class DronePhysics {
 						windSpeed
 				);
 				double intensityScale = MathUtil.clamp(atmosphericTurbulence / 1.8, 0.0, 1.0);
-				double longitudinalTau = MathUtil.clamp(
-						dryden.longitudinalTimeConstantSeconds(),
-						0.10,
-						12.0
-				);
-				double lateralTau = MathUtil.clamp(
-						dryden.lateralTimeConstantSeconds(),
-						0.10,
-						12.0
-				);
-				double verticalTau = MathUtil.clamp(
-						dryden.verticalTimeConstantSeconds(),
-						0.05,
-						6.0
-				);
+				double longitudinalTau;
+				double lateralTau;
+				double verticalTau;
+				if (neutralAbl) {
+					longitudinalTau = MathUtil.clamp(
+							dryden.longitudinalTimeConstantSeconds(),
+							0.10,
+							12.0
+					);
+					lateralTau = MathUtil.clamp(
+							dryden.lateralTimeConstantSeconds(),
+							0.10,
+							12.0
+					);
+					verticalTau = MathUtil.clamp(
+							dryden.verticalTimeConstantSeconds(),
+							0.05,
+							6.0
+					);
+				} else {
+					longitudinalTau = MathUtil.clamp(
+							dryden.longitudinalTimeConstantSeconds()
+									* ablCache.drydenHorizontalTimeScaleMultiplier(),
+							0.10,
+							12.0
+					);
+					lateralTau = MathUtil.clamp(
+							dryden.lateralTimeConstantSeconds()
+									* ablCache.drydenHorizontalTimeScaleMultiplier(),
+							0.10,
+							12.0
+					);
+					verticalTau = MathUtil.clamp(
+							dryden.verticalTimeConstantSeconds()
+									* ablCache.drydenVerticalTimeScaleMultiplier(),
+							0.05,
+							6.0
+					);
+				}
 				longitudinalPhi = Math.exp(-dtSeconds / Math.max(1.0e-6, longitudinalTau));
 				lateralPhi = Math.exp(-dtSeconds / Math.max(1.0e-6, lateralTau));
 				verticalPhi = Math.exp(-dtSeconds / Math.max(1.0e-6, verticalTau));
@@ -711,6 +884,8 @@ public final class DronePhysics {
 			targetWindYBits = nextTargetWindYBits;
 			targetWindZBits = nextTargetWindZBits;
 			dtSecondsBits = nextDtSecondsBits;
+			ablStabilityBits = nextAblStabilityBits;
+			ablMixingBits = nextAblMixingBits;
 			return true;
 		}
 	}
@@ -1415,6 +1590,7 @@ public final class DronePhysics {
 		if (environment == null) {
 			environment = DroneEnvironment.calm();
 		}
+		ablCache.resolve(environment);
 		atmosphereCache.resolve(environment);
 		double speedOfSoundMetersPerSecond = atmosphereCache.speedOfSoundMetersPerSecond();
 		double dynamicViscosityRatio = atmosphereCache.dynamicViscosityRatio();
@@ -3571,9 +3747,21 @@ public final class DronePhysics {
 		double transverseSpeed = wakeFlow.transverseSpeedMetersPerSecond();
 		double wakeRetention = 1.0 - MathUtil.clamp(transverseSpeed / 7.0, 0.0, 1.0);
 		double motorPower = state.averageMotorPower(config);
-		double targetWake = input.armed()
-				? MathUtil.clamp(descentFactor * wakeRetention * (0.25 + 0.75 * motorPower), 0.0, 1.0)
-				: 0.0;
+		double targetWake;
+		if (ablCache.neutral()) {
+			targetWake = input.armed()
+					? MathUtil.clamp(descentFactor * wakeRetention * (0.25 + 0.75 * motorPower), 0.0, 1.0)
+					: 0.0;
+		} else {
+			targetWake = input.armed()
+					? MathUtil.clamp(
+							descentFactor * wakeRetention * (0.25 + 0.75 * motorPower)
+									* ablCache.wakeCoherenceMultiplier(),
+							0.0,
+							1.0
+					)
+					: 0.0;
+		}
 		double wakeIntensity = updatePropwashWakeIntensity(targetWake, wakeRetention, dtSeconds);
 		double throttleFactor = input.armed() ? Math.pow(input.throttle(), 1.35) : 0.0;
 		double intensity = MathUtil.clamp(wakeIntensity * throttleFactor * (0.35 + 0.65 * motorPower), 0.0, 1.0);
@@ -3630,9 +3818,26 @@ public final class DronePhysics {
 	private double updatePropwashWakeIntensity(double targetWakeIntensity, double wakeRetention, double dtSeconds) {
 		double previousWakeIntensity = state.propwashWakeIntensity();
 		double flushFactor = 1.0 - MathUtil.clamp(wakeRetention, 0.0, 1.0);
-		double timeConstant = targetWakeIntensity > previousWakeIntensity
-				? 0.055
-				: MathUtil.clamp(0.130 - 0.090 * flushFactor, 0.040, 0.130);
+		double timeConstant;
+		if (ablCache.neutral()) {
+			timeConstant = targetWakeIntensity > previousWakeIntensity
+					? 0.055
+					: MathUtil.clamp(0.130 - 0.090 * flushFactor, 0.040, 0.130);
+		} else {
+			double buildTimeConstant = MathUtil.clamp(
+					0.055 * ablCache.wakeBuildTimeScaleMultiplier(),
+					0.038,
+					0.075
+			);
+			double releaseTimeConstant = MathUtil.clamp(
+					(0.130 - 0.090 * flushFactor) * ablCache.wakeReleaseTimeScaleMultiplier(),
+					0.028,
+					0.180
+			);
+			timeConstant = targetWakeIntensity > previousWakeIntensity
+					? buildTimeConstant
+					: releaseTimeConstant;
+		}
 		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
 		double wakeIntensity = previousWakeIntensity + (targetWakeIntensity - previousWakeIntensity) * alpha;
 		state.setPropwashWakeIntensity(wakeIntensity);
@@ -5258,44 +5463,119 @@ public final class DronePhysics {
 		}
 
 		double crossflowFlush = smoothStep(2.5, 9.0, crossflowSpeed);
+		boolean neutralAbl = ablCache.neutral();
+		double wakeCoherence = neutralAbl ? 1.0 : ablCache.wakeCoherenceMultiplier();
+		double wakeBuildTimeScale = neutralAbl ? 1.0 : ablCache.wakeBuildTimeScaleMultiplier();
+		double wakeReleaseTimeScale = neutralAbl ? 1.0 : ablCache.wakeReleaseTimeScaleMultiplier();
 		for (int i = 0; i < rotorCount; i++) {
 			RotorWakeRotorGeometry rotorGeometry = rotorWakeRotorGeometry[i];
-			double targetIntensity = rotorWakeInterferenceTargetIntensity[i];
-			Vec3 targetDownwash = rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond[i];
-			Vec3 targetSwirl = rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond[i];
+			if (neutralAbl) {
+				double targetIntensity = rotorWakeInterferenceTargetIntensity[i];
+				Vec3 targetDownwash = rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond[i];
+				Vec3 targetSwirl = rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond[i];
+				Vec3 previousDownwash = rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i];
+				Vec3 previousSwirl = rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i];
+				double previousIntensity = rotorWakeInterferenceIntensity[i];
+				double previousFlowSpeed = Math.max(previousDownwash.length(), previousSwirl.length());
+				double targetFlowSpeed = Math.max(targetDownwash.length(), targetSwirl.length());
+				boolean building = targetIntensity > previousIntensity || targetFlowSpeed > previousFlowSpeed + 1.0e-6;
+				double buildTimeConstant = MathUtil.clamp(
+						0.090 * rotorGeometry.sqrtWakeLagRadiusScale()
+								/ (0.72 + 0.62 * Math.max(targetIntensity, previousIntensity)),
+						0.030,
+						0.170
+				);
+				double releaseTimeConstant = MathUtil.clamp(
+						(0.260 - 0.120 * crossflowFlush) * rotorGeometry.sqrtWakeLagRadiusScale(),
+						0.090,
+						0.420
+				);
+				double timeConstant = building ? buildTimeConstant : releaseTimeConstant;
+				double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+
+				double filteredIntensity = previousIntensity + (targetIntensity - previousIntensity) * alpha;
+				Vec3 filteredDownwash = previousDownwash.add(targetDownwash.subtract(previousDownwash).multiply(alpha));
+				Vec3 filteredSwirl = previousSwirl.add(targetSwirl.subtract(previousSwirl).multiply(alpha));
+				if (targetIntensity <= 1.0e-6 && filteredIntensity < 1.0e-5) {
+					filteredIntensity = 0.0;
+				}
+				if (targetDownwash.lengthSquared() <= 1.0e-9 && filteredDownwash.lengthSquared() < 1.0e-8) {
+					filteredDownwash = Vec3.ZERO;
+				}
+				if (targetSwirl.lengthSquared() <= 1.0e-9 && filteredSwirl.lengthSquared() < 1.0e-8) {
+					filteredSwirl = Vec3.ZERO;
+				}
+
+				rotorWakeInterferenceIntensity[i] = MathUtil.clamp(filteredIntensity, 0.0, 1.0);
+				rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i] = filteredDownwash.clamp(-12.0, 12.0);
+				rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i] = clampRotorWakeSwirlVelocity(
+						filteredSwirl,
+						rotorGeometry.swirlVelocityLimitMetersPerSecond()
+				);
+				continue;
+			}
+
+			double targetIntensity = MathUtil.clamp(
+					rotorWakeInterferenceTargetIntensity[i] * wakeCoherence,
+					0.0,
+					1.0
+			);
+			Vec3 rawTargetDownwash = rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond[i];
+			Vec3 rawTargetSwirl = rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond[i];
+			double targetDownwashX = rawTargetDownwash.x() * wakeCoherence;
+			double targetDownwashY = rawTargetDownwash.y() * wakeCoherence;
+			double targetDownwashZ = rawTargetDownwash.z() * wakeCoherence;
+			double targetSwirlX = rawTargetSwirl.x() * wakeCoherence;
+			double targetSwirlY = rawTargetSwirl.y() * wakeCoherence;
+			double targetSwirlZ = rawTargetSwirl.z() * wakeCoherence;
 			Vec3 previousDownwash = rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i];
 			Vec3 previousSwirl = rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i];
 			double previousIntensity = rotorWakeInterferenceIntensity[i];
 			double previousFlowSpeed = Math.max(previousDownwash.length(), previousSwirl.length());
-			double targetFlowSpeed = Math.max(targetDownwash.length(), targetSwirl.length());
+			double targetDownwashSquared = targetDownwashX * targetDownwashX
+					+ targetDownwashY * targetDownwashY
+					+ targetDownwashZ * targetDownwashZ;
+			double targetSwirlSquared = targetSwirlX * targetSwirlX
+					+ targetSwirlY * targetSwirlY
+					+ targetSwirlZ * targetSwirlZ;
+			double targetFlowSpeed = Math.max(Math.sqrt(targetDownwashSquared), Math.sqrt(targetSwirlSquared));
 			boolean building = targetIntensity > previousIntensity || targetFlowSpeed > previousFlowSpeed + 1.0e-6;
 			double buildTimeConstant = MathUtil.clamp(
 					0.090 * rotorGeometry.sqrtWakeLagRadiusScale()
+							* wakeBuildTimeScale
 							/ (0.72 + 0.62 * Math.max(targetIntensity, previousIntensity)),
 					0.030,
 					0.170
 			);
 			double releaseTimeConstant = MathUtil.clamp(
-					(0.260 - 0.120 * crossflowFlush) * rotorGeometry.sqrtWakeLagRadiusScale(),
+					(0.260 - 0.120 * crossflowFlush)
+							* rotorGeometry.sqrtWakeLagRadiusScale()
+							* wakeReleaseTimeScale,
 					0.090,
 					0.420
 			);
 			double timeConstant = building ? buildTimeConstant : releaseTimeConstant;
 			double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
-
 			double filteredIntensity = previousIntensity + (targetIntensity - previousIntensity) * alpha;
-			Vec3 filteredDownwash = previousDownwash.add(targetDownwash.subtract(previousDownwash).multiply(alpha));
-			Vec3 filteredSwirl = previousSwirl.add(targetSwirl.subtract(previousSwirl).multiply(alpha));
+			Vec3 filteredDownwash = new Vec3(
+					previousDownwash.x() + (targetDownwashX - previousDownwash.x()) * alpha,
+					previousDownwash.y() + (targetDownwashY - previousDownwash.y()) * alpha,
+					previousDownwash.z() + (targetDownwashZ - previousDownwash.z()) * alpha
+			);
+			Vec3 filteredSwirl = new Vec3(
+					previousSwirl.x() + (targetSwirlX - previousSwirl.x()) * alpha,
+					previousSwirl.y() + (targetSwirlY - previousSwirl.y()) * alpha,
+					previousSwirl.z() + (targetSwirlZ - previousSwirl.z()) * alpha
+			);
 			if (targetIntensity <= 1.0e-6 && filteredIntensity < 1.0e-5) {
 				filteredIntensity = 0.0;
 			}
-			if (targetDownwash.lengthSquared() <= 1.0e-9 && filteredDownwash.lengthSquared() < 1.0e-8) {
+			if (targetDownwashSquared <= 1.0e-9 && filteredDownwash.lengthSquared() < 1.0e-8) {
 				filteredDownwash = Vec3.ZERO;
 			}
-			if (targetSwirl.lengthSquared() <= 1.0e-9 && filteredSwirl.lengthSquared() < 1.0e-8) {
+			if (targetSwirlSquared <= 1.0e-9 && filteredSwirl.lengthSquared() < 1.0e-8) {
 				filteredSwirl = Vec3.ZERO;
 			}
-
 			rotorWakeInterferenceIntensity[i] = MathUtil.clamp(filteredIntensity, 0.0, 1.0);
 			rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i] = filteredDownwash.clamp(-12.0, 12.0);
 			rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i] = clampRotorWakeSwirlVelocity(
@@ -7210,8 +7490,8 @@ public final class DronePhysics {
 						+ 0.26 * environment.obstacleProximity()
 						+ 0.18 * environment.droneWakeIntensity()
 						+ 0.12 * environment.ceilingEffectIntensity(config)
-						+ surfaceBoundaryLayerDirtyAir(environment.groundClearanceMeters(), environment.windVelocityWorldMetersPerSecond())
-						+ 0.85 * surfaceBoundaryLayerDirtyAir(environment.ceilingClearanceMeters(), environment.windVelocityWorldMetersPerSecond()),
+						+ surfaceBoundaryLayerDirtyAir(environment, environment.groundClearanceMeters(), environment.windVelocityWorldMetersPerSecond())
+						+ 0.85 * surfaceBoundaryLayerDirtyAir(environment, environment.ceilingClearanceMeters(), environment.windVelocityWorldMetersPerSecond()),
 				0.0,
 				1.8
 		);
@@ -7224,13 +7504,13 @@ public final class DronePhysics {
 			return wind;
 		}
 
-		double groundScale = boundaryLayerHorizontalWindScale(environment.groundClearanceMeters(), height);
-		double ceilingScale = boundaryLayerHorizontalWindScale(environment.ceilingClearanceMeters(), height);
+		double groundScale = boundaryLayerHorizontalWindScale(environment, environment.groundClearanceMeters(), height);
+		double ceilingScale = boundaryLayerHorizontalWindScale(environment, environment.ceilingClearanceMeters(), height);
 		double horizontalScale = Math.min(groundScale, ceilingScale);
 		return new Vec3(wind.x() * horizontalScale, wind.y(), wind.z() * horizontalScale);
 	}
 
-	private double surfaceBoundaryLayerDirtyAir(double clearance, Vec3 wind) {
+	private double surfaceBoundaryLayerDirtyAir(DroneEnvironment environment, double clearance, Vec3 wind) {
 		double height = surfaceBoundaryLayerHeightMeters();
 		if (height <= 1.0e-6 || !Double.isFinite(clearance) || clearance >= height) {
 			return 0.0;
@@ -7243,8 +7523,16 @@ public final class DronePhysics {
 
 		double nearSurface = 1.0 - smoothStep(0.04, height, clearance);
 		double windFactor = smoothStep(1.4, 11.0, horizontalWindSpeed);
-		double shearFactor = 1.0 - boundaryLayerHorizontalWindScale(clearance, height);
-		return MathUtil.clamp(0.46 * nearSurface * windFactor * shearFactor, 0.0, 0.34);
+		if (ablCache.neutral()) {
+			double shearFactor = 1.0 - boundaryLayerHorizontalWindScale(clearance, height);
+			return MathUtil.clamp(0.46 * nearSurface * windFactor * shearFactor, 0.0, 0.34);
+		}
+		double shearFactor = 1.0 - boundaryLayerHorizontalWindScale(environment, clearance, height);
+		return MathUtil.clamp(
+				0.46 * nearSurface * windFactor * shearFactor * ablCache.boundaryDirtyAirMultiplier(),
+				0.0,
+				0.44
+		);
 	}
 
 	private double surfaceBoundaryLayerHeightMeters() {
@@ -7262,6 +7550,22 @@ public final class DronePhysics {
 		double surfaceSlip = 0.18 + 0.12 * smoothStep(0.0, 0.40, normalizedClearance);
 		double recovery = smoothStep(0.03, 1.0, normalizedClearance);
 		return MathUtil.clamp(surfaceSlip + (1.0 - surfaceSlip) * recovery, 0.18, 1.0);
+	}
+
+	private double boundaryLayerHorizontalWindScale(
+			DroneEnvironment environment,
+			double clearanceMeters,
+			double heightMeters
+	) {
+		double neutralScale = boundaryLayerHorizontalWindScale(clearanceMeters, heightMeters);
+		if (ablCache.neutral() || neutralScale >= 1.0 - 1.0e-9) {
+			return neutralScale;
+		}
+		return MathUtil.clamp(
+				1.0 - (1.0 - neutralScale) * ablCache.boundaryDeficitMultiplier(),
+				0.10,
+				1.0
+		);
 	}
 
 	private Vec3 windBurbleTarget(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir) {
@@ -7297,7 +7601,7 @@ public final class DronePhysics {
 				.multiply(burbleScale);
 	}
 
-	private static Vec3 combinedWindGust(
+	private Vec3 combinedWindGust(
 			DroneEnvironment environment,
 			Vec3 targetMeanWind,
 			double dirtyAir,
@@ -7320,10 +7624,29 @@ public final class DronePhysics {
 		double dirtyGain = MathUtil.clamp(0.72 + 0.10 * dirtyAir, 0.72, 0.94);
 		double vectorScale = MathUtil.clamp(sourceSpeed / sourceMagnitude, 0.0, 1.0);
 		double scale = 0.22 * windGate * dirtyGain * vectorScale;
+		if (ablCache.neutral()) {
+			return new Vec3(
+					burble.x() + dryden.x() + MathUtil.clamp(sourceGust.x() * scale, -2.0, 2.0),
+					burble.y() + dryden.y() + MathUtil.clamp(sourceGust.y() * scale, -2.0, 2.0),
+					burble.z() + dryden.z() + MathUtil.clamp(sourceGust.z() * scale, -2.0, 2.0)
+			);
+		}
 		return new Vec3(
-				burble.x() + dryden.x() + MathUtil.clamp(sourceGust.x() * scale, -2.0, 2.0),
-				burble.y() + dryden.y() + MathUtil.clamp(sourceGust.y() * scale, -2.0, 2.0),
-				burble.z() + dryden.z() + MathUtil.clamp(sourceGust.z() * scale, -2.0, 2.0)
+				burble.x() + dryden.x() + MathUtil.clamp(
+						(sourceGust.x() * ablCache.sourceGustHorizontalMultiplier()) * scale,
+						-2.0,
+						2.0
+				),
+				burble.y() + dryden.y() + MathUtil.clamp(
+						(sourceGust.y() * ablCache.sourceGustVerticalMultiplier()) * scale,
+						-2.0,
+						2.0
+				),
+				burble.z() + dryden.z() + MathUtil.clamp(
+						(sourceGust.z() * ablCache.sourceGustHorizontalMultiplier()) * scale,
+						-2.0,
+						2.0
+				)
 		);
 	}
 
@@ -7334,7 +7657,7 @@ public final class DronePhysics {
 	}
 
 	private Vec3 updateDrydenTurbulence(DroneEnvironment environment, Vec3 targetMeanWind, double dtSeconds) {
-		drydenStepCache.resolve(environment, targetMeanWind, dtSeconds);
+		drydenStepCache.resolve(environment, targetMeanWind, dtSeconds, ablCache);
 		if (!drydenStepCache.active) {
 			double alpha = drydenStepCache.decayAlpha;
 			drydenFirstOrderVelocityWorldMetersPerSecond =
@@ -7394,6 +7717,24 @@ public final class DronePhysics {
 
 	private static double atmosphericDrydenIntensity(DroneEnvironment environment) {
 		return MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.8);
+	}
+
+	private static double atmosphericDrydenIntensity(DroneEnvironment environment, AblCache ablCache) {
+		double baseTurbulence = atmosphericDrydenIntensity(environment);
+		if (ablCache == null || ablCache.neutral()) {
+			return baseTurbulence;
+		}
+		double horizontalWindSpeed = Math.hypot(
+				environment.windVelocityWorldMetersPerSecond().x(),
+				environment.windVelocityWorldMetersPerSecond().z()
+		);
+		return MathUtil.clamp(
+				baseTurbulence * ablCache.drydenIntensityMultiplier()
+						+ ablCache.drydenConvectiveFloorCoefficient()
+								* smoothStep(1.0, 8.0, horizontalWindSpeed),
+				0.0,
+				1.8
+		);
 	}
 
 	private double updateDrydenAxis(double currentValue, double phi, double innovationScale) {
@@ -10518,8 +10859,8 @@ public final class DronePhysics {
 		double wakeRecirculation = MathUtil.clamp(environment.droneWakeIntensity() / 1.5, 0.0, 1.0);
 		double ownWake = MathUtil.clamp(state.propwashWakeIntensity(), 0.0, 1.0);
 		double shearLayer = MathUtil.clamp(
-				surfaceBoundaryLayerDirtyAir(environment.groundClearanceMeters(), environment.windVelocityWorldMetersPerSecond())
-						+ 0.85 * surfaceBoundaryLayerDirtyAir(environment.ceilingClearanceMeters(), environment.windVelocityWorldMetersPerSecond()),
+				surfaceBoundaryLayerDirtyAir(environment, environment.groundClearanceMeters(), environment.windVelocityWorldMetersPerSecond())
+						+ 0.85 * surfaceBoundaryLayerDirtyAir(environment, environment.ceilingClearanceMeters(), environment.windVelocityWorldMetersPerSecond()),
 				0.0,
 				1.0
 		);

@@ -11,6 +11,67 @@ import net.minecraft.server.level.ServerLevel;
 
 class Aerodynamics4McAtmosphereBridgeTest {
 	@Test
+	void compatibilityConstructorsDefaultNewGustAndAblPrimitivesToNeutral() {
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample scalarFlow =
+				new Aerodynamics4McAtmosphereBridge.AtmosphereSample(
+						true,
+						true,
+						0.8,
+						3L,
+						true,
+						1.0,
+						2.0,
+						3.0,
+						0.4,
+						0.5,
+						0.6,
+						0.7,
+						0.8,
+						0.9,
+						true,
+						100.0,
+						true,
+						25.0,
+						true,
+						0.5
+				);
+		assertEquals(0.0, scalarFlow.gustVelocityXMetersPerSecond(), 0.0);
+		assertEquals(0.0, scalarFlow.gustVelocityZMetersPerSecond(), 0.0);
+		assertEquals(0.0, scalarFlow.ablStability(), 0.0);
+		assertEquals(0.0, scalarFlow.ablMixingStrength(), 0.0);
+
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample coherentGust =
+				new Aerodynamics4McAtmosphereBridge.AtmosphereSample(
+						true,
+						true,
+						0.8,
+						3L,
+						true,
+						1.0,
+						2.0,
+						3.0,
+						0.4,
+						0.5,
+						0.6,
+						0.7,
+						5.0,
+						4.0,
+						true,
+						100.0,
+						true,
+						25.0,
+						true,
+						0.5,
+						3.0,
+						4.0
+				);
+		assertEquals(3.0, coherentGust.gustVelocityXMetersPerSecond(), 0.0);
+		assertEquals(4.0, coherentGust.gustVelocityZMetersPerSecond(), 0.0);
+		assertEquals(0.0, coherentGust.ablStability(), 0.0);
+		assertEquals(0.0, coherentGust.ablMixingStrength(), 0.0);
+	}
+
+	@Test
 	void missingModReturnsAllocationFreeUnavailableSingletonWithoutBindingClasses() {
 		Aerodynamics4McAtmosphereBridge.Sampler absent = Aerodynamics4McAtmosphereBridge.bindIfAvailable(
 				false,
@@ -182,7 +243,9 @@ class Aerodynamics4McAtmosphereBridgeTest {
 				0.65,
 				95L,
 				90L,
-				80L
+				80L,
+				-1.4,
+				1.4
 		);
 		Aerodynamics4McAtmosphereBridge.Sampler sampler = Aerodynamics4McAtmosphereBridge.bindIfAvailable(
 				true,
@@ -214,6 +277,8 @@ class Aerodynamics4McAtmosphereBridgeTest {
 		assertEquals(4.0, sample.gustVerticalMetersPerSecond(), 0.0);
 		assertEquals(3.0, sample.gustVelocityXMetersPerSecond(), 0.0);
 		assertEquals(12.0, sample.gustVelocityZMetersPerSecond(), 0.0);
+		assertEquals(-1.0, sample.ablStability(), 0.0);
+		assertEquals(1.0, sample.ablMixingStrength(), 0.0);
 		assertTrue(sample.localVoxelFlow());
 		assertEquals(5000.0, sample.pressureAnomalyPascals(), 0.0,
 				"pressureAnomalyPascals must take precedence over the legacy pressure accessor");
@@ -241,7 +306,9 @@ class Aerodynamics4McAtmosphereBridgeTest {
 				0.0,
 				-1L,
 				-1L,
-				-1L
+				-1L,
+				Double.NaN,
+				Double.POSITIVE_INFINITY
 		);
 		Aerodynamics4McAtmosphereBridge.AtmosphereSample nonFinite = sampler.sample(
 				null,
@@ -263,6 +330,8 @@ class Aerodynamics4McAtmosphereBridgeTest {
 		assertEquals(0.0, nonFinite.gustVerticalMetersPerSecond(), 0.0);
 		assertEquals(0.0, nonFinite.gustVelocityXMetersPerSecond(), 0.0);
 		assertEquals(0.0, nonFinite.gustVelocityZMetersPerSecond(), 0.0);
+		assertEquals(0.0, nonFinite.ablStability(), 0.0);
+		assertEquals(0.0, nonFinite.ablMixingStrength(), 0.0);
 		assertFalse(nonFinite.localVoxelFlow());
 		assertEquals(0.0, nonFinite.pressureAnomalyPascals(), 0.0);
 	}
@@ -329,6 +398,8 @@ class Aerodynamics4McAtmosphereBridgeTest {
 		assertEquals(0.0, sample.gustVerticalMetersPerSecond(), 0.0);
 		assertEquals(0.0, sample.gustVelocityXMetersPerSecond(), 0.0);
 		assertEquals(0.0, sample.gustVelocityZMetersPerSecond(), 0.0);
+		assertEquals(0.0, sample.ablStability(), 0.0);
+		assertEquals(0.0, sample.ablMixingStrength(), 0.0);
 		assertFalse(sample.localVoxelFlow());
 		assertEquals(0.0, sample.pressureAnomalyPascals(), 0.0);
 	}
@@ -434,7 +505,9 @@ class Aerodynamics4McAtmosphereBridgeTest {
 			double humidity,
 			long l1Epoch,
 			long worldDeltaEpoch,
-			long l2Epoch
+			long l2Epoch,
+			double ablStability,
+			double ablMixingStrength
 	) {
 	}
 

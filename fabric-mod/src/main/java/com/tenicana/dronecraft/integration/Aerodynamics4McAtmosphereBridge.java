@@ -112,6 +112,8 @@ public final class Aerodynamics4McAtmosphereBridge {
 					methodOrNull(sampleClass, "updraftMetersPerSecond"),
 					methodOrNull(sampleClass, "hasLocalL2Modifier"),
 					firstMethodOrNull(sampleClass, "pressureAnomalyPascals", "pressure"),
+					methodOrNull(sampleClass, "ablStability"),
+					methodOrNull(sampleClass, "ablMixingStrength"),
 					methodOrNull(sampleClass, "hasTemperature"),
 					methodOrNull(sampleClass, "temperatureKelvin"),
 					methodOrNull(sampleClass, "hasHumidity"),
@@ -197,6 +199,8 @@ public final class Aerodynamics4McAtmosphereBridge {
 		private final Method updraftMetersPerSecond;
 		private final Method hasLocalL2Modifier;
 		private final Method pressureAnomalyPascals;
+		private final Method ablStability;
+		private final Method ablMixingStrength;
 		private final Method hasTemperature;
 		private final Method temperatureKelvin;
 		private final Method hasHumidity;
@@ -226,6 +230,8 @@ public final class Aerodynamics4McAtmosphereBridge {
 				Method updraftMetersPerSecond,
 				Method hasLocalL2Modifier,
 				Method pressureAnomalyPascals,
+				Method ablStability,
+				Method ablMixingStrength,
 				Method hasTemperature,
 				Method temperatureKelvin,
 				Method hasHumidity,
@@ -253,6 +259,8 @@ public final class Aerodynamics4McAtmosphereBridge {
 			this.updraftMetersPerSecond = updraftMetersPerSecond;
 			this.hasLocalL2Modifier = hasLocalL2Modifier;
 			this.pressureAnomalyPascals = pressureAnomalyPascals;
+			this.ablStability = ablStability;
+			this.ablMixingStrength = ablMixingStrength;
 			this.hasTemperature = hasTemperature;
 			this.temperatureKelvin = temperatureKelvin;
 			this.hasHumidity = hasHumidity;
@@ -357,7 +365,9 @@ public final class Aerodynamics4McAtmosphereBridge {
 						sampleHasHumidity,
 						sampleHumidity,
 						hasGustVelocity ? gustX : 0.0,
-						hasGustVelocity ? gustZ : 0.0
+						hasGustVelocity ? gustZ : 0.0,
+						optionalNumber(ablStability, sample),
+						optionalNumber(ablMixingStrength, sample)
 				);
 			} catch (InvocationTargetException error) {
 				disableAfterFailure(this);
@@ -445,7 +455,9 @@ public final class Aerodynamics4McAtmosphereBridge {
 			boolean hasHumidity,
 			double humidity,
 			double gustVelocityXMetersPerSecond,
-			double gustVelocityZMetersPerSecond
+			double gustVelocityZMetersPerSecond,
+			double ablStability,
+			double ablMixingStrength
 	) {
 		private static final AtmosphereSample UNAVAILABLE = new AtmosphereSample(
 				false,
@@ -467,6 +479,8 @@ public final class Aerodynamics4McAtmosphereBridge {
 				false,
 				0.0,
 				false,
+				0.0,
+				0.0,
 				0.0,
 				0.0,
 				0.0
@@ -517,6 +531,61 @@ public final class Aerodynamics4McAtmosphereBridge {
 					hasHumidity,
 					humidity,
 					0.0,
+					0.0,
+					0.0,
+					0.0
+			);
+		}
+
+		/** Compatibility constructor for the coherent-gust contract that predates ABL inputs. */
+		public AtmosphereSample(
+				boolean hasFlow,
+				boolean trustedForGameplay,
+				double confidence,
+				long freshnessAgeTicks,
+				boolean hasMeanVelocity,
+				double meanVelocityX,
+				double meanVelocityY,
+				double meanVelocityZ,
+				double turbulenceIntensity,
+				double windShearMagnitudePerBlock,
+				double shelterFactor,
+				double updraftMetersPerSecond,
+				double gustSpeedMetersPerSecond,
+				double gustVerticalMetersPerSecond,
+				boolean localVoxelFlow,
+				double pressureAnomalyPascals,
+				boolean hasTemperature,
+				double temperatureCelsius,
+				boolean hasHumidity,
+				double humidity,
+				double gustVelocityXMetersPerSecond,
+				double gustVelocityZMetersPerSecond
+		) {
+			this(
+					hasFlow,
+					trustedForGameplay,
+					confidence,
+					freshnessAgeTicks,
+					hasMeanVelocity,
+					meanVelocityX,
+					meanVelocityY,
+					meanVelocityZ,
+					turbulenceIntensity,
+					windShearMagnitudePerBlock,
+					shelterFactor,
+					updraftMetersPerSecond,
+					gustSpeedMetersPerSecond,
+					gustVerticalMetersPerSecond,
+					localVoxelFlow,
+					pressureAnomalyPascals,
+					hasTemperature,
+					temperatureCelsius,
+					hasHumidity,
+					humidity,
+					gustVelocityXMetersPerSecond,
+					gustVelocityZMetersPerSecond,
+					0.0,
 					0.0
 			);
 		}
@@ -550,6 +619,8 @@ public final class Aerodynamics4McAtmosphereBridge {
 			gustVerticalMetersPerSecond = finiteClamped(gustVerticalMetersPerSecond, -30.0, 30.0, 0.0);
 			gustVelocityXMetersPerSecond = finiteClamped(gustVelocityXMetersPerSecond, -30.0, 30.0, 0.0);
 			gustVelocityZMetersPerSecond = finiteClamped(gustVelocityZMetersPerSecond, -30.0, 30.0, 0.0);
+			ablStability = finiteClamped(ablStability, -1.0, 1.0, 0.0);
+			ablMixingStrength = finiteClamped(ablMixingStrength, 0.0, 1.0, 0.0);
 			pressureAnomalyPascals = finiteClamped(pressureAnomalyPascals, -5000.0, 5000.0, 0.0);
 			if (!hasTemperature || !Double.isFinite(temperatureCelsius)) {
 				hasTemperature = false;

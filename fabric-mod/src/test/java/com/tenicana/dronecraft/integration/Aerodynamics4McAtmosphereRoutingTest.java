@@ -26,8 +26,16 @@ class Aerodynamics4McAtmosphereRoutingTest {
 		assertEquals(1, occurrences(bridge, "Aerodynamics4McAtmosphereBridge.sampleGameplay"));
 		assertEquals(1, occurrences(source, "Aerodynamics4McAtmosphereBridge.sampleGameplay"),
 				"the entity must expose exactly one body-center A4MC sampling site");
-		assertTrue(bridge.contains("environmentOverride.windEnabled()"),
-				"an explicit wind override must suppress all A4MC atmosphere and flow adoption");
+		int explicitOverride = bridge.indexOf("if (environmentOverride.windEnabled())");
+		int unavailableReturn = bridge.indexOf(
+				"return Aerodynamics4McAtmosphereBridge.AtmosphereSample.unavailable();",
+				explicitOverride
+		);
+		int gameplaySample = bridge.indexOf("Aerodynamics4McAtmosphereBridge.sampleGameplay");
+		assertTrue(explicitOverride >= 0
+					&& unavailableReturn > explicitOverride
+					&& unavailableReturn < gameplaySample,
+				"an explicit wind override must return an unavailable sample before any A4MC adoption");
 		assertFalse(bridge.contains("entityPhysicsPosition()"), "the absent-mod path must not allocate a simulation Vec3");
 		assertFalse(rotorSampling.contains("Aerodynamics4McAtmosphereBridge"),
 				"single-point flow sampling must not expand into per-rotor probes");
@@ -50,6 +58,14 @@ class Aerodynamics4McAtmosphereRoutingTest {
 		assertTrue(stageOne.contains("batteryVentilationFactor(externalAtmosphere, sourceQuality)"));
 		assertTrue(advanced.contains("adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality)"));
 		assertTrue(stageOne.contains("adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality)"));
+		assertTrue(advanced.contains("adoptedAblStability(externalAtmosphere, sourceQuality)"));
+		assertTrue(stageOne.contains("adoptedAblStability(externalAtmosphere, sourceQuality)"));
+		assertTrue(advanced.contains("adoptedAblMixingStrength(externalAtmosphere, sourceQuality)"));
+		assertTrue(stageOne.contains("adoptedAblMixingStrength(externalAtmosphere, sourceQuality)"));
+		assertFalse(advanced.contains("externalAtmosphere.ablStability()"));
+		assertFalse(stageOne.contains("externalAtmosphere.ablStability()"));
+		assertFalse(advanced.contains("externalAtmosphere.ablMixingStrength()"));
+		assertFalse(stageOne.contains("externalAtmosphere.ablMixingStrength()"));
 		assertTrue(stageOne.contains("effectiveAmbientTemperature"), "the default playable path must receive adopted source temperature");
 		assertTrue(stageOne.contains("adoptedSourceHumidity"), "the default playable path must receive quality-gated source humidity");
 	}

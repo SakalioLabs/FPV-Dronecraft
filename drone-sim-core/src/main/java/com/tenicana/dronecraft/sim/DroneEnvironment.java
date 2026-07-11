@@ -23,7 +23,9 @@ public record DroneEnvironment(
 		double adoptedSourcePressureAnomalyPascals,
 		double motorEscVentilationFactor,
 		double batteryVentilationFactor,
-		Vec3 adoptedSourceGustVelocityWorldMetersPerSecond
+		Vec3 adoptedSourceGustVelocityWorldMetersPerSecond,
+		double adoptedAblStability,
+		double adoptedAblMixingStrength
 ) {
 	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
 	private static final double SEA_LEVEL_PRESSURE_PASCALS = SEA_LEVEL_PRESSURE_HECTOPASCALS * 100.0;
@@ -219,7 +221,9 @@ public record DroneEnvironment(
 				0.0,
 				1.0,
 				1.0,
-				Vec3.ZERO
+				Vec3.ZERO,
+				0.0,
+				0.0
 		);
 	}
 
@@ -271,7 +275,64 @@ public record DroneEnvironment(
 				adoptedSourcePressureAnomalyPascals,
 				motorEscVentilationFactor,
 				batteryVentilationFactor,
-				Vec3.ZERO
+				Vec3.ZERO,
+				0.0,
+				0.0
+		);
+	}
+
+	/** Compatibility constructor for the coherent-gust contract that predates ABL inputs. */
+	public DroneEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double groundClearanceMeters,
+			double turbulenceIntensity,
+			double obstacleProximity,
+			double droneWakeIntensity,
+			double ceilingClearanceMeters,
+			double[] rotorThrustMultipliers,
+			double[] rotorFlowObstructions,
+			Vec3[] rotorFlowObstructionDirectionsBody,
+			double[] rotorWaterImmersions,
+			double waterImmersionIntensity,
+			double[] rotorPrecipitationWetnesses,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			double[] rotorFlowObstructionWallForceFactors,
+			double effectiveAmbientTemperatureCelsius,
+			double ambientHumidity,
+			double adoptedSourceHumidity,
+			double adoptedSourcePressureAnomalyPascals,
+			double motorEscVentilationFactor,
+			double batteryVentilationFactor,
+			Vec3 adoptedSourceGustVelocityWorldMetersPerSecond
+	) {
+		this(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				groundClearanceMeters,
+				turbulenceIntensity,
+				obstacleProximity,
+				droneWakeIntensity,
+				ceilingClearanceMeters,
+				rotorThrustMultipliers,
+				rotorFlowObstructions,
+				rotorFlowObstructionDirectionsBody,
+				rotorWaterImmersions,
+				waterImmersionIntensity,
+				rotorPrecipitationWetnesses,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius,
+				rotorFlowObstructionWallForceFactors,
+				effectiveAmbientTemperatureCelsius,
+				ambientHumidity,
+				adoptedSourceHumidity,
+				adoptedSourcePressureAnomalyPascals,
+				motorEscVentilationFactor,
+				batteryVentilationFactor,
+				adoptedSourceGustVelocityWorldMetersPerSecond,
+				0.0,
+				0.0
 		);
 	}
 
@@ -370,6 +431,20 @@ public record DroneEnvironment(
 				|| adoptedSourceGustVelocityWorldMetersPerSecond.z() > 30.0) {
 			adoptedSourceGustVelocityWorldMetersPerSecond =
 					adoptedSourceGustVelocityWorldMetersPerSecond.clamp(-30.0, 30.0);
+		}
+		if (!Double.isFinite(adoptedAblStability)) {
+			adoptedAblStability = 0.0;
+		}
+		adoptedAblStability = MathUtil.clamp(adoptedAblStability, -1.0, 1.0);
+		if (adoptedAblStability == 0.0) {
+			adoptedAblStability = 0.0;
+		}
+		if (!Double.isFinite(adoptedAblMixingStrength)) {
+			adoptedAblMixingStrength = 0.0;
+		}
+		adoptedAblMixingStrength = MathUtil.clamp(adoptedAblMixingStrength, 0.0, 1.0);
+		if (adoptedAblMixingStrength == 0.0) {
+			adoptedAblMixingStrength = 0.0;
 		}
 	}
 

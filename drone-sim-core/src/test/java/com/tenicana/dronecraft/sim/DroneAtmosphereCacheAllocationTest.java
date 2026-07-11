@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.sim;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.management.ManagementFactory;
@@ -139,6 +140,69 @@ class DroneAtmosphereCacheAllocationTest {
 		assertEquals(false, cache.resolve(inactive, Vec3.ZERO, 0.010));
 	}
 
+	@Test
+	void ablCacheResolveAllocatesZeroBytesAcrossIdentityHitsAndPrimitiveChanges() {
+		ThreadMXBean threadBean = allocationTrackingBean();
+		long threadId = Thread.currentThread().threadId();
+		DronePhysics.AblCache equalPrimitiveCache = new DronePhysics.AblCache();
+		DronePhysics.AblCache alternatingCache = new DronePhysics.AblCache();
+		DroneEnvironment unstableA = ablEnvironment(new Vec3(8.0, 0.0, 0.0), 1.0, 1.0);
+		DroneEnvironment unstableB = ablEnvironment(new Vec3(-3.0, 2.0, 6.0), 1.0, 1.0);
+		DroneEnvironment stable = ablEnvironment(Vec3.ZERO, -1.0, 0.0);
+
+		assertTrue(equalPrimitiveCache.resolve(unstableA));
+		assertTrue(alternatingCache.resolve(unstableA));
+		long warmupEqualRecomputations = 0L;
+		long warmupAlternatingRecomputations = 0L;
+		double checksum = 0.0;
+		for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+			warmupEqualRecomputations += equalPrimitiveCache.resolve(unstableB) ? 1L : 0L;
+			warmupEqualRecomputations += equalPrimitiveCache.resolve(unstableA) ? 1L : 0L;
+			warmupAlternatingRecomputations += alternatingCache.resolve(stable) ? 1L : 0L;
+			checksum += alternatingCache.drydenVerticalTimeScaleMultiplier();
+			warmupAlternatingRecomputations += alternatingCache.resolve(unstableA) ? 1L : 0L;
+			checksum += alternatingCache.drydenVerticalTimeScaleMultiplier();
+		}
+		assertEquals(0L, warmupEqualRecomputations);
+		assertEquals(2L * WARMUP_ITERATIONS, warmupAlternatingRecomputations);
+		assertTrue(checksum > 0.0);
+
+		long probe = threadBean.getThreadAllocatedBytes(threadId);
+		Assumptions.assumeTrue(probe >= 0L);
+		long allocatedBefore = threadBean.getThreadAllocatedBytes(threadId);
+		long equalRecomputations = 0L;
+		long alternatingRecomputations = 0L;
+		for (int i = 0; i < MEASURED_ITERATIONS; i++) {
+			equalRecomputations += equalPrimitiveCache.resolve(unstableB) ? 1L : 0L;
+			equalRecomputations += equalPrimitiveCache.resolve(unstableA) ? 1L : 0L;
+			alternatingRecomputations += alternatingCache.resolve(stable) ? 1L : 0L;
+			checksum += alternatingCache.boundaryDeficitMultiplier();
+			alternatingRecomputations += alternatingCache.resolve(unstableA) ? 1L : 0L;
+			checksum += alternatingCache.boundaryDeficitMultiplier();
+		}
+		long allocatedAfter = threadBean.getThreadAllocatedBytes(threadId);
+
+		assertEquals(0L, equalRecomputations);
+		assertEquals(2L * MEASURED_ITERATIONS, alternatingRecomputations);
+		assertTrue(Double.isFinite(checksum));
+		assertEquals(0L, allocatedAfter - allocatedBefore);
+	}
+
+	@Test
+	void drydenCacheKeyDistinguishesNeutralAndActiveAblOverloads() {
+		DronePhysics.DrydenStepCache cache = new DronePhysics.DrydenStepCache();
+		DronePhysics.AblCache activeAbl = new DronePhysics.AblCache();
+		DroneEnvironment environment = ablEnvironment(new Vec3(9.0, 0.0, -2.0), 1.0, 1.0);
+		Vec3 targetMeanWind = new Vec3(8.5, 0.0, -1.8);
+		assertTrue(activeAbl.resolve(environment));
+
+		assertTrue(cache.resolve(environment, targetMeanWind, 0.005));
+		assertTrue(cache.resolve(environment, targetMeanWind, 0.005, activeAbl));
+		assertFalse(cache.resolve(environment, targetMeanWind, 0.005, activeAbl));
+		assertTrue(cache.resolve(environment, targetMeanWind, 0.005));
+		assertFalse(cache.resolve(environment, targetMeanWind, 0.005));
+	}
+
 	private static ThreadMXBean allocationTrackingBean() {
 		java.lang.management.ThreadMXBean platformBean = ManagementFactory.getThreadMXBean();
 		Assumptions.assumeTrue(platformBean instanceof ThreadMXBean);
@@ -217,6 +281,36 @@ class DroneAtmosphereCacheAllocationTest {
 				effectiveAmbientTemperatureCelsius,
 				ambientHumidity,
 				adoptedSourceHumidity
+		);
+	}
+
+	private static DroneEnvironment ablEnvironment(Vec3 wind, double stability, double mixing) {
+		return new DroneEnvironment(
+				wind,
+				1.0,
+				6.0,
+				0.75,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				Vec3.ZERO,
+				stability,
+				mixing
 		);
 	}
 

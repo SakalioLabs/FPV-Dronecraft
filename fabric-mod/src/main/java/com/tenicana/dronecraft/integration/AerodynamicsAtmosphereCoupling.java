@@ -58,6 +58,34 @@ public final class AerodynamicsAtmosphereCoupling {
 		);
 	}
 
+	public static double adoptedAblStability(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere,
+			double sourceQuality
+	) {
+		if (atmosphere == null || !atmosphere.hasFlow() || sourceQuality <= 1.0e-9) {
+			return 0.0;
+		}
+		return MathUtil.clamp(
+				atmosphere.ablStability() * MathUtil.clamp(sourceQuality, 0.0, 1.0),
+				-1.0,
+				1.0
+		);
+	}
+
+	public static double adoptedAblMixingStrength(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere,
+			double sourceQuality
+	) {
+		if (atmosphere == null || !atmosphere.hasFlow() || sourceQuality <= 1.0e-9) {
+			return 0.0;
+		}
+		return MathUtil.clamp(
+				atmosphere.ablMixingStrength() * MathUtil.clamp(sourceQuality, 0.0, 1.0),
+				0.0,
+				1.0
+		);
+	}
+
 	public static double adoptedAtmosphereTurbulence(
 			double fallbackTurbulence,
 			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere,

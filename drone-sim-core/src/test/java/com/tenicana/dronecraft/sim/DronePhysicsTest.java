@@ -1449,6 +1449,55 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void ablStabilityShapesRotorWakeCoherenceBuildAndReleasePersistence() {
+		DroneConfig config = directControl(DroneConfig.coaxialX8())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics unstable = new DronePhysics(config);
+		DronePhysics stable = new DronePhysics(config);
+		DroneEnvironment unstableEnvironment = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, 1.0, 1.0);
+		DroneEnvironment stableEnvironment = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, -1.0, 0.0);
+		DroneInput powered = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 240; i++) {
+			holdInStillAir(unstable);
+			holdInStillAir(stable);
+			unstable.step(powered, 0.005, unstableEnvironment);
+			stable.step(powered, 0.005, stableEnvironment);
+		}
+		double unstableWake = unstable.state().maxRotorWakeInterferenceIntensity();
+		double stableWake = stable.state().maxRotorWakeInterferenceIntensity();
+		double unstableSwirl = unstable.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+		double stableSwirl = stable.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+		assertTrue(stableWake > unstableWake + 0.055,
+				() -> "stableWake=" + stableWake + " unstableWake=" + unstableWake);
+		assertTrue(stableSwirl > unstableSwirl + 0.055,
+				() -> "stableSwirl=" + stableSwirl + " unstableSwirl=" + unstableSwirl);
+
+		DroneInput released = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+		for (int i = 0; i < 48; i++) {
+			holdInStillAir(unstable);
+			holdInStillAir(stable);
+			unstable.step(released, 0.005, unstableEnvironment);
+			stable.step(released, 0.005, stableEnvironment);
+		}
+		double unstableLingeringWake = unstable.state().maxRotorWakeInterferenceIntensity();
+		double stableLingeringWake = stable.state().maxRotorWakeInterferenceIntensity();
+		double unstableLingeringSwirl = unstable.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+		double stableLingeringSwirl = stable.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+		assertTrue(stableLingeringWake > unstableLingeringWake + 0.040,
+				() -> "stableLingeringWake=" + stableLingeringWake
+						+ " unstableLingeringWake=" + unstableLingeringWake);
+		assertTrue(stableLingeringSwirl > unstableLingeringSwirl + 0.040,
+				() -> "stableLingeringSwirl=" + stableLingeringSwirl
+						+ " unstableLingeringSwirl=" + unstableLingeringSwirl);
+		assertTrue(stableLingeringWake > 0.08, () -> "stableLingeringWake=" + stableLingeringWake);
+		assertTrue(stableLingeringSwirl > 0.08, () -> "stableLingeringSwirl=" + stableLingeringSwirl);
+	}
+
+	@Test
 	void rotorWakeScratchBuffersAreReusedAndClearedOnInstantRelease() throws ReflectiveOperationException {
 		DroneConfig config = directControl(DroneConfig.coaxialX8())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
@@ -3692,6 +3741,185 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void ablCacheKeysOnlyTheAdoptedPrimitivesAndAnchorsTheClosureCoefficients() {
+		DronePhysics.AblCache cache = new DronePhysics.AblCache();
+		DroneEnvironment neutral = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, 0.0, 0.0);
+		DroneEnvironment equalNeutral = ablEnvironment(
+				new Vec3(9.0, -2.0, 4.0),
+				1.25,
+				0.08,
+				new Vec3(3.0, 1.0, -2.0),
+				0.0,
+				0.0
+		);
+
+		assertTrue(cache.resolve(neutral));
+		assertFalse(cache.resolve(neutral));
+		assertFalse(cache.resolve(equalNeutral), "non-ABL environment fields must not invalidate the cache");
+		assertTrue(cache.neutral());
+		assertRawBitsEqual(1.0, cache.boundaryDeficitMultiplier());
+		assertRawBitsEqual(1.0, cache.boundaryDirtyAirMultiplier());
+		assertRawBitsEqual(1.0, cache.wakeCoherenceMultiplier());
+		assertRawBitsEqual(1.0, cache.wakeBuildTimeScaleMultiplier());
+		assertRawBitsEqual(1.0, cache.wakeReleaseTimeScaleMultiplier());
+		assertRawBitsEqual(1.0, cache.drydenIntensityMultiplier());
+		assertRawBitsEqual(0.0, cache.drydenConvectiveFloorCoefficient());
+		assertRawBitsEqual(1.0, cache.drydenHorizontalTimeScaleMultiplier());
+		assertRawBitsEqual(1.0, cache.drydenVerticalTimeScaleMultiplier());
+		assertRawBitsEqual(1.0, cache.sourceGustHorizontalMultiplier());
+		assertRawBitsEqual(1.0, cache.sourceGustVerticalMultiplier());
+
+		DroneEnvironment unstable = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, 1.0, 1.0);
+		assertTrue(cache.resolve(unstable));
+		assertFalse(cache.neutral());
+		assertEquals(0.55, cache.boundaryDeficitMultiplier(), 1.0e-15);
+		assertEquals(0.68, cache.boundaryDirtyAirMultiplier(), 1.0e-15);
+		assertEquals(0.82, cache.wakeCoherenceMultiplier(), 1.0e-15);
+		assertEquals(1.16, cache.wakeBuildTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(0.64, cache.wakeReleaseTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(1.60, cache.drydenIntensityMultiplier(), 1.0e-15);
+		assertEquals(0.22, cache.drydenConvectiveFloorCoefficient(), 1.0e-15);
+		assertEquals(0.60, cache.drydenHorizontalTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(0.45, cache.drydenVerticalTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(1.16, cache.sourceGustHorizontalMultiplier(), 1.0e-15);
+		assertEquals(1.55, cache.sourceGustVerticalMultiplier(), 1.0e-15);
+		assertFalse(cache.resolve(ablEnvironment(
+				new Vec3(-4.0, 7.0, 2.0),
+				0.35,
+				2.0,
+				Vec3.ZERO,
+				1.0,
+				1.0
+		)));
+
+		DroneEnvironment halfQualityUnstable = ablEnvironment(
+				Vec3.ZERO,
+				0.0,
+				6.0,
+				Vec3.ZERO,
+				0.5,
+				0.5
+		);
+		assertTrue(cache.resolve(halfQualityUnstable));
+		assertEquals(0.8025, cache.boundaryDeficitMultiplier(), 1.0e-15,
+				"each adopted primitive must consume source quality exactly once before their cross-term");
+		assertEquals(0.055, cache.drydenConvectiveFloorCoefficient(), 1.0e-15,
+				"mixed-unstable must retain the sim/lab q-squared interaction");
+
+		DroneEnvironment stable = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, -1.0, 0.0);
+		assertTrue(cache.resolve(stable));
+		assertEquals(1.32, cache.boundaryDeficitMultiplier(), 1.0e-15);
+		assertEquals(1.28, cache.boundaryDirtyAirMultiplier(), 1.0e-15);
+		assertEquals(1.16, cache.wakeCoherenceMultiplier(), 1.0e-15);
+		assertEquals(0.92, cache.wakeBuildTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(1.34, cache.wakeReleaseTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(0.66, cache.drydenIntensityMultiplier(), 1.0e-15);
+		assertRawBitsEqual(0.0, cache.drydenConvectiveFloorCoefficient());
+		assertEquals(1.45, cache.drydenHorizontalTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(1.70, cache.drydenVerticalTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(0.88, cache.sourceGustHorizontalMultiplier(), 1.0e-15);
+		assertEquals(0.48, cache.sourceGustVerticalMultiplier(), 1.0e-15);
+	}
+
+	@Test
+	void ablShapesDrydenIntensityAndNormalizedResponseRate() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics unstable = new DronePhysics(config);
+		DronePhysics stable = new DronePhysics(config);
+		DroneInput idle = DroneInput.idle();
+		Vec3 wind = new Vec3(10.0, 0.0, 0.0);
+		DroneEnvironment neutralEnvironment = ablEnvironment(wind, 0.75, 6.0, Vec3.ZERO, 0.0, 0.0);
+		DroneEnvironment unstableEnvironment = ablEnvironment(wind, 0.75, 6.0, Vec3.ZERO, 1.0, 1.0);
+		DroneEnvironment stableEnvironment = ablEnvironment(wind, 0.75, 6.0, Vec3.ZERO, -1.0, 0.0);
+		double neutralSquared = 0.0;
+		double unstableSquared = 0.0;
+		double stableSquared = 0.0;
+		double neutralStepSquared = 0.0;
+		double unstableStepSquared = 0.0;
+		double stableStepSquared = 0.0;
+		Vec3 previousNeutral = Vec3.ZERO;
+		Vec3 previousUnstable = Vec3.ZERO;
+		Vec3 previousStable = Vec3.ZERO;
+		int samples = 0;
+
+		for (int i = 0; i < 5200; i++) {
+			neutral.step(idle, 0.005, neutralEnvironment);
+			unstable.step(idle, 0.005, unstableEnvironment);
+			stable.step(idle, 0.005, stableEnvironment);
+			Vec3 neutralDryden = neutral.state().drydenTurbulenceVelocityWorldMetersPerSecond();
+			Vec3 unstableDryden = unstable.state().drydenTurbulenceVelocityWorldMetersPerSecond();
+			Vec3 stableDryden = stable.state().drydenTurbulenceVelocityWorldMetersPerSecond();
+			if (i >= 400) {
+				neutralSquared += neutralDryden.lengthSquared();
+				unstableSquared += unstableDryden.lengthSquared();
+				stableSquared += stableDryden.lengthSquared();
+				neutralStepSquared += neutralDryden.subtract(previousNeutral).lengthSquared();
+				unstableStepSquared += unstableDryden.subtract(previousUnstable).lengthSquared();
+				stableStepSquared += stableDryden.subtract(previousStable).lengthSquared();
+				samples++;
+			}
+			previousNeutral = neutralDryden;
+			previousUnstable = unstableDryden;
+			previousStable = stableDryden;
+		}
+
+		double neutralRms = Math.sqrt(neutralSquared / samples);
+		double unstableRms = Math.sqrt(unstableSquared / samples);
+		double stableRms = Math.sqrt(stableSquared / samples);
+		double neutralStepRate = Math.sqrt(neutralStepSquared / samples) / neutralRms;
+		double unstableStepRate = Math.sqrt(unstableStepSquared / samples) / unstableRms;
+		double stableStepRate = Math.sqrt(stableStepSquared / samples) / stableRms;
+		assertTrue(unstableRms > neutralRms * 1.30,
+				() -> "unstableRms=" + unstableRms + " neutralRms=" + neutralRms);
+		assertTrue(stableRms < neutralRms * 0.94,
+				() -> "stableRms=" + stableRms + " neutralRms=" + neutralRms);
+		assertTrue(unstableStepRate > neutralStepRate * 1.12,
+				() -> "unstableStepRate=" + unstableStepRate + " neutralStepRate=" + neutralStepRate);
+		assertTrue(stableStepRate < neutralStepRate * 0.94,
+				() -> "stableStepRate=" + stableStepRate + " neutralStepRate=" + neutralStepRate);
+	}
+
+	@Test
+	void ablShapesSurfaceBoundaryProfileWhileNeutralRetainsRawAnchors() throws ReflectiveOperationException {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics unstable = new DronePhysics(config);
+		DronePhysics stable = new DronePhysics(config);
+		Vec3 crosswind = new Vec3(10.0, 0.0, 0.0);
+		DroneEnvironment neutralEnvironment = ablEnvironment(crosswind, 0.0, 0.08, Vec3.ZERO, 0.0, 0.0);
+		DroneEnvironment unstableEnvironment = ablEnvironment(crosswind, 0.0, 0.08, Vec3.ZERO, 1.0, 1.0);
+		DroneEnvironment stableEnvironment = ablEnvironment(crosswind, 0.0, 0.08, Vec3.ZERO, -1.0, 0.0);
+		neutral.step(DroneInput.idle(), 0.005, neutralEnvironment);
+		unstable.step(DroneInput.idle(), 0.005, unstableEnvironment);
+		stable.step(DroneInput.idle(), 0.005, stableEnvironment);
+
+		Method boundaryWind = DronePhysics.class.getDeclaredMethod("boundaryLayerMeanWind", DroneEnvironment.class);
+		Method dirtyAir = DronePhysics.class.getDeclaredMethod("dirtyAirIntensity", DroneEnvironment.class);
+		boundaryWind.setAccessible(true);
+		dirtyAir.setAccessible(true);
+		Vec3 neutralWind = (Vec3) boundaryWind.invoke(neutral, neutralEnvironment);
+		Vec3 unstableWind = (Vec3) boundaryWind.invoke(unstable, unstableEnvironment);
+		Vec3 stableWind = (Vec3) boundaryWind.invoke(stable, stableEnvironment);
+		double neutralDirty = (double) dirtyAir.invoke(neutral, neutralEnvironment);
+		double unstableDirty = (double) dirtyAir.invoke(unstable, unstableEnvironment);
+		double stableDirty = (double) dirtyAir.invoke(stable, stableEnvironment);
+
+		assertEquals(0x3fff4f1cb2e7dcacL, Double.doubleToRawLongBits(neutralWind.x()),
+				"neutral boundary profile changed");
+		assertEquals(0x3fd5c28f5c28f5c3L, Double.doubleToRawLongBits(neutralDirty),
+				"neutral dirty-air ceiling changed");
+		assertTrue(unstableWind.x() > neutralWind.x() * 1.60,
+				() -> "unstableWind=" + unstableWind.x() + " neutralWind=" + neutralWind.x());
+		assertTrue(stableWind.x() < neutralWind.x() * 0.60,
+				() -> "stableWind=" + stableWind.x() + " neutralWind=" + neutralWind.x());
+		assertTrue(unstableDirty < neutralDirty * 0.55,
+				() -> "unstableDirty=" + unstableDirty + " neutralDirty=" + neutralDirty);
+		assertTrue(stableDirty > neutralDirty * 1.20,
+				() -> "stableDirty=" + stableDirty + " neutralDirty=" + neutralDirty);
+	}
+
+	@Test
 	void coherentSourceGustJoinsTheTransientWindWithoutChangingMeanOrDryden() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DroneInput idle = DroneInput.idle();
@@ -3732,6 +3960,39 @@ class DronePhysicsTest {
 				reversed.state().windGustVelocityWorldMetersPerSecond(),
 				1.0e-12
 		);
+	}
+
+	@Test
+	void ablShapesCoherentGustHorizontalAndVerticalComponentsWithoutExtraState() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics unstable = new DronePhysics(config);
+		DronePhysics stable = new DronePhysics(config);
+		Vec3 meanWind = Vec3.ZERO;
+		Vec3 sourceGust = new Vec3(3.0, 4.0, 0.0);
+		DroneEnvironment neutralEnvironment = ablEnvironment(meanWind, 0.0, 6.0, sourceGust, 0.0, 0.0);
+		DroneEnvironment unstableEnvironment = ablEnvironment(meanWind, 0.0, 6.0, sourceGust, 1.0, 1.0);
+		DroneEnvironment stableEnvironment = ablEnvironment(meanWind, 0.0, 6.0, sourceGust, -1.0, 0.0);
+
+		for (int i = 0; i < 2; i++) {
+			neutral.step(DroneInput.idle(), 0.005, neutralEnvironment);
+			unstable.step(DroneInput.idle(), 0.005, unstableEnvironment);
+			stable.step(DroneInput.idle(), 0.005, stableEnvironment);
+		}
+
+		Vec3 neutralGust = neutral.state().windGustVelocityWorldMetersPerSecond();
+		Vec3 unstableGust = unstable.state().windGustVelocityWorldMetersPerSecond();
+		Vec3 stableGust = stable.state().windGustVelocityWorldMetersPerSecond();
+		assertEquals(neutralGust.x() * 1.16, unstableGust.x(), 1.0e-12);
+		assertEquals(neutralGust.y() * 1.55, unstableGust.y(), 1.0e-12);
+		assertEquals(neutralGust.x() * 0.88, stableGust.x(), 1.0e-12);
+		assertEquals(neutralGust.y() * 0.48, stableGust.y(), 1.0e-12);
+		assertEquals(Vec3.ZERO, neutral.state().drydenTurbulenceVelocityWorldMetersPerSecond());
+		assertEquals(Vec3.ZERO, unstable.state().drydenTurbulenceVelocityWorldMetersPerSecond());
+		assertEquals(Vec3.ZERO, stable.state().drydenTurbulenceVelocityWorldMetersPerSecond());
+		assertVecClose(meanWind, neutral.aerodynamicTransientStateSnapshot().meanWindVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(meanWind, unstable.aerodynamicTransientStateSnapshot().meanWindVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(meanWind, stable.aerodynamicTransientStateSnapshot().meanWindVelocityWorldMetersPerSecond(), 1.0e-12);
 	}
 
 	@Test
@@ -10816,6 +11077,51 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void ablStabilityShapesPropwashWakeBuildAndReleasePersistence() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO);
+		DronePhysics unstable = new DronePhysics(config);
+		DronePhysics stable = new DronePhysics(config);
+		DroneEnvironment unstableEnvironment = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, 1.0, 1.0);
+		DroneEnvironment stableEnvironment = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, -1.0, 0.0);
+		Vec3 descent = new Vec3(0.0, -8.0, 0.0);
+		DroneInput lowThrottleDescent = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 240; i++) {
+			unstable.state().setOrientation(Quaternion.IDENTITY);
+			stable.state().setOrientation(Quaternion.IDENTITY);
+			unstable.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			stable.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			unstable.state().setVelocityMetersPerSecond(descent);
+			stable.state().setVelocityMetersPerSecond(descent);
+			unstable.step(lowThrottleDescent, 0.005, unstableEnvironment);
+			stable.step(lowThrottleDescent, 0.005, stableEnvironment);
+		}
+		double unstableBuiltWake = unstable.state().propwashWakeIntensity();
+		double stableBuiltWake = stable.state().propwashWakeIntensity();
+		assertTrue(stableBuiltWake > unstableBuiltWake + 0.030,
+				() -> "stableBuiltWake=" + stableBuiltWake + " unstableBuiltWake=" + unstableBuiltWake);
+
+		for (int i = 0; i < 32; i++) {
+			unstable.state().setOrientation(Quaternion.IDENTITY);
+			stable.state().setOrientation(Quaternion.IDENTITY);
+			unstable.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			stable.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			unstable.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			stable.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			unstable.step(lowThrottleDescent, 0.005, unstableEnvironment);
+			stable.step(lowThrottleDescent, 0.005, stableEnvironment);
+		}
+		double unstableLingeringWake = unstable.state().propwashWakeIntensity();
+		double stableLingeringWake = stable.state().propwashWakeIntensity();
+		assertTrue(stableLingeringWake > unstableLingeringWake + 0.025,
+				() -> "stableLingeringWake=" + stableLingeringWake
+						+ " unstableLingeringWake=" + unstableLingeringWake);
+		assertTrue(stableLingeringWake > 0.06, () -> "stableLingeringWake=" + stableLingeringWake);
+	}
+
+	@Test
 	void propwashRequiresRetainedDescendingWake() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
@@ -13007,6 +13313,43 @@ class DronePhysicsTest {
 				1.0,
 				1.0,
 				adoptedSourceGustVelocityWorldMetersPerSecond
+		);
+	}
+
+	private static DroneEnvironment ablEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double turbulenceIntensity,
+			double groundClearanceMeters,
+			Vec3 adoptedSourceGustVelocityWorldMetersPerSecond,
+			double adoptedAblStability,
+			double adoptedAblMixingStrength
+	) {
+		return new DroneEnvironment(
+				windVelocityWorldMetersPerSecond,
+				1.0,
+				groundClearanceMeters,
+				turbulenceIntensity,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				adoptedSourceGustVelocityWorldMetersPerSecond,
+				adoptedAblStability,
+				adoptedAblMixingStrength
 		);
 	}
 

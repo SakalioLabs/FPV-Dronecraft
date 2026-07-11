@@ -18,6 +18,10 @@ class DroneEnvironmentAtmosphereTest {
 		assertRawEquals(1.0, environment.batteryVentilationFactor());
 		assertEquals(Vec3.ZERO, environment.adoptedSourceGustVelocityWorldMetersPerSecond());
 		assertSame(Vec3.ZERO, DroneEnvironment.calm().adoptedSourceGustVelocityWorldMetersPerSecond());
+		assertRawEquals(0.0, environment.adoptedAblStability());
+		assertRawEquals(0.0, environment.adoptedAblMixingStrength());
+		assertRawEquals(0.0, DroneEnvironment.calm().adoptedAblStability());
+		assertRawEquals(0.0, DroneEnvironment.calm().adoptedAblMixingStrength());
 		assertRawEquals(0.85 * 0.9789925675447962, environment.effectiveAirDensityRatio());
 
 		DroneEnvironment dry = legacyEnvironment(1.0, 35.0, 0.0);
@@ -28,6 +32,25 @@ class DroneEnvironmentAtmosphereTest {
 				DroneEnvironment.speedOfSoundMetersPerSecond(35.0),
 				DroneEnvironment.speedOfSoundMetersPerSecond(35.0, 0.0)
 		);
+	}
+
+	@Test
+	void adoptedAblPrimitivesAreFiniteClampedAndNormalizeNeutralZero() {
+		DroneEnvironment nonFinite = explicitAblEnvironment(Double.NaN, Double.POSITIVE_INFINITY);
+		assertRawEquals(0.0, nonFinite.adoptedAblStability());
+		assertRawEquals(0.0, nonFinite.adoptedAblMixingStrength());
+
+		DroneEnvironment lower = explicitAblEnvironment(-2.0, -2.0);
+		assertRawEquals(-1.0, lower.adoptedAblStability());
+		assertRawEquals(0.0, lower.adoptedAblMixingStrength());
+
+		DroneEnvironment upper = explicitAblEnvironment(2.0, 2.0);
+		assertRawEquals(1.0, upper.adoptedAblStability());
+		assertRawEquals(1.0, upper.adoptedAblMixingStrength());
+
+		DroneEnvironment signedZero = explicitAblEnvironment(-0.0, -0.0);
+		assertRawEquals(0.0, signedZero.adoptedAblStability());
+		assertRawEquals(0.0, signedZero.adoptedAblMixingStrength());
 	}
 
 	@Test
@@ -359,6 +382,36 @@ class DroneEnvironmentAtmosphereTest {
 				1.0,
 				1.0,
 				sourceGust
+		);
+	}
+
+	private static DroneEnvironment explicitAblEnvironment(double stability, double mixingStrength) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				Vec3.ZERO,
+				stability,
+				mixingStrength
 		);
 	}
 
