@@ -51,6 +51,7 @@ import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder.RecordingSource;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.control.DroneControlManager;
+import com.tenicana.dronecraft.integration.Aerodynamics4McAtmosphereBridge;
 import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -1323,6 +1324,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private DroneEnvironment sampleEnvironment() {
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample externalAtmosphere = sampleAerodynamicsAtmosphere();
 		Vec3 sourceWind = environmentOverride.windOr(weatherWindMetersPerSecond());
 		DroneWakeAirflow droneWake = sampleDroneWakeAirflow();
 		ObstacleAirflow obstacleAirflow = sampleObstacleAirflow(sourceWind.add(droneWake.windVelocityWorldMetersPerSecond()));
@@ -1332,6 +1334,22 @@ public class DroneEntity extends Entity {
 		WaterImmersion waterImmersion = sampleWaterImmersion();
 		PrecipitationWetness precipitationWetness = samplePrecipitationWetness(sourceWind.length());
 		double ambientTemperature = ambientTemperatureCelsius();
+		double sourceQuality = atmosphereSourceQuality(externalAtmosphere);
+		double effectiveAmbientTemperature = DroneEnvironment.adoptedSourceTemperatureCelsius(
+				ambientTemperature,
+				externalAtmosphere.hasTemperature(),
+				externalAtmosphere.temperatureCelsius(),
+				sourceQuality
+		);
+		double adoptedSourceHumidity = DroneEnvironment.adoptedSourceHumidity(
+				externalAtmosphere.hasHumidity(),
+				externalAtmosphere.humidity(),
+				sourceQuality
+		);
+		double ambientHumidity = DroneEnvironment.ambientHumidity(
+				precipitationWetness.averageWetness(),
+				adoptedSourceHumidity
+		);
 		double turbulenceIntensity = MathUtil.clamp(
 				environmentOverride.turbulenceOr(weatherTurbulenceIntensity(sourceWind.length(), groundClearance))
 						+ obstacleAirflow.turbulenceBoost()
@@ -1358,7 +1376,10 @@ public class DroneEntity extends Entity {
 				precipitationWetness.rotorWetnesses(),
 				precipitationWetness.averageWetness(),
 				ambientTemperature,
-				rotorEffects.flowObstructionWallForceFactors()
+				rotorEffects.flowObstructionWallForceFactors(),
+				effectiveAmbientTemperature,
+				ambientHumidity,
+				adoptedSourceHumidity
 		);
 	}
 
@@ -1369,6 +1390,19 @@ public class DroneEntity extends Entity {
 	private DroneEnvironment samplePlayableStageOneEnvironment() {
 		double groundClearance = groundClearanceMeters();
 		double ambientTemperature = ambientTemperatureCelsius();
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample externalAtmosphere = sampleAerodynamicsAtmosphere();
+		double sourceQuality = atmosphereSourceQuality(externalAtmosphere);
+		double effectiveAmbientTemperature = DroneEnvironment.adoptedSourceTemperatureCelsius(
+				ambientTemperature,
+				externalAtmosphere.hasTemperature(),
+				externalAtmosphere.temperatureCelsius(),
+				sourceQuality
+		);
+		double adoptedSourceHumidity = DroneEnvironment.adoptedSourceHumidity(
+				externalAtmosphere.hasHumidity(),
+				externalAtmosphere.humidity(),
+				sourceQuality
+		);
 		return new DroneEnvironment(
 				Vec3.ZERO,
 				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature)),
@@ -1384,7 +1418,38 @@ public class DroneEntity extends Entity {
 				0.0,
 				null,
 				0.0,
-				ambientTemperature
+				ambientTemperature,
+				null,
+				effectiveAmbientTemperature,
+				adoptedSourceHumidity,
+				adoptedSourceHumidity
+		);
+	}
+
+	private Aerodynamics4McAtmosphereBridge.AtmosphereSample sampleAerodynamicsAtmosphere() {
+		if (environmentOverride.windEnabled()) {
+			return Aerodynamics4McAtmosphereBridge.AtmosphereSample.unavailable();
+		}
+		return level() instanceof ServerLevel serverLevel
+				? Aerodynamics4McAtmosphereBridge.sampleGameplay(
+						serverLevel,
+						getX(),
+						getY() + physicsCenterYOffsetMeters(),
+						getZ()
+				)
+				: Aerodynamics4McAtmosphereBridge.AtmosphereSample.unavailable();
+	}
+
+	private static double atmosphereSourceQuality(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere
+	) {
+		if (atmosphere == null || !atmosphere.hasFlow()) {
+			return 0.0;
+		}
+		return DroneEnvironment.windSourceQualityFactor(
+				atmosphere.trustedForGameplay(),
+				atmosphere.confidence(),
+				atmosphere.freshnessAgeTicks()
 		);
 	}
 

@@ -16,13 +16,25 @@ public record DroneEnvironment(
 		double[] rotorPrecipitationWetnesses,
 		double precipitationWetnessIntensity,
 		double ambientTemperatureCelsius,
-		double[] rotorFlowObstructionWallForceFactors
+		double[] rotorFlowObstructionWallForceFactors,
+		double effectiveAmbientTemperatureCelsius,
+		double ambientHumidity,
+		double adoptedSourceHumidity
 ) {
 	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
+	private static final long WIND_SOURCE_FULL_TRUST_AGE_TICKS = 40L;
+	private static final long WIND_SOURCE_ZERO_TRUST_AGE_TICKS = 160L;
 	private static final double STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN = 288.15;
 	private static final double STANDARD_LAPSE_RATE_KELVIN_PER_METER = 0.0065;
 	private static final double STANDARD_PRESSURE_EXPONENT = 5.255;
 	private static final double WATER_VAPOR_DRY_AIR_DENSITY_RELIEF = 0.378;
+	private static final double WATER_VAPOR_DRY_AIR_VISCOSITY_RELIEF = 0.26;
+	private static final double DRY_AIR_SPECIFIC_GAS_CONSTANT = 287.05;
+	private static final double WATER_VAPOR_SPECIFIC_GAS_CONSTANT = 461.5;
+	private static final double DRY_AIR_SPECIFIC_HEAT_CP = 1004.675;
+	private static final double WATER_VAPOR_SPECIFIC_HEAT_CP = 1859.0;
+	private static final double DRY_AIR_MOLAR_MASS_KG_PER_MOL = 0.0289652;
+	private static final double WATER_VAPOR_MOLAR_MASS_KG_PER_MOL = 0.01801528;
 	private static final double ZJU_GROUND_EFFECT_G1_METERS_SQUARED = 0.01804;
 	private static final double ZJU_GROUND_EFFECT_G3_METERS = -0.3365;
 	private static final double ZJU_GROUND_EFFECT_G4_METERS_SQUARED = 0.04126;
@@ -112,6 +124,47 @@ public record DroneEnvironment(
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, null);
 	}
 
+	public DroneEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double groundClearanceMeters,
+			double turbulenceIntensity,
+			double obstacleProximity,
+			double droneWakeIntensity,
+			double ceilingClearanceMeters,
+			double[] rotorThrustMultipliers,
+			double[] rotorFlowObstructions,
+			Vec3[] rotorFlowObstructionDirectionsBody,
+			double[] rotorWaterImmersions,
+			double waterImmersionIntensity,
+			double[] rotorPrecipitationWetnesses,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			double[] rotorFlowObstructionWallForceFactors
+	) {
+		this(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				groundClearanceMeters,
+				turbulenceIntensity,
+				obstacleProximity,
+				droneWakeIntensity,
+				ceilingClearanceMeters,
+				rotorThrustMultipliers,
+				rotorFlowObstructions,
+				rotorFlowObstructionDirectionsBody,
+				rotorWaterImmersions,
+				waterImmersionIntensity,
+				rotorPrecipitationWetnesses,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius,
+				rotorFlowObstructionWallForceFactors,
+				ambientTemperatureCelsius,
+				precipitationWetnessIntensity,
+				0.0
+		);
+	}
+
 	public DroneEnvironment {
 		if (windVelocityWorldMetersPerSecond == null) {
 			windVelocityWorldMetersPerSecond = Vec3.ZERO;
@@ -156,6 +209,26 @@ public record DroneEnvironment(
 			ambientTemperatureCelsius = 25.0;
 		}
 		ambientTemperatureCelsius = MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0);
+		if (!Double.isFinite(effectiveAmbientTemperatureCelsius)) {
+			effectiveAmbientTemperatureCelsius = ambientTemperatureCelsius;
+		}
+		effectiveAmbientTemperatureCelsius = MathUtil.clamp(
+				effectiveAmbientTemperatureCelsius,
+				-40.0,
+				65.0
+		);
+		if (!Double.isFinite(adoptedSourceHumidity)) {
+			adoptedSourceHumidity = 0.0;
+		}
+		adoptedSourceHumidity = MathUtil.clamp(adoptedSourceHumidity, 0.0, 1.0);
+		if (!Double.isFinite(ambientHumidity)) {
+			ambientHumidity = precipitationWetnessIntensity;
+		}
+		ambientHumidity = MathUtil.clamp(
+				Math.max(ambientHumidity, Math.max(precipitationWetnessIntensity, adoptedSourceHumidity)),
+				0.0,
+				1.0
+		);
 	}
 
 	public static DroneEnvironment calm() {
@@ -187,31 +260,210 @@ public record DroneEnvironment(
 		return Math.sqrt(1.4 * 287.05 * temperatureKelvin);
 	}
 
+	public static double speedOfSoundMetersPerSecond(double ambientTemperatureCelsius, double humidity) {
+		double wetness = sanitizeHumidity(humidity);
+		if (wetness <= 1.0e-9) {
+			return speedOfSoundMetersPerSecond(ambientTemperatureCelsius);
+		}
+		return speedOfSoundMetersPerSecondFromVaporMoleFraction(
+				ambientTemperatureCelsius,
+				moistAirVaporMoleFraction(ambientTemperatureCelsius, wetness)
+		);
+	}
+
+	public static double speedOfSoundMetersPerSecondFromVaporMoleFraction(
+			double ambientTemperatureCelsius,
+			double vaporMoleFraction
+	) {
+		if (!Double.isFinite(ambientTemperatureCelsius)) {
+			ambientTemperatureCelsius = 25.0;
+		}
+		double temperatureKelvin = MathUtil.clamp(ambientTemperatureCelsius + 273.15, 233.15, 338.15);
+		double vaporMassFraction = vaporMassFraction(vaporMoleFraction);
+		double gasConstant = (1.0 - vaporMassFraction) * DRY_AIR_SPECIFIC_GAS_CONSTANT
+				+ vaporMassFraction * WATER_VAPOR_SPECIFIC_GAS_CONSTANT;
+		double specificHeatCp = (1.0 - vaporMassFraction) * DRY_AIR_SPECIFIC_HEAT_CP
+				+ vaporMassFraction * WATER_VAPOR_SPECIFIC_HEAT_CP;
+		double gamma = specificHeatCp / Math.max(1.0e-9, specificHeatCp - gasConstant);
+		return Math.sqrt(gamma * gasConstant * temperatureKelvin);
+	}
+
+	public static double windSourceQualityFactor(
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks
+	) {
+		if (!trustedForGameplay) {
+			return 0.0;
+		}
+		double trust = Double.isFinite(confidence) ? MathUtil.clamp(confidence, 0.0, 1.0) : 0.0;
+		return trust * windSourceFreshnessFactor(freshnessAgeTicks);
+	}
+
+	public static double windSourceFreshnessFactor(long freshnessAgeTicks) {
+		if (freshnessAgeTicks < 0L || freshnessAgeTicks <= WIND_SOURCE_FULL_TRUST_AGE_TICKS) {
+			return 1.0;
+		}
+		if (freshnessAgeTicks >= WIND_SOURCE_ZERO_TRUST_AGE_TICKS) {
+			return 0.0;
+		}
+		double t = (freshnessAgeTicks - WIND_SOURCE_FULL_TRUST_AGE_TICKS)
+				/ (double) (WIND_SOURCE_ZERO_TRUST_AGE_TICKS - WIND_SOURCE_FULL_TRUST_AGE_TICKS);
+		return 1.0 - t * t * (3.0 - 2.0 * t);
+	}
+
+	public static double adoptedSourceTemperatureCelsius(
+			double fallbackAmbientTemperatureCelsius,
+			boolean hasTemperature,
+			double sourceTemperatureCelsius,
+			double sourceQualityFactor
+	) {
+		double fallback = Double.isFinite(fallbackAmbientTemperatureCelsius)
+				? MathUtil.clamp(fallbackAmbientTemperatureCelsius, -40.0, 65.0)
+				: 25.0;
+		if (!hasTemperature || !Double.isFinite(sourceTemperatureCelsius)) {
+			return fallback;
+		}
+		double quality = Double.isFinite(sourceQualityFactor)
+				? MathUtil.clamp(sourceQualityFactor, 0.0, 1.0)
+				: 0.0;
+		if (quality <= 1.0e-9) {
+			return fallback;
+		}
+		double source = MathUtil.clamp(sourceTemperatureCelsius, -40.0, 65.0);
+		return MathUtil.clamp(fallback * (1.0 - quality) + source * quality, -40.0, 65.0);
+	}
+
+	public static double adoptedSourceHumidity(
+			boolean hasHumidity,
+			double sourceHumidity,
+			double sourceQualityFactor
+	) {
+		if (!hasHumidity || !Double.isFinite(sourceHumidity) || !Double.isFinite(sourceQualityFactor)) {
+			return 0.0;
+		}
+		double humidity = MathUtil.clamp(sourceHumidity, 0.0, 1.0);
+		double quality = MathUtil.clamp(sourceQualityFactor, 0.0, 1.0);
+		return MathUtil.clamp(humidity * quality, 0.0, 1.0);
+	}
+
+	public static double ambientHumidity(double precipitationWetnessIntensity, double adoptedSourceHumidity) {
+		double precipitation = sanitizeHumidity(precipitationWetnessIntensity);
+		double sourceHumidity = sanitizeHumidity(adoptedSourceHumidity);
+		return Math.max(precipitation, sourceHumidity);
+	}
+
 	public double effectiveAirDensityRatio() {
 		return MathUtil.clamp(
-				airDensityRatio * moistAirDensityMultiplier(ambientTemperatureCelsius, precipitationWetnessIntensity),
+				airDensityRatio
+						* temperatureAirDensityMultiplier(
+								ambientTemperatureCelsius,
+								effectiveAmbientTemperatureCelsius
+						)
+						* moistAirDensityMultiplier(effectiveAmbientTemperatureCelsius, ambientHumidity),
 				0.35,
 				1.35
 		);
 	}
 
-	public static double moistAirDensityMultiplier(double ambientTemperatureCelsius, double precipitationWetnessIntensity) {
+	private static double temperatureAirDensityMultiplier(
+			double referenceTemperatureCelsius,
+			double effectiveTemperatureCelsius
+	) {
+		double referenceKelvin = MathUtil.clamp(referenceTemperatureCelsius + 273.15, 233.15, 338.15);
+		double effectiveKelvin = MathUtil.clamp(effectiveTemperatureCelsius + 273.15, 233.15, 338.15);
+		return referenceKelvin / effectiveKelvin;
+	}
+
+	public static double moistAirDensityMultiplier(double ambientTemperatureCelsius, double humidity) {
 		if (!Double.isFinite(ambientTemperatureCelsius)) {
 			ambientTemperatureCelsius = 25.0;
 		}
-		double wetness = MathUtil.clamp(precipitationWetnessIntensity, 0.0, 1.0);
+		double wetness = sanitizeHumidity(humidity);
 		if (wetness <= 1.0e-9) {
 			return 1.0;
 		}
 
-		double temperatureCelsius = MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0);
-		double saturationVaporPressureHectopascals = saturationVaporPressureHectopascals(temperatureCelsius);
-		double vaporPressureFraction = saturationVaporPressureHectopascals / SEA_LEVEL_PRESSURE_HECTOPASCALS;
-		double densityRelief = WATER_VAPOR_DRY_AIR_DENSITY_RELIEF * vaporPressureFraction * wetness;
+		return moistAirDensityMultiplierFromVaporMoleFraction(
+				moistAirVaporMoleFraction(ambientTemperatureCelsius, wetness)
+		);
+	}
+
+	public static double moistAirDensityMultiplierFromVaporMoleFraction(double vaporMoleFraction) {
+		double densityRelief = WATER_VAPOR_DRY_AIR_DENSITY_RELIEF * sanitizeVaporMoleFraction(vaporMoleFraction);
 		return MathUtil.clamp(1.0 - densityRelief, 0.94, 1.0);
 	}
 
-	private static double saturationVaporPressureHectopascals(double ambientTemperatureCelsius) {
+	public static double moistAirDynamicViscosityMultiplier(double ambientTemperatureCelsius, double humidity) {
+		double wetness = sanitizeHumidity(humidity);
+		if (wetness <= 1.0e-9) {
+			return 1.0;
+		}
+		return moistAirDynamicViscosityMultiplierFromVaporMoleFraction(
+				moistAirVaporMoleFraction(ambientTemperatureCelsius, wetness)
+		);
+	}
+
+	public static double moistAirDynamicViscosityMultiplierFromVaporMoleFraction(double vaporMoleFraction) {
+		double viscosityRelief = WATER_VAPOR_DRY_AIR_VISCOSITY_RELIEF
+				* sanitizeVaporMoleFraction(vaporMoleFraction);
+		return MathUtil.clamp(1.0 - viscosityRelief, 0.92, 1.0);
+	}
+
+	public static double moistAirCoolingMultiplier(double ambientTemperatureCelsius, double humidity) {
+		double wetness = sanitizeHumidity(humidity);
+		if (wetness <= 1.0e-9) {
+			return 1.0;
+		}
+		if (!Double.isFinite(ambientTemperatureCelsius)) {
+			ambientTemperatureCelsius = 25.0;
+		}
+		double saturationVaporPressureFraction = saturationVaporPressureHectopascals(
+				ambientTemperatureCelsius
+		) / SEA_LEVEL_PRESSURE_HECTOPASCALS;
+		return MathUtil.clamp(
+				1.0 - wetness * (0.030 + 0.45 * saturationVaporPressureFraction),
+				0.90,
+				1.0
+		);
+	}
+
+	public static double moistAirVaporMoleFraction(double ambientTemperatureCelsius, double humidity) {
+		if (!Double.isFinite(ambientTemperatureCelsius)) {
+			ambientTemperatureCelsius = 25.0;
+		}
+		double wetness = sanitizeHumidity(humidity);
+		if (wetness <= 1.0e-9) {
+			return 0.0;
+		}
+		double temperatureCelsius = MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0);
+		double saturationVaporPressureHectopascals = saturationVaporPressureHectopascals(temperatureCelsius);
+		return MathUtil.clamp(
+				wetness * saturationVaporPressureHectopascals / SEA_LEVEL_PRESSURE_HECTOPASCALS,
+				0.0,
+				0.35
+		);
+	}
+
+	private static double vaporMassFraction(double vaporMoleFraction) {
+		double vapor = sanitizeVaporMoleFraction(vaporMoleFraction);
+		double dry = 1.0 - vapor;
+		double vaporMass = vapor * WATER_VAPOR_MOLAR_MASS_KG_PER_MOL;
+		double dryMass = dry * DRY_AIR_MOLAR_MASS_KG_PER_MOL;
+		return vaporMass / Math.max(1.0e-12, vaporMass + dryMass);
+	}
+
+	private static double sanitizeHumidity(double humidity) {
+		return Double.isFinite(humidity) ? MathUtil.clamp(humidity, 0.0, 1.0) : 0.0;
+	}
+
+	private static double sanitizeVaporMoleFraction(double vaporMoleFraction) {
+		return Double.isFinite(vaporMoleFraction)
+				? MathUtil.clamp(vaporMoleFraction, 0.0, 0.35)
+				: 0.0;
+	}
+
+	static double saturationVaporPressureHectopascals(double ambientTemperatureCelsius) {
 		double celsius = MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0);
 		return 6.112 * Math.exp(17.67 * celsius / (celsius + 243.5));
 	}

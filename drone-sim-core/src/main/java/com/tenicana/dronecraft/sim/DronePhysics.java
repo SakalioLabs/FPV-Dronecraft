@@ -24,6 +24,10 @@ public final class DronePhysics {
 	private static final double REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15;
 	private static final double REFERENCE_AIR_DYNAMIC_VISCOSITY_PASCAL_SECONDS = 1.837e-5;
 	private static final double AIR_SUTHERLAND_CONSTANT_KELVIN = 110.4;
+	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
+	private static final double FREEZING_HUMIDITY_ONSET = 0.72;
+	private static final double FREEZING_HUMIDITY_FULL = 0.98;
+	private static final double MAX_FREEZING_HUMIDITY_EQUIVALENT_WETNESS = 0.40;
 	// CALCE low-current LiPo OCV median, normalized over each preset's configured usable empty/full voltage window.
 	private static final double[] LIPO_OCV_SOC_POINTS = {0.0, 0.04, 0.05, 0.10, 0.18, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 1.0};
 	private static final double[] LIPO_OCV_NORMALIZED_POINTS = {0.0, 0.090, 0.137, 0.181, 0.261, 0.279, 0.349, 0.405, 0.540, 0.702, 0.826, 1.0};
@@ -445,10 +449,15 @@ public final class DronePhysics {
 		private DroneEnvironment environmentIdentity;
 		private long airDensityRatioBits;
 		private long ambientTemperatureCelsiusBits;
-		private long precipitationWetnessIntensityBits;
+		private long effectiveAmbientTemperatureCelsiusBits;
+		private long ambientHumidityBits;
+		private long adoptedSourceHumidityBits;
 		private double effectiveAirDensityRatio;
+		private double effectiveAmbientTemperatureCelsius;
 		private double speedOfSoundMetersPerSecond;
 		private double dynamicViscosityRatio;
+		private double moistAirCoolingMultiplier;
+		private double frozenHumidityIcingWetness;
 
 		boolean resolve(DroneEnvironment environment) {
 			DroneEnvironment safeEnvironment = environment == null ? DroneEnvironment.calm() : environment;
@@ -458,19 +467,119 @@ public final class DronePhysics {
 
 			long nextAirDensityRatioBits = Double.doubleToRawLongBits(safeEnvironment.airDensityRatio());
 			long nextAmbientTemperatureCelsiusBits = Double.doubleToRawLongBits(safeEnvironment.ambientTemperatureCelsius());
-			long nextPrecipitationWetnessIntensityBits = Double.doubleToRawLongBits(safeEnvironment.precipitationWetnessIntensity());
+			long nextEffectiveAmbientTemperatureCelsiusBits =
+					Double.doubleToRawLongBits(safeEnvironment.effectiveAmbientTemperatureCelsius());
+			long nextAmbientHumidityBits = Double.doubleToRawLongBits(safeEnvironment.ambientHumidity());
+			long nextAdoptedSourceHumidityBits = Double.doubleToRawLongBits(safeEnvironment.adoptedSourceHumidity());
 			if (environmentIdentity == null
 					|| nextAirDensityRatioBits != airDensityRatioBits
 					|| nextAmbientTemperatureCelsiusBits != ambientTemperatureCelsiusBits
-					|| nextPrecipitationWetnessIntensityBits != precipitationWetnessIntensityBits) {
-				effectiveAirDensityRatio = safeEnvironment.effectiveAirDensityRatio();
-				speedOfSoundMetersPerSecond = DroneEnvironment.speedOfSoundMetersPerSecond(
-						safeEnvironment.ambientTemperatureCelsius()
+					|| nextEffectiveAmbientTemperatureCelsiusBits != effectiveAmbientTemperatureCelsiusBits
+					|| nextAmbientHumidityBits != ambientHumidityBits
+					|| nextAdoptedSourceHumidityBits != adoptedSourceHumidityBits) {
+				double fallbackTemperatureCelsius = safeEnvironment.ambientTemperatureCelsius();
+				double sourceTemperatureCelsius = safeEnvironment.effectiveAmbientTemperatureCelsius();
+				if (!Double.isFinite(fallbackTemperatureCelsius)) {
+					fallbackTemperatureCelsius = MOTOR_AMBIENT_TEMPERATURE_CELSIUS;
+				}
+				if (!Double.isFinite(sourceTemperatureCelsius)) {
+					sourceTemperatureCelsius = fallbackTemperatureCelsius;
+				}
+				double fallbackTemperatureKelvin = MathUtil.clamp(
+						fallbackTemperatureCelsius + 273.15,
+						233.15,
+						338.15
 				);
-				dynamicViscosityRatio = airDynamicViscosityRatio(safeEnvironment.ambientTemperatureCelsius());
+				double sourceTemperatureKelvin = MathUtil.clamp(
+						sourceTemperatureCelsius + 273.15,
+						233.15,
+						338.15
+				);
+				double humidity = MathUtil.clamp(safeEnvironment.ambientHumidity(), 0.0, 1.0);
+				double densityMultiplier = 1.0;
+
+				if (humidity <= 1.0e-9) {
+					// Keep the common dry path on the established one-argument formulas. Besides
+					// avoiding the Magnus exponential, this preserves the old raw-bit results.
+					speedOfSoundMetersPerSecond =
+							DroneEnvironment.speedOfSoundMetersPerSecond(sourceTemperatureCelsius);
+					dynamicViscosityRatio = airDynamicViscosityRatio(sourceTemperatureCelsius);
+					moistAirCoolingMultiplier = 1.0;
+				} else {
+					// Compute the Magnus exponential once. Keep both the source pressure fraction
+					// and mole fraction so the sim/lab operation order is preserved for every
+					// property, including partial-humidity cooling.
+					double saturationVaporPressureHectopascals =
+							DroneEnvironment.saturationVaporPressureHectopascals(sourceTemperatureCelsius);
+					double saturationVaporPressureFraction = saturationVaporPressureHectopascals
+							/ SEA_LEVEL_PRESSURE_HECTOPASCALS;
+					double vaporMoleFraction = MathUtil.clamp(
+							humidity * saturationVaporPressureHectopascals
+									/ SEA_LEVEL_PRESSURE_HECTOPASCALS,
+							0.0,
+							0.35
+					);
+					densityMultiplier =
+							DroneEnvironment.moistAirDensityMultiplierFromVaporMoleFraction(vaporMoleFraction);
+					speedOfSoundMetersPerSecond =
+							DroneEnvironment.speedOfSoundMetersPerSecondFromVaporMoleFraction(
+									sourceTemperatureCelsius,
+									vaporMoleFraction
+							);
+
+					double dryDynamicViscosityRatio = Math.pow(
+							sourceTemperatureKelvin / REFERENCE_AIR_TEMPERATURE_KELVIN,
+							1.5
+					) * (REFERENCE_AIR_TEMPERATURE_KELVIN + AIR_SUTHERLAND_CONSTANT_KELVIN)
+							/ (sourceTemperatureKelvin + AIR_SUTHERLAND_CONSTANT_KELVIN);
+					double moistDynamicViscosityMultiplier =
+							DroneEnvironment.moistAirDynamicViscosityMultiplierFromVaporMoleFraction(
+									vaporMoleFraction
+							);
+					dynamicViscosityRatio = MathUtil.clamp(
+							dryDynamicViscosityRatio * moistDynamicViscosityMultiplier,
+							0.64,
+							1.20
+					);
+					moistAirCoolingMultiplier = MathUtil.clamp(
+							1.0 - humidity * (0.030 + 0.45 * saturationVaporPressureFraction),
+							0.90,
+							1.0
+					);
+				}
+
+				effectiveAirDensityRatio = MathUtil.clamp(
+						safeEnvironment.airDensityRatio()
+								* (fallbackTemperatureKelvin / sourceTemperatureKelvin)
+								* densityMultiplier,
+						0.35,
+						1.35
+				);
+				effectiveAmbientTemperatureCelsius = sourceTemperatureCelsius;
+				double adoptedSourceHumidity = MathUtil.clamp(safeEnvironment.adoptedSourceHumidity(), 0.0, 1.0);
+				double freezingTemperatureFactor =
+						IcingRotorCalibration.freezingTemperatureFactor(sourceTemperatureCelsius);
+				if (adoptedSourceHumidity <= 1.0e-9 || freezingTemperatureFactor <= 1.0e-12) {
+					frozenHumidityIcingWetness = 0.0;
+				} else {
+					double saturationFactor = smoothStep(
+							FREEZING_HUMIDITY_ONSET,
+							FREEZING_HUMIDITY_FULL,
+							adoptedSourceHumidity
+					);
+					frozenHumidityIcingWetness = MathUtil.clamp(
+							MAX_FREEZING_HUMIDITY_EQUIVALENT_WETNESS
+									* freezingTemperatureFactor
+									* saturationFactor,
+							0.0,
+							MAX_FREEZING_HUMIDITY_EQUIVALENT_WETNESS
+					);
+				}
 				airDensityRatioBits = nextAirDensityRatioBits;
 				ambientTemperatureCelsiusBits = nextAmbientTemperatureCelsiusBits;
-				precipitationWetnessIntensityBits = nextPrecipitationWetnessIntensityBits;
+				effectiveAmbientTemperatureCelsiusBits = nextEffectiveAmbientTemperatureCelsiusBits;
+				ambientHumidityBits = nextAmbientHumidityBits;
+				adoptedSourceHumidityBits = nextAdoptedSourceHumidityBits;
 				environmentIdentity = safeEnvironment;
 				return true;
 			}
@@ -482,12 +591,24 @@ public final class DronePhysics {
 			return effectiveAirDensityRatio;
 		}
 
+		double effectiveAmbientTemperatureCelsius() {
+			return effectiveAmbientTemperatureCelsius;
+		}
+
 		double speedOfSoundMetersPerSecond() {
 			return speedOfSoundMetersPerSecond;
 		}
 
 		double dynamicViscosityRatio() {
 			return dynamicViscosityRatio;
+		}
+
+		double moistAirCoolingMultiplier() {
+			return moistAirCoolingMultiplier;
+		}
+
+		double frozenHumidityIcingWetness() {
+			return frozenHumidityIcingWetness;
 		}
 
 	}
@@ -1193,6 +1314,8 @@ public final class DronePhysics {
 		atmosphereCache.resolve(environment);
 		double speedOfSoundMetersPerSecond = atmosphereCache.speedOfSoundMetersPerSecond();
 		double dynamicViscosityRatio = atmosphereCache.dynamicViscosityRatio();
+		double effectiveAmbientTemperatureCelsius = atmosphereCache.effectiveAmbientTemperatureCelsius();
+		double frozenHumidityIcingWetness = atmosphereCache.frozenHumidityIcingWetness();
 
 		DroneInput input = updateControlInput(rawInput, dtSeconds);
 		updateSensorBias(dtSeconds);
@@ -1509,8 +1632,11 @@ public final class DronePhysics {
 					i,
 					aerodynamicRotor,
 					aerodynamicOmega,
-					Math.max(rotorPrecipitationWetness, rotorFilmWetness),
-					environment.ambientTemperatureCelsius(),
+					Math.max(
+							Math.max(rotorPrecipitationWetness, rotorFilmWetness),
+							frozenHumidityIcingWetness
+					),
+					effectiveAmbientTemperatureCelsius,
 					dtSeconds
 			);
 			double icingThrustScale = IcingRotorCalibration.icingThrustScale(icingSeverity);
@@ -4375,6 +4501,11 @@ public final class DronePhysics {
 	private double cachedEffectiveAirDensityRatio(DroneEnvironment environment) {
 		atmosphereCache.resolve(environment);
 		return atmosphereCache.effectiveAirDensityRatio();
+	}
+
+	private double cachedEffectiveAmbientTemperatureCelsius(DroneEnvironment environment) {
+		atmosphereCache.resolve(environment);
+		return atmosphereCache.effectiveAmbientTemperatureCelsius();
 	}
 
 	private static double rotorLowReynoldsThrustScale(double lowReynoldsLoss) {
@@ -9678,7 +9809,7 @@ public final class DronePhysics {
 		state.setBarometerPressureHectopascals(DroneEnvironment.barometricPressureHectopascals(
 				barometerFilteredAltitudeMeters,
 				environment.airDensityRatio(),
-				environment.ambientTemperatureCelsius()
+				cachedEffectiveAmbientTemperatureCelsius(environment)
 		));
 		state.setBarometerErrorMeters(barometerFilteredAltitudeMeters - trueAltitude);
 		state.setBarometerSensorNoiseMeters(sensorNoise);
@@ -10093,6 +10224,10 @@ public final class DronePhysics {
 	}
 
 	private void integrateMotorThermal(DroneEnvironment environment, double dtSeconds) {
+		atmosphereCache.resolve(environment);
+		double effectiveAmbientTemperatureCelsius = atmosphereCache.effectiveAmbientTemperatureCelsius();
+		double densityFactor = MathUtil.clamp(atmosphereCache.effectiveAirDensityRatio(), 0.35, 1.35);
+		double moistAirCoolingMultiplier = atmosphereCache.moistAirCoolingMultiplier();
 		Vec3 relativeAirVelocityBody = state.relativeAirVelocityBodyMetersPerSecond();
 		Vec3 angularVelocityBody = state.angularVelocityBodyRadiansPerSecond();
 		for (int i = 0; i < state.motorCount(); i++) {
@@ -10110,11 +10245,19 @@ public final class DronePhysics {
 			);
 			double temperature = state.motorTemperatureCelsius(i);
 			double heatRate = config.motorThermalRiseCelsiusPerSecond() * power * power;
-			double coolingFactor = motorCoolingFactor(rotor, relativeAirVelocityBody, angularVelocityBody, environment, i);
+			double coolingFactor = motorCoolingFactor(
+					rotor,
+					relativeAirVelocityBody,
+					angularVelocityBody,
+					environment,
+					i,
+					densityFactor,
+					moistAirCoolingMultiplier
+			);
 			state.setMotorCoolingFactor(i, coolingFactor);
 			double coolingRate = config.motorCoolingRatePerSecond()
 					* coolingFactor
-					* (temperature - environment.ambientTemperatureCelsius());
+					* (temperature - effectiveAmbientTemperatureCelsius);
 			state.setMotorTemperatureCelsius(i, temperature + (heatRate - coolingRate) * dtSeconds);
 			updateMotorWindingResistanceScale(i);
 		}
@@ -10122,6 +10265,10 @@ public final class DronePhysics {
 	}
 
 	private void integrateEscThermal(DroneEnvironment environment, double dtSeconds) {
+		atmosphereCache.resolve(environment);
+		double effectiveAmbientTemperatureCelsius = atmosphereCache.effectiveAmbientTemperatureCelsius();
+		double densityFactor = MathUtil.clamp(atmosphereCache.effectiveAirDensityRatio(), 0.35, 1.35);
+		double moistAirCoolingMultiplier = atmosphereCache.moistAirCoolingMultiplier();
 		for (int i = 0; i < state.motorCount(); i++) {
 			RotorSpec rotor = config.rotors().get(i);
 			double perEscMaxCurrentAmps = config.maxBatteryCurrentAmps() / state.motorCount();
@@ -10150,25 +10297,38 @@ public final class DronePhysics {
 
 			double temperature = state.escTemperatureCelsius(i);
 			double heatRate = config.motorThermalRiseCelsiusPerSecond() * 0.72 * heatStress;
-			double coolingFactor = escCoolingFactor(environment, i);
+			double coolingFactor = escCoolingFactor(
+					environment,
+					i,
+					densityFactor,
+					moistAirCoolingMultiplier
+			);
 			state.setEscCoolingFactor(i, coolingFactor);
 			double coolingRate = config.motorCoolingRatePerSecond()
 					* 0.90
 					* coolingFactor
-					* (temperature - environment.ambientTemperatureCelsius());
+					* (temperature - effectiveAmbientTemperatureCelsius);
 			state.setEscTemperatureCelsius(i, temperature + (heatRate - coolingRate) * dtSeconds);
 			state.setEscThermalLimit(i, escThermalLimit(state.escTemperatureCelsius(i)));
 		}
 		updateEscThermalLimit();
 	}
 
-	private double escCoolingFactor(DroneEnvironment environment, int rotorIndex) {
+	private double escCoolingFactor(
+			DroneEnvironment environment,
+			int rotorIndex,
+			double densityFactor,
+			double moistAirCooling
+	) {
 		double rotorWashCooling = 0.45 * state.motorPower(config, rotorIndex) * (0.35 + 0.65 * state.escElectricalOutputCommand(rotorIndex));
 		double boardAirflow = 0.58 + 0.42 * state.motorCoolingFactor(rotorIndex) + rotorWashCooling;
 		double obstructionLoss = 1.0 - 0.36 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - 0.78 * recirculatedAirCoolingLoss(environment);
-		double densityFactor = MathUtil.clamp(cachedEffectiveAirDensityRatio(environment), 0.35, 1.35);
-		return MathUtil.clamp(boardAirflow * densityFactor * obstructionLoss * recirculationEfficiency, 0.20, 4.0);
+		return MathUtil.clamp(
+				boardAirflow * densityFactor * moistAirCooling * obstructionLoss * recirculationEfficiency,
+				0.20,
+				4.0
+		);
 	}
 
 	private double motorCoolingFactor(
@@ -10176,7 +10336,9 @@ public final class DronePhysics {
 			Vec3 relativeAirVelocityBody,
 			Vec3 angularVelocityBody,
 			DroneEnvironment environment,
-			int rotorIndex
+			int rotorIndex,
+			double densityFactor,
+			double moistAirCooling
 	) {
 		Vec3 rotorRelativeAirVelocityBody = relativeAirVelocityBody.add(angularVelocityBody.cross(rotor.positionBodyMeters()));
 		double transverseSpeed = Math.hypot(rotorRelativeAirVelocityBody.x(), rotorRelativeAirVelocityBody.z());
@@ -10186,8 +10348,15 @@ public final class DronePhysics {
 		double rotorWashCooling = 0.92 * state.motorPower(config, rotorIndex) * (0.45 + 0.55 * state.escElectricalOutputCommand(rotorIndex));
 		double obstructionLoss = 1.0 - 0.48 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - recirculatedAirCoolingLoss(environment);
-		double densityFactor = MathUtil.clamp(cachedEffectiveAirDensityRatio(environment), 0.35, 1.35);
-		return MathUtil.clamp((1.0 + freestreamCooling + rotorWashCooling) * densityFactor * obstructionLoss * recirculationEfficiency, 0.20, 4.0);
+		return MathUtil.clamp(
+				(1.0 + freestreamCooling + rotorWashCooling)
+						* densityFactor
+						* moistAirCooling
+						* obstructionLoss
+						* recirculationEfficiency,
+				0.20,
+				4.0
+		);
 	}
 
 	private double recirculatedAirCoolingLoss(DroneEnvironment environment) {
@@ -10258,10 +10427,14 @@ public final class DronePhysics {
 			DroneEnvironment environment,
 			double dtSeconds
 	) {
+		atmosphereCache.resolve(environment);
+		double effectiveAmbientTemperatureCelsius = atmosphereCache.effectiveAmbientTemperatureCelsius();
+		double densityFactor = MathUtil.clamp(atmosphereCache.effectiveAirDensityRatio(), 0.35, 1.35);
+		double moistAirCoolingMultiplier = atmosphereCache.moistAirCoolingMultiplier();
 		if (!batteryThermalInitialized) {
-			state.setBatteryTemperatureCelsius(environment.ambientTemperatureCelsius());
+			state.setBatteryTemperatureCelsius(effectiveAmbientTemperatureCelsius);
 			state.setBatteryCoolingFactor(1.0);
-			state.setBatteryThermalLimit(batteryThermalLimit(environment.ambientTemperatureCelsius()));
+			state.setBatteryThermalLimit(batteryThermalLimit(effectiveAmbientTemperatureCelsius));
 			batteryThermalInitialized = true;
 		}
 
@@ -10271,7 +10444,7 @@ public final class DronePhysics {
 		double currentLoad = MathUtil.clamp(dischargeCurrentAmps / maxCurrent, 0.0, 2.0);
 		double regenLoad = MathUtil.clamp(regenerativeCurrentAmps / maxCurrent, 0.0, 1.5);
 		double rippleLoad = MathUtil.clamp(state.averageMotorCurrentRippleAmps() / Math.max(1.0, maxCurrent / Math.max(1, state.motorCount())), 0.0, 1.8);
-		double batteryResistanceOhms = batteryElectricalResistanceOhms(packTemperature, environment.ambientTemperatureCelsius(), currentBatteryStateOfCharge())
+		double batteryResistanceOhms = batteryElectricalResistanceOhms(packTemperature, effectiveAmbientTemperatureCelsius, currentBatteryStateOfCharge())
 				* state.batteryPolarizationResistanceScale();
 		double resistanceScale = config.batteryInternalResistanceOhms() <= 1.0e-9
 				? 0.0
@@ -10281,23 +10454,31 @@ public final class DronePhysics {
 						+ 0.020 * regenLoad * regenLoad
 						+ 0.018 * rippleLoad * rippleLoad)
 				/ capacityScale;
-		double coolingFactor = batteryCoolingFactor(environment);
+		double coolingFactor = batteryCoolingFactor(
+				environment,
+				densityFactor,
+				moistAirCoolingMultiplier
+		);
 		state.setBatteryCoolingFactor(coolingFactor);
 		double coolingRate = config.motorCoolingRatePerSecond()
 				* 0.28
 				* coolingFactor
-				* (packTemperature - environment.ambientTemperatureCelsius());
+				* (packTemperature - effectiveAmbientTemperatureCelsius);
 		state.setBatteryTemperatureCelsius(packTemperature + (heatRate - coolingRate) * dtSeconds);
 		state.setBatteryThermalLimit(batteryThermalLimit(state.batteryTemperatureCelsius()));
 	}
 
-	private double batteryCoolingFactor(DroneEnvironment environment) {
+	private double batteryCoolingFactor(
+			DroneEnvironment environment,
+			double densityFactor,
+			double moistAirCooling
+	) {
 		double airspeedCooling = MathUtil.clamp(state.airspeedMetersPerSecond() / 20.0, 0.0, 1.8);
 		double rotorWashCooling = 0.35 * state.averageMotorPower(config);
-		double densityFactor = MathUtil.clamp(cachedEffectiveAirDensityRatio(environment), 0.35, 1.35);
 		double recirculationEfficiency = 1.0 - 0.58 * recirculatedAirCoolingLoss(environment);
 		double airCooling = (0.55 + 0.45 * airspeedCooling + rotorWashCooling)
 				* densityFactor
+				* moistAirCooling
 				* recirculationEfficiency;
 		double wetCooling = 1.40 * MathUtil.clamp(environment.waterImmersionIntensity(), 0.0, 1.0)
 				+ 0.22 * MathUtil.clamp(environment.precipitationWetnessIntensity(), 0.0, 1.0);
@@ -10318,6 +10499,7 @@ public final class DronePhysics {
 	}
 
 	private void updateBatteryVoltage(double netCurrentAmps, double regenerativeCurrentAmps, DroneEnvironment environment, double dtSeconds) {
+		double effectiveAmbientTemperatureCelsius = cachedEffectiveAmbientTemperatureCelsius(environment);
 		state.setBatteryCapacityAgingScale(batteryCapacityAgingScale(state.batteryEquivalentCycles()));
 		double stateOfCharge = currentBatteryStateOfCharge();
 		state.setBatteryStateOfCharge(stateOfCharge);
@@ -10325,7 +10507,7 @@ public final class DronePhysics {
 		double dischargeCurrentAmps = Math.max(0.0, netCurrentAmps);
 		state.setBatteryResistanceAgingScale(batteryAgingResistanceScale(state.batteryEquivalentCycles()));
 		double polarizationScale = updateBatteryPolarizationResistanceScale(dischargeCurrentAmps, stateOfCharge, dtSeconds);
-		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), environment.ambientTemperatureCelsius(), stateOfCharge)
+		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), effectiveAmbientTemperatureCelsius, stateOfCharge)
 				* polarizationScale;
 		state.setBatteryEffectiveResistanceOhms(batteryResistanceOhms);
 		updateBatterySagCurrentTelemetry(batteryResistanceOhms);
