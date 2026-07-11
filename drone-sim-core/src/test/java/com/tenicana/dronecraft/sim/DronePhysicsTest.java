@@ -281,7 +281,7 @@ class DronePhysicsTest {
 	}
 
 	@Test
-	void rotorBladeCountIsPresetSpecific() {
+	void rotorBladeCountIsPresetSpecific() throws NoSuchMethodException {
 		assertEquals(3, DroneConfig.racingQuad().rotors().get(0).bladeCount());
 		assertEquals(3, DroneConfig.apDrone().rotors().get(0).bladeCount());
 		assertEquals(3, DroneConfig.cinewhoop().rotors().get(0).bladeCount());
@@ -302,11 +302,32 @@ class DronePhysicsTest {
 		);
 		assertEquals(2, defaultRotor.bladeCount());
 		assertEquals(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS, defaultRotor.motorPolePairs(), 1.0e-12);
+		assertEquals(RotorSpec.DEFAULT_TARGET_MAX_OMEGA_SCALE, defaultRotor.targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(defaultRotor.targetMaxOmegaScale(), defaultRotor.targetMaxRpmScale(), 1.0e-12);
+		assertEquals(defaultRotor.maxOmegaRadiansPerSecond(), defaultRotor.targetMaxOmegaRadiansPerSecond(), 1.0e-12);
 		assertEquals(3, defaultRotor.withBladeCount(3).bladeCount());
 		assertEquals(8, defaultRotor.withBladeCount(99).bladeCount());
 		assertEquals(6.0, defaultRotor.withMotorPolePairs(6.0).motorPolePairs(), 1.0e-12);
 		assertEquals(28.0, defaultRotor.withMotorPolePairs(99.0).motorPolePairs(), 1.0e-12);
 		assertEquals(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS, defaultRotor.withMotorPolePairs(Double.NaN).motorPolePairs(), 1.0e-12);
+		assertEquals(0.72, defaultRotor.withTargetMaxOmegaScale(0.72).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(0.72, defaultRotor.withTargetMaxRpmScale(0.72).targetMaxRpmScale(), 1.0e-12);
+		assertEquals(
+				defaultRotor.maxOmegaRadiansPerSecond() * 0.72,
+				defaultRotor.withTargetMaxOmegaScale(0.72).targetMaxOmegaRadiansPerSecond(),
+				1.0e-12
+		);
+		assertEquals(1.0, defaultRotor.withTargetMaxOmegaScale(5.0).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(0.0, defaultRotor.withTargetMaxOmegaScale(-0.25).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(1.0, defaultRotor.withTargetMaxOmegaScale(Double.NaN).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(0.72, defaultRotor.withTargetMaxOmegaScale(0.72).withBladeCount(4).targetMaxOmegaScale(), 0.0);
+		assertEquals(0.72, defaultRotor.withTargetMaxOmegaScale(0.72).withRadiusMeters(0.07).targetMaxOmegaScale(), 0.0);
+		assertEquals(20, RotorSpec.class.getConstructor(
+				Vec3.class, Vec3.class, int.class, double.class, double.class, double.class,
+				double.class, double.class, double.class, double.class, double.class, double.class,
+				double.class, double.class, double.class, double.class, double.class, double.class,
+				double.class, int.class
+		).getParameterCount());
 		assertEquals(300.0, DronePhysics.betaflightErpm100FromMechanicalRpm(5_000.0, 6.0), 1.0e-12);
 		assertEquals(2_000.0, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(5_000.0, 6.0), 1.0e-12);
 		assertEquals(
@@ -315,6 +336,38 @@ class DronePhysicsTest {
 				1.0e-15
 		);
 		assertEquals(0.0, RotorSpec.estimatedUniformBladePropInertiaKgMetersSquared(Double.NaN, 4.0), 1.0e-15);
+	}
+
+	@Test
+	void rotorTargetMaxOmegaScaleReducesMotorTargetBeforeMotorResponse() {
+		double targetMaxRpmScale = 0.9715982698017723;
+		DroneConfig base = directControl(DroneConfig.racingQuad())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 2.0, 90.0);
+		DronePhysics neutral = new DronePhysics(base);
+		DronePhysics derated = new DronePhysics(base.withRotorTargetMaxRpmScale(targetMaxRpmScale));
+		DroneInput fullThrottle = new DroneInput(1.0, 0.0, 0.0, 0.0, true);
+
+		neutral.step(fullThrottle, 0.005, DroneEnvironment.calm());
+		derated.step(fullThrottle, 0.005, DroneEnvironment.calm());
+
+		assertEquals(1.0, neutral.config().rotors().get(0).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(targetMaxRpmScale, derated.config().rotors().get(0).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(
+				neutral.state().motorTargetOmegaRadiansPerSecond(0) * targetMaxRpmScale,
+				derated.state().motorTargetOmegaRadiansPerSecond(0),
+				1.0e-9
+		);
+		assertEquals(
+				neutral.state().motorTargetRpm(0) * targetMaxRpmScale,
+				derated.state().motorTargetRpm(0),
+				1.0e-6
+		);
+		assertEquals(
+				neutral.state().escElectricalOutputCommand(0),
+				derated.state().escElectricalOutputCommand(0),
+				1.0e-12
+		);
 	}
 
 	@Test

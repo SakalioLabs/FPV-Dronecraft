@@ -1927,7 +1927,7 @@ public final class DronePhysics {
 					+ rotorIcingLoad;
 			double powerLimitScale = Math.sqrt(state.batteryPowerLimit() * state.motorThermalLimit() * state.escThermalLimit() * state.rotorHealth(i));
 			double targetOmega = input.armed()
-					? rotor.maxOmegaRadiansPerSecond()
+					? rotor.targetMaxOmegaRadiansPerSecond()
 							* escElectricalOutput
 							* voltageScale
 							* powerLimitScale
