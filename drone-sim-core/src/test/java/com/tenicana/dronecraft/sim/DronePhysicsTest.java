@@ -1504,6 +1504,123 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorWakeGeometryCachesRefreshAfterSameCountConfigChangesWithoutClearingFilteredWake()
+			throws ReflectiveOperationException {
+		DroneConfig base = directControl(DroneConfig.coaxialX8())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(base);
+		DroneInput powered = new DroneInput(base.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		for (int i = 0; i < 240; i++) {
+			holdInStillAir(physics);
+			physics.step(powered, 0.005);
+		}
+
+		Field rotorGeometryField = privateField("rotorWakeRotorGeometry");
+		Field pairGeometryField = privateField("rotorWakePairGeometry");
+		Field pairStartsField = privateField("rotorWakePairStartByReceiver");
+		Field filteredIntensityField = privateField("rotorWakeInterferenceIntensity");
+		Field filteredDownwashField = privateField("rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond");
+		Field filteredSwirlField = privateField("rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond");
+		Object oldRotorGeometry = rotorGeometryField.get(physics);
+		Object oldPairGeometry = pairGeometryField.get(physics);
+		Object oldPairStarts = pairStartsField.get(physics);
+		double[] filteredIntensity = (double[]) filteredIntensityField.get(physics);
+		Vec3[] filteredDownwash = (Vec3[]) filteredDownwashField.get(physics);
+		Vec3[] filteredSwirl = (Vec3[]) filteredSwirlField.get(physics);
+		double[] filteredIntensityBefore = filteredIntensity.clone();
+		Vec3[] filteredDownwashBefore = filteredDownwash.clone();
+		Vec3[] filteredSwirlBefore = filteredSwirl.clone();
+		assertTrue(max(filteredIntensityBefore) > 0.20);
+
+		String[] scratchFieldNames = {
+				"rotorWakeSourceActive",
+				"rotorWakeSourceSpinRatio",
+				"rotorWakeSourceInducedVelocityMetersPerSecond",
+				"rotorWakeSourceTransverseSpeedMetersPerSecond",
+				"rotorWakeSourceCrossflowCapture",
+				"rotorWakeSourceConvectionDirectionX",
+				"rotorWakeSourceConvectionDirectionY",
+				"rotorWakeSourceConvectionDirectionZ",
+				"rotorConvectedWakeScratch"
+		};
+		Object[] scratchIdentities = new Object[scratchFieldNames.length];
+		for (int i = 0; i < scratchFieldNames.length; i++) {
+			scratchIdentities[i] = privateField(scratchFieldNames[i]).get(physics);
+		}
+
+		DroneConfig updated = base
+				.withCenterOfMassOffsetBodyMeters(new Vec3(0.027, -0.006, -0.018))
+				.withRotorOutwardCantDegrees(13.0)
+				.withRotorRadiusMeters(base.rotors().get(0).radiusMeters() * 1.07)
+				.withRotorMaxThrustNewtons(base.rotors().get(0).maxThrustNewtons() * 1.11)
+				.withRotorDiskDragCoefficient(0.0041);
+		physics.applyConfig(updated);
+
+		Object[] updatedRotorGeometry = (Object[]) rotorGeometryField.get(physics);
+		Object[] updatedPairGeometry = (Object[]) pairGeometryField.get(physics);
+		int[] updatedPairStarts = (int[]) pairStartsField.get(physics);
+		assertNotSame(oldRotorGeometry, updatedRotorGeometry);
+		assertNotSame(oldPairGeometry, updatedPairGeometry);
+		assertNotSame(oldPairStarts, updatedPairStarts);
+		assertSame(filteredIntensity, filteredIntensityField.get(physics));
+		assertSame(filteredDownwash, filteredDownwashField.get(physics));
+		assertSame(filteredSwirl, filteredSwirlField.get(physics));
+		assertArrayEquals(filteredIntensityBefore, filteredIntensity, 0.0);
+		assertArrayEquals(filteredDownwashBefore, filteredDownwash);
+		assertArrayEquals(filteredSwirlBefore, filteredSwirl);
+		for (int i = 0; i < scratchFieldNames.length; i++) {
+			assertSame(scratchIdentities[i], privateField(scratchFieldNames[i]).get(physics));
+		}
+
+		int rotorCount = updated.rotors().size();
+		assertEquals(rotorCount, updatedRotorGeometry.length);
+		assertEquals(rotorCount * (rotorCount - 1), updatedPairGeometry.length);
+		assertEquals(rotorCount + 1, updatedPairStarts.length);
+		for (int receiverIndex = 0; receiverIndex <= rotorCount; receiverIndex++) {
+			assertEquals(receiverIndex * (rotorCount - 1), updatedPairStarts[receiverIndex]);
+		}
+
+		Method rotorAccessor = updatedRotorGeometry[0].getClass().getDeclaredMethod("rotor");
+		Method sqrtRadiusAccessor = updatedRotorGeometry[0].getClass()
+				.getDeclaredMethod("sqrtWakeLagRadiusScale");
+		rotorAccessor.setAccessible(true);
+		sqrtRadiusAccessor.setAccessible(true);
+		assertSame(updated.rotors().get(0), rotorAccessor.invoke(updatedRotorGeometry[0]));
+		double expectedSqrtRadiusScale = Math.sqrt(MathUtil.clamp(
+				updated.rotors().get(0).radiusMeters() / 0.0635,
+				0.50,
+				2.80
+		));
+		assertEquals(
+				Double.doubleToRawLongBits(expectedSqrtRadiusScale),
+				Double.doubleToRawLongBits((double) sqrtRadiusAccessor.invoke(updatedRotorGeometry[0]))
+		);
+
+		Method sourceIndexAccessor = updatedPairGeometry[0].getClass().getDeclaredMethod("sourceIndex");
+		sourceIndexAccessor.setAccessible(true);
+		for (int receiverIndex = 0; receiverIndex < rotorCount; receiverIndex++) {
+			int expectedSourceIndex = 0;
+			for (int pairIndex = updatedPairStarts[receiverIndex];
+					pairIndex < updatedPairStarts[receiverIndex + 1];
+					pairIndex++) {
+				if (expectedSourceIndex == receiverIndex) {
+					expectedSourceIndex++;
+				}
+				assertEquals(expectedSourceIndex, (int) sourceIndexAccessor.invoke(updatedPairGeometry[pairIndex]));
+				expectedSourceIndex++;
+			}
+		}
+
+		Object rebuiltRotorGeometry = rotorGeometryField.get(physics);
+		Object rebuiltPairGeometry = pairGeometryField.get(physics);
+		physics.step(powered, 0.005, new DroneEnvironment(new Vec3(12.0, 0.0, -4.0), 1.0, 2.0));
+		assertSame(rebuiltRotorGeometry, rotorGeometryField.get(physics));
+		assertSame(rebuiltPairGeometry, pairGeometryField.get(physics));
+	}
+
+	@Test
 	void forwardFlightConvectsFrontRotorWakeOntoRearRotors() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)

@@ -107,6 +107,18 @@ public final class DronePhysics {
 	private final double[] rotorWakeInterferenceTargetIntensity;
 	private final Vec3[] rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond;
 	private final Vec3[] rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond;
+	private RotorWakeRotorGeometry[] rotorWakeRotorGeometry;
+	private RotorWakePairGeometry[] rotorWakePairGeometry;
+	private int[] rotorWakePairStartByReceiver;
+	private final boolean[] rotorWakeSourceActive;
+	private final double[] rotorWakeSourceSpinRatio;
+	private final double[] rotorWakeSourceInducedVelocityMetersPerSecond;
+	private final double[] rotorWakeSourceTransverseSpeedMetersPerSecond;
+	private final double[] rotorWakeSourceCrossflowCapture;
+	private final double[] rotorWakeSourceConvectionDirectionX;
+	private final double[] rotorWakeSourceConvectionDirectionY;
+	private final double[] rotorWakeSourceConvectionDirectionZ;
+	private final RotorConvectedWakeScratch rotorConvectedWakeScratch = new RotorConvectedWakeScratch();
 	private final double[] rotorSurfaceEffectThrustMultipliers;
 	private final double[] rotorConingIntensity;
 	private final double[] rotorConingVelocity;
@@ -372,8 +384,51 @@ public final class DronePhysics {
 	private record RotorWakeFlow(double axialDescentSpeedMetersPerSecond, double transverseSpeedMetersPerSecond) {
 	}
 
-	private record RotorConvectedWake(double overlap, double missDistanceMeters, Vec3 swirlOffsetBody) {
-		private static final RotorConvectedWake IDLE = new RotorConvectedWake(0.0, Double.POSITIVE_INFINITY, Vec3.ZERO);
+	private record RotorWakeRotorGeometry(
+			RotorSpec rotor,
+			Vec3 positionBody,
+			Vec3 axisBody,
+			Vec3 armFromCenterOfMassBody,
+			double sqrtWakeLagRadiusScale,
+			double swirlVelocityLimitMetersPerSecond,
+			double wakeShedding
+	) {
+	}
+
+	private record RotorWakePairGeometry(
+			int sourceIndex,
+			double downstreamDistanceMeters,
+			Vec3 axialLateralOffsetBody,
+			double axialLateralDistanceMeters,
+			double axialWakeOverlap,
+			double fallbackAxialWakeRadiusMeters,
+			double fallbackAxialLateralFactor,
+			Vec3 convectedReceiverLateralOffsetBody,
+			double receiverBelowSourceMeters,
+			double radiusMatch,
+			double minimumAlongConvectionMeters,
+			double alongCaptureStartMeters,
+			double alongCaptureEndMeters,
+			double maxUsefulAlongMeters,
+			double axialCoaxialCoreFactor,
+			Vec3 axialSwirlDirectionBody
+	) {
+	}
+
+	private static final class RotorConvectedWakeScratch {
+		private double overlap;
+		private double missDistanceMeters;
+		private double swirlOffsetX;
+		private double swirlOffsetY;
+		private double swirlOffsetZ;
+
+		private void setIdle() {
+			overlap = 0.0;
+			missDistanceMeters = Double.POSITIVE_INFINITY;
+			swirlOffsetX = 0.0;
+			swirlOffsetY = 0.0;
+			swirlOffsetZ = 0.0;
+		}
 	}
 
 	static final class AtmosphereCache {
@@ -551,6 +606,14 @@ public final class DronePhysics {
 		this.rotorWakeInterferenceTargetIntensity = new double[config.rotors().size()];
 		this.rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond = new Vec3[config.rotors().size()];
 		this.rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond = new Vec3[config.rotors().size()];
+		this.rotorWakeSourceActive = new boolean[config.rotors().size()];
+		this.rotorWakeSourceSpinRatio = new double[config.rotors().size()];
+		this.rotorWakeSourceInducedVelocityMetersPerSecond = new double[config.rotors().size()];
+		this.rotorWakeSourceTransverseSpeedMetersPerSecond = new double[config.rotors().size()];
+		this.rotorWakeSourceCrossflowCapture = new double[config.rotors().size()];
+		this.rotorWakeSourceConvectionDirectionX = new double[config.rotors().size()];
+		this.rotorWakeSourceConvectionDirectionY = new double[config.rotors().size()];
+		this.rotorWakeSourceConvectionDirectionZ = new double[config.rotors().size()];
 		this.rotorSurfaceEffectThrustMultipliers = new double[config.rotors().size()];
 		this.rotorConingIntensity = new double[config.rotors().size()];
 		this.rotorConingVelocity = new double[config.rotors().size()];
@@ -584,6 +647,7 @@ public final class DronePhysics {
 		Arrays.fill(this.rotorBladeDissymmetryThrustScale, 1.0);
 		Arrays.fill(this.rotorSurfaceEffectThrustMultipliers, 1.0);
 		rebuildMixerCaches();
+		rebuildRotorWakeCaches();
 		resetSensorBiasModel();
 		resetGyroModel();
 		resetAccelerometerModel();
@@ -605,6 +669,7 @@ public final class DronePhysics {
 		double previousStateOfCharge = state.batteryStateOfCharge();
 		this.config = config;
 		rebuildMixerCaches();
+		rebuildRotorWakeCaches();
 		pitchPid.setGains(config.pitchGains());
 		yawPid.setGains(config.yawGains());
 		rollPid.setGains(config.rollGains());
@@ -4680,7 +4745,8 @@ public final class DronePhysics {
 	}
 
 	private void updateRotorWakeInterference(boolean armed, Vec3 relativeAirVelocityBody, double dtSeconds) {
-		calculateSteadyRotorWakeInterference(armed, relativeAirVelocityBody);
+		double crossflowSpeed = Math.hypot(relativeAirVelocityBody.x(), relativeAirVelocityBody.z());
+		calculateSteadyRotorWakeInterference(armed, relativeAirVelocityBody, crossflowSpeed);
 		int rotorCount = config.rotors().size();
 		if (dtSeconds <= 0.0) {
 			for (int i = 0; i < rotorCount; i++) {
@@ -4691,10 +4757,9 @@ public final class DronePhysics {
 			return;
 		}
 
-		double crossflowSpeed = Math.hypot(relativeAirVelocityBody.x(), relativeAirVelocityBody.z());
 		double crossflowFlush = smoothStep(2.5, 9.0, crossflowSpeed);
 		for (int i = 0; i < rotorCount; i++) {
-			RotorSpec rotor = config.rotors().get(i);
+			RotorWakeRotorGeometry rotorGeometry = rotorWakeRotorGeometry[i];
 			double targetIntensity = rotorWakeInterferenceTargetIntensity[i];
 			Vec3 targetDownwash = rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond[i];
 			Vec3 targetSwirl = rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond[i];
@@ -4704,14 +4769,14 @@ public final class DronePhysics {
 			double previousFlowSpeed = Math.max(previousDownwash.length(), previousSwirl.length());
 			double targetFlowSpeed = Math.max(targetDownwash.length(), targetSwirl.length());
 			boolean building = targetIntensity > previousIntensity || targetFlowSpeed > previousFlowSpeed + 1.0e-6;
-			double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.80);
 			double buildTimeConstant = MathUtil.clamp(
-					0.090 * Math.sqrt(radiusScale) / (0.72 + 0.62 * Math.max(targetIntensity, previousIntensity)),
+					0.090 * rotorGeometry.sqrtWakeLagRadiusScale()
+							/ (0.72 + 0.62 * Math.max(targetIntensity, previousIntensity)),
 					0.030,
 					0.170
 			);
 			double releaseTimeConstant = MathUtil.clamp(
-					(0.260 - 0.120 * crossflowFlush) * Math.sqrt(radiusScale),
+					(0.260 - 0.120 * crossflowFlush) * rotorGeometry.sqrtWakeLagRadiusScale(),
 					0.090,
 					0.420
 			);
@@ -4733,11 +4798,18 @@ public final class DronePhysics {
 
 			rotorWakeInterferenceIntensity[i] = MathUtil.clamp(filteredIntensity, 0.0, 1.0);
 			rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i] = filteredDownwash.clamp(-12.0, 12.0);
-			rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i] = clampRotorWakeSwirlVelocity(rotor, filteredSwirl);
+			rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i] = clampRotorWakeSwirlVelocity(
+					filteredSwirl,
+					rotorGeometry.swirlVelocityLimitMetersPerSecond()
+			);
 		}
 	}
 
-	private void calculateSteadyRotorWakeInterference(boolean armed, Vec3 relativeAirVelocityBody) {
+	private void calculateSteadyRotorWakeInterference(
+			boolean armed,
+			Vec3 relativeAirVelocityBody,
+			double crossflowSpeed
+	) {
 		int rotorCount = config.rotors().size();
 		double[] intensity = rotorWakeInterferenceTargetIntensity;
 		Vec3[] downwash = rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond;
@@ -4749,95 +4821,179 @@ public final class DronePhysics {
 			return;
 		}
 
-		double crossflowSpeed = Math.hypot(relativeAirVelocityBody.x(), relativeAirVelocityBody.z());
+		prepareRotorWakeSourceDynamics(relativeAirVelocityBody);
 		double crossflowFlush = 1.0 - smoothStep(2.0, 8.0, crossflowSpeed);
 
 		for (int receiverIndex = 0; receiverIndex < rotorCount; receiverIndex++) {
-			RotorSpec receiver = config.rotors().get(receiverIndex);
-			Vec3 receiverPosition = receiver.positionBodyMeters();
+			RotorWakeRotorGeometry receiverGeometry = rotorWakeRotorGeometry[receiverIndex];
+			RotorSpec receiver = receiverGeometry.rotor();
 			double receiverIntensity = 0.0;
-			Vec3 receiverDownwash = Vec3.ZERO;
-			Vec3 receiverSwirl = Vec3.ZERO;
-			for (int sourceIndex = 0; sourceIndex < rotorCount; sourceIndex++) {
-				if (sourceIndex == receiverIndex) {
+			double receiverDownwashX = 0.0;
+			double receiverDownwashY = 0.0;
+			double receiverDownwashZ = 0.0;
+			double receiverSwirlX = 0.0;
+			double receiverSwirlY = 0.0;
+			double receiverSwirlZ = 0.0;
+			for (int pairIndex = rotorWakePairStartByReceiver[receiverIndex];
+					pairIndex < rotorWakePairStartByReceiver[receiverIndex + 1];
+					pairIndex++) {
+				RotorWakePairGeometry pairGeometry = rotorWakePairGeometry[pairIndex];
+				int sourceIndex = pairGeometry.sourceIndex();
+				if (!rotorWakeSourceActive[sourceIndex]) {
 					continue;
 				}
 
-				RotorSpec source = config.rotors().get(sourceIndex);
-				Vec3 sourcePosition = source.positionBodyMeters();
-				Vec3 sourceAxisBody = rotorAxisBody(source);
-				Vec3 sourceToReceiver = receiverPosition.subtract(sourcePosition);
-				double downstreamDistance = -sourceToReceiver.dot(sourceAxisBody);
-				Vec3 lateralOffset = sourceToReceiver.add(sourceAxisBody.multiply(downstreamDistance));
-				double lateralDistance = lateralOffset.length();
-				double sourceSpinRatio = MathUtil.clamp(
-						Math.abs(state.motorOmegaRadiansPerSecond(sourceIndex)) / source.maxOmegaRadiansPerSecond(),
+				RotorWakeRotorGeometry sourceGeometry = rotorWakeRotorGeometry[sourceIndex];
+				RotorSpec source = sourceGeometry.rotor();
+				Vec3 sourceAxisBody = sourceGeometry.axisBody();
+				double sourceSpinRatio = rotorWakeSourceSpinRatio[sourceIndex];
+				double sourceInducedVelocity = rotorWakeSourceInducedVelocityMetersPerSecond[sourceIndex];
+				double axialLateralFactor = pairGeometry.axialWakeOverlap() > 1.0e-6
+						&& crossflowFlush > 1.0e-6
+						? pairGeometry.fallbackAxialLateralFactor()
+						: 0.0;
+				double axialContributionFactor = Math.max(
+						0.0,
+						pairGeometry.axialWakeOverlap() * axialLateralFactor * crossflowFlush
+				);
+				calculateRotorConvectedWakeInto(
+						pairGeometry,
+						sourceGeometry,
+						receiverGeometry,
+						sourceInducedVelocity,
+						rotorConvectedWakeScratch
+				);
+				double convectedOverlap = rotorConvectedWakeScratch.overlap;
+				double wakeGeometryFactor = MathUtil.clamp(
+						axialContributionFactor + convectedOverlap,
 						0.0,
 						1.0
 				);
-				if (sourceSpinRatio <= 0.05) {
-					continue;
-				}
-
-				double sourceInducedVelocity = Math.max(
-						state.rotorInducedVelocityMetersPerSecond(sourceIndex),
-						sourceSpinRatio * source.maxOmegaRadiansPerSecond() * source.radiusMeters() * 0.10
-				);
-				double axialWakeOverlap = rotorWakeAxisOverlap(source, receiver, downstreamDistance, lateralDistance);
-				double axialLateralFactor = 0.0;
-				if (axialWakeOverlap > 1.0e-6 && crossflowFlush > 1.0e-6) {
-					double wakeRadius = source.radiusMeters() + Math.max(0.0, downstreamDistance) * 0.42;
-					axialLateralFactor = 1.0 - smoothStep(wakeRadius * 0.35, wakeRadius + receiver.radiusMeters() * 0.85, lateralDistance);
-				}
-				double axialContributionFactor = Math.max(0.0, axialWakeOverlap * axialLateralFactor * crossflowFlush);
-				RotorConvectedWake convectedWake = rotorConvectedWakeOverlap(
-						source,
-						receiver,
-						relativeAirVelocityBody,
-						sourceToReceiver,
-						sourceAxisBody,
-						sourceInducedVelocity
-				);
-				double wakeGeometryFactor = MathUtil.clamp(axialContributionFactor + convectedWake.overlap(), 0.0, 1.0);
 				if (wakeGeometryFactor <= 1.0e-6) {
 					continue;
 				}
 
-				double radiusMatch = MathUtil.clamp(source.radiusMeters() / Math.max(1.0e-6, receiver.radiusMeters()), 0.45, 1.45);
 				double contribution = MathUtil.clamp(
-						sourceSpinRatio * sourceSpinRatio * wakeGeometryFactor * (0.70 + 0.18 * radiusMatch),
+						sourceSpinRatio * sourceSpinRatio * wakeGeometryFactor
+								* (0.70 + 0.18 * pairGeometry.radiusMatch()),
 						0.0,
 						1.0
 				);
-				double effectiveMissDistance = convectedWake.overlap() > axialContributionFactor
-						? convectedWake.missDistanceMeters()
-						: lateralDistance;
-				double coaxialCoreFactor = 1.0 - smoothStep(source.radiusMeters() * 0.08, source.radiusMeters() * 0.72, effectiveMissDistance);
+				boolean convectedDominates = convectedOverlap > axialContributionFactor;
+				double coaxialCoreFactor = convectedDominates
+						? 1.0 - smoothStep(
+								source.radiusMeters() * 0.08,
+								source.radiusMeters() * 0.72,
+								rotorConvectedWakeScratch.missDistanceMeters
+						)
+						: pairGeometry.axialCoaxialCoreFactor();
 				double swirlCapture = MathUtil.clamp(0.34 + 0.26 * coaxialCoreFactor + 0.14 * sourceSpinRatio, 0.0, 0.78);
 				double swirlVelocity = contribution * sourceInducedVelocity * swirlCapture;
-				Vec3 sourceArmBody = sourcePosition.subtract(config.centerOfMassOffsetBodyMeters());
-				Vec3 swirlDirection = rotorWakeSwirlDirection(
-						sourceAxisBody,
-						convectedWake.overlap() > axialContributionFactor ? convectedWake.swirlOffsetBody() : lateralOffset,
-						sourceArmBody,
-						source.spinDirection()
-				);
+				Vec3 swirlDirection = convectedDominates
+						? rotorWakeSwirlDirection(
+								sourceAxisBody,
+								new Vec3(
+										rotorConvectedWakeScratch.swirlOffsetX,
+										rotorConvectedWakeScratch.swirlOffsetY,
+										rotorConvectedWakeScratch.swirlOffsetZ
+								),
+								sourceGeometry.armFromCenterOfMassBody(),
+								source.spinDirection()
+						)
+						: pairGeometry.axialSwirlDirectionBody();
 				receiverIntensity += contribution;
-				receiverDownwash = receiverDownwash.add(sourceAxisBody.multiply(-contribution * sourceInducedVelocity));
-				receiverSwirl = receiverSwirl.add(swirlDirection.multiply(swirlVelocity));
+				double downwashScale = -contribution * sourceInducedVelocity;
+				receiverDownwashX += sourceAxisBody.x() * downwashScale;
+				receiverDownwashY += sourceAxisBody.y() * downwashScale;
+				receiverDownwashZ += sourceAxisBody.z() * downwashScale;
+				receiverSwirlX += swirlDirection.x() * swirlVelocity;
+				receiverSwirlY += swirlDirection.y() * swirlVelocity;
+				receiverSwirlZ += swirlDirection.z() * swirlVelocity;
 			}
 			intensity[receiverIndex] = MathUtil.clamp(receiverIntensity, 0.0, 1.0);
-			downwash[receiverIndex] = receiverDownwash.clamp(-12.0, 12.0);
-			swirl[receiverIndex] = clampRotorWakeSwirlVelocity(receiver, receiverSwirl);
+			downwash[receiverIndex] = new Vec3(
+					MathUtil.clamp(receiverDownwashX, -12.0, 12.0),
+					MathUtil.clamp(receiverDownwashY, -12.0, 12.0),
+					MathUtil.clamp(receiverDownwashZ, -12.0, 12.0)
+			);
+			swirl[receiverIndex] = clampRotorWakeSwirlVelocity(
+					new Vec3(receiverSwirlX, receiverSwirlY, receiverSwirlZ),
+					receiverGeometry.swirlVelocityLimitMetersPerSecond()
+			);
 		}
 	}
 
+	private void prepareRotorWakeSourceDynamics(Vec3 relativeAirVelocityBody) {
+		for (int sourceIndex = 0; sourceIndex < rotorWakeRotorGeometry.length; sourceIndex++) {
+			RotorWakeRotorGeometry sourceGeometry = rotorWakeRotorGeometry[sourceIndex];
+			RotorSpec source = sourceGeometry.rotor();
+			double sourceSpinRatio = MathUtil.clamp(
+					Math.abs(state.motorOmegaRadiansPerSecond(sourceIndex)) / source.maxOmegaRadiansPerSecond(),
+					0.0,
+					1.0
+			);
+			rotorWakeSourceSpinRatio[sourceIndex] = sourceSpinRatio;
+			boolean sourceActive = sourceSpinRatio > 0.05;
+			rotorWakeSourceActive[sourceIndex] = sourceActive;
+			if (!sourceActive) {
+				clearRotorWakeSourceDynamics(sourceIndex);
+				continue;
+			}
+
+			rotorWakeSourceInducedVelocityMetersPerSecond[sourceIndex] = Math.max(
+					state.rotorInducedVelocityMetersPerSecond(sourceIndex),
+					sourceSpinRatio * source.maxOmegaRadiansPerSecond() * source.radiusMeters() * 0.10
+			);
+			Vec3 sourceAxisBody = sourceGeometry.axisBody();
+			double axialProjection = relativeAirVelocityBody.dot(sourceAxisBody);
+			double transverseX = relativeAirVelocityBody.x() - sourceAxisBody.x() * axialProjection;
+			double transverseY = relativeAirVelocityBody.y() - sourceAxisBody.y() * axialProjection;
+			double transverseZ = relativeAirVelocityBody.z() - sourceAxisBody.z() * axialProjection;
+			double transverseSpeed = Math.sqrt(
+					transverseX * transverseX
+							+ transverseY * transverseY
+							+ transverseZ * transverseZ
+			);
+			rotorWakeSourceTransverseSpeedMetersPerSecond[sourceIndex] = transverseSpeed;
+			rotorWakeSourceCrossflowCapture[sourceIndex] = smoothStep(4.0, 14.0, transverseSpeed);
+			if (transverseSpeed <= 1.0) {
+				rotorWakeSourceConvectionDirectionX[sourceIndex] = 0.0;
+				rotorWakeSourceConvectionDirectionY[sourceIndex] = 0.0;
+				rotorWakeSourceConvectionDirectionZ[sourceIndex] = 0.0;
+				continue;
+			}
+
+			double inverseTransverseSpeed = -1.0 / transverseSpeed;
+			rotorWakeSourceConvectionDirectionX[sourceIndex] = transverseX * inverseTransverseSpeed;
+			rotorWakeSourceConvectionDirectionY[sourceIndex] = transverseY * inverseTransverseSpeed;
+			rotorWakeSourceConvectionDirectionZ[sourceIndex] = transverseZ * inverseTransverseSpeed;
+		}
+	}
+
+	private void clearRotorWakeSourceDynamics(int sourceIndex) {
+		rotorWakeSourceInducedVelocityMetersPerSecond[sourceIndex] = 0.0;
+		rotorWakeSourceTransverseSpeedMetersPerSecond[sourceIndex] = 0.0;
+		rotorWakeSourceCrossflowCapture[sourceIndex] = 0.0;
+		rotorWakeSourceConvectionDirectionX[sourceIndex] = 0.0;
+		rotorWakeSourceConvectionDirectionY[sourceIndex] = 0.0;
+		rotorWakeSourceConvectionDirectionZ[sourceIndex] = 0.0;
+	}
+
 	private static Vec3 clampRotorWakeSwirlVelocity(RotorSpec receiver, Vec3 swirlVelocityBodyMetersPerSecond) {
+		return clampRotorWakeSwirlVelocity(
+				swirlVelocityBodyMetersPerSecond,
+				rotorWakeSwirlVelocityLimitMetersPerSecond(receiver)
+		);
+	}
+
+	private static Vec3 clampRotorWakeSwirlVelocity(
+			Vec3 swirlVelocityBodyMetersPerSecond,
+			double limit
+	) {
 		if (swirlVelocityBodyMetersPerSecond == null || swirlVelocityBodyMetersPerSecond.lengthSquared() <= 1.0e-12) {
 			return Vec3.ZERO;
 		}
 
-		double limit = rotorWakeSwirlVelocityLimitMetersPerSecond(receiver);
 		double length = swirlVelocityBodyMetersPerSecond.length();
 		if (!Double.isFinite(length) || length <= limit) {
 			return swirlVelocityBodyMetersPerSecond.isFinite() ? swirlVelocityBodyMetersPerSecond : Vec3.ZERO;
@@ -4890,45 +5046,58 @@ public final class DronePhysics {
 		return 0.0;
 	}
 
-	private static RotorConvectedWake rotorConvectedWakeOverlap(
-			RotorSpec source,
-			RotorSpec receiver,
-			Vec3 relativeAirVelocityBody,
-			Vec3 sourceToReceiverBody,
-			Vec3 sourceAxisBody,
-			double sourceInducedVelocityMetersPerSecond
+	private void calculateRotorConvectedWakeInto(
+			RotorWakePairGeometry pairGeometry,
+			RotorWakeRotorGeometry sourceGeometry,
+			RotorWakeRotorGeometry receiverGeometry,
+			double sourceInducedVelocityMetersPerSecond,
+			RotorConvectedWakeScratch out
 	) {
-		Vec3 transverseVelocityBody = projectOntoRotorDisk(relativeAirVelocityBody, sourceAxisBody);
-		double transverseSpeed = transverseVelocityBody.length();
+		out.setIdle();
+		int sourceIndex = pairGeometry.sourceIndex();
+		double transverseSpeed = rotorWakeSourceTransverseSpeedMetersPerSecond[sourceIndex];
 		if (transverseSpeed <= 1.0 || sourceInducedVelocityMetersPerSecond <= 1.0e-6) {
-			return RotorConvectedWake.IDLE;
+			return;
 		}
 
-		Vec3 wakeConvectionDirectionBody = transverseVelocityBody.multiply(-1.0 / transverseSpeed);
-		Vec3 receiverLateralOffsetBody = projectOntoRotorDisk(sourceToReceiverBody, sourceAxisBody);
-		double alongConvectionMeters = receiverLateralOffsetBody.dot(wakeConvectionDirectionBody);
+		double convectionX = rotorWakeSourceConvectionDirectionX[sourceIndex];
+		double convectionY = rotorWakeSourceConvectionDirectionY[sourceIndex];
+		double convectionZ = rotorWakeSourceConvectionDirectionZ[sourceIndex];
+		Vec3 receiverLateralOffsetBody = pairGeometry.convectedReceiverLateralOffsetBody();
+		double alongConvectionMeters = receiverLateralOffsetBody.x() * convectionX
+				+ receiverLateralOffsetBody.y() * convectionY
+				+ receiverLateralOffsetBody.z() * convectionZ;
+		RotorSpec source = sourceGeometry.rotor();
+		RotorSpec receiver = receiverGeometry.rotor();
 		double sourceRadius = source.radiusMeters();
 		double receiverRadius = receiver.radiusMeters();
-		double wakeShedding = smoothStep(0.0004, 0.0028, source.diskDragCoefficient());
-		if (wakeShedding <= 1.0e-6) {
-			return RotorConvectedWake.IDLE;
+		if (sourceGeometry.wakeShedding() <= 1.0e-6) {
+			return;
 		}
-		if (alongConvectionMeters <= sourceRadius * 0.25) {
-			return RotorConvectedWake.IDLE;
+		if (alongConvectionMeters <= pairGeometry.minimumAlongConvectionMeters()) {
+			return;
 		}
 
-		Vec3 crossTrackBody = receiverLateralOffsetBody.subtract(
-				wakeConvectionDirectionBody.multiply(alongConvectionMeters)
-		);
-		double crossTrackDistance = crossTrackBody.length();
+		double crossTrackX = receiverLateralOffsetBody.x() - convectionX * alongConvectionMeters;
+		double crossTrackY = receiverLateralOffsetBody.y() - convectionY * alongConvectionMeters;
+		double crossTrackZ = receiverLateralOffsetBody.z() - convectionZ * alongConvectionMeters;
+		double crossTrackSquared = crossTrackX * crossTrackX
+				+ crossTrackY * crossTrackY
+				+ crossTrackZ * crossTrackZ;
+		double crossTrackDistance = Math.sqrt(crossTrackSquared);
 		double wakeAgeSeconds = alongConvectionMeters / Math.max(1.0, transverseSpeed);
 		double wakeDropMeters = sourceInducedVelocityMetersPerSecond * wakeAgeSeconds;
-		double receiverBelowSourceMeters = -sourceToReceiverBody.dot(sourceAxisBody);
-		double axialMissMeters = receiverBelowSourceMeters - wakeDropMeters;
+		double axialMissMeters = pairGeometry.receiverBelowSourceMeters() - wakeDropMeters;
 		double wakeRadius = sourceRadius + wakeDropMeters * 0.38 + alongConvectionMeters * 0.045;
-		double maxUsefulAlong = Math.max(sourceRadius * 8.0, receiverRadius * 5.5);
-		double alongCapture = smoothStep(sourceRadius * 0.35, Math.max(sourceRadius * 2.4, receiverRadius * 2.0), alongConvectionMeters)
-				* (1.0 - smoothStep(maxUsefulAlong * 0.72, maxUsefulAlong, alongConvectionMeters));
+		double alongCapture = smoothStep(
+				pairGeometry.alongCaptureStartMeters(),
+				pairGeometry.alongCaptureEndMeters(),
+				alongConvectionMeters
+		) * (1.0 - smoothStep(
+				pairGeometry.maxUsefulAlongMeters() * 0.72,
+				pairGeometry.maxUsefulAlongMeters(),
+				alongConvectionMeters
+		));
 		double crossTrackCapture = 1.0 - smoothStep(
 				wakeRadius * 0.45,
 				wakeRadius + receiverRadius * 0.95,
@@ -4939,26 +5108,36 @@ public final class DronePhysics {
 				receiverRadius * 1.75 + wakeRadius * 0.45,
 				Math.abs(axialMissMeters)
 		);
-		double crossflowCapture = smoothStep(4.0, 14.0, transverseSpeed);
 		double wakeRetention = MathUtil.clamp(
 				sourceInducedVelocityMetersPerSecond / (sourceInducedVelocityMetersPerSecond + 0.30 * transverseSpeed),
 				0.18,
 				0.82
 		);
 		double overlap = MathUtil.clamp(
-				2.35 * alongCapture * crossTrackCapture * axialCapture * crossflowCapture * wakeRetention * wakeShedding,
+				2.35 * alongCapture * crossTrackCapture * axialCapture
+						* rotorWakeSourceCrossflowCapture[sourceIndex]
+						* wakeRetention
+						* sourceGeometry.wakeShedding(),
 				0.0,
 				1.0
 		);
 		if (overlap <= 1.0e-6) {
-			return RotorConvectedWake.IDLE;
+			return;
 		}
 
-		double missDistance = Math.sqrt(crossTrackDistance * crossTrackDistance + axialMissMeters * axialMissMeters);
-		Vec3 swirlOffset = crossTrackBody.lengthSquared() > 1.0e-9
-				? crossTrackBody
-				: receiverLateralOffsetBody;
-		return new RotorConvectedWake(overlap, missDistance, swirlOffset);
+		out.overlap = overlap;
+		out.missDistanceMeters = Math.sqrt(
+				crossTrackDistance * crossTrackDistance + axialMissMeters * axialMissMeters
+		);
+		if (crossTrackSquared > 1.0e-9) {
+			out.swirlOffsetX = crossTrackX;
+			out.swirlOffsetY = crossTrackY;
+			out.swirlOffsetZ = crossTrackZ;
+		} else {
+			out.swirlOffsetX = receiverLateralOffsetBody.x();
+			out.swirlOffsetY = receiverLateralOffsetBody.y();
+			out.swirlOffsetZ = receiverLateralOffsetBody.z();
+		}
 	}
 
 	private static double rotorWakeInterferenceThrustScale(double interference) {
@@ -6660,6 +6839,109 @@ public final class DronePhysics {
 				-1.0,
 				1.0
 		);
+	}
+
+	private void rebuildRotorWakeCaches() {
+		int rotorCount = config.rotors().size();
+		RotorWakeRotorGeometry[] rotorGeometry = new RotorWakeRotorGeometry[rotorCount];
+		for (int rotorIndex = 0; rotorIndex < rotorCount; rotorIndex++) {
+			RotorSpec rotor = config.rotors().get(rotorIndex);
+			Vec3 positionBody = rotor.positionBodyMeters();
+			Vec3 axisBody = rotorAxisBody(rotor);
+			Vec3 armFromCenterOfMassBody = positionBody.subtract(config.centerOfMassOffsetBodyMeters());
+			double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.80);
+			rotorGeometry[rotorIndex] = new RotorWakeRotorGeometry(
+					rotor,
+					positionBody,
+					axisBody,
+					armFromCenterOfMassBody,
+					Math.sqrt(radiusScale),
+					rotorWakeSwirlVelocityLimitMetersPerSecond(rotor),
+					smoothStep(0.0004, 0.0028, rotor.diskDragCoefficient())
+			);
+		}
+
+		RotorWakePairGeometry[] pairGeometry = new RotorWakePairGeometry[rotorCount * Math.max(0, rotorCount - 1)];
+		int[] pairStartByReceiver = new int[rotorCount + 1];
+		int pairIndex = 0;
+		for (int receiverIndex = 0; receiverIndex < rotorCount; receiverIndex++) {
+			pairStartByReceiver[receiverIndex] = pairIndex;
+			RotorWakeRotorGeometry receiverGeometry = rotorGeometry[receiverIndex];
+			RotorSpec receiver = receiverGeometry.rotor();
+			for (int sourceIndex = 0; sourceIndex < rotorCount; sourceIndex++) {
+				if (sourceIndex == receiverIndex) {
+					continue;
+				}
+
+				RotorWakeRotorGeometry sourceGeometry = rotorGeometry[sourceIndex];
+				RotorSpec source = sourceGeometry.rotor();
+				Vec3 sourceToReceiver = receiverGeometry.positionBody().subtract(sourceGeometry.positionBody());
+				double downstreamDistance = -sourceToReceiver.dot(sourceGeometry.axisBody());
+				Vec3 axialLateralOffset = sourceToReceiver.add(sourceGeometry.axisBody().multiply(downstreamDistance));
+				double axialLateralDistance = axialLateralOffset.length();
+				double axialWakeOverlap = rotorWakeAxisOverlap(
+						source,
+						receiver,
+						downstreamDistance,
+						axialLateralDistance
+				);
+				double fallbackAxialWakeRadius = source.radiusMeters()
+						+ Math.max(0.0, downstreamDistance) * 0.42;
+				double fallbackAxialLateralFactor = axialWakeOverlap > 1.0e-6
+						? 1.0 - smoothStep(
+								fallbackAxialWakeRadius * 0.35,
+								fallbackAxialWakeRadius + receiver.radiusMeters() * 0.85,
+								axialLateralDistance
+						)
+						: 0.0;
+				Vec3 convectedReceiverLateralOffset = projectOntoRotorDisk(
+						sourceToReceiver,
+						sourceGeometry.axisBody()
+				);
+				double receiverBelowSource = -sourceToReceiver.dot(sourceGeometry.axisBody());
+				double sourceRadius = source.radiusMeters();
+				double receiverRadius = receiver.radiusMeters();
+				double radiusMatch = MathUtil.clamp(
+						sourceRadius / Math.max(1.0e-6, receiverRadius),
+						0.45,
+						1.45
+				);
+				double axialCoaxialCoreFactor = 1.0 - smoothStep(
+						sourceRadius * 0.08,
+						sourceRadius * 0.72,
+						axialLateralDistance
+				);
+				Vec3 axialSwirlDirection = rotorWakeSwirlDirection(
+						sourceGeometry.axisBody(),
+						axialLateralOffset,
+						sourceGeometry.armFromCenterOfMassBody(),
+						source.spinDirection()
+				);
+				pairGeometry[pairIndex++] = new RotorWakePairGeometry(
+						sourceIndex,
+						downstreamDistance,
+						axialLateralOffset,
+						axialLateralDistance,
+						axialWakeOverlap,
+						fallbackAxialWakeRadius,
+						fallbackAxialLateralFactor,
+						convectedReceiverLateralOffset,
+						receiverBelowSource,
+						radiusMatch,
+						sourceRadius * 0.25,
+						sourceRadius * 0.35,
+						Math.max(sourceRadius * 2.4, receiverRadius * 2.0),
+						Math.max(sourceRadius * 8.0, receiverRadius * 5.5),
+						axialCoaxialCoreFactor,
+						axialSwirlDirection
+				);
+			}
+			pairStartByReceiver[receiverIndex + 1] = pairIndex;
+		}
+
+		rotorWakeRotorGeometry = rotorGeometry;
+		rotorWakePairGeometry = pairGeometry;
+		rotorWakePairStartByReceiver = pairStartByReceiver;
 	}
 
 	private void rebuildMixerCaches() {
