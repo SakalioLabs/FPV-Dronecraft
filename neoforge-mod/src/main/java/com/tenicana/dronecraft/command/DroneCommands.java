@@ -1092,7 +1092,7 @@ public final class DroneCommands {
 				wind.y(),
 				wind.z(),
 				environment.airDensityRatio(),
-				environment.ambientTemperatureCelsius(),
+				environment.effectiveAmbientTemperatureCelsius(),
 				environment.turbulenceIntensity(),
 				environment.obstacleProximity(),
 				environment.waterImmersionIntensity(),

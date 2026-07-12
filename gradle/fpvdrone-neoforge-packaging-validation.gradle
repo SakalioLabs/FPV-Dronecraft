@@ -50,6 +50,13 @@ def fpvPkgExpectedToml = [
 		"versionRange=\"[${fpvPkgExpectedMinecraftVersion}]\"",
 		'ordering="NONE"',
 		'side="BOTH"',
+		'',
+		'[[dependencies.fpvdrone]]',
+		'modId="aerodynamics4mc"',
+		'type="optional"',
+		'versionRange="[0,)"',
+		'ordering="AFTER"',
+		'side="SERVER"',
 		''
 ].join("\n")
 def fpvPkgExpectedMixinClasses = [
