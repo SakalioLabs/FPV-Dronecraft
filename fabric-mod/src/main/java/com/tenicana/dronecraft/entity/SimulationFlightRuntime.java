@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.control.DroneControlManager;
+import com.tenicana.dronecraft.integration.Aerodynamics4McAtmosphereBridge;
 import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
@@ -24,8 +25,324 @@ import com.tenicana.dronecraft.sim.flight.SimulationFlightModelAdapter;
 import net.minecraft.world.entity.EntityDimensions;
 
 final class SimulationFlightRuntime {
+	private static final Vec3 BODY_X = new Vec3(1.0, 0.0, 0.0);
+	private static final Vec3 BODY_Z = new Vec3(0.0, 0.0, 1.0);
+	private static final long A4MC_STENCIL_REFRESH_INTERVAL_TICKS = 2L;
+	private static final int A4MC_STENCIL_EDGE_SAMPLE_COUNT = 4;
+	private static final double A4MC_STENCIL_MIN_RADIUS_METERS = 1.0e-6;
+	private static final double A4MC_STENCIL_MIN_SOURCE_QUALITY = 1.0e-9;
+	private static final double LOCAL_PRESSURE_CENTER_DISK_RADIUS_SCALE = 0.36;
+	private static final double LOCAL_PRESSURE_CENTER_FULL_SCALE_PASCALS = 1600.0;
+	private static final double LOCAL_PRESSURE_CENTER_MAX_WIND_EQUIVALENT_METERS_PER_SECOND = 2.4;
+	private static final double LOCAL_PRESSURE_CENTER_OBSTRUCTION_WEIGHT = 0.35;
+	private static final double LOCAL_PRESSURE_CENTER_PRESSURE_WEIGHT = 0.85;
+	private static final double LOCAL_VOXEL_MOTOR_COVERAGE_LOSS = 0.12;
+	private static final double LOCAL_VOXEL_MOTOR_OBSTRUCTION_LOSS = 0.18;
+	private static final double LOCAL_VOXEL_PACK_COVERAGE_LOSS = 0.08;
+	private static final double LOCAL_VOXEL_PACK_OBSTRUCTION_LOSS = 0.10;
+
 	private DronePhysics physics;
 	private FlightModel flightModel;
+
+	static double compactLocalStaticPressureExposure(
+			double localVoxelSourceQuality,
+			double sourceShelterFactor,
+			double meanRotorObstruction
+	) {
+		double quality = MathUtil.clamp(localVoxelSourceQuality, 0.0, 1.0);
+		if (quality <= A4MC_STENCIL_MIN_SOURCE_QUALITY) {
+			return 0.0;
+		}
+		double obstruction = MathUtil.clamp(meanRotorObstruction, 0.0, 1.0);
+		return MathUtil.clamp(
+				0.35
+						+ 0.35 * MathUtil.clamp(sourceShelterFactor, 0.0, 1.0) * quality
+						+ 0.18 * quality
+						+ 0.12 * obstruction * quality,
+				0.25,
+				1.0
+		);
+	}
+
+	static double compactLocalVoxelVentilationMultiplier(
+			double localVoxelSourceQuality,
+			double meanRotorObstruction,
+			boolean batteryPack
+	) {
+		double quality = MathUtil.clamp(localVoxelSourceQuality, 0.0, 1.0);
+		if (quality <= A4MC_STENCIL_MIN_SOURCE_QUALITY) {
+			return 1.0;
+		}
+		double obstruction = MathUtil.clamp(meanRotorObstruction, 0.0, 1.0);
+		double coverageLoss = batteryPack ? LOCAL_VOXEL_PACK_COVERAGE_LOSS : LOCAL_VOXEL_MOTOR_COVERAGE_LOSS;
+		double obstructionLoss = batteryPack ? LOCAL_VOXEL_PACK_OBSTRUCTION_LOSS : LOCAL_VOXEL_MOTOR_OBSTRUCTION_LOSS;
+		double minimum = batteryPack ? 0.78 : 0.72;
+		return MathUtil.clamp(1.0 - quality * (coverageLoss + obstructionLoss * obstruction), minimum, 1.0);
+	}
+
+	static double compactLocalVoxelMeanObstruction(
+			double[] rotorFlowObstructions,
+			double[] rotorFlowObstructionWallForceFactors
+	) {
+		if (rotorFlowObstructions == null || rotorFlowObstructions.length == 0) {
+			return 0.0;
+		}
+		double sum = 0.0;
+		for (int i = 0; i < rotorFlowObstructions.length; i++) {
+			double wallFactor = rotorFlowObstructionWallForceFactors != null
+					&& i < rotorFlowObstructionWallForceFactors.length
+					? MathUtil.clamp(rotorFlowObstructionWallForceFactors[i], 0.0, 1.0)
+					: 1.0;
+			sum += MathUtil.clamp(rotorFlowObstructions[i], 0.0, 1.0) * wallFactor;
+		}
+		return MathUtil.clamp(sum / rotorFlowObstructions.length, 0.0, 1.0);
+	}
+
+	static final class A4mcSharedStencilCache {
+		private Vec3 windDerivativeAlongStencilXWorldPerMeter = Vec3.ZERO;
+		private Vec3 windDerivativeAlongStencilZWorldPerMeter = Vec3.ZERO;
+		private Vec3 pressureGradientWorldPascalsPerMeter = Vec3.ZERO;
+		private Quaternion stencilOrientation = Quaternion.IDENTITY;
+		private long lastStencilTick = Long.MIN_VALUE;
+
+		boolean acceptsCenter(
+				Aerodynamics4McAtmosphereBridge.AtmosphereSample center,
+				double sourceQuality,
+				boolean explicitWindOverride
+		) {
+			if (explicitWindOverride
+					|| center == null
+					|| !center.hasFlow()
+					|| !center.hasMeanVelocity()
+					|| !Double.isFinite(sourceQuality)
+					|| sourceQuality <= A4MC_STENCIL_MIN_SOURCE_QUALITY) {
+				clear();
+				return false;
+			}
+			if (!hasAdoptableA4mcStencilCenterPressure(center, sourceQuality)) {
+				pressureGradientWorldPascalsPerMeter = Vec3.ZERO;
+			}
+			return true;
+		}
+
+		boolean shouldRefresh(long currentTick) {
+			return lastStencilTick == Long.MIN_VALUE
+					|| currentTick < lastStencilTick
+					|| currentTick - lastStencilTick >= A4MC_STENCIL_REFRESH_INTERVAL_TICKS;
+		}
+
+		void update(
+				Vec3 windDerivativeAlongStencilXWorldPerMeter,
+				Vec3 windDerivativeAlongStencilZWorldPerMeter,
+				Vec3 pressureGradientWorldPascalsPerMeter,
+				Quaternion stencilOrientation,
+				long currentTick
+		) {
+			this.windDerivativeAlongStencilXWorldPerMeter = finiteOrZero(windDerivativeAlongStencilXWorldPerMeter);
+			this.windDerivativeAlongStencilZWorldPerMeter = finiteOrZero(windDerivativeAlongStencilZWorldPerMeter);
+			this.pressureGradientWorldPascalsPerMeter = finiteOrZero(pressureGradientWorldPascalsPerMeter);
+			this.stencilOrientation = stencilOrientation == null
+					? Quaternion.IDENTITY
+					: stencilOrientation.normalized();
+			lastStencilTick = currentTick;
+		}
+
+		void clear() {
+			windDerivativeAlongStencilXWorldPerMeter = Vec3.ZERO;
+			windDerivativeAlongStencilZWorldPerMeter = Vec3.ZERO;
+			pressureGradientWorldPascalsPerMeter = Vec3.ZERO;
+			stencilOrientation = Quaternion.IDENTITY;
+			lastStencilTick = Long.MIN_VALUE;
+		}
+
+		Vec3 adoptedWindDerivativeAlongBodyXPerMeter(SimulationFlightRuntime runtime) {
+			return hasWindDerivative() && runtime != null
+					? adoptedWindDerivativeAlongBodyAxisPerMeter(runtime, runtime.bodyXWorldDirection())
+					: Vec3.ZERO;
+		}
+
+		Vec3 adoptedWindDerivativeAlongBodyZPerMeter(SimulationFlightRuntime runtime) {
+			return hasWindDerivative() && runtime != null
+					? adoptedWindDerivativeAlongBodyAxisPerMeter(runtime, runtime.bodyZWorldDirection())
+					: Vec3.ZERO;
+		}
+
+		Vec3 adoptedPressureGradientBodyPascalsPerMeter(SimulationFlightRuntime runtime) {
+			if (runtime == null
+					|| lastStencilTick == Long.MIN_VALUE
+					|| pressureGradientWorldPascalsPerMeter.lengthSquared() <= 1.0e-18) {
+				return Vec3.ZERO;
+			}
+			Vec3 bodyGradient = runtime.worldVectorToBody(pressureGradientWorldPascalsPerMeter);
+			return new Vec3(bodyGradient.x(), 0.0, bodyGradient.z());
+		}
+
+		long lastStencilTick() {
+			return lastStencilTick;
+		}
+
+		private boolean hasWindDerivative() {
+			return lastStencilTick != Long.MIN_VALUE
+					&& (windDerivativeAlongStencilXWorldPerMeter.lengthSquared() > 1.0e-18
+							|| windDerivativeAlongStencilZWorldPerMeter.lengthSquared() > 1.0e-18);
+		}
+
+		private Vec3 adoptedWindDerivativeAlongBodyAxisPerMeter(
+				SimulationFlightRuntime runtime,
+				Vec3 currentBodyAxisWorld
+		) {
+			if (runtime == null
+					|| lastStencilTick == Long.MIN_VALUE
+					|| currentBodyAxisWorld == null
+					|| !currentBodyAxisWorld.isFinite()
+					|| !hasWindDerivative()) {
+				return Vec3.ZERO;
+			}
+			Vec3 stencilXWorld = stencilOrientation.rotate(BODY_X);
+			Vec3 stencilZWorld = stencilOrientation.rotate(BODY_Z);
+			Vec3 derivativeWorld = windDerivativeAlongStencilXWorldPerMeter
+					.multiply(currentBodyAxisWorld.dot(stencilXWorld))
+					.add(windDerivativeAlongStencilZWorldPerMeter.multiply(currentBodyAxisWorld.dot(stencilZWorld)));
+			return runtime.worldVectorToBody(derivativeWorld);
+		}
+
+		private static Vec3 finiteOrZero(Vec3 value) {
+			return value == null || !value.isFinite() ? Vec3.ZERO : value;
+		}
+	}
+
+	static Vec3 adoptedA4mcStencilWind(
+			Vec3 centerMeanWind,
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample sample
+	) {
+		Vec3 center = centerMeanWind == null || !centerMeanWind.isFinite() ? Vec3.ZERO : centerMeanWind;
+		if (sample == null || !sample.hasFlow() || !sample.hasMeanVelocity()) {
+			return center;
+		}
+		double sourceQuality = atmosphereSourceQuality(sample);
+		if (sourceQuality <= A4MC_STENCIL_MIN_SOURCE_QUALITY) {
+			return center;
+		}
+		Vec3 sampleMean = new Vec3(
+				sample.meanVelocityX(),
+				sample.meanVelocityY(),
+				sample.meanVelocityZ()
+		);
+		return sourceQuality >= 1.0 - A4MC_STENCIL_MIN_SOURCE_QUALITY
+				? sampleMean
+				: center.add(sampleMean.subtract(center).multiply(sourceQuality));
+	}
+
+	static double adoptedA4mcStencilCenterPressure(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample center,
+			double sourceQuality
+	) {
+		if (!hasAdoptableA4mcStencilCenterPressure(center, sourceQuality)) {
+			return 0.0;
+		}
+		return center.pressureAnomalyPascals() * MathUtil.clamp(sourceQuality, 0.0, 1.0);
+	}
+
+	static boolean hasAdoptableA4mcStencilCenterPressure(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample center,
+			double sourceQuality
+	) {
+		return center != null
+				&& center.hasFlow()
+				&& center.trustedForGameplay()
+				&& center.localVoxelFlow()
+				&& Double.isFinite(sourceQuality)
+				&& sourceQuality > A4MC_STENCIL_MIN_SOURCE_QUALITY;
+	}
+
+	static double adoptedA4mcStencilPressure(
+			double centerPressurePascals,
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample sample
+	) {
+		double center = Double.isFinite(centerPressurePascals) ? centerPressurePascals : 0.0;
+		if (sample == null
+				|| !sample.hasFlow()
+				|| !sample.trustedForGameplay()
+				|| !sample.localVoxelFlow()) {
+			return center;
+		}
+		double sourceQuality = atmosphereSourceQuality(sample);
+		if (sourceQuality <= A4MC_STENCIL_MIN_SOURCE_QUALITY) {
+			return center;
+		}
+		return center + (sample.pressureAnomalyPascals() - center) * sourceQuality;
+	}
+
+	static Vec3 adoptedA4mcStencilPressureGradient(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample center,
+			double centerQuality,
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample positiveX,
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample negativeX,
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample positiveZ,
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample negativeZ,
+			double radiusMeters
+	) {
+		if (!hasAdoptableA4mcStencilCenterPressure(center, centerQuality)) {
+			return Vec3.ZERO;
+		}
+		double centerPressure = adoptedA4mcStencilCenterPressure(center, centerQuality);
+		return new Vec3(
+				centralDifference(
+						adoptedA4mcStencilPressure(centerPressure, positiveX),
+						adoptedA4mcStencilPressure(centerPressure, negativeX),
+						radiusMeters
+				),
+				0.0,
+				centralDifference(
+						adoptedA4mcStencilPressure(centerPressure, positiveZ),
+						adoptedA4mcStencilPressure(centerPressure, negativeZ),
+						radiusMeters
+				)
+		);
+	}
+
+	static Vec3 centralDifference(Vec3 positive, Vec3 negative, double radiusMeters) {
+		if (positive == null
+				|| negative == null
+				|| !positive.isFinite()
+				|| !negative.isFinite()
+				|| !Double.isFinite(radiusMeters)
+				|| radiusMeters <= A4MC_STENCIL_MIN_RADIUS_METERS) {
+			return Vec3.ZERO;
+		}
+		return positive.subtract(negative).multiply(0.5 / radiusMeters);
+	}
+
+	static double centralDifference(double positive, double negative, double radiusMeters) {
+		if (!Double.isFinite(positive)
+				|| !Double.isFinite(negative)
+				|| !Double.isFinite(radiusMeters)
+				|| radiusMeters <= A4MC_STENCIL_MIN_RADIUS_METERS) {
+			return 0.0;
+		}
+		return (positive - negative) * 0.5 / radiusMeters;
+	}
+
+	static int a4mcStencilEdgeSampleCount() {
+		return A4MC_STENCIL_EDGE_SAMPLE_COUNT;
+	}
+
+	static boolean isValidA4mcStencilRadius(double radiusMeters) {
+		return Double.isFinite(radiusMeters) && radiusMeters > A4MC_STENCIL_MIN_RADIUS_METERS;
+	}
+
+	private static double atmosphereSourceQuality(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere
+	) {
+		if (atmosphere == null || !atmosphere.hasFlow()) {
+			return 0.0;
+		}
+		return DroneEnvironment.windSourceQualityFactor(
+				atmosphere.trustedForGameplay(),
+				atmosphere.confidence(),
+				atmosphere.freshnessAgeTicks()
+		);
+	}
 
 	SimulationFlightRuntime(DroneConfig config) {
 		physics = new DronePhysics(config);
@@ -255,6 +572,183 @@ final class SimulationFlightRuntime {
 				state.orientation().rotate(new Vec3(0.0, 0.0, 1.0)),
 				rotorPositionWorldOffsets
 		);
+	}
+
+	double representativeRotorRadiusMeters() {
+		var rotors = physics.config().rotors();
+		if (rotors.isEmpty()) {
+			return 0.0;
+		}
+		double radiusSum = 0.0;
+		for (RotorSpec rotor : rotors) {
+			radiusSum += rotor.radiusMeters();
+		}
+		return radiusSum / rotors.size();
+	}
+
+	/**
+	 * Reduces trusted local-voxel pressure and already-sampled rotor obstruction primitives to one
+	 * body-frame pressure-center offset. This runs once per environment frame and allocates no
+	 * per-rotor scratch arrays.
+	 */
+	Vec3 compactLocalPressureCenterOffsetBodyMeters(
+			Vec3 pressureGradientBodyPascalsPerMeter,
+			double localVoxelSourceQuality,
+			double[] rotorFlowObstructions,
+			double[] rotorFlowObstructionWallForceFactors
+	) {
+		double quality = Double.isFinite(localVoxelSourceQuality)
+				? MathUtil.clamp(localVoxelSourceQuality, 0.0, 1.0)
+				: 0.0;
+		var rotors = physics.config().rotors();
+		int rotorCount = rotors.size();
+		if (quality <= A4MC_STENCIL_MIN_SOURCE_QUALITY || rotorCount == 0) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 pressureGradient = pressureGradientBodyPascalsPerMeter == null
+				|| !pressureGradientBodyPascalsPerMeter.isFinite()
+				? Vec3.ZERO
+				: pressureGradientBodyPascalsPerMeter;
+		double pressureGradientX = pressureGradient.x();
+		double pressureGradientZ = pressureGradient.z();
+		double pressureGradientMagnitude = Math.hypot(pressureGradientX, pressureGradientZ);
+		double pressureDirectionX = 0.0;
+		double pressureDirectionZ = 0.0;
+		double pressureStrength = 0.0;
+		if (pressureGradientMagnitude > 1.0e-9) {
+			double radiusSum = 0.0;
+			for (RotorSpec rotor : rotors) {
+				radiusSum += rotor.radiusMeters();
+			}
+			double representativeRadius = radiusSum / rotorCount;
+			double diskPressureGradientPascals = pressureGradientMagnitude
+					* LOCAL_PRESSURE_CENTER_DISK_RADIUS_SCALE
+					* representativeRadius;
+			double pressureWindEquivalent = MathUtil.clamp(
+					diskPressureGradientPascals / LOCAL_PRESSURE_CENTER_FULL_SCALE_PASCALS
+							* LOCAL_PRESSURE_CENTER_MAX_WIND_EQUIVALENT_METERS_PER_SECOND,
+					0.0,
+					LOCAL_PRESSURE_CENTER_MAX_WIND_EQUIVALENT_METERS_PER_SECOND
+			);
+			pressureStrength = smoothStep(0.15, 1.80, pressureWindEquivalent);
+			pressureDirectionX = pressureGradientX / pressureGradientMagnitude;
+			pressureDirectionZ = pressureGradientZ / pressureGradientMagnitude;
+		}
+
+		double signalSum = 0.0;
+		for (int i = 0; i < rotorCount; i++) {
+			signalSum += compactLocalPressureCenterSignal(
+					rotors.get(i),
+					i,
+					quality,
+					rotorFlowObstructions,
+					rotorFlowObstructionWallForceFactors,
+					pressureStrength,
+					pressureDirectionX,
+					pressureDirectionZ
+			);
+		}
+		double meanSignal = signalSum / rotorCount;
+		if (meanSignal <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+
+		double centroidX = 0.0;
+		double centroidZ = 0.0;
+		for (int i = 0; i < rotorCount; i++) {
+			double anomaly = compactLocalPressureCenterSignal(
+					rotors.get(i),
+					i,
+					quality,
+					rotorFlowObstructions,
+					rotorFlowObstructionWallForceFactors,
+					pressureStrength,
+					pressureDirectionX,
+					pressureDirectionZ
+			) - meanSignal;
+			Vec3 position = rotors.get(i).positionBodyMeters();
+			centroidX += position.x() * anomaly;
+			centroidZ += position.z() * anomaly;
+		}
+		double inverseCount = 1.0 / rotorCount;
+		double strength = MathUtil.clamp(meanSignal, 0.0, 1.0);
+		double offsetX = -centroidX * inverseCount * 0.68 * strength;
+		double offsetZ = -centroidZ * inverseCount * 0.44 * strength;
+		if (Math.abs(offsetX) <= 1.0e-12 && Math.abs(offsetZ) <= 1.0e-12) {
+			return Vec3.ZERO;
+		}
+		return new Vec3(offsetX, 0.0, offsetZ).clamp(-0.024, 0.024);
+	}
+
+	private static double compactLocalPressureCenterSignal(
+			RotorSpec rotor,
+			int rotorIndex,
+			double sourceQuality,
+			double[] rotorFlowObstructions,
+			double[] rotorFlowObstructionWallForceFactors,
+			double pressureStrength,
+			double pressureDirectionX,
+			double pressureDirectionZ
+	) {
+		double obstruction = rotorIndex >= 0
+				&& rotorFlowObstructions != null
+				&& rotorIndex < rotorFlowObstructions.length
+				&& Double.isFinite(rotorFlowObstructions[rotorIndex])
+				? MathUtil.clamp(rotorFlowObstructions[rotorIndex], 0.0, 1.0)
+				: 0.0;
+		double wallFactor = rotorIndex >= 0
+				&& rotorFlowObstructionWallForceFactors != null
+				&& rotorIndex < rotorFlowObstructionWallForceFactors.length
+				&& Double.isFinite(rotorFlowObstructionWallForceFactors[rotorIndex])
+				? MathUtil.clamp(rotorFlowObstructionWallForceFactors[rotorIndex], 0.0, 1.0)
+				: (obstruction > 1.0e-9 ? 1.0 : 0.0);
+		double obstructionSignal = LOCAL_PRESSURE_CENTER_OBSTRUCTION_WEIGHT
+				* sourceQuality
+				* obstruction
+				* wallFactor;
+
+		Vec3 position = rotor.positionBodyMeters();
+		double radialMagnitude = Math.hypot(position.x(), position.z());
+		double radialProjection = radialMagnitude <= 1.0e-9
+				? 0.0
+				: MathUtil.clamp(
+						(position.x() * pressureDirectionX + position.z() * pressureDirectionZ)
+								/ radialMagnitude,
+						-1.0,
+						1.0
+				);
+		double pressureSignal = LOCAL_PRESSURE_CENTER_PRESSURE_WEIGHT
+				* pressureStrength
+				* (0.5 + 0.5 * radialProjection);
+		return obstructionSignal + pressureSignal;
+	}
+
+	private static double smoothStep(double edge0, double edge1, double value) {
+		if (edge1 <= edge0) {
+			return value >= edge1 ? 1.0 : 0.0;
+		}
+		double t = MathUtil.clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0);
+		return t * t * (3.0 - 2.0 * t);
+	}
+
+	Vec3 bodyXWorldDirection() {
+		return physics.state().orientation().rotate(BODY_X);
+	}
+
+	Vec3 bodyZWorldDirection() {
+		return physics.state().orientation().rotate(BODY_Z);
+	}
+
+	Quaternion orientation() {
+		return physics.state().orientation();
+	}
+
+	Vec3 worldVectorToBody(Vec3 vectorWorld) {
+		if (vectorWorld == null || !vectorWorld.isFinite()) {
+			return Vec3.ZERO;
+		}
+		return physics.state().orientation().conjugate().rotate(vectorWorld);
 	}
 
 	Vec3 rotorPlaneWorldDirection(Vec3 bodyDirection) {
@@ -709,7 +1203,7 @@ final class SimulationFlightRuntime {
 						(float) environment.maxRotorFlowObstruction(),
 						(float) environment.maxRotorWaterImmersion(),
 						(float) environment.precipitationWetnessIntensity(),
-						(float) environment.ambientTemperatureCelsius(),
+						(float) environment.effectiveAmbientTemperatureCelsius(),
 						(float) environment.windVelocityWorldMetersPerSecond().length(),
 						(float) effectiveWind.length(),
 						(float) state.windGustSpeedMetersPerSecond(),
@@ -1408,6 +1902,7 @@ final class SimulationFlightRuntime {
 			Vec3 drydenFirstOrderVelocityWorldMetersPerSecond,
 			Vec3 drydenTransverseLagVelocityWorldMetersPerSecond,
 			Vec3 drydenTurbulenceVelocityWorldMetersPerSecond,
+			Vec3 compactTerrainShearVelocityWorldMetersPerSecond,
 			Vec3 windGustVelocityWorldMetersPerSecond,
 			long drydenRandomState,
 			double drydenSpareGaussian,
@@ -1437,6 +1932,7 @@ final class SimulationFlightRuntime {
 					state.drydenFirstOrderVelocityWorldMetersPerSecond(),
 					state.drydenTransverseLagVelocityWorldMetersPerSecond(),
 					state.drydenTurbulenceVelocityWorldMetersPerSecond(),
+					state.compactTerrainShearVelocityWorldMetersPerSecond(),
 					state.windGustVelocityWorldMetersPerSecond(),
 					state.drydenRandomState(),
 					state.drydenSpareGaussian(),
@@ -1468,6 +1964,7 @@ final class SimulationFlightRuntime {
 					drydenFirstOrderVelocityWorldMetersPerSecond,
 					drydenTransverseLagVelocityWorldMetersPerSecond,
 					drydenTurbulenceVelocityWorldMetersPerSecond,
+					compactTerrainShearVelocityWorldMetersPerSecond,
 					windGustVelocityWorldMetersPerSecond,
 					drydenRandomState,
 					drydenSpareGaussian,

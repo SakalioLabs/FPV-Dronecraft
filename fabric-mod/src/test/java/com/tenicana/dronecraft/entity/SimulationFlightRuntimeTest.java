@@ -38,6 +38,53 @@ class SimulationFlightRuntimeTest {
 		assertVecEquals(angularVelocity, runtime.state().angularVelocityBodyRadiansPerSecond());
 	}
 
+	@Test
+	void sharedStencilGeometryUsesRepresentativeRadiusAndCanonicalBodyTransforms() {
+		DroneConfig config = DroneConfig.racingQuad();
+		SimulationFlightRuntime runtime = new SimulationFlightRuntime(config);
+		double expectedRadius = 0.0;
+		for (var rotor : config.rotors()) {
+			expectedRadius += rotor.radiusMeters();
+		}
+		expectedRadius /= config.rotors().size();
+		Quaternion orientation = new Quaternion(0.81, -0.14, 0.31, 0.47).normalized();
+		Vec3 bodyVector = new Vec3(2.5, -1.25, 0.75);
+		runtime.state().setOrientation(orientation);
+
+		assertEquals(expectedRadius, runtime.representativeRotorRadiusMeters(), 1.0e-12);
+		assertVecEquals(orientation.rotate(new Vec3(1.0, 0.0, 0.0)), runtime.bodyXWorldDirection());
+		assertVecEquals(orientation.rotate(new Vec3(0.0, 0.0, 1.0)), runtime.bodyZWorldDirection());
+		assertVecEquals(bodyVector, runtime.worldVectorToBody(orientation.rotate(bodyVector)));
+		assertEquals(Vec3.ZERO, runtime.worldVectorToBody(null));
+	}
+
+	@Test
+	void compactLocalVoxelCouplingIsQualityGatedBoundedAndAllocationFreeByContract() {
+		double[] obstruction = {0.20, 0.40, 0.60, 0.80};
+		double[] wallFactor = {1.0, 0.5, 1.0, 0.5};
+		double meanObstruction = SimulationFlightRuntime.compactLocalVoxelMeanObstruction(obstruction, wallFactor);
+		assertEquals(0.35, meanObstruction, 1.0e-12);
+
+		assertEquals(0.0, SimulationFlightRuntime.compactLocalStaticPressureExposure(
+				0.0, 1.0, meanObstruction), 0.0);
+		assertEquals(1.0, SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				0.0, meanObstruction, false), 0.0);
+		assertEquals(1.0, SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				0.0, meanObstruction, true), 0.0);
+
+		double exposure = SimulationFlightRuntime.compactLocalStaticPressureExposure(
+				1.0, 0.60, meanObstruction);
+		double motor = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				1.0, meanObstruction, false);
+		double pack = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				1.0, meanObstruction, true);
+		assertEquals(0.782, exposure, 1.0e-12);
+		assertEquals(0.817, motor, 1.0e-12);
+		assertEquals(0.885, pack, 1.0e-12);
+		assertEquals(0.53, SimulationFlightRuntime.compactLocalStaticPressureExposure(
+				1.0, 0.0, 0.0), 1.0e-12);
+	}
+
 	private static void assertVecEquals(Vec3 expected, Vec3 actual) {
 		assertEquals(expected.x(), actual.x(), 1.0e-12);
 		assertEquals(expected.y(), actual.y(), 1.0e-12);

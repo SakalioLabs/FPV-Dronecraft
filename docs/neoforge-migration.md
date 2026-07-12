@@ -42,6 +42,7 @@ the branch remains usable as the base for the next unit.
 | 9a | Playable atmosphere and rotor core | Sync loader-independent moist-air, mesoscale, ABL, terrain-shear, rotor-flow, pressure-center, cooling, and RPM calibration physics | Complete | Upstream `ecfdd2a8..74a177e6`; 520 core tests and focused NeoForge runtime-state test pass |
 | 9b | NeoForge A4MC world coupling | Port optional atmosphere bridge, voxel stencil, and entity routing without Fabric dependencies | Complete | This commit; 449 NeoForge tests, production packaging, and seven corrupt-archive fixtures pass |
 | 9c | Playable atmosphere integration gates | Native GameTests and four server self-test modes exercise the migrated environment | Complete | This commit; 8/8 GameTests plus four 240-tick, 240-sample reports at 200 Hz |
+| 9d | Fabric compatibility consumer | Keep the comparison loader aligned with the upgraded shared-core state and atmosphere contracts | Complete | This commit; 439 Fabric tests and 9/9 Fabric GameTests pass |
 
 ## Verification Policy
 

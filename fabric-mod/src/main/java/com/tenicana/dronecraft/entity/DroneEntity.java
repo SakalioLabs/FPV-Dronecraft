@@ -51,6 +51,8 @@ import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder.RecordingSource;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.control.DroneControlManager;
+import com.tenicana.dronecraft.integration.Aerodynamics4McAtmosphereBridge;
+import com.tenicana.dronecraft.integration.AerodynamicsAtmosphereCoupling;
 import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -336,6 +338,8 @@ public class DroneEntity extends Entity {
 	private double collisionSoundContactPeakImpact;
 	private DroneEnvironment lastEnvironment = DroneEnvironment.calm();
 	private DroneEnvironmentOverride environmentOverride = DroneEnvironmentOverride.natural();
+	private final SimulationFlightRuntime.A4mcSharedStencilCache a4mcSharedStencil =
+			new SimulationFlightRuntime.A4mcSharedStencilCache();
 	private final DroneBlackboxRecorder blackbox = new DroneBlackboxRecorder();
 
 	private record ObstacleAirflow(Vec3 windVelocityWorldMetersPerSecond, double obstacleProximity, double turbulenceBoost) {
@@ -1323,7 +1327,13 @@ public class DroneEntity extends Entity {
 	}
 
 	private DroneEnvironment sampleEnvironment() {
-		Vec3 sourceWind = environmentOverride.windOr(weatherWindMetersPerSecond());
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample externalAtmosphere = sampleAerodynamicsAtmosphere();
+		double sourceQuality = atmosphereSourceQuality(externalAtmosphere);
+		Vec3 sourceWind = environmentOverride.windOr(AerodynamicsAtmosphereCoupling.adoptedAtmosphereWind(
+				weatherWindMetersPerSecond(),
+				externalAtmosphere,
+				sourceQuality
+		));
 		DroneWakeAirflow droneWake = sampleDroneWakeAirflow();
 		ObstacleAirflow obstacleAirflow = sampleObstacleAirflow(sourceWind.add(droneWake.windVelocityWorldMetersPerSecond()));
 		double groundClearance = groundClearanceMeters();
@@ -1332,8 +1342,28 @@ public class DroneEntity extends Entity {
 		WaterImmersion waterImmersion = sampleWaterImmersion();
 		PrecipitationWetness precipitationWetness = samplePrecipitationWetness(sourceWind.length());
 		double ambientTemperature = ambientTemperatureCelsius();
+		double effectiveAmbientTemperature = DroneEnvironment.adoptedSourceTemperatureCelsius(
+				ambientTemperature,
+				externalAtmosphere.hasTemperature(),
+				externalAtmosphere.temperatureCelsius(),
+				sourceQuality
+		);
+		double adoptedSourceHumidity = DroneEnvironment.adoptedSourceHumidity(
+				externalAtmosphere.hasHumidity(),
+				externalAtmosphere.humidity(),
+				sourceQuality
+		);
+		double ambientHumidity = DroneEnvironment.ambientHumidity(
+				precipitationWetness.averageWetness(),
+				adoptedSourceHumidity
+		);
+		double naturalTurbulence = AerodynamicsAtmosphereCoupling.adoptedAtmosphereTurbulence(
+				weatherTurbulenceIntensity(sourceWind.length(), groundClearance),
+				externalAtmosphere,
+				sourceQuality
+		);
 		double turbulenceIntensity = MathUtil.clamp(
-				environmentOverride.turbulenceOr(weatherTurbulenceIntensity(sourceWind.length(), groundClearance))
+				environmentOverride.turbulenceOr(naturalTurbulence)
 						+ obstacleAirflow.turbulenceBoost()
 						+ droneWake.turbulenceBoost()
 						+ ceilingTurbulenceBoost(ceilingClearance)
@@ -1341,6 +1371,35 @@ public class DroneEntity extends Entity {
 						+ precipitationWetness.averageWetness() * 0.07,
 				0.0,
 				1.5
+		);
+		Vec3 windDerivativeAlongBodyX = a4mcSharedStencil.adoptedWindDerivativeAlongBodyXPerMeter(simulationRuntime);
+		Vec3 windDerivativeAlongBodyZ = a4mcSharedStencil.adoptedWindDerivativeAlongBodyZPerMeter(simulationRuntime);
+		Vec3 pressureGradientBody = a4mcSharedStencil.adoptedPressureGradientBodyPascalsPerMeter(simulationRuntime);
+		double localVoxelQuality = externalAtmosphere.localVoxelFlow() ? sourceQuality : 0.0;
+		double localVoxelMeanObstruction = SimulationFlightRuntime.compactLocalVoxelMeanObstruction(
+				rotorEffects.flowObstructions(),
+				rotorEffects.flowObstructionWallForceFactors()
+		);
+		double localStaticPressureExposure = SimulationFlightRuntime.compactLocalStaticPressureExposure(
+				localVoxelQuality,
+				externalAtmosphere.shelterFactor(),
+				localVoxelMeanObstruction
+		);
+		double localMotorVentilation = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				localVoxelQuality,
+				localVoxelMeanObstruction,
+				false
+		);
+		double localPackVentilation = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				localVoxelQuality,
+				localVoxelMeanObstruction,
+				true
+		);
+		Vec3 localPressureCenterOffset = simulationRuntime.compactLocalPressureCenterOffsetBodyMeters(
+				pressureGradientBody,
+				localVoxelQuality,
+				rotorEffects.flowObstructions(),
+				rotorEffects.flowObstructionWallForceFactors()
 		);
 		return new DroneEnvironment(
 				obstacleAirflow.windVelocityWorldMetersPerSecond(),
@@ -1358,7 +1417,27 @@ public class DroneEntity extends Entity {
 				precipitationWetness.rotorWetnesses(),
 				precipitationWetness.averageWetness(),
 				ambientTemperature,
-				rotorEffects.flowObstructionWallForceFactors()
+				rotorEffects.flowObstructionWallForceFactors(),
+				effectiveAmbientTemperature,
+				ambientHumidity,
+				adoptedSourceHumidity,
+				AerodynamicsAtmosphereCoupling.adoptedAtmospherePressureAnomalyPascals(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.motorEscVentilationFactor(externalAtmosphere, sourceQuality)
+						* localMotorVentilation,
+				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality)
+						* localPackVentilation,
+				AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedAblStability(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedAblMixingStrength(externalAtmosphere, sourceQuality),
+				windDerivativeAlongBodyX,
+				windDerivativeAlongBodyZ,
+				pressureGradientBody,
+				localPressureCenterOffset,
+				localStaticPressureExposure,
+				AerodynamicsAtmosphereCoupling.adoptedWindShearMagnitudePerBlock(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedShelterFactor(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedUpdraftMetersPerSecond(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedUpdraftLocalVoxelGain(externalAtmosphere, sourceQuality)
 		);
 	}
 
@@ -1369,11 +1448,54 @@ public class DroneEntity extends Entity {
 	private DroneEnvironment samplePlayableStageOneEnvironment() {
 		double groundClearance = groundClearanceMeters();
 		double ambientTemperature = ambientTemperatureCelsius();
-		return new DroneEnvironment(
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample externalAtmosphere = sampleAerodynamicsAtmosphere();
+		double sourceQuality = atmosphereSourceQuality(externalAtmosphere);
+		Vec3 sourceWind = environmentOverride.windOr(AerodynamicsAtmosphereCoupling.adoptedAtmosphereWind(
 				Vec3.ZERO,
+				externalAtmosphere,
+				sourceQuality
+		));
+		double effectiveAmbientTemperature = DroneEnvironment.adoptedSourceTemperatureCelsius(
+				ambientTemperature,
+				externalAtmosphere.hasTemperature(),
+				externalAtmosphere.temperatureCelsius(),
+				sourceQuality
+		);
+		double adoptedSourceHumidity = DroneEnvironment.adoptedSourceHumidity(
+				externalAtmosphere.hasHumidity(),
+				externalAtmosphere.humidity(),
+				sourceQuality
+		);
+		Vec3 windDerivativeAlongBodyX = a4mcSharedStencil.adoptedWindDerivativeAlongBodyXPerMeter(simulationRuntime);
+		Vec3 windDerivativeAlongBodyZ = a4mcSharedStencil.adoptedWindDerivativeAlongBodyZPerMeter(simulationRuntime);
+		Vec3 pressureGradientBody = a4mcSharedStencil.adoptedPressureGradientBodyPascalsPerMeter(simulationRuntime);
+		double localVoxelQuality = externalAtmosphere.localVoxelFlow() ? sourceQuality : 0.0;
+		double localStaticPressureExposure = SimulationFlightRuntime.compactLocalStaticPressureExposure(
+				localVoxelQuality,
+				externalAtmosphere.shelterFactor(),
+				0.0
+		);
+		double localMotorVentilation = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				localVoxelQuality, 0.0, false
+		);
+		double localPackVentilation = SimulationFlightRuntime.compactLocalVoxelVentilationMultiplier(
+				localVoxelQuality, 0.0, true
+		);
+		Vec3 localPressureCenterOffset = simulationRuntime.compactLocalPressureCenterOffsetBodyMeters(
+				pressureGradientBody,
+				localVoxelQuality,
+				null,
+				null
+		);
+		return new DroneEnvironment(
+				sourceWind,
 				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature)),
 				groundClearance,
-				0.0,
+				environmentOverride.turbulenceOr(AerodynamicsAtmosphereCoupling.adoptedAtmosphereTurbulence(
+						0.0,
+						externalAtmosphere,
+						sourceQuality
+				)),
 				0.0,
 				0.0,
 				Double.POSITIVE_INFINITY,
@@ -1384,7 +1506,167 @@ public class DroneEntity extends Entity {
 				0.0,
 				null,
 				0.0,
-				ambientTemperature
+				ambientTemperature,
+				null,
+				effectiveAmbientTemperature,
+				adoptedSourceHumidity,
+				adoptedSourceHumidity,
+				AerodynamicsAtmosphereCoupling.adoptedAtmospherePressureAnomalyPascals(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.motorEscVentilationFactor(externalAtmosphere, sourceQuality)
+						* localMotorVentilation,
+				AerodynamicsAtmosphereCoupling.batteryVentilationFactor(externalAtmosphere, sourceQuality)
+						* localPackVentilation,
+				AerodynamicsAtmosphereCoupling.adoptedAtmosphereGustVelocity(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedAblStability(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedAblMixingStrength(externalAtmosphere, sourceQuality),
+				windDerivativeAlongBodyX,
+				windDerivativeAlongBodyZ,
+				pressureGradientBody,
+				localPressureCenterOffset,
+				localStaticPressureExposure,
+				AerodynamicsAtmosphereCoupling.adoptedWindShearMagnitudePerBlock(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedShelterFactor(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedUpdraftMetersPerSecond(externalAtmosphere, sourceQuality),
+				AerodynamicsAtmosphereCoupling.adoptedUpdraftLocalVoxelGain(externalAtmosphere, sourceQuality)
+		);
+	}
+
+	private Aerodynamics4McAtmosphereBridge.AtmosphereSample sampleAerodynamicsAtmosphere() {
+		if (environmentOverride.windEnabled()) {
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample unavailable =
+					Aerodynamics4McAtmosphereBridge.AtmosphereSample.unavailable();
+			a4mcSharedStencil.acceptsCenter(unavailable, 0.0, true);
+			return unavailable;
+		}
+		if (!(level() instanceof ServerLevel serverLevel)) {
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample unavailable =
+					Aerodynamics4McAtmosphereBridge.AtmosphereSample.unavailable();
+			a4mcSharedStencil.acceptsCenter(unavailable, 0.0, false);
+			return unavailable;
+		}
+
+		double centerX = getX();
+		double centerY = getY() + physicsCenterYOffsetMeters();
+		double centerZ = getZ();
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample center = sampleAerodynamicsAtmosphereAt(
+				serverLevel,
+				centerX,
+				centerY,
+				centerZ
+		);
+		updateA4mcSharedStencil(serverLevel, center, centerX, centerY, centerZ);
+		return center;
+	}
+
+	private static Aerodynamics4McAtmosphereBridge.AtmosphereSample sampleAerodynamicsAtmosphereAt(
+			ServerLevel serverLevel,
+			double positionX,
+			double positionY,
+			double positionZ
+	) {
+		return Aerodynamics4McAtmosphereBridge.sampleGameplay(
+				serverLevel,
+				positionX,
+				positionY,
+				positionZ
+		);
+	}
+
+	private void updateA4mcSharedStencil(
+			ServerLevel serverLevel,
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample center,
+			double centerX,
+			double centerY,
+			double centerZ
+	) {
+		double centerQuality = atmosphereSourceQuality(center);
+		if (!a4mcSharedStencil.acceptsCenter(center, centerQuality, false)) {
+			return;
+		}
+		long currentTick = serverLevel.getGameTime();
+		if (!a4mcSharedStencil.shouldRefresh(currentTick)) {
+			return;
+		}
+
+		double radiusMeters = ROTOR_DISK_SURFACE_SAMPLE_RADIUS_SCALE
+				* simulationRuntime.representativeRotorRadiusMeters();
+		if (!SimulationFlightRuntime.isValidA4mcStencilRadius(radiusMeters)) {
+			a4mcSharedStencil.clear();
+			return;
+		}
+
+		Vec3 centerMeanWind = new Vec3(
+				center.meanVelocityX(),
+				center.meanVelocityY(),
+				center.meanVelocityZ()
+		);
+		Vec3 bodyXWorld = simulationRuntime.bodyXWorldDirection();
+		Vec3 bodyZWorld = simulationRuntime.bodyZWorldDirection();
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample positiveX = sampleAerodynamicsAtmosphereAt(
+				serverLevel,
+				centerX + bodyXWorld.x() * radiusMeters,
+				centerY + bodyXWorld.y() * radiusMeters,
+				centerZ + bodyXWorld.z() * radiusMeters
+		);
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample negativeX = sampleAerodynamicsAtmosphereAt(
+				serverLevel,
+				centerX - bodyXWorld.x() * radiusMeters,
+				centerY - bodyXWorld.y() * radiusMeters,
+				centerZ - bodyXWorld.z() * radiusMeters
+		);
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample positiveZ = sampleAerodynamicsAtmosphereAt(
+				serverLevel,
+				centerX + bodyZWorld.x() * radiusMeters,
+				centerY + bodyZWorld.y() * radiusMeters,
+				centerZ + bodyZWorld.z() * radiusMeters
+		);
+		Aerodynamics4McAtmosphereBridge.AtmosphereSample negativeZ = sampleAerodynamicsAtmosphereAt(
+				serverLevel,
+				centerX - bodyZWorld.x() * radiusMeters,
+				centerY - bodyZWorld.y() * radiusMeters,
+				centerZ - bodyZWorld.z() * radiusMeters
+		);
+
+		Vec3 windDerivativeAlongBodyXWorld = SimulationFlightRuntime.centralDifference(
+				SimulationFlightRuntime.adoptedA4mcStencilWind(centerMeanWind, positiveX),
+				SimulationFlightRuntime.adoptedA4mcStencilWind(centerMeanWind, negativeX),
+				radiusMeters
+		);
+		Vec3 windDerivativeAlongBodyZWorld = SimulationFlightRuntime.centralDifference(
+				SimulationFlightRuntime.adoptedA4mcStencilWind(centerMeanWind, positiveZ),
+				SimulationFlightRuntime.adoptedA4mcStencilWind(centerMeanWind, negativeZ),
+				radiusMeters
+		);
+		Vec3 pressureGradientBody = SimulationFlightRuntime.adoptedA4mcStencilPressureGradient(
+				center,
+				centerQuality,
+				positiveX,
+				negativeX,
+				positiveZ,
+				negativeZ,
+				radiusMeters
+		);
+		Vec3 pressureGradientWorld = bodyXWorld.multiply(pressureGradientBody.x())
+				.add(bodyZWorld.multiply(pressureGradientBody.z()));
+		a4mcSharedStencil.update(
+				windDerivativeAlongBodyXWorld,
+				windDerivativeAlongBodyZWorld,
+				pressureGradientWorld,
+				simulationRuntime.orientation(),
+				currentTick
+		);
+	}
+
+	private static double atmosphereSourceQuality(
+			Aerodynamics4McAtmosphereBridge.AtmosphereSample atmosphere
+	) {
+		if (atmosphere == null || !atmosphere.hasFlow()) {
+			return 0.0;
+		}
+		return DroneEnvironment.windSourceQualityFactor(
+				atmosphere.trustedForGameplay(),
+				atmosphere.confidence(),
+				atmosphere.freshnessAgeTicks()
 		);
 	}
 
@@ -3685,6 +3967,7 @@ public class DroneEntity extends Entity {
 
 	public void applyEnvironmentOverride(DroneEnvironmentOverride override) {
 		environmentOverride = override == null ? DroneEnvironmentOverride.natural() : override;
+		a4mcSharedStencil.clear();
 	}
 
 	public void applyConfig(DroneConfig config) {
@@ -3999,6 +4282,7 @@ public class DroneEntity extends Entity {
 		saveVec(output, "aero_dryden_first", state.drydenFirstOrderVelocityWorldMetersPerSecond());
 		saveVec(output, "aero_dryden_lag", state.drydenTransverseLagVelocityWorldMetersPerSecond());
 		saveVec(output, "aero_dryden_turbulence", state.drydenTurbulenceVelocityWorldMetersPerSecond());
+		saveVec(output, "aero_terrain_shear", state.compactTerrainShearVelocityWorldMetersPerSecond());
 		saveVec(output, "aero_wind_gust", state.windGustVelocityWorldMetersPerSecond());
 		output.putString("aero_dryden_random_state", Long.toString(state.drydenRandomState()));
 		output.putDouble("aero_dryden_spare_gaussian", state.drydenSpareGaussian());
@@ -4028,6 +4312,7 @@ public class DroneEntity extends Entity {
 				|| hasVec(input, "aero_dryden_first")
 				|| hasVec(input, "aero_dryden_lag")
 				|| hasVec(input, "aero_dryden_turbulence")
+				|| hasVec(input, "aero_terrain_shear")
 				|| hasVec(input, "aero_wind_gust")
 				|| input.getString("aero_dryden_random_state").isPresent()
 				|| input.getString("aero_dryden_has_spare").isPresent()
@@ -4047,6 +4332,7 @@ public class DroneEntity extends Entity {
 				loadVec(input, "aero_dryden_first", Vec3.ZERO),
 				loadVec(input, "aero_dryden_lag", Vec3.ZERO),
 				loadVec(input, "aero_dryden_turbulence", Vec3.ZERO),
+				loadVec(input, "aero_terrain_shear", Vec3.ZERO),
 				loadVec(input, "aero_wind_gust", Vec3.ZERO),
 				loadLong(input, "aero_dryden_random_state", 0x6A09E667F3BCC909L),
 				input.getDoubleOr("aero_dryden_spare_gaussian", 0.0),
@@ -4134,6 +4420,7 @@ public class DroneEntity extends Entity {
 				densityEnabled,
 				input.getDoubleOr("env_density", 1.0)
 		);
+		a4mcSharedStencil.clear();
 	}
 
 	private void saveConfig(ValueOutput output) {
