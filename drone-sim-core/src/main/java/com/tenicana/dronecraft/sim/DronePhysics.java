@@ -17,6 +17,13 @@ public final class DronePhysics {
 	private static final double ROTOR_ARM_FLEX_NATURAL_FREQUENCY_HERTZ = 24.0;
 	private static final double ROTOR_ARM_FLEX_DAMPING_RATIO = 0.42;
 	private static final double ROTOR_ARM_FLEX_MAX_VELOCITY_PER_SECOND = 18.0;
+	private static final double ROTOR_DISK_DERIVATIVE_SAMPLE_RADIUS_SCALE = 0.36;
+	private static final double ROTOR_DISK_WIND_GRADIENT_MAX_THRUST_LOSS = 0.045;
+	private static final double ROTOR_DISK_WIND_GRADIENT_MAX_FLAPPING_TILT_RADIANS = Math.toRadians(4.5);
+	private static final double LOCAL_PRESSURE_GRADIENT_FULL_SCALE_PASCALS = 1600.0;
+	private static final double LOCAL_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_METERS_PER_SECOND = 2.4;
+	private static final double LOCAL_PRESSURE_CENTER_HOVER_WASH_GATE_SCALE = 0.42;
+	private static final double LOCAL_PRESSURE_CENTER_HOVER_DOWNLOAD_GAIN = 0.018;
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
 	private static final double COAXIAL_LOAD_BIAS_MAX = CoaxialAllocationCalibration.LOAD_BIAS_MAX;
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
@@ -24,6 +31,10 @@ public final class DronePhysics {
 	private static final double REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15;
 	private static final double REFERENCE_AIR_DYNAMIC_VISCOSITY_PASCAL_SECONDS = 1.837e-5;
 	private static final double AIR_SUTHERLAND_CONSTANT_KELVIN = 110.4;
+	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
+	private static final double FREEZING_HUMIDITY_ONSET = 0.72;
+	private static final double FREEZING_HUMIDITY_FULL = 0.98;
+	private static final double MAX_FREEZING_HUMIDITY_EQUIVALENT_WETNESS = 0.40;
 	// CALCE low-current LiPo OCV median, normalized over each preset's configured usable empty/full voltage window.
 	private static final double[] LIPO_OCV_SOC_POINTS = {0.0, 0.04, 0.05, 0.10, 0.18, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 1.0};
 	private static final double[] LIPO_OCV_NORMALIZED_POINTS = {0.0, 0.090, 0.137, 0.181, 0.261, 0.279, 0.349, 0.405, 0.540, 0.702, 0.826, 1.0};
@@ -66,6 +77,7 @@ public final class DronePhysics {
 	static final double JOHNSON_VRS_FORWARD_CUTOFF_VX_OVER_VH = 0.95;
 	private DroneConfig config;
 	private final AtmosphereCache atmosphereCache = new AtmosphereCache();
+	private final LocalFlowCache localFlowCache;
 	private final DroneState state;
 	private final PidController pitchPid;
 	private final PidController yawPid;
@@ -145,6 +157,7 @@ public final class DronePhysics {
 	private final double[] gyroBladePassVibrationPhases;
 	private final double[] rotorArmFlexIntensity;
 	private final double[] rotorArmFlexVelocity;
+	private final double[] motorCoolingBeforeBodyVentilation;
 	private final Vec3[] rotorFlappingTiltBody;
 	private final Vec3[] previousRotorForceBodyNewtons;
 	private final Vec3[] previousRotorTorqueBodyNewtonMeters;
@@ -194,6 +207,7 @@ public final class DronePhysics {
 	private double windGustPhaseC;
 	private Vec3 meanWindVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 windBurbleVelocityWorldMetersPerSecond = Vec3.ZERO;
+	private Vec3 compactTerrainShearVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 drydenFirstOrderVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 drydenTransverseLagVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
@@ -201,6 +215,8 @@ public final class DronePhysics {
 	private long drydenRandomState = 0x6A09E667F3BCC909L;
 	private double drydenSpareGaussian;
 	private boolean hasDrydenSpareGaussian;
+	private final AblCache ablCache = new AblCache();
+	private final DrydenStepCache drydenStepCache = new DrydenStepCache();
 	private boolean windModelInitialized;
 	private boolean batteryThermalInitialized;
 	private Vec3 previousTargetRatesRadiansPerSecond = Vec3.ZERO;
@@ -309,6 +325,7 @@ public final class DronePhysics {
 			Vec3 drydenFirstOrderVelocityWorldMetersPerSecond,
 			Vec3 drydenTransverseLagVelocityWorldMetersPerSecond,
 			Vec3 drydenTurbulenceVelocityWorldMetersPerSecond,
+			Vec3 compactTerrainShearVelocityWorldMetersPerSecond,
 			Vec3 windGustVelocityWorldMetersPerSecond,
 			long drydenRandomState,
 			double drydenSpareGaussian,
@@ -337,6 +354,7 @@ public final class DronePhysics {
 			drydenFirstOrderVelocityWorldMetersPerSecond = finiteVecOrZero(drydenFirstOrderVelocityWorldMetersPerSecond);
 			drydenTransverseLagVelocityWorldMetersPerSecond = finiteVecOrZero(drydenTransverseLagVelocityWorldMetersPerSecond);
 			drydenTurbulenceVelocityWorldMetersPerSecond = finiteVecOrZero(drydenTurbulenceVelocityWorldMetersPerSecond);
+			compactTerrainShearVelocityWorldMetersPerSecond = finiteVecOrZero(compactTerrainShearVelocityWorldMetersPerSecond);
 			windGustVelocityWorldMetersPerSecond = finiteVecOrZero(windGustVelocityWorldMetersPerSecond);
 			rotorWashDragForceBody = finiteVecOrZero(rotorWashDragForceBody);
 			rotorWashAirframeAngularDamping = finiteVecOrZero(rotorWashAirframeAngularDamping);
@@ -445,10 +463,16 @@ public final class DronePhysics {
 		private DroneEnvironment environmentIdentity;
 		private long airDensityRatioBits;
 		private long ambientTemperatureCelsiusBits;
-		private long precipitationWetnessIntensityBits;
+		private long effectiveAmbientTemperatureCelsiusBits;
+		private long ambientHumidityBits;
+		private long adoptedSourceHumidityBits;
+		private long adoptedSourcePressureAnomalyPascalsBits;
 		private double effectiveAirDensityRatio;
+		private double effectiveAmbientTemperatureCelsius;
 		private double speedOfSoundMetersPerSecond;
 		private double dynamicViscosityRatio;
+		private double moistAirCoolingMultiplier;
+		private double frozenHumidityIcingWetness;
 
 		boolean resolve(DroneEnvironment environment) {
 			DroneEnvironment safeEnvironment = environment == null ? DroneEnvironment.calm() : environment;
@@ -458,19 +482,128 @@ public final class DronePhysics {
 
 			long nextAirDensityRatioBits = Double.doubleToRawLongBits(safeEnvironment.airDensityRatio());
 			long nextAmbientTemperatureCelsiusBits = Double.doubleToRawLongBits(safeEnvironment.ambientTemperatureCelsius());
-			long nextPrecipitationWetnessIntensityBits = Double.doubleToRawLongBits(safeEnvironment.precipitationWetnessIntensity());
+			long nextEffectiveAmbientTemperatureCelsiusBits =
+					Double.doubleToRawLongBits(safeEnvironment.effectiveAmbientTemperatureCelsius());
+			long nextAmbientHumidityBits = Double.doubleToRawLongBits(safeEnvironment.ambientHumidity());
+			long nextAdoptedSourceHumidityBits = Double.doubleToRawLongBits(safeEnvironment.adoptedSourceHumidity());
+			long nextAdoptedSourcePressureAnomalyPascalsBits =
+					Double.doubleToRawLongBits(safeEnvironment.adoptedSourcePressureAnomalyPascals());
 			if (environmentIdentity == null
 					|| nextAirDensityRatioBits != airDensityRatioBits
 					|| nextAmbientTemperatureCelsiusBits != ambientTemperatureCelsiusBits
-					|| nextPrecipitationWetnessIntensityBits != precipitationWetnessIntensityBits) {
-				effectiveAirDensityRatio = safeEnvironment.effectiveAirDensityRatio();
-				speedOfSoundMetersPerSecond = DroneEnvironment.speedOfSoundMetersPerSecond(
-						safeEnvironment.ambientTemperatureCelsius()
+					|| nextEffectiveAmbientTemperatureCelsiusBits != effectiveAmbientTemperatureCelsiusBits
+					|| nextAmbientHumidityBits != ambientHumidityBits
+					|| nextAdoptedSourceHumidityBits != adoptedSourceHumidityBits
+					|| nextAdoptedSourcePressureAnomalyPascalsBits
+							!= adoptedSourcePressureAnomalyPascalsBits) {
+				double fallbackTemperatureCelsius = safeEnvironment.ambientTemperatureCelsius();
+				double sourceTemperatureCelsius = safeEnvironment.effectiveAmbientTemperatureCelsius();
+				if (!Double.isFinite(fallbackTemperatureCelsius)) {
+					fallbackTemperatureCelsius = MOTOR_AMBIENT_TEMPERATURE_CELSIUS;
+				}
+				if (!Double.isFinite(sourceTemperatureCelsius)) {
+					sourceTemperatureCelsius = fallbackTemperatureCelsius;
+				}
+				double fallbackTemperatureKelvin = MathUtil.clamp(
+						fallbackTemperatureCelsius + 273.15,
+						233.15,
+						338.15
 				);
-				dynamicViscosityRatio = airDynamicViscosityRatio(safeEnvironment.ambientTemperatureCelsius());
+				double sourceTemperatureKelvin = MathUtil.clamp(
+						sourceTemperatureCelsius + 273.15,
+						233.15,
+						338.15
+				);
+				double humidity = MathUtil.clamp(safeEnvironment.ambientHumidity(), 0.0, 1.0);
+				double densityMultiplier = 1.0;
+
+				if (humidity <= 1.0e-9) {
+					// Keep the common dry path on the established one-argument formulas. Besides
+					// avoiding the Magnus exponential, this preserves the old raw-bit results.
+					speedOfSoundMetersPerSecond =
+							DroneEnvironment.speedOfSoundMetersPerSecond(sourceTemperatureCelsius);
+					dynamicViscosityRatio = airDynamicViscosityRatio(sourceTemperatureCelsius);
+					moistAirCoolingMultiplier = 1.0;
+				} else {
+					// Compute the Magnus exponential once. Keep both the source pressure fraction
+					// and mole fraction so the sim/lab operation order is preserved for every
+					// property, including partial-humidity cooling.
+					double saturationVaporPressureHectopascals =
+							DroneEnvironment.saturationVaporPressureHectopascals(sourceTemperatureCelsius);
+					double saturationVaporPressureFraction = saturationVaporPressureHectopascals
+							/ SEA_LEVEL_PRESSURE_HECTOPASCALS;
+					double vaporMoleFraction = MathUtil.clamp(
+							humidity * saturationVaporPressureHectopascals
+									/ SEA_LEVEL_PRESSURE_HECTOPASCALS,
+							0.0,
+							0.35
+					);
+					densityMultiplier =
+							DroneEnvironment.moistAirDensityMultiplierFromVaporMoleFraction(vaporMoleFraction);
+					speedOfSoundMetersPerSecond =
+							DroneEnvironment.speedOfSoundMetersPerSecondFromVaporMoleFraction(
+									sourceTemperatureCelsius,
+									vaporMoleFraction
+							);
+
+					double dryDynamicViscosityRatio = Math.pow(
+							sourceTemperatureKelvin / REFERENCE_AIR_TEMPERATURE_KELVIN,
+							1.5
+					) * (REFERENCE_AIR_TEMPERATURE_KELVIN + AIR_SUTHERLAND_CONSTANT_KELVIN)
+							/ (sourceTemperatureKelvin + AIR_SUTHERLAND_CONSTANT_KELVIN);
+					double moistDynamicViscosityMultiplier =
+							DroneEnvironment.moistAirDynamicViscosityMultiplierFromVaporMoleFraction(
+									vaporMoleFraction
+							);
+					dynamicViscosityRatio = MathUtil.clamp(
+							dryDynamicViscosityRatio * moistDynamicViscosityMultiplier,
+							0.64,
+							1.20
+					);
+					moistAirCoolingMultiplier = MathUtil.clamp(
+							1.0 - humidity * (0.030 + 0.45 * saturationVaporPressureFraction),
+							0.90,
+							1.0
+					);
+				}
+
+				effectiveAirDensityRatio = MathUtil.clamp(
+						safeEnvironment.airDensityRatio()
+								* (fallbackTemperatureKelvin / sourceTemperatureKelvin)
+								* densityMultiplier
+								* DroneEnvironment.pressureAirDensityMultiplier(
+										safeEnvironment.adoptedSourcePressureAnomalyPascals()
+								),
+						0.35,
+						1.35
+				);
+				effectiveAmbientTemperatureCelsius = sourceTemperatureCelsius;
+				double adoptedSourceHumidity = MathUtil.clamp(safeEnvironment.adoptedSourceHumidity(), 0.0, 1.0);
+				double freezingTemperatureFactor =
+						IcingRotorCalibration.freezingTemperatureFactor(sourceTemperatureCelsius);
+				if (adoptedSourceHumidity <= 1.0e-9 || freezingTemperatureFactor <= 1.0e-12) {
+					frozenHumidityIcingWetness = 0.0;
+				} else {
+					double saturationFactor = smoothStep(
+							FREEZING_HUMIDITY_ONSET,
+							FREEZING_HUMIDITY_FULL,
+							adoptedSourceHumidity
+					);
+					frozenHumidityIcingWetness = MathUtil.clamp(
+							MAX_FREEZING_HUMIDITY_EQUIVALENT_WETNESS
+									* freezingTemperatureFactor
+									* saturationFactor,
+							0.0,
+							MAX_FREEZING_HUMIDITY_EQUIVALENT_WETNESS
+					);
+				}
 				airDensityRatioBits = nextAirDensityRatioBits;
 				ambientTemperatureCelsiusBits = nextAmbientTemperatureCelsiusBits;
-				precipitationWetnessIntensityBits = nextPrecipitationWetnessIntensityBits;
+				effectiveAmbientTemperatureCelsiusBits = nextEffectiveAmbientTemperatureCelsiusBits;
+				ambientHumidityBits = nextAmbientHumidityBits;
+				adoptedSourceHumidityBits = nextAdoptedSourceHumidityBits;
+				adoptedSourcePressureAnomalyPascalsBits =
+						nextAdoptedSourcePressureAnomalyPascalsBits;
 				environmentIdentity = safeEnvironment;
 				return true;
 			}
@@ -482,6 +615,10 @@ public final class DronePhysics {
 			return effectiveAirDensityRatio;
 		}
 
+		double effectiveAmbientTemperatureCelsius() {
+			return effectiveAmbientTemperatureCelsius;
+		}
+
 		double speedOfSoundMetersPerSecond() {
 			return speedOfSoundMetersPerSecond;
 		}
@@ -490,6 +627,504 @@ public final class DronePhysics {
 			return dynamicViscosityRatio;
 		}
 
+		double moistAirCoolingMultiplier() {
+			return moistAirCoolingMultiplier;
+		}
+
+		double frozenHumidityIcingWetness() {
+			return frozenHumidityIcingWetness;
+		}
+
+	}
+
+	/** Caches quality-gated ABL shape multipliers once per immutable environment sample. */
+	static final class AblCache {
+		private DroneEnvironment environmentIdentity;
+		private boolean initialized;
+		private long stabilityBits;
+		private long mixingBits;
+		private boolean neutral = true;
+		private double boundaryDeficitMultiplier = 1.0;
+		private double boundaryDirtyAirMultiplier = 1.0;
+		private double wakeCoherenceMultiplier = 1.0;
+		private double wakeBuildTimeScaleMultiplier = 1.0;
+		private double wakeReleaseTimeScaleMultiplier = 1.0;
+		private double drydenIntensityMultiplier = 1.0;
+		private double drydenConvectiveFloorCoefficient;
+		private double drydenHorizontalTimeScaleMultiplier = 1.0;
+		private double drydenVerticalTimeScaleMultiplier = 1.0;
+		private double sourceGustHorizontalMultiplier = 1.0;
+		private double sourceGustVerticalMultiplier = 1.0;
+
+		boolean resolve(DroneEnvironment environment) {
+			DroneEnvironment safeEnvironment = environment == null ? DroneEnvironment.calm() : environment;
+			if (safeEnvironment == environmentIdentity) {
+				return false;
+			}
+
+			double stability = safeEnvironment.adoptedAblStability();
+			double mixing = safeEnvironment.adoptedAblMixingStrength();
+			long nextStabilityBits = Double.doubleToRawLongBits(stability);
+			long nextMixingBits = Double.doubleToRawLongBits(mixing);
+			if (initialized && nextStabilityBits == stabilityBits && nextMixingBits == mixingBits) {
+				environmentIdentity = safeEnvironment;
+				return false;
+			}
+
+			if (mixing == 0.0 && stability >= 0.0) {
+				setNeutral();
+			} else {
+				neutral = false;
+				double unstable = Math.max(0.0, stability);
+				double stable = Math.max(0.0, -stability);
+				double mixedUnstable = unstable * mixing;
+				double stableSuppression = stable * (0.75 + 0.25 * (1.0 - mixing));
+				double drydenStableSuppression = stable * (0.85 + 0.15 * (1.0 - mixing));
+				boundaryDeficitMultiplier = MathUtil.clamp(
+						1.0 - 0.22 * mixing - 0.35 * mixedUnstable + 0.32 * stableSuppression,
+						0.55,
+						1.35
+				);
+				boundaryDirtyAirMultiplier = MathUtil.clamp(
+						1.0 - 0.10 * mixing - 0.22 * mixedUnstable + 0.28 * stableSuppression,
+						0.60,
+						1.35
+				);
+				wakeCoherenceMultiplier = MathUtil.clamp(
+						1.0 + 0.16 * stableSuppression - 0.14 * mixedUnstable - 0.04 * mixing,
+						0.78,
+						1.18
+				);
+				wakeBuildTimeScaleMultiplier = MathUtil.clamp(
+						1.0 - 0.08 * stableSuppression + 0.12 * mixedUnstable + 0.04 * mixing,
+						0.86,
+						1.18
+				);
+				wakeReleaseTimeScaleMultiplier = MathUtil.clamp(
+						1.0 + 0.34 * stableSuppression - 0.28 * mixedUnstable - 0.08 * mixing,
+						0.64,
+						1.36
+				);
+				drydenIntensityMultiplier = MathUtil.clamp(
+						1.0 + 0.18 * mixing + 0.42 * mixedUnstable - 0.34 * drydenStableSuppression,
+						0.55,
+						1.70
+				);
+				drydenConvectiveFloorCoefficient = 0.22 * mixedUnstable;
+				drydenHorizontalTimeScaleMultiplier = MathUtil.clamp(
+						1.0 - 0.16 * mixing - 0.24 * mixedUnstable + 0.45 * stableSuppression,
+						0.55,
+						1.55
+				);
+				drydenVerticalTimeScaleMultiplier = MathUtil.clamp(
+						1.0 - 0.25 * mixing - 0.30 * mixedUnstable + 0.70 * stableSuppression,
+						0.45,
+						1.80
+				);
+				sourceGustHorizontalMultiplier = MathUtil.clamp(
+						1.0 + 0.06 * mixing + 0.10 * mixedUnstable - 0.12 * stableSuppression,
+						0.76,
+						1.18
+				);
+				sourceGustVerticalMultiplier = MathUtil.clamp(
+						1.0 + 0.22 * mixing + 0.44 * mixedUnstable - 0.52 * stableSuppression,
+						0.45,
+						1.55
+				);
+			}
+
+			environmentIdentity = safeEnvironment;
+			stabilityBits = nextStabilityBits;
+			mixingBits = nextMixingBits;
+			initialized = true;
+			return true;
+		}
+
+		private void setNeutral() {
+			neutral = true;
+			boundaryDeficitMultiplier = 1.0;
+			boundaryDirtyAirMultiplier = 1.0;
+			wakeCoherenceMultiplier = 1.0;
+			wakeBuildTimeScaleMultiplier = 1.0;
+			wakeReleaseTimeScaleMultiplier = 1.0;
+			drydenIntensityMultiplier = 1.0;
+			drydenConvectiveFloorCoefficient = 0.0;
+			drydenHorizontalTimeScaleMultiplier = 1.0;
+			drydenVerticalTimeScaleMultiplier = 1.0;
+			sourceGustHorizontalMultiplier = 1.0;
+			sourceGustVerticalMultiplier = 1.0;
+		}
+
+		boolean neutral() { return neutral; }
+		double boundaryDeficitMultiplier() { return boundaryDeficitMultiplier; }
+		double boundaryDirtyAirMultiplier() { return boundaryDirtyAirMultiplier; }
+		double wakeCoherenceMultiplier() { return wakeCoherenceMultiplier; }
+		double wakeBuildTimeScaleMultiplier() { return wakeBuildTimeScaleMultiplier; }
+		double wakeReleaseTimeScaleMultiplier() { return wakeReleaseTimeScaleMultiplier; }
+		double drydenIntensityMultiplier() { return drydenIntensityMultiplier; }
+		double drydenConvectiveFloorCoefficient() { return drydenConvectiveFloorCoefficient; }
+		double drydenHorizontalTimeScaleMultiplier() { return drydenHorizontalTimeScaleMultiplier; }
+		double drydenVerticalTimeScaleMultiplier() { return drydenVerticalTimeScaleMultiplier; }
+		double sourceGustHorizontalMultiplier() { return sourceGustHorizontalMultiplier; }
+		double sourceGustVerticalMultiplier() { return sourceGustVerticalMultiplier; }
+	}
+
+	/**
+	 * Resolves the adopted body-frame wind Jacobian into fixed per-rotor primitive inputs once per
+	 * immutable environment/configuration sample. The arrays are constructor-owned and are never
+	 * replaced, so repeated simulation substeps only read primitive values.
+	 */
+	static final class LocalFlowCache {
+		private final double[] localWindDeltaX;
+		private final double[] localWindDeltaY;
+		private final double[] localWindDeltaZ;
+		private final double[] diskWindGradientX;
+		private final double[] diskWindGradientY;
+		private final double[] diskWindGradientZ;
+		private DroneEnvironment environmentIdentity;
+		private DroneConfig configIdentity;
+		private boolean initialized;
+		private boolean neutral = true;
+		private long derivativeXxBits;
+		private long derivativeXyBits;
+		private long derivativeXzBits;
+		private long derivativeZxBits;
+		private long derivativeZyBits;
+		private long derivativeZzBits;
+		private long pressureGradientXBits;
+		private long pressureGradientYBits;
+		private long pressureGradientZBits;
+		private double derivativeXx;
+		private double derivativeXy;
+		private double derivativeXz;
+		private double derivativeZx;
+		private double derivativeZy;
+		private double derivativeZz;
+		private double pressureGradientX;
+		private double pressureGradientY;
+		private double pressureGradientZ;
+
+		LocalFlowCache(int rotorCount) {
+			int count = Math.max(0, rotorCount);
+			localWindDeltaX = new double[count];
+			localWindDeltaY = new double[count];
+			localWindDeltaZ = new double[count];
+			diskWindGradientX = new double[count];
+			diskWindGradientY = new double[count];
+			diskWindGradientZ = new double[count];
+		}
+
+		boolean resolve(DroneEnvironment environment, DroneConfig config) {
+			DroneEnvironment safeEnvironment = environment == null ? DroneEnvironment.calm() : environment;
+			if (safeEnvironment == environmentIdentity && config == configIdentity) {
+				return false;
+			}
+
+			Vec3 derivativeX = finiteOrZero(safeEnvironment.adoptedWindDerivativeAlongBodyXPerMeter());
+			Vec3 derivativeZ = finiteOrZero(safeEnvironment.adoptedWindDerivativeAlongBodyZPerMeter());
+			Vec3 pressureGradient = finiteOrZero(safeEnvironment.adoptedPressureGradientBodyPascalsPerMeter());
+			long nextDerivativeXxBits = Double.doubleToRawLongBits(derivativeX.x());
+			long nextDerivativeXyBits = Double.doubleToRawLongBits(derivativeX.y());
+			long nextDerivativeXzBits = Double.doubleToRawLongBits(derivativeX.z());
+			long nextDerivativeZxBits = Double.doubleToRawLongBits(derivativeZ.x());
+			long nextDerivativeZyBits = Double.doubleToRawLongBits(derivativeZ.y());
+			long nextDerivativeZzBits = Double.doubleToRawLongBits(derivativeZ.z());
+			long nextPressureGradientXBits = Double.doubleToRawLongBits(pressureGradient.x());
+			long nextPressureGradientYBits = Double.doubleToRawLongBits(pressureGradient.y());
+			long nextPressureGradientZBits = Double.doubleToRawLongBits(pressureGradient.z());
+			if (initialized
+					&& config == configIdentity
+					&& nextDerivativeXxBits == derivativeXxBits
+					&& nextDerivativeXyBits == derivativeXyBits
+					&& nextDerivativeXzBits == derivativeXzBits
+					&& nextDerivativeZxBits == derivativeZxBits
+					&& nextDerivativeZyBits == derivativeZyBits
+					&& nextDerivativeZzBits == derivativeZzBits
+					&& nextPressureGradientXBits == pressureGradientXBits
+					&& nextPressureGradientYBits == pressureGradientYBits
+					&& nextPressureGradientZBits == pressureGradientZBits) {
+				environmentIdentity = safeEnvironment;
+				return false;
+			}
+
+			derivativeXx = derivativeX.x();
+			derivativeXy = derivativeX.y();
+			derivativeXz = derivativeX.z();
+			derivativeZx = derivativeZ.x();
+			derivativeZy = derivativeZ.y();
+			derivativeZz = derivativeZ.z();
+			pressureGradientX = pressureGradient.x();
+			pressureGradientY = pressureGradient.y();
+			pressureGradientZ = pressureGradient.z();
+			neutral = derivativeX.x() == 0.0
+					&& derivativeX.y() == 0.0
+					&& derivativeX.z() == 0.0
+					&& derivativeZ.x() == 0.0
+					&& derivativeZ.y() == 0.0
+					&& derivativeZ.z() == 0.0
+					&& pressureGradient.x() == 0.0
+					&& pressureGradient.y() == 0.0
+					&& pressureGradient.z() == 0.0;
+			int configuredRotorCount = config == null ? 0 : config.rotors().size();
+			int rotorCount = Math.min(localWindDeltaX.length, configuredRotorCount);
+			if (neutral || rotorCount == 0) {
+				clear(rotorCount);
+			} else {
+				for (int i = 0; i < rotorCount; i++) {
+					RotorSpec rotor = config.rotors().get(i);
+					Vec3 position = rotor.positionBodyMeters();
+					localWindDeltaX[i] = derivativeX.x() * position.x() + derivativeZ.x() * position.z();
+					localWindDeltaY[i] = derivativeX.y() * position.x() + derivativeZ.y() * position.z();
+					localWindDeltaZ[i] = derivativeX.z() * position.x() + derivativeZ.z() * position.z();
+					resolveRotorDiskGradient(i, rotor);
+				}
+				clearTail(rotorCount);
+			}
+
+			environmentIdentity = safeEnvironment;
+			configIdentity = config;
+			derivativeXxBits = nextDerivativeXxBits;
+			derivativeXyBits = nextDerivativeXyBits;
+			derivativeXzBits = nextDerivativeXzBits;
+			derivativeZxBits = nextDerivativeZxBits;
+			derivativeZyBits = nextDerivativeZyBits;
+			derivativeZzBits = nextDerivativeZzBits;
+			pressureGradientXBits = nextPressureGradientXBits;
+			pressureGradientYBits = nextPressureGradientYBits;
+			pressureGradientZBits = nextPressureGradientZBits;
+			initialized = true;
+			return true;
+		}
+
+		void resolveRotorDiskGradient(int rotorIndex, RotorSpec aerodynamicRotor) {
+			Vec3 axis = aerodynamicRotor.thrustAxisBody();
+			double axisX = axis.x();
+			double axisY = axis.y();
+			double axisZ = axis.z();
+			double sampleRadius = ROTOR_DISK_DERIVATIVE_SAMPLE_RADIUS_SCALE
+					* aerodynamicRotor.radiusMeters();
+			double axialDerivativeX = axisX * derivativeXx
+					+ axisY * derivativeXy
+					+ axisZ * derivativeXz;
+			double axialDerivativeZ = axisX * derivativeZx
+					+ axisY * derivativeZy
+					+ axisZ * derivativeZz;
+			double windGradientX = MathUtil.clamp(sampleRadius * axialDerivativeX, -12.0, 12.0);
+			double windGradientY = 0.0;
+			double windGradientZ = MathUtil.clamp(sampleRadius * axialDerivativeZ, -12.0, 12.0);
+
+			double pressureAlongAxis = axisX * pressureGradientX
+					+ axisY * pressureGradientY
+					+ axisZ * pressureGradientZ;
+			double pressureDeltaX = sampleRadius * (pressureGradientX - axisX * pressureAlongAxis);
+			double pressureDeltaY = sampleRadius * (pressureGradientY - axisY * pressureAlongAxis);
+			double pressureDeltaZ = sampleRadius * (pressureGradientZ - axisZ * pressureAlongAxis);
+			double pressureDeltaMagnitude = Math.sqrt(
+					pressureDeltaX * pressureDeltaX
+							+ pressureDeltaY * pressureDeltaY
+							+ pressureDeltaZ * pressureDeltaZ
+			);
+			if (pressureDeltaMagnitude > 1.0e-6) {
+				double pressureWindMagnitude = MathUtil.clamp(
+						pressureDeltaMagnitude / LOCAL_PRESSURE_GRADIENT_FULL_SCALE_PASCALS
+								* LOCAL_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_METERS_PER_SECOND,
+						0.0,
+						LOCAL_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_METERS_PER_SECOND
+				);
+				double pressureWindScale = pressureWindMagnitude / pressureDeltaMagnitude;
+				double pressureWindX = pressureDeltaX * pressureWindScale;
+				double pressureWindY = pressureDeltaY * pressureWindScale;
+				double pressureWindZ = pressureDeltaZ * pressureWindScale;
+				double inversePressureWindMagnitude = 1.0 / pressureWindMagnitude;
+				double pressureDirectionX = pressureWindX * inversePressureWindMagnitude;
+				double pressureDirectionY = pressureWindY * inversePressureWindMagnitude;
+				double pressureDirectionZ = pressureWindZ * inversePressureWindMagnitude;
+				double existingCoverage = Math.max(
+						0.0,
+						windGradientX * pressureDirectionX
+								+ windGradientY * pressureDirectionY
+								+ windGradientZ * pressureDirectionZ
+				);
+				double residualFraction = MathUtil.clamp(
+						(pressureWindMagnitude - existingCoverage) / pressureWindMagnitude,
+						0.0,
+						1.0
+				);
+				windGradientX += pressureWindX * residualFraction;
+				windGradientY += pressureWindY * residualFraction;
+				windGradientZ += pressureWindZ * residualFraction;
+			}
+			diskWindGradientX[rotorIndex] = MathUtil.clamp(windGradientX, -12.0, 12.0);
+			diskWindGradientY[rotorIndex] = MathUtil.clamp(windGradientY, -12.0, 12.0);
+			diskWindGradientZ[rotorIndex] = MathUtil.clamp(windGradientZ, -12.0, 12.0);
+		}
+
+		private void clear(int rotorCount) {
+			for (int i = 0; i < rotorCount; i++) {
+				localWindDeltaX[i] = 0.0;
+				localWindDeltaY[i] = 0.0;
+				localWindDeltaZ[i] = 0.0;
+				diskWindGradientX[i] = 0.0;
+				diskWindGradientY[i] = 0.0;
+				diskWindGradientZ[i] = 0.0;
+			}
+			clearTail(rotorCount);
+		}
+
+		private void clearTail(int fromIndex) {
+			for (int i = Math.max(0, fromIndex); i < localWindDeltaX.length; i++) {
+				localWindDeltaX[i] = 0.0;
+				localWindDeltaY[i] = 0.0;
+				localWindDeltaZ[i] = 0.0;
+				diskWindGradientX[i] = 0.0;
+				diskWindGradientY[i] = 0.0;
+				diskWindGradientZ[i] = 0.0;
+			}
+		}
+
+		private static Vec3 finiteOrZero(Vec3 value) {
+			return value == null || !value.isFinite() ? Vec3.ZERO : value;
+		}
+
+		boolean neutral() { return neutral; }
+		double localWindDeltaX(int rotorIndex) { return localWindDeltaX[rotorIndex]; }
+		double localWindDeltaY(int rotorIndex) { return localWindDeltaY[rotorIndex]; }
+		double localWindDeltaZ(int rotorIndex) { return localWindDeltaZ[rotorIndex]; }
+		double diskWindGradientX(int rotorIndex) { return diskWindGradientX[rotorIndex]; }
+		double diskWindGradientY(int rotorIndex) { return diskWindGradientY[rotorIndex]; }
+		double diskWindGradientZ(int rotorIndex) { return diskWindGradientZ[rotorIndex]; }
+	}
+
+	/** Reuses immutable Dryden coefficients across the substeps of one environment sample. */
+	static final class DrydenStepCache {
+		private DroneEnvironment environmentIdentity;
+		private long targetWindXBits;
+		private long targetWindYBits;
+		private long targetWindZBits;
+		private long dtSecondsBits;
+		private long ablStabilityBits;
+		private long ablMixingBits;
+		private boolean active;
+		private double decayAlpha;
+		private double longitudinalPhi;
+		private double lateralPhi;
+		private double verticalPhi;
+		private double longitudinalInnovationScale;
+		private double lateralInnovationScale;
+		private double verticalInnovationScale;
+		private double lateralLagAlpha;
+		private double verticalLagAlpha;
+		private Vec3 longitudinalAxis = new Vec3(1.0, 0.0, 0.0);
+		private Vec3 lateralAxis = new Vec3(0.0, 0.0, 1.0);
+		private Vec3 verticalAxis = new Vec3(0.0, 1.0, 0.0);
+
+		boolean resolve(DroneEnvironment environment, Vec3 targetMeanWind, double dtSeconds) {
+			return resolve(environment, targetMeanWind, dtSeconds, null);
+		}
+
+		boolean resolve(
+				DroneEnvironment environment,
+				Vec3 targetMeanWind,
+				double dtSeconds,
+				AblCache ablCache
+		) {
+			DroneEnvironment safeEnvironment = environment == null ? DroneEnvironment.calm() : environment;
+			Vec3 safeTargetMeanWind = targetMeanWind == null ? Vec3.ZERO : targetMeanWind;
+			long nextTargetWindXBits = Double.doubleToRawLongBits(safeTargetMeanWind.x());
+			long nextTargetWindYBits = Double.doubleToRawLongBits(safeTargetMeanWind.y());
+			long nextTargetWindZBits = Double.doubleToRawLongBits(safeTargetMeanWind.z());
+			long nextDtSecondsBits = Double.doubleToRawLongBits(dtSeconds);
+			boolean neutralAbl = ablCache == null || ablCache.neutral();
+			long nextAblStabilityBits = neutralAbl ? 0L : ablCache.stabilityBits;
+			long nextAblMixingBits = neutralAbl ? 0L : ablCache.mixingBits;
+			if (safeEnvironment == environmentIdentity
+					&& nextTargetWindXBits == targetWindXBits
+					&& nextTargetWindYBits == targetWindYBits
+					&& nextTargetWindZBits == targetWindZBits
+					&& nextDtSecondsBits == dtSecondsBits
+					&& nextAblStabilityBits == ablStabilityBits
+					&& nextAblMixingBits == ablMixingBits) {
+				return false;
+			}
+
+			double windSpeed = safeTargetMeanWind.length();
+			double atmosphericTurbulence = atmosphericDrydenIntensity(safeEnvironment, ablCache);
+			active = atmosphericTurbulence > 1.0e-6 && windSpeed > 0.5 && dtSeconds > 0.0;
+			if (active) {
+				DrydenTurbulenceModel.Parameters dryden = DrydenTurbulenceModel.lowAltitude(
+						drydenReferenceAltitudeMeters(safeEnvironment),
+						windSpeed
+				);
+				double intensityScale = MathUtil.clamp(atmosphericTurbulence / 1.8, 0.0, 1.0);
+				double longitudinalTau;
+				double lateralTau;
+				double verticalTau;
+				if (neutralAbl) {
+					longitudinalTau = MathUtil.clamp(
+							dryden.longitudinalTimeConstantSeconds(),
+							0.10,
+							12.0
+					);
+					lateralTau = MathUtil.clamp(
+							dryden.lateralTimeConstantSeconds(),
+							0.10,
+							12.0
+					);
+					verticalTau = MathUtil.clamp(
+							dryden.verticalTimeConstantSeconds(),
+							0.05,
+							6.0
+					);
+				} else {
+					longitudinalTau = MathUtil.clamp(
+							dryden.longitudinalTimeConstantSeconds()
+									* ablCache.drydenHorizontalTimeScaleMultiplier(),
+							0.10,
+							12.0
+					);
+					lateralTau = MathUtil.clamp(
+							dryden.lateralTimeConstantSeconds()
+									* ablCache.drydenHorizontalTimeScaleMultiplier(),
+							0.10,
+							12.0
+					);
+					verticalTau = MathUtil.clamp(
+							dryden.verticalTimeConstantSeconds()
+									* ablCache.drydenVerticalTimeScaleMultiplier(),
+							0.05,
+							6.0
+					);
+				}
+				longitudinalPhi = Math.exp(-dtSeconds / Math.max(1.0e-6, longitudinalTau));
+				lateralPhi = Math.exp(-dtSeconds / Math.max(1.0e-6, lateralTau));
+				verticalPhi = Math.exp(-dtSeconds / Math.max(1.0e-6, verticalTau));
+				longitudinalInnovationScale = dryden.longitudinalSigmaMetersPerSecond()
+						* intensityScale
+						* Math.sqrt(Math.max(0.0, 1.0 - longitudinalPhi * longitudinalPhi));
+				lateralInnovationScale = dryden.lateralSigmaMetersPerSecond()
+						* intensityScale
+						* Math.sqrt(Math.max(0.0, 1.0 - lateralPhi * lateralPhi));
+				verticalInnovationScale = dryden.verticalSigmaMetersPerSecond()
+						* intensityScale
+						* Math.sqrt(Math.max(0.0, 1.0 - verticalPhi * verticalPhi));
+				lateralLagAlpha = 1.0 - lateralPhi;
+				verticalLagAlpha = 1.0 - verticalPhi;
+				longitudinalAxis = horizontalWindAxis(safeTargetMeanWind);
+				lateralAxis = new Vec3(-longitudinalAxis.z(), 0.0, longitudinalAxis.x());
+				verticalAxis = new Vec3(0.0, 1.0, 0.0);
+			} else {
+				decayAlpha = MathUtil.expSmoothing(dtSeconds, 0.35);
+			}
+
+			environmentIdentity = safeEnvironment;
+			targetWindXBits = nextTargetWindXBits;
+			targetWindYBits = nextTargetWindYBits;
+			targetWindZBits = nextTargetWindZBits;
+			dtSecondsBits = nextDtSecondsBits;
+			ablStabilityBits = nextAblStabilityBits;
+			ablMixingBits = nextAblMixingBits;
+			return true;
+		}
 	}
 
 	public static double betaflightErpm100FromMechanicalRpm(double mechanicalRpm) {
@@ -572,6 +1207,7 @@ public final class DronePhysics {
 
 	public DronePhysics(DroneConfig config) {
 		this.config = config;
+		this.localFlowCache = new LocalFlowCache(config.rotors().size());
 		this.state = new DroneState(config.rotors().size());
 		this.state.setBatteryVoltage(config.nominalBatteryVoltage());
 		this.state.setBatteryOpenCircuitVoltage(config.nominalBatteryVoltage());
@@ -647,6 +1283,8 @@ public final class DronePhysics {
 		this.gyroBladePassVibrationPhases = new double[config.rotors().size()];
 		this.rotorArmFlexIntensity = new double[config.rotors().size()];
 		this.rotorArmFlexVelocity = new double[config.rotors().size()];
+		this.motorCoolingBeforeBodyVentilation = new double[config.rotors().size()];
+		Arrays.fill(this.motorCoolingBeforeBodyVentilation, 1.0);
 		this.rotorFlappingTiltBody = new Vec3[config.rotors().size()];
 		this.previousRotorForceBodyNewtons = new Vec3[config.rotors().size()];
 		this.previousRotorTorqueBodyNewtonMeters = new Vec3[config.rotors().size()];
@@ -991,6 +1629,7 @@ public final class DronePhysics {
 				drydenFirstOrderVelocityWorldMetersPerSecond,
 				drydenTransverseLagVelocityWorldMetersPerSecond,
 				drydenTurbulenceVelocityWorldMetersPerSecond,
+				compactTerrainShearVelocityWorldMetersPerSecond,
 				windGustVelocityWorldMetersPerSecond,
 				drydenRandomState,
 				drydenSpareGaussian,
@@ -1026,6 +1665,7 @@ public final class DronePhysics {
 		drydenFirstOrderVelocityWorldMetersPerSecond = transientState.drydenFirstOrderVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
 		drydenTransverseLagVelocityWorldMetersPerSecond = transientState.drydenTransverseLagVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
 		drydenTurbulenceVelocityWorldMetersPerSecond = transientState.drydenTurbulenceVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
+		compactTerrainShearVelocityWorldMetersPerSecond = transientState.compactTerrainShearVelocityWorldMetersPerSecond().clamp(-3.0, 3.0);
 		windGustVelocityWorldMetersPerSecond = transientState.windGustVelocityWorldMetersPerSecond().clamp(-60.0, 60.0);
 		drydenRandomState = transientState.drydenRandomState();
 		boolean hasFiniteSpareGaussian = transientState.hasDrydenSpareGaussian()
@@ -1190,9 +1830,13 @@ public final class DronePhysics {
 		if (environment == null) {
 			environment = DroneEnvironment.calm();
 		}
+		ablCache.resolve(environment);
 		atmosphereCache.resolve(environment);
+		localFlowCache.resolve(environment, config);
 		double speedOfSoundMetersPerSecond = atmosphereCache.speedOfSoundMetersPerSecond();
 		double dynamicViscosityRatio = atmosphereCache.dynamicViscosityRatio();
+		double effectiveAmbientTemperatureCelsius = atmosphereCache.effectiveAmbientTemperatureCelsius();
+		double frozenHumidityIcingWetness = atmosphereCache.frozenHumidityIcingWetness();
 
 		DroneInput input = updateControlInput(rawInput, dtSeconds);
 		updateSensorBias(dtSeconds);
@@ -1243,6 +1887,7 @@ public final class DronePhysics {
 		Vec3 rotorAngularDragTorqueSum = Vec3.ZERO;
 		Vec3 rotorWallEffectForceSum = Vec3.ZERO;
 		Vec3 vortexRingBuffetForceSum = Vec3.ZERO;
+		boolean localFlowActive = !localFlowCache.neutral();
 
 		for (int i = 0; i < config.rotors().size(); i++) {
 			RotorSpec rotor = config.rotors().get(i);
@@ -1282,7 +1927,7 @@ public final class DronePhysics {
 					+ rotorIcingLoad;
 			double powerLimitScale = Math.sqrt(state.batteryPowerLimit() * state.motorThermalLimit() * state.escThermalLimit() * state.rotorHealth(i));
 			double targetOmega = input.armed()
-					? rotor.maxOmegaRadiansPerSecond()
+					? rotor.targetMaxOmegaRadiansPerSecond()
 							* escElectricalOutput
 							* voltageScale
 							* powerLimitScale
@@ -1348,10 +1993,36 @@ public final class DronePhysics {
 			double previousRotorArmFlex = rotorArmFlexIntensity[i];
 			Vec3 rotorArmBody = rotorArmBodyWithFlex(rotor, nominalRotorArmBody, previousRotorArmFlex);
 			RotorSpec aerodynamicRotor = rotorWithArmFlexedThrustAxis(rotor, nominalRotorArmBody, previousRotorArmFlex);
-			Vec3 rotorRelativeAirVelocityBody = relativeAirVelocityBody
-					.add(angularVelocityBody.cross(rotorArmBody))
-					.add(rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i])
-					.add(wakeSwirlVelocityBody);
+			double localWindDeltaX = localFlowActive ? localFlowCache.localWindDeltaX(i) : 0.0;
+			double localWindDeltaY = localFlowActive ? localFlowCache.localWindDeltaY(i) : 0.0;
+			double localWindDeltaZ = localFlowActive ? localFlowCache.localWindDeltaZ(i) : 0.0;
+			boolean rotorLocalWindActive = localWindDeltaX != 0.0
+					|| localWindDeltaY != 0.0
+					|| localWindDeltaZ != 0.0;
+			Vec3 rotorRelativeAirVelocityBody;
+			if (!rotorLocalWindActive) {
+				rotorRelativeAirVelocityBody = relativeAirVelocityBody
+						.add(angularVelocityBody.cross(rotorArmBody))
+						.add(rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i])
+						.add(wakeSwirlVelocityBody);
+			} else {
+				Vec3 rotationalVelocityBody = angularVelocityBody.cross(rotorArmBody);
+				Vec3 wakeDownwashVelocityBody = rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i];
+				rotorRelativeAirVelocityBody = new Vec3(
+						relativeAirVelocityBody.x() - localWindDeltaX
+								+ rotationalVelocityBody.x()
+								+ wakeDownwashVelocityBody.x()
+								+ wakeSwirlVelocityBody.x(),
+						relativeAirVelocityBody.y() - localWindDeltaY
+								+ rotationalVelocityBody.y()
+								+ wakeDownwashVelocityBody.y()
+								+ wakeSwirlVelocityBody.y(),
+						relativeAirVelocityBody.z() - localWindDeltaZ
+								+ rotationalVelocityBody.z()
+								+ wakeDownwashVelocityBody.z()
+								+ wakeSwirlVelocityBody.z()
+				);
+			}
 			double windmillingIntensity = rotorWindmillingIntensity(aerodynamicRotor, rotorRelativeAirVelocityBody, escElectricalOutput);
 			state.setRotorWindmillingIntensity(i, windmillingIntensity);
 			commandedOmega = applyRotorWindmilling(
@@ -1509,8 +2180,11 @@ public final class DronePhysics {
 					i,
 					aerodynamicRotor,
 					aerodynamicOmega,
-					Math.max(rotorPrecipitationWetness, rotorFilmWetness),
-					environment.ambientTemperatureCelsius(),
+					Math.max(
+							Math.max(rotorPrecipitationWetness, rotorFilmWetness),
+							frozenHumidityIcingWetness
+					),
+					effectiveAmbientTemperatureCelsius,
 					dtSeconds
 			);
 			double icingThrustScale = IcingRotorCalibration.icingThrustScale(icingSeverity);
@@ -1558,6 +2232,52 @@ public final class DronePhysics {
 							aerodynamicOmega,
 							state.rotorTranslationalLiftIntensity(i)
 					);
+			double diskWindGradientPlaneX = 0.0;
+			double diskWindGradientPlaneY = 0.0;
+			double diskWindGradientPlaneZ = 0.0;
+			double diskWindGradientSpeed = 0.0;
+			if (localFlowActive) {
+				double diskWindGradientX = localFlowCache.diskWindGradientX(i);
+				double diskWindGradientY = localFlowCache.diskWindGradientY(i);
+				double diskWindGradientZ = localFlowCache.diskWindGradientZ(i);
+				Vec3 rotorAxis = aerodynamicRotor.thrustAxisBody();
+				double axialGradient = diskWindGradientX * rotorAxis.x()
+						+ diskWindGradientY * rotorAxis.y()
+						+ diskWindGradientZ * rotorAxis.z();
+				diskWindGradientPlaneX = MathUtil.clamp(
+						diskWindGradientX - rotorAxis.x() * axialGradient,
+						-12.0,
+						12.0
+				);
+				diskWindGradientPlaneY = MathUtil.clamp(
+						diskWindGradientY - rotorAxis.y() * axialGradient,
+						-12.0,
+						12.0
+				);
+				diskWindGradientPlaneZ = MathUtil.clamp(
+						diskWindGradientZ - rotorAxis.z() * axialGradient,
+						-12.0,
+						12.0
+				);
+				diskWindGradientSpeed = Math.sqrt(
+						diskWindGradientPlaneX * diskWindGradientPlaneX
+								+ diskWindGradientPlaneY * diskWindGradientPlaneY
+								+ diskWindGradientPlaneZ * diskWindGradientPlaneZ
+				);
+			}
+			boolean rotorDiskGradientActive = diskWindGradientSpeed > 1.0e-6;
+			double diskWindGradientThrustScale = rotorDiskGradientActive
+					? rotorDiskWindGradientThrustScale(aerodynamicRotor, diskWindGradientSpeed, aerodynamicOmega)
+					: 1.0;
+			double diskWindGradientLoadFactor = rotorDiskGradientActive
+					? rotorDiskWindGradientLoadFactor(aerodynamicRotor, diskWindGradientSpeed, aerodynamicOmega)
+					: 0.0;
+			double diskWindGradientVibration = rotorDiskGradientActive
+					? rotorDiskWindGradientVibration(aerodynamicRotor, diskWindGradientSpeed, aerodynamicOmega)
+					: 0.0;
+			double diskWindGradientStallIntensity = rotorDiskGradientActive
+					? rotorDiskWindGradientStallIntensity(aerodynamicRotor, diskWindGradientSpeed, aerodynamicOmega)
+					: 0.0;
 			BladeElementAerodynamics bladeElement = updateRotorBladeElementAerodynamics(
 					i,
 					aerodynamicRotor,
@@ -1574,16 +2294,30 @@ public final class DronePhysics {
 					baseThrust,
 					dtSeconds
 			);
-			rotorStall = updateRotorDynamicStallIntensity(
-					i,
-					aerodynamicRotor,
-					rotorRelativeAirVelocityBody,
-					aerodynamicOmega,
-					kinematicRotorStall,
-					bladeElement.stallIntensity(),
-					bladeDissymmetry.intensity(),
-					dtSeconds
-			);
+			if (rotorDiskGradientActive) {
+				rotorStall = updateRotorDynamicStallIntensity(
+						i,
+						aerodynamicRotor,
+						rotorRelativeAirVelocityBody,
+						aerodynamicOmega,
+						kinematicRotorStall,
+						bladeElement.stallIntensity(),
+						bladeDissymmetry.intensity(),
+						diskWindGradientStallIntensity,
+						dtSeconds
+				);
+			} else {
+				rotorStall = updateRotorDynamicStallIntensity(
+						i,
+						aerodynamicRotor,
+						rotorRelativeAirVelocityBody,
+						aerodynamicOmega,
+						kinematicRotorStall,
+						bladeElement.stallIntensity(),
+						bladeDissymmetry.intensity(),
+						dtSeconds
+				);
+			}
 			state.setRotorBladeAngleOfAttackRadians(i, bladeElement.angleOfAttackRadians());
 			state.setRotorBladeElementStallIntensity(i, bladeElement.stallIntensity());
 			state.setRotorBladeDissymmetryIntensity(i, bladeDissymmetry.intensity());
@@ -1620,7 +2354,7 @@ public final class DronePhysics {
 					state.rotorInducedVelocityMetersPerSecond(i)
 			);
 			vortexRingStateSum += vortexRingState;
-			double aerodynamicLoadFactor = MathUtil.clamp(rotorAerodynamicLoadFactor(
+			double rawAerodynamicLoadFactor = rotorAerodynamicLoadFactor(
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
@@ -1646,12 +2380,18 @@ public final class DronePhysics {
 							rotorStall
 					)
 					+ compressibilityLoad
-					+ rotorLowReynoldsLoadFactor(lowReynoldsLoss, aerodynamicOmega, aerodynamicRotor)
-					+ bladeElement.loadFactor()
-					+ bladeDissymmetry.loadFactor()
-					+ rotorWaterLoad
-					+ rotorPrecipitationLoadFactor(Math.max(rotorPrecipitationWetness, rotorFilmWetness))
-					+ IcingRotorCalibration.icingAerodynamicLoadFactor(icingSeverity), 0.0, 2.0);
+					+ rotorLowReynoldsLoadFactor(lowReynoldsLoss, aerodynamicOmega, aerodynamicRotor);
+			if (rotorDiskGradientActive) {
+				rawAerodynamicLoadFactor += diskWindGradientLoadFactor;
+			}
+			rawAerodynamicLoadFactor += bladeElement.loadFactor();
+			rawAerodynamicLoadFactor += bladeDissymmetry.loadFactor();
+			rawAerodynamicLoadFactor += rotorWaterLoad;
+			rawAerodynamicLoadFactor += rotorPrecipitationLoadFactor(
+					Math.max(rotorPrecipitationWetness, rotorFilmWetness)
+			);
+			rawAerodynamicLoadFactor += IcingRotorCalibration.icingAerodynamicLoadFactor(icingSeverity);
+			double aerodynamicLoadFactor = MathUtil.clamp(rawAerodynamicLoadFactor, 0.0, 2.0);
 			double coningIntensity = updateRotorConingIntensity(i, aerodynamicRotor, baseThrust, aerodynamicOmega, dtSeconds);
 			aerodynamicLoadFactor = MathUtil.clamp(aerodynamicLoadFactor + rotorConingLoadFactor(coningIntensity), 0.0, 2.0);
 			state.setRotorAerodynamicLoadFactor(i, aerodynamicLoadFactor);
@@ -1664,16 +2404,31 @@ public final class DronePhysics {
 			double stallThrustScale = 1.0 - rotor.stallThrustLossCoefficient() * rotorStall;
 			double lowReynoldsThrustScale = rotorLowReynoldsThrustScale(lowReynoldsLoss);
 			double coningThrustScale = rotorConingThrustScale(coningIntensity);
-			double nominalThrust = baseThrust
-					* rotorAirflowScale
-					* inflowLagScale
-					* bladeElement.thrustScale()
-					* bladeDissymmetry.thrustScale()
-					* lowReynoldsThrustScale
-					* coningThrustScale
-					* compressibilityThrustScale
-					* MathUtil.clamp(vortexRingThrustScale, 0.45, 1.0)
-					* MathUtil.clamp(stallThrustScale, 0.35, 1.0);
+			double nominalThrust;
+			if (rotorDiskGradientActive) {
+				nominalThrust = baseThrust
+						* rotorAirflowScale
+						* inflowLagScale
+						* bladeElement.thrustScale()
+						* bladeDissymmetry.thrustScale()
+						* diskWindGradientThrustScale
+						* lowReynoldsThrustScale
+						* coningThrustScale
+						* compressibilityThrustScale
+						* MathUtil.clamp(vortexRingThrustScale, 0.45, 1.0)
+						* MathUtil.clamp(stallThrustScale, 0.35, 1.0);
+			} else {
+				nominalThrust = baseThrust
+						* rotorAirflowScale
+						* inflowLagScale
+						* bladeElement.thrustScale()
+						* bladeDissymmetry.thrustScale()
+						* lowReynoldsThrustScale
+						* coningThrustScale
+						* compressibilityThrustScale
+						* MathUtil.clamp(vortexRingThrustScale, 0.45, 1.0)
+						* MathUtil.clamp(stallThrustScale, 0.35, 1.0);
+			}
 			RotorBladePassRipple bladePassRipple = updateRotorBladePassRipple(
 					i,
 					aerodynamicRotor,
@@ -1715,9 +2470,36 @@ public final class DronePhysics {
 			double thrust = nominalThrust * bladePassRipple.thrustScale() * stallBuffet.thrustScale() * vortexBuffet.thrustScale();
 			state.setRotorThrustNewtons(i, thrust);
 			state.setRotorBladePassRippleIntensity(i, bladePassRipple.intensity());
-			rotorVibrationSum += bladePassRipple.vibration() + stallBuffet.vibration() + vortexBuffet.vibration();
+			if (rotorDiskGradientActive) {
+				rotorVibrationSum += bladePassRipple.vibration()
+						+ stallBuffet.vibration()
+						+ vortexBuffet.vibration()
+						+ diskWindGradientVibration;
+			} else {
+				rotorVibrationSum += bladePassRipple.vibration() + stallBuffet.vibration() + vortexBuffet.vibration();
+			}
 			Vec3 forceBody = aerodynamicRotor.thrustAxisBody().multiply(thrust);
-			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, thrust, dtSeconds);
+			Vec3 flappingForceBody = rotorDiskGradientActive
+					? updateRotorFlappingForce(
+							i,
+							aerodynamicRotor,
+							rotorRelativeAirVelocityBody,
+							diskWindGradientPlaneX,
+							diskWindGradientPlaneY,
+							diskWindGradientPlaneZ,
+							diskWindGradientSpeed,
+							aerodynamicOmega,
+							thrust,
+							dtSeconds
+					)
+					: updateRotorFlappingForce(
+							i,
+							aerodynamicRotor,
+							rotorRelativeAirVelocityBody,
+							aerodynamicOmega,
+							thrust,
+							dtSeconds
+					);
 			Vec3 flappingTorque = rotorArmBody.cross(flappingForceBody);
 			rotorFlappingTorqueSum = rotorFlappingTorqueSum.add(flappingTorque);
 			Vec3 imbalanceForceBody = updateRotorImbalanceForce(i, aerodynamicRotor, state.rotorHealth(i), omega, thrust, dtSeconds);
@@ -1870,7 +2652,15 @@ public final class DronePhysics {
 		state.setAirframeLiftForceBodyNewtons(airframeLiftBody);
 		Vec3 rotorWashDragBody = updateRotorWashDragForce(totalForceBody, relativeAirVelocityBody, airDensity, dtSeconds);
 		state.setRotorWashDragForceBodyNewtons(rotorWashDragBody);
-		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(relativeAirVelocityBody, rotorWashDragBody, airframeLiftBody, airframeDragBody, airDensity, dtSeconds);
+		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(
+				relativeAirVelocityBody,
+				rotorWashDragBody,
+				airframeLiftBody,
+				airframeDragBody,
+				environment,
+				airDensity,
+				dtSeconds
+		);
 		state.setAirframeAerodynamicTorqueBodyNewtonMeters(airframeTorqueBody);
 		Vec3 turbulenceTorqueBody = calculateWindTurbulenceTorque(environment, relativeAirVelocityBody, dtSeconds);
 		state.setWindTurbulenceTorqueBodyNewtonMeters(turbulenceTorqueBody);
@@ -3341,9 +4131,21 @@ public final class DronePhysics {
 		double transverseSpeed = wakeFlow.transverseSpeedMetersPerSecond();
 		double wakeRetention = 1.0 - MathUtil.clamp(transverseSpeed / 7.0, 0.0, 1.0);
 		double motorPower = state.averageMotorPower(config);
-		double targetWake = input.armed()
-				? MathUtil.clamp(descentFactor * wakeRetention * (0.25 + 0.75 * motorPower), 0.0, 1.0)
-				: 0.0;
+		double targetWake;
+		if (ablCache.neutral()) {
+			targetWake = input.armed()
+					? MathUtil.clamp(descentFactor * wakeRetention * (0.25 + 0.75 * motorPower), 0.0, 1.0)
+					: 0.0;
+		} else {
+			targetWake = input.armed()
+					? MathUtil.clamp(
+							descentFactor * wakeRetention * (0.25 + 0.75 * motorPower)
+									* ablCache.wakeCoherenceMultiplier(),
+							0.0,
+							1.0
+					)
+					: 0.0;
+		}
 		double wakeIntensity = updatePropwashWakeIntensity(targetWake, wakeRetention, dtSeconds);
 		double throttleFactor = input.armed() ? Math.pow(input.throttle(), 1.35) : 0.0;
 		double intensity = MathUtil.clamp(wakeIntensity * throttleFactor * (0.35 + 0.65 * motorPower), 0.0, 1.0);
@@ -3400,9 +4202,26 @@ public final class DronePhysics {
 	private double updatePropwashWakeIntensity(double targetWakeIntensity, double wakeRetention, double dtSeconds) {
 		double previousWakeIntensity = state.propwashWakeIntensity();
 		double flushFactor = 1.0 - MathUtil.clamp(wakeRetention, 0.0, 1.0);
-		double timeConstant = targetWakeIntensity > previousWakeIntensity
-				? 0.055
-				: MathUtil.clamp(0.130 - 0.090 * flushFactor, 0.040, 0.130);
+		double timeConstant;
+		if (ablCache.neutral()) {
+			timeConstant = targetWakeIntensity > previousWakeIntensity
+					? 0.055
+					: MathUtil.clamp(0.130 - 0.090 * flushFactor, 0.040, 0.130);
+		} else {
+			double buildTimeConstant = MathUtil.clamp(
+					0.055 * ablCache.wakeBuildTimeScaleMultiplier(),
+					0.038,
+					0.075
+			);
+			double releaseTimeConstant = MathUtil.clamp(
+					(0.130 - 0.090 * flushFactor) * ablCache.wakeReleaseTimeScaleMultiplier(),
+					0.028,
+					0.180
+			);
+			timeConstant = targetWakeIntensity > previousWakeIntensity
+					? buildTimeConstant
+					: releaseTimeConstant;
+		}
 		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
 		double wakeIntensity = previousWakeIntensity + (targetWakeIntensity - previousWakeIntensity) * alpha;
 		state.setPropwashWakeIntensity(wakeIntensity);
@@ -3699,6 +4518,61 @@ public final class DronePhysics {
 		return rotorDynamicStallIntensity[index];
 	}
 
+	private double updateRotorDynamicStallIntensity(
+			int index,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double kinematicStallIntensity,
+			double bladeElementStallIntensity,
+			double bladeDissymmetryIntensity,
+			double diskWindGradientStallIntensity,
+			double dtSeconds
+	) {
+		if (dtSeconds <= 0.0) {
+			return rotorDynamicStallIntensity[index];
+		}
+
+		double previousStall = rotorDynamicStallIntensity[index];
+		double targetStall = rotorDynamicStallTargetIntensity(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				kinematicStallIntensity,
+				bladeElementStallIntensity,
+				bladeDissymmetryIntensity,
+				diskWindGradientStallIntensity
+		);
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		double advanceRatio = rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
+		double highAdvance = smoothStep(0.36, 0.78, advanceRatio);
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
+		double spinResponse = 0.72 + 0.55 * spinRatio;
+		double attackTimeConstant = MathUtil.clamp(
+				0.020 * Math.sqrt(radiusScale) / spinResponse * (1.0 - 0.28 * highAdvance),
+				0.007,
+				0.055
+		);
+		double recoveryTimeConstant = MathUtil.clamp(
+				(0.080 + 0.055 * highAdvance) * Math.sqrt(radiusScale) / Math.max(0.72, spinResponse),
+				0.040,
+				0.220
+		);
+		double effectiveTarget = targetStall;
+		if (targetStall < previousStall && highAdvance > 1.0e-6) {
+			double attachedFlowMemory = previousStall
+					* (0.16 + 0.46 * highAdvance)
+					* smoothStep(0.14, 0.42, spinRatio);
+			effectiveTarget = Math.max(targetStall, attachedFlowMemory);
+		}
+
+		double timeConstant = effectiveTarget > previousStall ? attackTimeConstant : recoveryTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		double dynamicStall = previousStall + (effectiveTarget - previousStall) * alpha;
+		rotorDynamicStallIntensity[index] = MathUtil.clamp(dynamicStall, 0.0, 1.0);
+		return rotorDynamicStallIntensity[index];
+	}
+
 	private static double rotorDynamicStallTargetIntensity(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
@@ -3727,6 +4601,41 @@ public final class DronePhysics {
 				* smoothStep(0.22, 0.58, spinRatio);
 		double targetStall = Math.max(MathUtil.clamp(kinematicStallIntensity, 0.0, 1.0), elementDrivenStall)
 				+ highAdvanceBias;
+		return MathUtil.clamp(targetStall * activeRotor, 0.0, 1.0);
+	}
+
+	private static double rotorDynamicStallTargetIntensity(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double kinematicStallIntensity,
+			double bladeElementStallIntensity,
+			double bladeDissymmetryIntensity,
+			double diskWindGradientStallIntensity
+	) {
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		if (spinRatio <= 0.08) {
+			return 0.0;
+		}
+
+		double advanceRatio = rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
+		double highAdvance = smoothStep(0.36, 0.78, advanceRatio);
+		double activeRotor = smoothStep(0.14, 0.46, spinRatio);
+		double retreatingBladeStall = MathUtil.clamp(bladeDissymmetryIntensity, 0.0, 1.0) * highAdvance;
+		double elementStall = MathUtil.clamp(bladeElementStallIntensity, 0.0, 1.0);
+		double elementDrivenStall = MathUtil.clamp(
+				Math.max(0.70 * elementStall, 0.26 * retreatingBladeStall),
+				0.0,
+				1.0
+		);
+		double highAdvanceBias = 0.020
+				* smoothStep(0.54, 0.88, advanceRatio)
+				* smoothStep(0.22, 0.58, spinRatio);
+		double localGradientStall = MathUtil.clamp(diskWindGradientStallIntensity, 0.0, 0.16);
+		double targetStall = Math.max(
+				Math.max(MathUtil.clamp(kinematicStallIntensity, 0.0, 1.0), elementDrivenStall),
+				localGradientStall
+		) + highAdvanceBias;
 		return MathUtil.clamp(targetStall * activeRotor, 0.0, 1.0);
 	}
 
@@ -4377,6 +5286,11 @@ public final class DronePhysics {
 		return atmosphereCache.effectiveAirDensityRatio();
 	}
 
+	private double cachedEffectiveAmbientTemperatureCelsius(DroneEnvironment environment) {
+		atmosphereCache.resolve(environment);
+		return atmosphereCache.effectiveAmbientTemperatureCelsius();
+	}
+
 	private static double rotorLowReynoldsThrustScale(double lowReynoldsLoss) {
 		double loss = MathUtil.clamp(lowReynoldsLoss, 0.0, 1.0);
 		return MathUtil.clamp(1.0 - 0.070 * loss, 0.92, 1.0);
@@ -5023,44 +5937,119 @@ public final class DronePhysics {
 		}
 
 		double crossflowFlush = smoothStep(2.5, 9.0, crossflowSpeed);
+		boolean neutralAbl = ablCache.neutral();
+		double wakeCoherence = neutralAbl ? 1.0 : ablCache.wakeCoherenceMultiplier();
+		double wakeBuildTimeScale = neutralAbl ? 1.0 : ablCache.wakeBuildTimeScaleMultiplier();
+		double wakeReleaseTimeScale = neutralAbl ? 1.0 : ablCache.wakeReleaseTimeScaleMultiplier();
 		for (int i = 0; i < rotorCount; i++) {
 			RotorWakeRotorGeometry rotorGeometry = rotorWakeRotorGeometry[i];
-			double targetIntensity = rotorWakeInterferenceTargetIntensity[i];
-			Vec3 targetDownwash = rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond[i];
-			Vec3 targetSwirl = rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond[i];
+			if (neutralAbl) {
+				double targetIntensity = rotorWakeInterferenceTargetIntensity[i];
+				Vec3 targetDownwash = rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond[i];
+				Vec3 targetSwirl = rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond[i];
+				Vec3 previousDownwash = rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i];
+				Vec3 previousSwirl = rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i];
+				double previousIntensity = rotorWakeInterferenceIntensity[i];
+				double previousFlowSpeed = Math.max(previousDownwash.length(), previousSwirl.length());
+				double targetFlowSpeed = Math.max(targetDownwash.length(), targetSwirl.length());
+				boolean building = targetIntensity > previousIntensity || targetFlowSpeed > previousFlowSpeed + 1.0e-6;
+				double buildTimeConstant = MathUtil.clamp(
+						0.090 * rotorGeometry.sqrtWakeLagRadiusScale()
+								/ (0.72 + 0.62 * Math.max(targetIntensity, previousIntensity)),
+						0.030,
+						0.170
+				);
+				double releaseTimeConstant = MathUtil.clamp(
+						(0.260 - 0.120 * crossflowFlush) * rotorGeometry.sqrtWakeLagRadiusScale(),
+						0.090,
+						0.420
+				);
+				double timeConstant = building ? buildTimeConstant : releaseTimeConstant;
+				double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+
+				double filteredIntensity = previousIntensity + (targetIntensity - previousIntensity) * alpha;
+				Vec3 filteredDownwash = previousDownwash.add(targetDownwash.subtract(previousDownwash).multiply(alpha));
+				Vec3 filteredSwirl = previousSwirl.add(targetSwirl.subtract(previousSwirl).multiply(alpha));
+				if (targetIntensity <= 1.0e-6 && filteredIntensity < 1.0e-5) {
+					filteredIntensity = 0.0;
+				}
+				if (targetDownwash.lengthSquared() <= 1.0e-9 && filteredDownwash.lengthSquared() < 1.0e-8) {
+					filteredDownwash = Vec3.ZERO;
+				}
+				if (targetSwirl.lengthSquared() <= 1.0e-9 && filteredSwirl.lengthSquared() < 1.0e-8) {
+					filteredSwirl = Vec3.ZERO;
+				}
+
+				rotorWakeInterferenceIntensity[i] = MathUtil.clamp(filteredIntensity, 0.0, 1.0);
+				rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i] = filteredDownwash.clamp(-12.0, 12.0);
+				rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i] = clampRotorWakeSwirlVelocity(
+						filteredSwirl,
+						rotorGeometry.swirlVelocityLimitMetersPerSecond()
+				);
+				continue;
+			}
+
+			double targetIntensity = MathUtil.clamp(
+					rotorWakeInterferenceTargetIntensity[i] * wakeCoherence,
+					0.0,
+					1.0
+			);
+			Vec3 rawTargetDownwash = rotorWakeInterferenceTargetDownwashVelocityBodyMetersPerSecond[i];
+			Vec3 rawTargetSwirl = rotorWakeInterferenceTargetSwirlVelocityBodyMetersPerSecond[i];
+			double targetDownwashX = rawTargetDownwash.x() * wakeCoherence;
+			double targetDownwashY = rawTargetDownwash.y() * wakeCoherence;
+			double targetDownwashZ = rawTargetDownwash.z() * wakeCoherence;
+			double targetSwirlX = rawTargetSwirl.x() * wakeCoherence;
+			double targetSwirlY = rawTargetSwirl.y() * wakeCoherence;
+			double targetSwirlZ = rawTargetSwirl.z() * wakeCoherence;
 			Vec3 previousDownwash = rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i];
 			Vec3 previousSwirl = rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i];
 			double previousIntensity = rotorWakeInterferenceIntensity[i];
 			double previousFlowSpeed = Math.max(previousDownwash.length(), previousSwirl.length());
-			double targetFlowSpeed = Math.max(targetDownwash.length(), targetSwirl.length());
+			double targetDownwashSquared = targetDownwashX * targetDownwashX
+					+ targetDownwashY * targetDownwashY
+					+ targetDownwashZ * targetDownwashZ;
+			double targetSwirlSquared = targetSwirlX * targetSwirlX
+					+ targetSwirlY * targetSwirlY
+					+ targetSwirlZ * targetSwirlZ;
+			double targetFlowSpeed = Math.max(Math.sqrt(targetDownwashSquared), Math.sqrt(targetSwirlSquared));
 			boolean building = targetIntensity > previousIntensity || targetFlowSpeed > previousFlowSpeed + 1.0e-6;
 			double buildTimeConstant = MathUtil.clamp(
 					0.090 * rotorGeometry.sqrtWakeLagRadiusScale()
+							* wakeBuildTimeScale
 							/ (0.72 + 0.62 * Math.max(targetIntensity, previousIntensity)),
 					0.030,
 					0.170
 			);
 			double releaseTimeConstant = MathUtil.clamp(
-					(0.260 - 0.120 * crossflowFlush) * rotorGeometry.sqrtWakeLagRadiusScale(),
+					(0.260 - 0.120 * crossflowFlush)
+							* rotorGeometry.sqrtWakeLagRadiusScale()
+							* wakeReleaseTimeScale,
 					0.090,
 					0.420
 			);
 			double timeConstant = building ? buildTimeConstant : releaseTimeConstant;
 			double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
-
 			double filteredIntensity = previousIntensity + (targetIntensity - previousIntensity) * alpha;
-			Vec3 filteredDownwash = previousDownwash.add(targetDownwash.subtract(previousDownwash).multiply(alpha));
-			Vec3 filteredSwirl = previousSwirl.add(targetSwirl.subtract(previousSwirl).multiply(alpha));
+			Vec3 filteredDownwash = new Vec3(
+					previousDownwash.x() + (targetDownwashX - previousDownwash.x()) * alpha,
+					previousDownwash.y() + (targetDownwashY - previousDownwash.y()) * alpha,
+					previousDownwash.z() + (targetDownwashZ - previousDownwash.z()) * alpha
+			);
+			Vec3 filteredSwirl = new Vec3(
+					previousSwirl.x() + (targetSwirlX - previousSwirl.x()) * alpha,
+					previousSwirl.y() + (targetSwirlY - previousSwirl.y()) * alpha,
+					previousSwirl.z() + (targetSwirlZ - previousSwirl.z()) * alpha
+			);
 			if (targetIntensity <= 1.0e-6 && filteredIntensity < 1.0e-5) {
 				filteredIntensity = 0.0;
 			}
-			if (targetDownwash.lengthSquared() <= 1.0e-9 && filteredDownwash.lengthSquared() < 1.0e-8) {
+			if (targetDownwashSquared <= 1.0e-9 && filteredDownwash.lengthSquared() < 1.0e-8) {
 				filteredDownwash = Vec3.ZERO;
 			}
-			if (targetSwirl.lengthSquared() <= 1.0e-9 && filteredSwirl.lengthSquared() < 1.0e-8) {
+			if (targetSwirlSquared <= 1.0e-9 && filteredSwirl.lengthSquared() < 1.0e-8) {
 				filteredSwirl = Vec3.ZERO;
 			}
-
 			rotorWakeInterferenceIntensity[i] = MathUtil.clamp(filteredIntensity, 0.0, 1.0);
 			rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i] = filteredDownwash.clamp(-12.0, 12.0);
 			rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i] = clampRotorWakeSwirlVelocity(
@@ -5877,6 +6866,116 @@ public final class DronePhysics {
 		return t * t * (3.0 - 2.0 * t);
 	}
 
+	private static double rotorDiskWindGradientThrustScale(
+			RotorSpec rotor,
+			double diskWindGradientSpeed,
+			double omegaRadiansPerSecond
+	) {
+		double spinRatio = MathUtil.clamp(
+				Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(),
+				0.0,
+				1.0
+		);
+		if (spinRatio <= 0.06) {
+			return 1.0;
+		}
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double gradientRatio = MathUtil.clamp(
+				diskWindGradientSpeed / Math.max(1.0, tipSpeed * 0.14),
+				0.0,
+				1.0
+		);
+		double loss = ROTOR_DISK_WIND_GRADIENT_MAX_THRUST_LOSS
+				* smoothStep(0.04, 0.58, gradientRatio)
+				* smoothStep(0.10, 0.55, spinRatio);
+		return MathUtil.clamp(
+				1.0 - loss,
+				1.0 - ROTOR_DISK_WIND_GRADIENT_MAX_THRUST_LOSS,
+				1.0
+		);
+	}
+
+	private static double rotorDiskWindGradientLoadFactor(
+			RotorSpec rotor,
+			double diskWindGradientSpeed,
+			double omegaRadiansPerSecond
+	) {
+		if (diskWindGradientSpeed <= 1.0e-6) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(
+				Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(),
+				0.0,
+				1.0
+		);
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double gradientRatio = MathUtil.clamp(
+				diskWindGradientSpeed / Math.max(1.0, tipSpeed * 0.16),
+				0.0,
+				1.0
+		);
+		return MathUtil.clamp(
+				0.18 * Math.pow(gradientRatio, 0.85) * smoothStep(0.10, 0.55, spinRatio),
+				0.0,
+				0.18
+		);
+	}
+
+	private static double rotorDiskWindGradientVibration(
+			RotorSpec rotor,
+			double diskWindGradientSpeed,
+			double omegaRadiansPerSecond
+	) {
+		if (diskWindGradientSpeed <= 1.0e-6) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(
+				Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(),
+				0.0,
+				1.0
+		);
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double gradientRatio = MathUtil.clamp(
+				diskWindGradientSpeed / Math.max(1.0, tipSpeed * 0.12),
+				0.0,
+				1.0
+		);
+		return MathUtil.clamp(
+				0.18 * Math.pow(gradientRatio, 0.80) * smoothStep(0.08, 0.50, spinRatio),
+				0.0,
+				0.18
+		);
+	}
+
+	private static double rotorDiskWindGradientStallIntensity(
+			RotorSpec rotor,
+			double diskWindGradientSpeed,
+			double omegaRadiansPerSecond
+	) {
+		if (diskWindGradientSpeed <= 1.0e-6) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(
+				Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(),
+				0.0,
+				1.0
+		);
+		if (spinRatio <= 0.08) {
+			return 0.0;
+		}
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double gradientRatio = MathUtil.clamp(
+				diskWindGradientSpeed / Math.max(1.0, tipSpeed * 0.10),
+				0.0,
+				1.0
+		);
+		return MathUtil.clamp(
+				0.14 * smoothStep(0.10, 0.48, gradientRatio) * smoothStep(0.12, 0.50, spinRatio),
+				0.0,
+				0.14
+		);
+	}
+
 	private Vec3 updateRotorFlappingForce(
 			int index,
 			RotorSpec rotor,
@@ -5891,6 +6990,74 @@ public final class DronePhysics {
 		double targetMagnitude = targetTiltBody.length();
 		double responseTimeConstant = targetMagnitude > previousMagnitude ? 0.026 : 0.050;
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		responseTimeConstant *= MathUtil.clamp(1.20 - 0.35 * spinRatio, 0.78, 1.20);
+		double alpha = dtSeconds <= 0.0 ? 1.0 : MathUtil.expSmoothing(dtSeconds, responseTimeConstant);
+		Vec3 tiltBody = previousTiltBody.add(targetTiltBody.subtract(previousTiltBody).multiply(alpha));
+		double magnitude = tiltBody.length();
+		double maxTilt = Math.toRadians(18.0);
+		if (magnitude > maxTilt) {
+			tiltBody = tiltBody.multiply(maxTilt / magnitude);
+			magnitude = maxTilt;
+		}
+
+		rotorFlappingTiltBody[index] = tiltBody;
+		state.setRotorFlappingTiltRadians(index, magnitude);
+		if (thrustNewtons <= 1.0e-6 || magnitude <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double verticalLoss = thrustNewtons * (1.0 - Math.sqrt(Math.max(0.0, 1.0 - magnitude * magnitude)));
+		return tiltBody.multiply(thrustNewtons)
+				.add(rotorAxisBody(rotor).multiply(-verticalLoss));
+	}
+
+	private Vec3 updateRotorFlappingForce(
+			int index,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double diskWindGradientPlaneX,
+			double diskWindGradientPlaneY,
+			double diskWindGradientPlaneZ,
+			double diskWindGradientSpeed,
+			double omegaRadiansPerSecond,
+			double thrustNewtons,
+			double dtSeconds
+	) {
+		Vec3 crossflowTargetTiltBody = rotorFlappingTargetTiltBody(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				thrustNewtons
+		);
+		double spinRatio = MathUtil.clamp(
+				Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(),
+				0.0,
+				1.0
+		);
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double diskWindGradientRatio = MathUtil.clamp(
+				diskWindGradientSpeed / Math.max(1.0, tipSpeed * 0.12),
+				0.0,
+				1.0
+		);
+		double thrustFraction = MathUtil.clamp(thrustNewtons / rotor.maxThrustNewtons(), 0.0, 1.0);
+		double gradientTilt = 0.0;
+		if (diskWindGradientSpeed > 1.0e-6 && thrustNewtons > 1.0e-6 && spinRatio > 0.06) {
+			gradientTilt = ROTOR_DISK_WIND_GRADIENT_MAX_FLAPPING_TILT_RADIANS
+					* smoothStep(0.03, 0.42, diskWindGradientRatio)
+					* smoothStep(0.10, 0.55, spinRatio)
+					* MathUtil.clamp(0.55 + 0.45 * Math.sqrt(thrustFraction), 0.0, 1.0);
+		}
+		double gradientTiltScale = gradientTilt / diskWindGradientSpeed;
+		Vec3 targetTiltBody = new Vec3(
+				crossflowTargetTiltBody.x() + diskWindGradientPlaneX * gradientTiltScale,
+				crossflowTargetTiltBody.y() + diskWindGradientPlaneY * gradientTiltScale,
+				crossflowTargetTiltBody.z() + diskWindGradientPlaneZ * gradientTiltScale
+		);
+		Vec3 previousTiltBody = rotorFlappingTiltBody[index];
+		double previousMagnitude = previousTiltBody.length();
+		double targetMagnitude = targetTiltBody.length();
+		double responseTimeConstant = targetMagnitude > previousMagnitude ? 0.026 : 0.050;
 		responseTimeConstant *= MathUtil.clamp(1.20 - 0.35 * spinRatio, 0.78, 1.20);
 		double alpha = dtSeconds <= 0.0 ? 1.0 : MathUtil.expSmoothing(dtSeconds, responseTimeConstant);
 		Vec3 tiltBody = previousTiltBody.add(targetTiltBody.subtract(previousTiltBody).multiply(alpha));
@@ -6524,6 +7691,7 @@ public final class DronePhysics {
 			Vec3 rotorWashDragForceBody,
 			Vec3 airframeLiftForceBody,
 			Vec3 airframeDragForceBody,
+			DroneEnvironment environment,
 			double airDensityRatio,
 			double dtSeconds
 	) {
@@ -6533,6 +7701,7 @@ public final class DronePhysics {
 				rotorWashDragForceBody,
 				airframeLiftForceBody,
 				airframeDragForceBody,
+				environment,
 				airDensityRatio,
 				dtSeconds
 		);
@@ -6616,9 +7785,39 @@ public final class DronePhysics {
 			Vec3 rotorWashDragForceBody,
 			Vec3 airframeLiftForceBody,
 			Vec3 airframeDragForceBody,
+			DroneEnvironment environment,
 			double airDensityRatio,
 			double dtSeconds
 	) {
+		Vec3 localPressureCenterOffset = environment == null
+				? Vec3.ZERO
+				: environment.adoptedLocalPressureCenterOffsetBodyMeters();
+		if (localPressureCenterOffset.lengthSquared() > 1.0e-12) {
+			double washGate = localPressureCenterHoverWashGate();
+			Vec3 dynamicPressureCenterOffsetBody = updateDynamicPressureCenterOffsetBody(
+					relativeAirVelocityBody,
+					localPressureCenterOffset,
+					washGate,
+					dtSeconds
+			);
+			Vec3 localWashForceBody = localPressureCenterRotorWashForceBody(
+					dynamicPressureCenterOffsetBody,
+					washGate,
+					airDensityRatio
+			);
+			Vec3 momentArmBody = config.centerOfPressureOffsetBodyMeters()
+					.add(dynamicPressureCenterOffsetBody)
+					.subtract(config.centerOfMassOffsetBodyMeters());
+			if (momentArmBody.lengthSquared() <= 1.0e-12 || airDensityRatio <= 0.0) {
+				return Vec3.ZERO;
+			}
+			Vec3 airframeForceBody = airframeDragForceBody
+					.add(airframeLiftForceBody)
+					.add(rotorWashDragForceBody)
+					.add(localWashForceBody);
+			return momentArmBody.cross(airframeForceBody).clamp(-0.45, 0.45);
+		}
+
 		Vec3 dynamicPressureCenterOffsetBody = updateDynamicPressureCenterOffsetBody(relativeAirVelocityBody, dtSeconds);
 		Vec3 momentArmBody = config.centerOfPressureOffsetBodyMeters()
 				.add(dynamicPressureCenterOffsetBody)
@@ -6631,6 +7830,79 @@ public final class DronePhysics {
 				.add(airframeLiftForceBody)
 				.add(rotorWashDragForceBody);
 		return momentArmBody.cross(airframeForceBody).clamp(-0.45, 0.45);
+	}
+
+	private Vec3 updateDynamicPressureCenterOffsetBody(
+			Vec3 relativeAirVelocityBody,
+			Vec3 localPressureCenterOffsetBody,
+			double washGate,
+			double dtSeconds
+	) {
+		double speed = relativeAirVelocityBody.length();
+		double localGate = Math.max(smoothStep(2.0, 12.0, speed), washGate);
+		Vec3 target = calculateSteadyDynamicPressureCenterOffsetBody(relativeAirVelocityBody)
+				.add(localPressureCenterOffsetBody.multiply(localGate))
+				.clamp(-0.040, 0.040);
+		if (dtSeconds <= 0.0) {
+			dynamicPressureCenterOffsetBodyFiltered = target;
+			return dynamicPressureCenterOffsetBodyFiltered;
+		}
+
+		double targetMagnitude = target.length();
+		double previousMagnitude = dynamicPressureCenterOffsetBodyFiltered.length();
+		double timeConstant = targetMagnitude > previousMagnitude ? 0.040 : 0.130;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		dynamicPressureCenterOffsetBodyFiltered = dynamicPressureCenterOffsetBodyFiltered
+				.add(target.subtract(dynamicPressureCenterOffsetBodyFiltered).multiply(alpha))
+				.clamp(-0.040, 0.040);
+		if (targetMagnitude <= 1.0e-6 && dynamicPressureCenterOffsetBodyFiltered.lengthSquared() < 1.0e-8) {
+			dynamicPressureCenterOffsetBodyFiltered = Vec3.ZERO;
+		}
+		return dynamicPressureCenterOffsetBodyFiltered;
+	}
+
+	private Vec3 localPressureCenterRotorWashForceBody(
+			Vec3 dynamicPressureCenterOffsetBody,
+			double washGate,
+			double airDensityRatio
+	) {
+		if (dynamicPressureCenterOffsetBody.lengthSquared() <= 1.0e-12
+				|| washGate <= 1.0e-6
+				|| airDensityRatio <= 0.0) {
+			return Vec3.ZERO;
+		}
+		double inducedVelocity = state.averageRotorInducedVelocityMetersPerSecond();
+		Vec3 drag = config.bodyDragCoefficients();
+		double bodyAreaScale = Math.sqrt(Math.max(0.0, drag.x() * drag.z()));
+		if (bodyAreaScale <= 1.0e-9 || inducedVelocity <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+		double download = airDensityRatio
+				* inducedVelocity
+				* inducedVelocity
+				* bodyAreaScale
+				* LOCAL_PRESSURE_CENTER_HOVER_DOWNLOAD_GAIN
+				* washGate;
+		return new Vec3(0.0, -MathUtil.clamp(download, 0.0, 0.45), 0.0);
+	}
+
+	private double localPressureCenterHoverWashGate() {
+		int rotorCount = Math.min(state.motorCount(), config.rotors().size());
+		if (rotorCount <= 0) {
+			return 0.0;
+		}
+		double totalThrust = 0.0;
+		double inducedVelocitySum = 0.0;
+		for (int i = 0; i < rotorCount; i++) {
+			totalThrust += state.rotorThrustNewtons(i);
+			inducedVelocitySum += state.rotorInducedVelocityMetersPerSecond(i);
+		}
+		double averageInducedVelocity = inducedVelocitySum / rotorCount;
+		double thrustToWeight = totalThrust
+				/ Math.max(1.0e-6, config.massKg() * config.gravityMetersPerSecondSquared());
+		return LOCAL_PRESSURE_CENTER_HOVER_WASH_GATE_SCALE
+				* smoothStep(0.08, 0.70, thrustToWeight)
+				* smoothStep(0.35, 5.5, averageInducedVelocity);
 	}
 
 	private Vec3 updateDynamicPressureCenterOffsetBody(Vec3 relativeAirVelocityBody, double dtSeconds) {
@@ -6912,6 +8184,7 @@ public final class DronePhysics {
 			windModelInitialized = true;
 			meanWindVelocityWorldMetersPerSecond = targetMeanWind;
 			windBurbleVelocityWorldMetersPerSecond = Vec3.ZERO;
+			compactTerrainShearVelocityWorldMetersPerSecond = Vec3.ZERO;
 			drydenFirstOrderVelocityWorldMetersPerSecond = Vec3.ZERO;
 			drydenTransverseLagVelocityWorldMetersPerSecond = Vec3.ZERO;
 			drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
@@ -6950,7 +8223,22 @@ public final class DronePhysics {
 				targetBurble.subtract(windBurbleVelocityWorldMetersPerSecond).multiply(burbleAlpha)
 		);
 		Vec3 drydenTurbulence = updateDrydenTurbulence(environment, targetMeanWind, dtSeconds);
-		windGustVelocityWorldMetersPerSecond = windBurbleVelocityWorldMetersPerSecond.add(drydenTurbulence);
+		Vec3 baseWindGust = combinedWindGust(
+				environment,
+				targetMeanWind,
+				dirtyAir,
+				windBurbleVelocityWorldMetersPerSecond,
+				drydenTurbulence
+		);
+		Vec3 terrainShear = updateCompactTerrainShear(
+				environment,
+				targetMeanWind,
+				dirtyAir,
+				dtSeconds
+		);
+		windGustVelocityWorldMetersPerSecond = terrainShear.lengthSquared() <= 1.0e-18
+				? baseWindGust
+				: baseWindGust.add(terrainShear);
 
 		Vec3 previousEffectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
 		Vec3 effectiveWind = meanWindVelocityWorldMetersPerSecond.add(windGustVelocityWorldMetersPerSecond);
@@ -6969,8 +8257,8 @@ public final class DronePhysics {
 						+ 0.26 * environment.obstacleProximity()
 						+ 0.18 * environment.droneWakeIntensity()
 						+ 0.12 * environment.ceilingEffectIntensity(config)
-						+ surfaceBoundaryLayerDirtyAir(environment.groundClearanceMeters(), environment.windVelocityWorldMetersPerSecond())
-						+ 0.85 * surfaceBoundaryLayerDirtyAir(environment.ceilingClearanceMeters(), environment.windVelocityWorldMetersPerSecond()),
+						+ surfaceBoundaryLayerDirtyAir(environment, environment.groundClearanceMeters(), environment.windVelocityWorldMetersPerSecond())
+						+ 0.85 * surfaceBoundaryLayerDirtyAir(environment, environment.ceilingClearanceMeters(), environment.windVelocityWorldMetersPerSecond()),
 				0.0,
 				1.8
 		);
@@ -6983,13 +8271,13 @@ public final class DronePhysics {
 			return wind;
 		}
 
-		double groundScale = boundaryLayerHorizontalWindScale(environment.groundClearanceMeters(), height);
-		double ceilingScale = boundaryLayerHorizontalWindScale(environment.ceilingClearanceMeters(), height);
+		double groundScale = boundaryLayerHorizontalWindScale(environment, environment.groundClearanceMeters(), height);
+		double ceilingScale = boundaryLayerHorizontalWindScale(environment, environment.ceilingClearanceMeters(), height);
 		double horizontalScale = Math.min(groundScale, ceilingScale);
 		return new Vec3(wind.x() * horizontalScale, wind.y(), wind.z() * horizontalScale);
 	}
 
-	private double surfaceBoundaryLayerDirtyAir(double clearance, Vec3 wind) {
+	private double surfaceBoundaryLayerDirtyAir(DroneEnvironment environment, double clearance, Vec3 wind) {
 		double height = surfaceBoundaryLayerHeightMeters();
 		if (height <= 1.0e-6 || !Double.isFinite(clearance) || clearance >= height) {
 			return 0.0;
@@ -7002,8 +8290,16 @@ public final class DronePhysics {
 
 		double nearSurface = 1.0 - smoothStep(0.04, height, clearance);
 		double windFactor = smoothStep(1.4, 11.0, horizontalWindSpeed);
-		double shearFactor = 1.0 - boundaryLayerHorizontalWindScale(clearance, height);
-		return MathUtil.clamp(0.46 * nearSurface * windFactor * shearFactor, 0.0, 0.34);
+		if (ablCache.neutral()) {
+			double shearFactor = 1.0 - boundaryLayerHorizontalWindScale(clearance, height);
+			return MathUtil.clamp(0.46 * nearSurface * windFactor * shearFactor, 0.0, 0.34);
+		}
+		double shearFactor = 1.0 - boundaryLayerHorizontalWindScale(environment, clearance, height);
+		return MathUtil.clamp(
+				0.46 * nearSurface * windFactor * shearFactor * ablCache.boundaryDirtyAirMultiplier(),
+				0.0,
+				0.44
+		);
 	}
 
 	private double surfaceBoundaryLayerHeightMeters() {
@@ -7021,6 +8317,22 @@ public final class DronePhysics {
 		double surfaceSlip = 0.18 + 0.12 * smoothStep(0.0, 0.40, normalizedClearance);
 		double recovery = smoothStep(0.03, 1.0, normalizedClearance);
 		return MathUtil.clamp(surfaceSlip + (1.0 - surfaceSlip) * recovery, 0.18, 1.0);
+	}
+
+	private double boundaryLayerHorizontalWindScale(
+			DroneEnvironment environment,
+			double clearanceMeters,
+			double heightMeters
+	) {
+		double neutralScale = boundaryLayerHorizontalWindScale(clearanceMeters, heightMeters);
+		if (ablCache.neutral() || neutralScale >= 1.0 - 1.0e-9) {
+			return neutralScale;
+		}
+		return MathUtil.clamp(
+				1.0 - (1.0 - neutralScale) * ablCache.boundaryDeficitMultiplier(),
+				0.10,
+				1.0
+		);
 	}
 
 	private Vec3 windBurbleTarget(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir) {
@@ -7056,17 +8368,207 @@ public final class DronePhysics {
 				.multiply(burbleScale);
 	}
 
+	private Vec3 combinedWindGust(
+			DroneEnvironment environment,
+			Vec3 targetMeanWind,
+			double dirtyAir,
+			Vec3 burble,
+			Vec3 dryden
+	) {
+		Vec3 sourceGust = environment.adoptedSourceGustVelocityWorldMetersPerSecond();
+		double sourceMagnitudeSquared = sourceGust.lengthSquared();
+		if (sourceMagnitudeSquared <= 1.0e-12) {
+			return burble.add(dryden);
+		}
+
+		double sourceMagnitude = Math.sqrt(sourceMagnitudeSquared);
+		double sourceSpeed = MathUtil.clamp(sourceMagnitude, 0.0, 12.0);
+		double horizontalWindSpeed = Math.hypot(targetMeanWind.x(), targetMeanWind.z());
+		double windGate = smoothStep(0.3, 5.0, Math.max(horizontalWindSpeed, sourceSpeed));
+		if (windGate <= 1.0e-9) {
+			return burble.add(dryden);
+		}
+		double dirtyGain = MathUtil.clamp(0.72 + 0.10 * dirtyAir, 0.72, 0.94);
+		double vectorScale = MathUtil.clamp(sourceSpeed / sourceMagnitude, 0.0, 1.0);
+		double scale = 0.22 * windGate * dirtyGain * vectorScale;
+		if (ablCache.neutral()) {
+			return new Vec3(
+					burble.x() + dryden.x() + MathUtil.clamp(sourceGust.x() * scale, -2.0, 2.0),
+					burble.y() + dryden.y() + MathUtil.clamp(sourceGust.y() * scale, -2.0, 2.0),
+					burble.z() + dryden.z() + MathUtil.clamp(sourceGust.z() * scale, -2.0, 2.0)
+			);
+		}
+		return new Vec3(
+				burble.x() + dryden.x() + MathUtil.clamp(
+						(sourceGust.x() * ablCache.sourceGustHorizontalMultiplier()) * scale,
+						-2.0,
+						2.0
+				),
+				burble.y() + dryden.y() + MathUtil.clamp(
+						(sourceGust.y() * ablCache.sourceGustVerticalMultiplier()) * scale,
+						-2.0,
+						2.0
+				),
+				burble.z() + dryden.z() + MathUtil.clamp(
+						(sourceGust.z() * ablCache.sourceGustHorizontalMultiplier()) * scale,
+						-2.0,
+						2.0
+				)
+		);
+	}
+
 	private static double localizedWindBurbleIntensity(DroneEnvironment environment, double dirtyAir) {
 		double ambientTurbulence = MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.5);
 		double localDirtyAir = Math.max(0.0, dirtyAir - ambientTurbulence);
 		return MathUtil.clamp(localDirtyAir + 0.18 * ambientTurbulence, 0.0, 1.8);
 	}
 
+	private Vec3 updateCompactTerrainShear(
+			DroneEnvironment environment,
+			Vec3 targetMeanWind,
+			double dirtyAir,
+			double dtSeconds
+	) {
+		double shearMagnitude = environment.adoptedSourceWindShearMagnitudePerBlock();
+		double shelter = environment.adoptedSourceShelterFactor();
+		double horizontalWindSpeed = Math.hypot(targetMeanWind.x(), targetMeanWind.z());
+		double shelterWindGate = smoothStep(0.8, 7.0, horizontalWindSpeed);
+		double sourceUpdraft = environment.adoptedSourceUpdraftMetersPerSecond();
+		double updraftTarget = 0.0;
+		if (Math.abs(sourceUpdraft) > 1.0e-6) {
+			double responseGain = MathUtil.clamp(
+					environment.adoptedSourceUpdraftLocalVoxelGain()
+							* compactUpdraftAblTargetMultiplier(environment)
+							* (0.50 + 0.22 * smoothStep(0.35, 4.0, Math.abs(sourceUpdraft))),
+					0.30,
+					0.90
+			);
+			updraftTarget = MathUtil.clamp(sourceUpdraft * responseGain, -4.5, 4.5);
+		}
+		boolean terrainActive = shearMagnitude > 1.0e-6
+				|| shelter > 1.0e-6 && shelterWindGate > 1.0e-6;
+		boolean updraftActive = Math.abs(updraftTarget) > 1.0e-6;
+		boolean active = terrainActive || updraftActive;
+		if (!active && compactTerrainShearVelocityWorldMetersPerSecond.lengthSquared() <= 1.0e-18) {
+			return Vec3.ZERO;
+		}
+
+		double terrainTau = MathUtil.clamp(
+				(0.18 - 0.035 * Math.min(2.0, shearMagnitude) - 0.025 * shelter)
+						* compactTerrainShearAblTimeScaleMultiplier(environment),
+				0.045,
+				0.360
+		);
+		double updraftTau = MathUtil.clamp(
+				(0.22
+						- 0.065 * smoothStep(0.25, 4.0, Math.abs(sourceUpdraft))
+						- 0.040 * smoothStep(0.10, 1.0, Math.abs(sourceUpdraft)))
+						* compactUpdraftAblTimeScaleMultiplier(environment),
+				0.055,
+				0.330
+		);
+		double tau = terrainActive && updraftActive
+				? Math.min(terrainTau, updraftTau)
+				: updraftActive ? updraftTau : terrainTau;
+		Vec3 target = Vec3.ZERO;
+		if (active) {
+			double inverseHorizontalSpeed = horizontalWindSpeed > 1.0e-6 ? 1.0 / horizontalWindSpeed : 0.0;
+			double windAxisX = inverseHorizontalSpeed > 0.0 ? targetMeanWind.x() * inverseHorizontalSpeed : 1.0;
+			double windAxisZ = inverseHorizontalSpeed > 0.0 ? targetMeanWind.z() * inverseHorizontalSpeed : 0.0;
+			double shelterSignal = shelter * shelterWindGate
+					* (0.20 + 0.12 * smoothStep(0.25, 2.0, shearMagnitude));
+			double terrainSignal = MathUtil.clamp(
+					0.42 * shearMagnitude * (0.50 + 0.50 * smoothStep(0.6, 7.0, horizontalWindSpeed))
+							+ 0.10 * Math.abs(sourceUpdraft)
+							+ shelterSignal,
+					0.0,
+					2.40
+			);
+			double dirtyGain = MathUtil.clamp(
+					0.72 + 0.18 * dirtyAir + 0.10 * shelter * shelterWindGate,
+					0.72,
+					1.10
+			);
+			double along = Math.sin(windGustPhaseA * 0.73 + 0.40) * terrainSignal * 0.35;
+			double cross = Math.sin(windGustPhaseB * 0.91 + 1.10) * terrainSignal * 0.55;
+			double vertical = Math.sin(windGustPhaseC * 0.67 + 2.00)
+					* terrainSignal
+					* (0.22 + 0.16 * smoothStep(0.25, 5.0, Math.abs(sourceUpdraft)));
+			target = new Vec3(
+					MathUtil.clamp((windAxisX * along - windAxisZ * cross) * dirtyGain, -3.0, 3.0),
+					MathUtil.clamp(updraftTarget + vertical * dirtyGain, -4.5, 4.5),
+					MathUtil.clamp((windAxisZ * along + windAxisX * cross) * dirtyGain, -3.0, 3.0)
+			);
+		}
+
+		double alpha = MathUtil.expSmoothing(dtSeconds, tau);
+		Vec3 previous = compactTerrainShearVelocityWorldMetersPerSecond;
+		compactTerrainShearVelocityWorldMetersPerSecond = new Vec3(
+				previous.x() + (target.x() - previous.x()) * alpha,
+				previous.y() + (target.y() - previous.y()) * alpha,
+				previous.z() + (target.z() - previous.z()) * alpha
+		);
+		if (!active && compactTerrainShearVelocityWorldMetersPerSecond.lengthSquared() < 1.0e-8) {
+			compactTerrainShearVelocityWorldMetersPerSecond = Vec3.ZERO;
+		}
+		return compactTerrainShearVelocityWorldMetersPerSecond;
+	}
+
+	private static double compactTerrainShearAblTimeScaleMultiplier(DroneEnvironment environment) {
+		double stability = environment.adoptedAblStability();
+		double mixing = environment.adoptedAblMixingStrength();
+		if (mixing <= 1.0e-6 && Math.abs(stability) <= 1.0e-6) {
+			return 1.0;
+		}
+		double unstable = Math.max(0.0, stability);
+		double stable = Math.max(0.0, -stability);
+		double mixedUnstable = unstable * mixing;
+		double stablePersistence = stable * (0.75 + 0.25 * (1.0 - mixing));
+		return MathUtil.clamp(
+				1.0 - 0.20 * mixing - 0.25 * mixedUnstable + 0.55 * stablePersistence,
+				0.55,
+				1.65
+		);
+	}
+
+	private static double compactUpdraftAblTargetMultiplier(DroneEnvironment environment) {
+		double stability = environment.adoptedAblStability();
+		double mixing = environment.adoptedAblMixingStrength();
+		if (mixing <= 1.0e-6 && Math.abs(stability) <= 1.0e-6) {
+			return 0.84;
+		}
+		double unstable = Math.max(0.0, stability);
+		double stable = Math.max(0.0, -stability);
+		double mixedUnstable = unstable * mixing;
+		double stableSuppression = stable * (0.75 + 0.25 * (1.0 - mixing));
+		return MathUtil.clamp(
+				(0.84 + 0.18 * mixing) * (1.0 + 0.30 * mixedUnstable - 0.34 * stableSuppression),
+				0.55,
+				1.22
+		);
+	}
+
+	private static double compactUpdraftAblTimeScaleMultiplier(DroneEnvironment environment) {
+		double stability = environment.adoptedAblStability();
+		double mixing = environment.adoptedAblMixingStrength();
+		if (mixing <= 1.0e-6 && Math.abs(stability) <= 1.0e-6) {
+			return 1.0;
+		}
+		double unstable = Math.max(0.0, stability);
+		double stable = Math.max(0.0, -stability);
+		double mixedUnstable = unstable * mixing;
+		double stablePersistence = stable * (0.75 + 0.25 * (1.0 - mixing));
+		return MathUtil.clamp(
+				1.0 - 0.16 * mixing - 0.24 * mixedUnstable + 0.48 * stablePersistence,
+				0.60,
+				1.55
+		);
+	}
+
 	private Vec3 updateDrydenTurbulence(DroneEnvironment environment, Vec3 targetMeanWind, double dtSeconds) {
-		double windSpeed = targetMeanWind.length();
-		double atmosphericTurbulence = atmosphericDrydenIntensity(environment);
-		if (atmosphericTurbulence <= 1.0e-6 || windSpeed <= 0.5 || dtSeconds <= 0.0) {
-			double alpha = MathUtil.expSmoothing(dtSeconds, 0.35);
+		drydenStepCache.resolve(environment, targetMeanWind, dtSeconds, ablCache);
+		if (!drydenStepCache.active) {
+			double alpha = drydenStepCache.decayAlpha;
 			drydenFirstOrderVelocityWorldMetersPerSecond =
 					drydenFirstOrderVelocityWorldMetersPerSecond.multiply(1.0 - alpha);
 			drydenTransverseLagVelocityWorldMetersPerSecond =
@@ -7075,15 +8577,9 @@ public final class DronePhysics {
 			return drydenTurbulenceVelocityWorldMetersPerSecond;
 		}
 
-		DrydenTurbulenceModel.Parameters dryden = DrydenTurbulenceModel.lowAltitude(drydenReferenceAltitudeMeters(environment), windSpeed);
-		double intensityScale = MathUtil.clamp(atmosphericTurbulence / 1.8, 0.0, 1.0);
-		double longitudinalTau = MathUtil.clamp(dryden.longitudinalTimeConstantSeconds(), 0.10, 12.0);
-		double lateralTau = MathUtil.clamp(dryden.lateralTimeConstantSeconds(), 0.10, 12.0);
-		double verticalTau = MathUtil.clamp(dryden.verticalTimeConstantSeconds(), 0.05, 6.0);
-
-		Vec3 longitudinalAxis = horizontalWindAxis(targetMeanWind);
-		Vec3 lateralAxis = new Vec3(-longitudinalAxis.z(), 0.0, longitudinalAxis.x());
-		Vec3 verticalAxis = new Vec3(0.0, 1.0, 0.0);
+		Vec3 longitudinalAxis = drydenStepCache.longitudinalAxis;
+		Vec3 lateralAxis = drydenStepCache.lateralAxis;
+		Vec3 verticalAxis = drydenStepCache.verticalAxis;
 		double currentLongitudinal = drydenFirstOrderVelocityWorldMetersPerSecond.dot(longitudinalAxis);
 		double currentLateral = drydenFirstOrderVelocityWorldMetersPerSecond.dot(lateralAxis);
 		double currentVertical = drydenFirstOrderVelocityWorldMetersPerSecond.dot(verticalAxis);
@@ -7091,24 +8587,29 @@ public final class DronePhysics {
 		double currentVerticalLag = drydenTransverseLagVelocityWorldMetersPerSecond.dot(verticalAxis);
 		double longitudinalFirstOrder = updateDrydenAxis(
 				currentLongitudinal,
-				dryden.longitudinalSigmaMetersPerSecond() * intensityScale,
-				longitudinalTau,
-				dtSeconds
+				drydenStepCache.longitudinalPhi,
+				drydenStepCache.longitudinalInnovationScale
 		);
 		double lateralFirstOrder = updateDrydenAxis(
 				currentLateral,
-				dryden.lateralSigmaMetersPerSecond() * intensityScale,
-				lateralTau,
-				dtSeconds
+				drydenStepCache.lateralPhi,
+				drydenStepCache.lateralInnovationScale
 		);
 		double verticalFirstOrder = updateDrydenAxis(
 				currentVertical,
-				dryden.verticalSigmaMetersPerSecond() * intensityScale,
-				verticalTau,
-				dtSeconds
+				drydenStepCache.verticalPhi,
+				drydenStepCache.verticalInnovationScale
 		);
-		double lateralLag = updateDrydenLag(currentLateralLag, lateralFirstOrder, lateralTau, dtSeconds);
-		double verticalLag = updateDrydenLag(currentVerticalLag, verticalFirstOrder, verticalTau, dtSeconds);
+		double lateralLag = updateDrydenLag(
+				currentLateralLag,
+				lateralFirstOrder,
+				drydenStepCache.lateralLagAlpha
+		);
+		double verticalLag = updateDrydenLag(
+				currentVerticalLag,
+				verticalFirstOrder,
+				drydenStepCache.verticalLagAlpha
+		);
 		double lateral = DrydenTurbulenceModel.shapeTransverseAxis(lateralFirstOrder, lateralLag);
 		double vertical = DrydenTurbulenceModel.shapeTransverseAxis(verticalFirstOrder, verticalLag);
 
@@ -7127,14 +8628,29 @@ public final class DronePhysics {
 		return MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.8);
 	}
 
-	private double updateDrydenAxis(double currentValue, double sigmaMetersPerSecond, double timeConstantSeconds, double dtSeconds) {
-		double phi = Math.exp(-dtSeconds / Math.max(1.0e-6, timeConstantSeconds));
-		double innovationScale = sigmaMetersPerSecond * Math.sqrt(Math.max(0.0, 1.0 - phi * phi));
+	private static double atmosphericDrydenIntensity(DroneEnvironment environment, AblCache ablCache) {
+		double baseTurbulence = atmosphericDrydenIntensity(environment);
+		if (ablCache == null || ablCache.neutral()) {
+			return baseTurbulence;
+		}
+		double horizontalWindSpeed = Math.hypot(
+				environment.windVelocityWorldMetersPerSecond().x(),
+				environment.windVelocityWorldMetersPerSecond().z()
+		);
+		return MathUtil.clamp(
+				baseTurbulence * ablCache.drydenIntensityMultiplier()
+						+ ablCache.drydenConvectiveFloorCoefficient()
+								* smoothStep(1.0, 8.0, horizontalWindSpeed),
+				0.0,
+				1.8
+		);
+	}
+
+	private double updateDrydenAxis(double currentValue, double phi, double innovationScale) {
 		return currentValue * phi + innovationScale * nextDrydenGaussian();
 	}
 
-	private static double updateDrydenLag(double currentValue, double targetValue, double timeConstantSeconds, double dtSeconds) {
-		double alpha = MathUtil.expSmoothing(dtSeconds, Math.max(1.0e-6, timeConstantSeconds));
+	private static double updateDrydenLag(double currentValue, double targetValue, double alpha) {
 		return currentValue + (targetValue - currentValue) * alpha;
 	}
 
@@ -9678,7 +11194,7 @@ public final class DronePhysics {
 		state.setBarometerPressureHectopascals(DroneEnvironment.barometricPressureHectopascals(
 				barometerFilteredAltitudeMeters,
 				environment.airDensityRatio(),
-				environment.ambientTemperatureCelsius()
+				cachedEffectiveAmbientTemperatureCelsius(environment)
 		));
 		state.setBarometerErrorMeters(barometerFilteredAltitudeMeters - trueAltitude);
 		state.setBarometerSensorNoiseMeters(sensorNoise);
@@ -9734,7 +11250,17 @@ public final class DronePhysics {
 	}
 
 	private double calculateSteadyBarometerPressurePortErrorMeters(DroneEnvironment environment) {
-		return barometerDynamicPressureErrorMeters(environment);
+		double dynamicPressureError = barometerDynamicPressureErrorMeters(environment);
+		double localExposure = environment.adoptedLocalStaticPressureExposure();
+		if (localExposure <= 1.0e-9) {
+			return dynamicPressureError;
+		}
+		double density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER
+				* MathUtil.clamp(cachedEffectiveAirDensityRatio(environment), 0.35, 1.35);
+		double pressureHeightMeters = -environment.adoptedSourcePressureAnomalyPascals()
+				/ Math.max(1.0e-6, density * config.gravityMetersPerSecondSquared());
+		double localStaticError = MathUtil.clamp(pressureHeightMeters * localExposure, -0.65, 0.65);
+		return MathUtil.clamp(dynamicPressureError + localStaticError, -1.8, 2.2);
 	}
 
 	private double calculateSteadyBarometerPropwashErrorMeters(DroneEnvironment environment) {
@@ -10093,6 +11619,10 @@ public final class DronePhysics {
 	}
 
 	private void integrateMotorThermal(DroneEnvironment environment, double dtSeconds) {
+		atmosphereCache.resolve(environment);
+		double effectiveAmbientTemperatureCelsius = atmosphereCache.effectiveAmbientTemperatureCelsius();
+		double densityFactor = MathUtil.clamp(atmosphereCache.effectiveAirDensityRatio(), 0.35, 1.35);
+		double moistAirCoolingMultiplier = atmosphereCache.moistAirCoolingMultiplier();
 		Vec3 relativeAirVelocityBody = state.relativeAirVelocityBodyMetersPerSecond();
 		Vec3 angularVelocityBody = state.angularVelocityBodyRadiansPerSecond();
 		for (int i = 0; i < state.motorCount(); i++) {
@@ -10110,11 +11640,25 @@ public final class DronePhysics {
 			);
 			double temperature = state.motorTemperatureCelsius(i);
 			double heatRate = config.motorThermalRiseCelsiusPerSecond() * power * power;
-			double coolingFactor = motorCoolingFactor(rotor, relativeAirVelocityBody, angularVelocityBody, environment, i);
+			double coolingBeforeBodyVentilation = motorCoolingFactorBeforeBodyVentilation(
+					rotor,
+					relativeAirVelocityBody,
+					angularVelocityBody,
+					environment,
+					i,
+					densityFactor,
+					moistAirCoolingMultiplier
+			);
+			motorCoolingBeforeBodyVentilation[i] = coolingBeforeBodyVentilation;
+			double coolingFactor = MathUtil.clamp(
+					coolingBeforeBodyVentilation * environment.motorEscVentilationFactor(),
+					0.20,
+					4.0
+			);
 			state.setMotorCoolingFactor(i, coolingFactor);
 			double coolingRate = config.motorCoolingRatePerSecond()
 					* coolingFactor
-					* (temperature - environment.ambientTemperatureCelsius());
+					* (temperature - effectiveAmbientTemperatureCelsius);
 			state.setMotorTemperatureCelsius(i, temperature + (heatRate - coolingRate) * dtSeconds);
 			updateMotorWindingResistanceScale(i);
 		}
@@ -10122,6 +11666,10 @@ public final class DronePhysics {
 	}
 
 	private void integrateEscThermal(DroneEnvironment environment, double dtSeconds) {
+		atmosphereCache.resolve(environment);
+		double effectiveAmbientTemperatureCelsius = atmosphereCache.effectiveAmbientTemperatureCelsius();
+		double densityFactor = MathUtil.clamp(atmosphereCache.effectiveAirDensityRatio(), 0.35, 1.35);
+		double moistAirCoolingMultiplier = atmosphereCache.moistAirCoolingMultiplier();
 		for (int i = 0; i < state.motorCount(); i++) {
 			RotorSpec rotor = config.rotors().get(i);
 			double perEscMaxCurrentAmps = config.maxBatteryCurrentAmps() / state.motorCount();
@@ -10150,33 +11698,55 @@ public final class DronePhysics {
 
 			double temperature = state.escTemperatureCelsius(i);
 			double heatRate = config.motorThermalRiseCelsiusPerSecond() * 0.72 * heatStress;
-			double coolingFactor = escCoolingFactor(environment, i);
+			double coolingFactor = escCoolingFactor(
+					environment,
+					i,
+					densityFactor,
+					moistAirCoolingMultiplier
+			);
 			state.setEscCoolingFactor(i, coolingFactor);
 			double coolingRate = config.motorCoolingRatePerSecond()
 					* 0.90
 					* coolingFactor
-					* (temperature - environment.ambientTemperatureCelsius());
+					* (temperature - effectiveAmbientTemperatureCelsius);
 			state.setEscTemperatureCelsius(i, temperature + (heatRate - coolingRate) * dtSeconds);
 			state.setEscThermalLimit(i, escThermalLimit(state.escTemperatureCelsius(i)));
 		}
 		updateEscThermalLimit();
 	}
 
-	private double escCoolingFactor(DroneEnvironment environment, int rotorIndex) {
+	private double escCoolingFactor(
+			DroneEnvironment environment,
+			int rotorIndex,
+			double densityFactor,
+			double moistAirCooling
+	) {
 		double rotorWashCooling = 0.45 * state.motorPower(config, rotorIndex) * (0.35 + 0.65 * state.escElectricalOutputCommand(rotorIndex));
-		double boardAirflow = 0.58 + 0.42 * state.motorCoolingFactor(rotorIndex) + rotorWashCooling;
+		double boardAirflow = 0.58
+				+ 0.42 * motorCoolingBeforeBodyVentilation[rotorIndex]
+				+ rotorWashCooling;
 		double obstructionLoss = 1.0 - 0.36 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - 0.78 * recirculatedAirCoolingLoss(environment);
-		double densityFactor = MathUtil.clamp(cachedEffectiveAirDensityRatio(environment), 0.35, 1.35);
-		return MathUtil.clamp(boardAirflow * densityFactor * obstructionLoss * recirculationEfficiency, 0.20, 4.0);
+		return MathUtil.clamp(
+				boardAirflow
+						* densityFactor
+						* moistAirCooling
+						* obstructionLoss
+						* recirculationEfficiency
+						* environment.motorEscVentilationFactor(),
+				0.20,
+				4.0
+		);
 	}
 
-	private double motorCoolingFactor(
+	private double motorCoolingFactorBeforeBodyVentilation(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
 			Vec3 angularVelocityBody,
 			DroneEnvironment environment,
-			int rotorIndex
+			int rotorIndex,
+			double densityFactor,
+			double moistAirCooling
 	) {
 		Vec3 rotorRelativeAirVelocityBody = relativeAirVelocityBody.add(angularVelocityBody.cross(rotor.positionBodyMeters()));
 		double transverseSpeed = Math.hypot(rotorRelativeAirVelocityBody.x(), rotorRelativeAirVelocityBody.z());
@@ -10186,8 +11756,15 @@ public final class DronePhysics {
 		double rotorWashCooling = 0.92 * state.motorPower(config, rotorIndex) * (0.45 + 0.55 * state.escElectricalOutputCommand(rotorIndex));
 		double obstructionLoss = 1.0 - 0.48 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - recirculatedAirCoolingLoss(environment);
-		double densityFactor = MathUtil.clamp(cachedEffectiveAirDensityRatio(environment), 0.35, 1.35);
-		return MathUtil.clamp((1.0 + freestreamCooling + rotorWashCooling) * densityFactor * obstructionLoss * recirculationEfficiency, 0.20, 4.0);
+		return MathUtil.clamp(
+				(1.0 + freestreamCooling + rotorWashCooling)
+						* densityFactor
+						* moistAirCooling
+						* obstructionLoss
+						* recirculationEfficiency,
+				0.20,
+				4.0
+		);
 	}
 
 	private double recirculatedAirCoolingLoss(DroneEnvironment environment) {
@@ -10201,8 +11778,8 @@ public final class DronePhysics {
 		double wakeRecirculation = MathUtil.clamp(environment.droneWakeIntensity() / 1.5, 0.0, 1.0);
 		double ownWake = MathUtil.clamp(state.propwashWakeIntensity(), 0.0, 1.0);
 		double shearLayer = MathUtil.clamp(
-				surfaceBoundaryLayerDirtyAir(environment.groundClearanceMeters(), environment.windVelocityWorldMetersPerSecond())
-						+ 0.85 * surfaceBoundaryLayerDirtyAir(environment.ceilingClearanceMeters(), environment.windVelocityWorldMetersPerSecond()),
+				surfaceBoundaryLayerDirtyAir(environment, environment.groundClearanceMeters(), environment.windVelocityWorldMetersPerSecond())
+						+ 0.85 * surfaceBoundaryLayerDirtyAir(environment, environment.ceilingClearanceMeters(), environment.windVelocityWorldMetersPerSecond()),
 				0.0,
 				1.0
 		);
@@ -10258,10 +11835,14 @@ public final class DronePhysics {
 			DroneEnvironment environment,
 			double dtSeconds
 	) {
+		atmosphereCache.resolve(environment);
+		double effectiveAmbientTemperatureCelsius = atmosphereCache.effectiveAmbientTemperatureCelsius();
+		double densityFactor = MathUtil.clamp(atmosphereCache.effectiveAirDensityRatio(), 0.35, 1.35);
+		double moistAirCoolingMultiplier = atmosphereCache.moistAirCoolingMultiplier();
 		if (!batteryThermalInitialized) {
-			state.setBatteryTemperatureCelsius(environment.ambientTemperatureCelsius());
+			state.setBatteryTemperatureCelsius(effectiveAmbientTemperatureCelsius);
 			state.setBatteryCoolingFactor(1.0);
-			state.setBatteryThermalLimit(batteryThermalLimit(environment.ambientTemperatureCelsius()));
+			state.setBatteryThermalLimit(batteryThermalLimit(effectiveAmbientTemperatureCelsius));
 			batteryThermalInitialized = true;
 		}
 
@@ -10271,7 +11852,7 @@ public final class DronePhysics {
 		double currentLoad = MathUtil.clamp(dischargeCurrentAmps / maxCurrent, 0.0, 2.0);
 		double regenLoad = MathUtil.clamp(regenerativeCurrentAmps / maxCurrent, 0.0, 1.5);
 		double rippleLoad = MathUtil.clamp(state.averageMotorCurrentRippleAmps() / Math.max(1.0, maxCurrent / Math.max(1, state.motorCount())), 0.0, 1.8);
-		double batteryResistanceOhms = batteryElectricalResistanceOhms(packTemperature, environment.ambientTemperatureCelsius(), currentBatteryStateOfCharge())
+		double batteryResistanceOhms = batteryElectricalResistanceOhms(packTemperature, effectiveAmbientTemperatureCelsius, currentBatteryStateOfCharge())
 				* state.batteryPolarizationResistanceScale();
 		double resistanceScale = config.batteryInternalResistanceOhms() <= 1.0e-9
 				? 0.0
@@ -10281,24 +11862,33 @@ public final class DronePhysics {
 						+ 0.020 * regenLoad * regenLoad
 						+ 0.018 * rippleLoad * rippleLoad)
 				/ capacityScale;
-		double coolingFactor = batteryCoolingFactor(environment);
+		double coolingFactor = batteryCoolingFactor(
+				environment,
+				densityFactor,
+				moistAirCoolingMultiplier
+		);
 		state.setBatteryCoolingFactor(coolingFactor);
 		double coolingRate = config.motorCoolingRatePerSecond()
 				* 0.28
 				* coolingFactor
-				* (packTemperature - environment.ambientTemperatureCelsius());
+				* (packTemperature - effectiveAmbientTemperatureCelsius);
 		state.setBatteryTemperatureCelsius(packTemperature + (heatRate - coolingRate) * dtSeconds);
 		state.setBatteryThermalLimit(batteryThermalLimit(state.batteryTemperatureCelsius()));
 	}
 
-	private double batteryCoolingFactor(DroneEnvironment environment) {
+	private double batteryCoolingFactor(
+			DroneEnvironment environment,
+			double densityFactor,
+			double moistAirCooling
+	) {
 		double airspeedCooling = MathUtil.clamp(state.airspeedMetersPerSecond() / 20.0, 0.0, 1.8);
 		double rotorWashCooling = 0.35 * state.averageMotorPower(config);
-		double densityFactor = MathUtil.clamp(cachedEffectiveAirDensityRatio(environment), 0.35, 1.35);
 		double recirculationEfficiency = 1.0 - 0.58 * recirculatedAirCoolingLoss(environment);
 		double airCooling = (0.55 + 0.45 * airspeedCooling + rotorWashCooling)
 				* densityFactor
-				* recirculationEfficiency;
+				* moistAirCooling
+				* recirculationEfficiency
+				* environment.batteryVentilationFactor();
 		double wetCooling = 1.40 * MathUtil.clamp(environment.waterImmersionIntensity(), 0.0, 1.0)
 				+ 0.22 * MathUtil.clamp(environment.precipitationWetnessIntensity(), 0.0, 1.0);
 		return MathUtil.clamp(airCooling + wetCooling, 0.20, 4.0);
@@ -10318,6 +11908,7 @@ public final class DronePhysics {
 	}
 
 	private void updateBatteryVoltage(double netCurrentAmps, double regenerativeCurrentAmps, DroneEnvironment environment, double dtSeconds) {
+		double effectiveAmbientTemperatureCelsius = cachedEffectiveAmbientTemperatureCelsius(environment);
 		state.setBatteryCapacityAgingScale(batteryCapacityAgingScale(state.batteryEquivalentCycles()));
 		double stateOfCharge = currentBatteryStateOfCharge();
 		state.setBatteryStateOfCharge(stateOfCharge);
@@ -10325,7 +11916,7 @@ public final class DronePhysics {
 		double dischargeCurrentAmps = Math.max(0.0, netCurrentAmps);
 		state.setBatteryResistanceAgingScale(batteryAgingResistanceScale(state.batteryEquivalentCycles()));
 		double polarizationScale = updateBatteryPolarizationResistanceScale(dischargeCurrentAmps, stateOfCharge, dtSeconds);
-		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), environment.ambientTemperatureCelsius(), stateOfCharge)
+		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), effectiveAmbientTemperatureCelsius, stateOfCharge)
 				* polarizationScale;
 		state.setBatteryEffectiveResistanceOhms(batteryResistanceOhms);
 		updateBatterySagCurrentTelemetry(batteryResistanceOhms);

@@ -39,6 +39,8 @@ the branch remains usable as the base for the next unit.
 | 8e | Installation and release documentation | Accurate four-language requirements, artifact paths, and no false NeoForge release link | Complete | This commit; README and dedicated NeoForge installation guide |
 | 8f | Production-jar clean client | Isolated production client reaches a resource-complete title screen | Complete | This commit; `CLIENT in PROD`, exact three-mod list, six Mixins, UUID-bound 20-tick report |
 | 8g | Production-jar clean server | Isolated official NeoForge dedicated server completes the self-test | Complete | This commit; official installer SHA pinned, `DEDICATED_SERVER in PROD`, exact three-mod list, validated 240-sample report |
+| 9a | Playable atmosphere and rotor core | Sync loader-independent moist-air, mesoscale, ABL, terrain-shear, rotor-flow, pressure-center, cooling, and RPM calibration physics | Complete | Upstream `ecfdd2a8..74a177e6`; 520 core tests and focused NeoForge runtime-state test pass |
+| 9b | NeoForge A4MC world coupling | Port optional atmosphere bridge, voxel stencil, and entity routing without Fabric dependencies | Pending | Pending |
 
 ## Verification Policy
 

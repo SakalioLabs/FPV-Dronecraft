@@ -20,12 +20,14 @@ public record RotorSpec(
 		double imbalanceIntensity,
 		double motorWindingResistanceOhms,
 		double motorPolePairs,
-		int bladeCount
+		int bladeCount,
+		double targetMaxOmegaScale
 ) {
 	private static final Vec3 DEFAULT_THRUST_AXIS_BODY = new Vec3(0.0, 1.0, 0.0);
 	private static final double DEFAULT_IMBALANCE_INTENSITY = 0.012;
 	private static final int DEFAULT_BLADE_COUNT = 2;
 	public static final double DEFAULT_MOTOR_POLE_PAIRS = 7.0;
+	public static final double DEFAULT_TARGET_MAX_OMEGA_SCALE = 1.0;
 	public static final double DEFAULT_BLADE_PITCH_TO_DIAMETER_RATIO = 0.85;
 	public static final double BLADE_GEOMETRY_REFERENCE_STATION_FRACTION = 0.70;
 	public static final double DEFAULT_REPRESENTATIVE_CHORD_TO_RADIUS_RATIO = 0.12;
@@ -230,6 +232,40 @@ public record RotorSpec(
 		);
 	}
 
+	/** Compatibility constructor for rotor specifications created before the target-RPM limiter. */
+	public RotorSpec(
+			Vec3 positionBodyMeters,
+			Vec3 thrustAxisBody,
+			int spinDirection,
+			double maxThrustNewtons,
+			double thrustCoefficient,
+			double yawTorquePerThrustMeter,
+			double radiusMeters,
+			double bladePitchMeters,
+			double transverseFlowLiftCoefficient,
+			double axialFlowThrustLossCoefficient,
+			double diskDragCoefficient,
+			double rotorInertiaKgMetersSquared,
+			double inducedInflowTimeConstantSeconds,
+			double inducedInflowLagCoefficient,
+			double flappingCoefficient,
+			double stallThrustLossCoefficient,
+			double imbalanceIntensity,
+			double motorWindingResistanceOhms,
+			double motorPolePairs,
+			int bladeCount
+	) {
+		this(
+				positionBodyMeters, thrustAxisBody, spinDirection, maxThrustNewtons,
+				thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters,
+				transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient,
+				rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds,
+				inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient,
+				imbalanceIntensity, motorWindingResistanceOhms, motorPolePairs, bladeCount,
+				DEFAULT_TARGET_MAX_OMEGA_SCALE
+		);
+	}
+
 	public RotorSpec {
 		if (positionBodyMeters == null || !positionBodyMeters.isFinite()) {
 			positionBodyMeters = Vec3.ZERO;
@@ -276,6 +312,11 @@ public record RotorSpec(
 			motorPolePairs = MathUtil.clamp(motorPolePairs, 1.0, 28.0);
 		}
 		bladeCount = Math.max(1, Math.min(8, bladeCount));
+		if (!Double.isFinite(targetMaxOmegaScale)) {
+			targetMaxOmegaScale = DEFAULT_TARGET_MAX_OMEGA_SCALE;
+		} else {
+			targetMaxOmegaScale = MathUtil.clamp(targetMaxOmegaScale, 0.0, 1.0);
+		}
 	}
 
 	public static double defaultBladePitchMeters(double radiusMeters) {
@@ -350,6 +391,14 @@ public record RotorSpec(
 		return Math.sqrt(maxThrustNewtons / thrustCoefficient);
 	}
 
+	public double targetMaxOmegaRadiansPerSecond() {
+		return maxOmegaRadiansPerSecond() * targetMaxOmegaScale;
+	}
+
+	public double targetMaxRpmScale() {
+		return targetMaxOmegaScale;
+	}
+
 	public RotorSpec withMaxThrustNewtons(double maxThrustNewtons) {
 		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
@@ -410,6 +459,22 @@ public record RotorSpec(
 		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
+	public RotorSpec withTargetMaxOmegaScale(double targetMaxOmegaScale) {
+		return new RotorSpec(
+				positionBodyMeters, thrustAxisBody, spinDirection, maxThrustNewtons,
+				thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters,
+				transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient,
+				rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds,
+				inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient,
+				imbalanceIntensity, motorWindingResistanceOhms, motorPolePairs, bladeCount,
+				targetMaxOmegaScale
+		);
+	}
+
+	public RotorSpec withTargetMaxRpmScale(double targetMaxRpmScale) {
+		return withTargetMaxOmegaScale(targetMaxRpmScale);
+	}
+
 	public RotorSpec withMotorWindingResistanceOhms(double motorWindingResistanceOhms) {
 		return new RotorSpec(
 				positionBodyMeters,
@@ -431,7 +496,8 @@ public record RotorSpec(
 				imbalanceIntensity,
 				motorWindingResistanceOhms,
 				motorPolePairs,
-				bladeCount
+				bladeCount,
+				targetMaxOmegaScale
 		);
 	}
 
@@ -456,7 +522,8 @@ public record RotorSpec(
 				imbalanceIntensity,
 				motorWindingResistanceOhms,
 				motorPolePairs,
-				bladeCount
+				bladeCount,
+				targetMaxOmegaScale
 		);
 	}
 
@@ -481,7 +548,8 @@ public record RotorSpec(
 				imbalanceIntensity,
 				motorWindingResistanceOhms,
 				motorPolePairs,
-				bladeCount
+				bladeCount,
+				targetMaxOmegaScale
 		);
 	}
 
@@ -506,7 +574,8 @@ public record RotorSpec(
 				imbalanceIntensity,
 				motorWindingResistanceOhms,
 				motorPolePairs,
-				bladeCount
+				bladeCount,
+				targetMaxOmegaScale
 		);
 	}
 
@@ -546,7 +615,8 @@ public record RotorSpec(
 				imbalanceIntensity,
 				motorWindingResistanceOhms,
 				motorPolePairs,
-				bladeCount
+				bladeCount,
+				targetMaxOmegaScale
 		);
 	}
 }

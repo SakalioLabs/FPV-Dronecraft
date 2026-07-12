@@ -281,7 +281,7 @@ class DronePhysicsTest {
 	}
 
 	@Test
-	void rotorBladeCountIsPresetSpecific() {
+	void rotorBladeCountIsPresetSpecific() throws NoSuchMethodException {
 		assertEquals(3, DroneConfig.racingQuad().rotors().get(0).bladeCount());
 		assertEquals(3, DroneConfig.apDrone().rotors().get(0).bladeCount());
 		assertEquals(3, DroneConfig.cinewhoop().rotors().get(0).bladeCount());
@@ -302,11 +302,32 @@ class DronePhysicsTest {
 		);
 		assertEquals(2, defaultRotor.bladeCount());
 		assertEquals(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS, defaultRotor.motorPolePairs(), 1.0e-12);
+		assertEquals(RotorSpec.DEFAULT_TARGET_MAX_OMEGA_SCALE, defaultRotor.targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(defaultRotor.targetMaxOmegaScale(), defaultRotor.targetMaxRpmScale(), 1.0e-12);
+		assertEquals(defaultRotor.maxOmegaRadiansPerSecond(), defaultRotor.targetMaxOmegaRadiansPerSecond(), 1.0e-12);
 		assertEquals(3, defaultRotor.withBladeCount(3).bladeCount());
 		assertEquals(8, defaultRotor.withBladeCount(99).bladeCount());
 		assertEquals(6.0, defaultRotor.withMotorPolePairs(6.0).motorPolePairs(), 1.0e-12);
 		assertEquals(28.0, defaultRotor.withMotorPolePairs(99.0).motorPolePairs(), 1.0e-12);
 		assertEquals(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS, defaultRotor.withMotorPolePairs(Double.NaN).motorPolePairs(), 1.0e-12);
+		assertEquals(0.72, defaultRotor.withTargetMaxOmegaScale(0.72).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(0.72, defaultRotor.withTargetMaxRpmScale(0.72).targetMaxRpmScale(), 1.0e-12);
+		assertEquals(
+				defaultRotor.maxOmegaRadiansPerSecond() * 0.72,
+				defaultRotor.withTargetMaxOmegaScale(0.72).targetMaxOmegaRadiansPerSecond(),
+				1.0e-12
+		);
+		assertEquals(1.0, defaultRotor.withTargetMaxOmegaScale(5.0).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(0.0, defaultRotor.withTargetMaxOmegaScale(-0.25).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(1.0, defaultRotor.withTargetMaxOmegaScale(Double.NaN).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(0.72, defaultRotor.withTargetMaxOmegaScale(0.72).withBladeCount(4).targetMaxOmegaScale(), 0.0);
+		assertEquals(0.72, defaultRotor.withTargetMaxOmegaScale(0.72).withRadiusMeters(0.07).targetMaxOmegaScale(), 0.0);
+		assertEquals(20, RotorSpec.class.getConstructor(
+				Vec3.class, Vec3.class, int.class, double.class, double.class, double.class,
+				double.class, double.class, double.class, double.class, double.class, double.class,
+				double.class, double.class, double.class, double.class, double.class, double.class,
+				double.class, int.class
+		).getParameterCount());
 		assertEquals(300.0, DronePhysics.betaflightErpm100FromMechanicalRpm(5_000.0, 6.0), 1.0e-12);
 		assertEquals(2_000.0, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(5_000.0, 6.0), 1.0e-12);
 		assertEquals(
@@ -315,6 +336,38 @@ class DronePhysicsTest {
 				1.0e-15
 		);
 		assertEquals(0.0, RotorSpec.estimatedUniformBladePropInertiaKgMetersSquared(Double.NaN, 4.0), 1.0e-15);
+	}
+
+	@Test
+	void rotorTargetMaxOmegaScaleReducesMotorTargetBeforeMotorResponse() {
+		double targetMaxRpmScale = 0.9715982698017723;
+		DroneConfig base = directControl(DroneConfig.racingQuad())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 2.0, 90.0);
+		DronePhysics neutral = new DronePhysics(base);
+		DronePhysics derated = new DronePhysics(base.withRotorTargetMaxRpmScale(targetMaxRpmScale));
+		DroneInput fullThrottle = new DroneInput(1.0, 0.0, 0.0, 0.0, true);
+
+		neutral.step(fullThrottle, 0.005, DroneEnvironment.calm());
+		derated.step(fullThrottle, 0.005, DroneEnvironment.calm());
+
+		assertEquals(1.0, neutral.config().rotors().get(0).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(targetMaxRpmScale, derated.config().rotors().get(0).targetMaxOmegaScale(), 1.0e-12);
+		assertEquals(
+				neutral.state().motorTargetOmegaRadiansPerSecond(0) * targetMaxRpmScale,
+				derated.state().motorTargetOmegaRadiansPerSecond(0),
+				1.0e-9
+		);
+		assertEquals(
+				neutral.state().motorTargetRpm(0) * targetMaxRpmScale,
+				derated.state().motorTargetRpm(0),
+				1.0e-6
+		);
+		assertEquals(
+				neutral.state().escElectricalOutputCommand(0),
+				derated.state().escElectricalOutputCommand(0),
+				1.0e-12
+		);
 	}
 
 	@Test
@@ -1446,6 +1499,55 @@ class DronePhysicsTest {
 				() -> "lingeringSwirl=" + lingeringSwirl + " clearedSwirl=" + clearedSwirl);
 		assertTrue(clearedWake < 0.04, () -> "clearedWake=" + clearedWake);
 		assertTrue(clearedSwirl < 0.04, () -> "clearedSwirl=" + clearedSwirl);
+	}
+
+	@Test
+	void ablStabilityShapesRotorWakeCoherenceBuildAndReleasePersistence() {
+		DroneConfig config = directControl(DroneConfig.coaxialX8())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics unstable = new DronePhysics(config);
+		DronePhysics stable = new DronePhysics(config);
+		DroneEnvironment unstableEnvironment = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, 1.0, 1.0);
+		DroneEnvironment stableEnvironment = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, -1.0, 0.0);
+		DroneInput powered = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 240; i++) {
+			holdInStillAir(unstable);
+			holdInStillAir(stable);
+			unstable.step(powered, 0.005, unstableEnvironment);
+			stable.step(powered, 0.005, stableEnvironment);
+		}
+		double unstableWake = unstable.state().maxRotorWakeInterferenceIntensity();
+		double stableWake = stable.state().maxRotorWakeInterferenceIntensity();
+		double unstableSwirl = unstable.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+		double stableSwirl = stable.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+		assertTrue(stableWake > unstableWake + 0.055,
+				() -> "stableWake=" + stableWake + " unstableWake=" + unstableWake);
+		assertTrue(stableSwirl > unstableSwirl + 0.055,
+				() -> "stableSwirl=" + stableSwirl + " unstableSwirl=" + unstableSwirl);
+
+		DroneInput released = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+		for (int i = 0; i < 48; i++) {
+			holdInStillAir(unstable);
+			holdInStillAir(stable);
+			unstable.step(released, 0.005, unstableEnvironment);
+			stable.step(released, 0.005, stableEnvironment);
+		}
+		double unstableLingeringWake = unstable.state().maxRotorWakeInterferenceIntensity();
+		double stableLingeringWake = stable.state().maxRotorWakeInterferenceIntensity();
+		double unstableLingeringSwirl = unstable.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+		double stableLingeringSwirl = stable.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+		assertTrue(stableLingeringWake > unstableLingeringWake + 0.040,
+				() -> "stableLingeringWake=" + stableLingeringWake
+						+ " unstableLingeringWake=" + unstableLingeringWake);
+		assertTrue(stableLingeringSwirl > unstableLingeringSwirl + 0.040,
+				() -> "stableLingeringSwirl=" + stableLingeringSwirl
+						+ " unstableLingeringSwirl=" + unstableLingeringSwirl);
+		assertTrue(stableLingeringWake > 0.08, () -> "stableLingeringWake=" + stableLingeringWake);
+		assertTrue(stableLingeringSwirl > 0.08, () -> "stableLingeringSwirl=" + stableLingeringSwirl);
 	}
 
 	@Test
@@ -3670,6 +3772,72 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void localFlowCacheKeysAdoptedPrimitivesAndResolvesRotorStencilWithoutPressureDoubleCount() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics.LocalFlowCache cache = new DronePhysics.LocalFlowCache(config.rotors().size());
+		DroneEnvironment neutral = localFlowEnvironment(Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO);
+		DroneEnvironment equalNeutral = localFlowEnvironment(
+				new Vec3(7.0, -2.0, 4.0),
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO
+		);
+
+		assertTrue(cache.resolve(neutral, config));
+		assertFalse(cache.resolve(neutral, config));
+		assertFalse(cache.resolve(equalNeutral, config), "unrelated environment fields must not invalidate the cache");
+		assertTrue(cache.neutral());
+		for (int i = 0; i < config.rotors().size(); i++) {
+			assertRawBitsEqual(0.0, cache.localWindDeltaX(i));
+			assertRawBitsEqual(0.0, cache.localWindDeltaY(i));
+			assertRawBitsEqual(0.0, cache.localWindDeltaZ(i));
+			assertRawBitsEqual(0.0, cache.diskWindGradientX(i));
+			assertRawBitsEqual(0.0, cache.diskWindGradientY(i));
+			assertRawBitsEqual(0.0, cache.diskWindGradientZ(i));
+		}
+
+		double derivativeAxialX = 10.0;
+		Vec3 derivativeX = new Vec3(0.0, derivativeAxialX, 0.0);
+		DroneEnvironment windOnly = localFlowEnvironment(
+				Vec3.ZERO,
+				derivativeX,
+				Vec3.ZERO,
+				Vec3.ZERO
+		);
+		assertTrue(cache.resolve(windOnly, config));
+		assertEquals(
+				0.5 * (0.72 * config.rotors().get(0).radiusMeters()) * derivativeAxialX,
+				cache.diskWindGradientX(0),
+				1.0e-15,
+				"the affine disk estimator must equal the symmetric nine-point linear stencil"
+		);
+		DroneEnvironment active = localFlowEnvironment(
+				Vec3.ZERO,
+				derivativeX,
+				Vec3.ZERO,
+				new Vec3(70_000.0, 0.0, 0.0)
+		);
+		assertTrue(cache.resolve(active, config));
+		assertFalse(cache.neutral());
+		double rightX = config.rotors().get(0).positionBodyMeters().x();
+		double leftX = config.rotors().get(1).positionBodyMeters().x();
+		assertEquals(10.0 * rightX, cache.localWindDeltaY(0), 1.0e-15);
+		assertEquals(10.0 * leftX, cache.localWindDeltaY(1), 1.0e-15);
+		assertEquals(-cache.localWindDeltaY(0), cache.localWindDeltaY(1), 1.0e-15);
+		assertEquals(2.4, cache.diskWindGradientX(0), 1.0e-12,
+				"the pressure equivalent must fill only the wind-gradient residual up to its own cap");
+		assertRawBitsEqual(0.0, cache.diskWindGradientY(0));
+		assertRawBitsEqual(0.0, cache.diskWindGradientZ(0));
+		assertFalse(cache.resolve(
+				localFlowEnvironment(new Vec3(-5.0, 3.0, 2.0), derivativeX, Vec3.ZERO,
+						new Vec3(70_000.0, 0.0, 0.0)),
+				config
+		));
+		assertTrue(cache.resolve(active, config.withMassKg(config.massKg() + 0.1)),
+				"config identity changes must invalidate fixed rotor geometry");
+	}
+
+	@Test
 	void effectiveAirMassWindLagsAbruptWindShift() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DroneInput idle = DroneInput.idle();
@@ -3689,6 +3857,388 @@ class DronePhysicsTest {
 		}
 
 		assertTrue(physics.state().effectiveWindVelocityWorldMetersPerSecond().x() > 9.5);
+	}
+
+	@Test
+	void ablCacheKeysOnlyTheAdoptedPrimitivesAndAnchorsTheClosureCoefficients() {
+		DronePhysics.AblCache cache = new DronePhysics.AblCache();
+		DroneEnvironment neutral = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, 0.0, 0.0);
+		DroneEnvironment equalNeutral = ablEnvironment(
+				new Vec3(9.0, -2.0, 4.0),
+				1.25,
+				0.08,
+				new Vec3(3.0, 1.0, -2.0),
+				0.0,
+				0.0
+		);
+
+		assertTrue(cache.resolve(neutral));
+		assertFalse(cache.resolve(neutral));
+		assertFalse(cache.resolve(equalNeutral), "non-ABL environment fields must not invalidate the cache");
+		assertTrue(cache.neutral());
+		assertRawBitsEqual(1.0, cache.boundaryDeficitMultiplier());
+		assertRawBitsEqual(1.0, cache.boundaryDirtyAirMultiplier());
+		assertRawBitsEqual(1.0, cache.wakeCoherenceMultiplier());
+		assertRawBitsEqual(1.0, cache.wakeBuildTimeScaleMultiplier());
+		assertRawBitsEqual(1.0, cache.wakeReleaseTimeScaleMultiplier());
+		assertRawBitsEqual(1.0, cache.drydenIntensityMultiplier());
+		assertRawBitsEqual(0.0, cache.drydenConvectiveFloorCoefficient());
+		assertRawBitsEqual(1.0, cache.drydenHorizontalTimeScaleMultiplier());
+		assertRawBitsEqual(1.0, cache.drydenVerticalTimeScaleMultiplier());
+		assertRawBitsEqual(1.0, cache.sourceGustHorizontalMultiplier());
+		assertRawBitsEqual(1.0, cache.sourceGustVerticalMultiplier());
+
+		DroneEnvironment unstable = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, 1.0, 1.0);
+		assertTrue(cache.resolve(unstable));
+		assertFalse(cache.neutral());
+		assertEquals(0.55, cache.boundaryDeficitMultiplier(), 1.0e-15);
+		assertEquals(0.68, cache.boundaryDirtyAirMultiplier(), 1.0e-15);
+		assertEquals(0.82, cache.wakeCoherenceMultiplier(), 1.0e-15);
+		assertEquals(1.16, cache.wakeBuildTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(0.64, cache.wakeReleaseTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(1.60, cache.drydenIntensityMultiplier(), 1.0e-15);
+		assertEquals(0.22, cache.drydenConvectiveFloorCoefficient(), 1.0e-15);
+		assertEquals(0.60, cache.drydenHorizontalTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(0.45, cache.drydenVerticalTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(1.16, cache.sourceGustHorizontalMultiplier(), 1.0e-15);
+		assertEquals(1.55, cache.sourceGustVerticalMultiplier(), 1.0e-15);
+		assertFalse(cache.resolve(ablEnvironment(
+				new Vec3(-4.0, 7.0, 2.0),
+				0.35,
+				2.0,
+				Vec3.ZERO,
+				1.0,
+				1.0
+		)));
+
+		DroneEnvironment halfQualityUnstable = ablEnvironment(
+				Vec3.ZERO,
+				0.0,
+				6.0,
+				Vec3.ZERO,
+				0.5,
+				0.5
+		);
+		assertTrue(cache.resolve(halfQualityUnstable));
+		assertEquals(0.8025, cache.boundaryDeficitMultiplier(), 1.0e-15,
+				"each adopted primitive must consume source quality exactly once before their cross-term");
+		assertEquals(0.055, cache.drydenConvectiveFloorCoefficient(), 1.0e-15,
+				"mixed-unstable must retain the sim/lab q-squared interaction");
+
+		DroneEnvironment stable = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, -1.0, 0.0);
+		assertTrue(cache.resolve(stable));
+		assertEquals(1.32, cache.boundaryDeficitMultiplier(), 1.0e-15);
+		assertEquals(1.28, cache.boundaryDirtyAirMultiplier(), 1.0e-15);
+		assertEquals(1.16, cache.wakeCoherenceMultiplier(), 1.0e-15);
+		assertEquals(0.92, cache.wakeBuildTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(1.34, cache.wakeReleaseTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(0.66, cache.drydenIntensityMultiplier(), 1.0e-15);
+		assertRawBitsEqual(0.0, cache.drydenConvectiveFloorCoefficient());
+		assertEquals(1.45, cache.drydenHorizontalTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(1.70, cache.drydenVerticalTimeScaleMultiplier(), 1.0e-15);
+		assertEquals(0.88, cache.sourceGustHorizontalMultiplier(), 1.0e-15);
+		assertEquals(0.48, cache.sourceGustVerticalMultiplier(), 1.0e-15);
+	}
+
+	@Test
+	void ablShapesDrydenIntensityAndNormalizedResponseRate() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics unstable = new DronePhysics(config);
+		DronePhysics stable = new DronePhysics(config);
+		DroneInput idle = DroneInput.idle();
+		Vec3 wind = new Vec3(10.0, 0.0, 0.0);
+		DroneEnvironment neutralEnvironment = ablEnvironment(wind, 0.75, 6.0, Vec3.ZERO, 0.0, 0.0);
+		DroneEnvironment unstableEnvironment = ablEnvironment(wind, 0.75, 6.0, Vec3.ZERO, 1.0, 1.0);
+		DroneEnvironment stableEnvironment = ablEnvironment(wind, 0.75, 6.0, Vec3.ZERO, -1.0, 0.0);
+		double neutralSquared = 0.0;
+		double unstableSquared = 0.0;
+		double stableSquared = 0.0;
+		double neutralStepSquared = 0.0;
+		double unstableStepSquared = 0.0;
+		double stableStepSquared = 0.0;
+		Vec3 previousNeutral = Vec3.ZERO;
+		Vec3 previousUnstable = Vec3.ZERO;
+		Vec3 previousStable = Vec3.ZERO;
+		int samples = 0;
+
+		for (int i = 0; i < 5200; i++) {
+			neutral.step(idle, 0.005, neutralEnvironment);
+			unstable.step(idle, 0.005, unstableEnvironment);
+			stable.step(idle, 0.005, stableEnvironment);
+			Vec3 neutralDryden = neutral.state().drydenTurbulenceVelocityWorldMetersPerSecond();
+			Vec3 unstableDryden = unstable.state().drydenTurbulenceVelocityWorldMetersPerSecond();
+			Vec3 stableDryden = stable.state().drydenTurbulenceVelocityWorldMetersPerSecond();
+			if (i >= 400) {
+				neutralSquared += neutralDryden.lengthSquared();
+				unstableSquared += unstableDryden.lengthSquared();
+				stableSquared += stableDryden.lengthSquared();
+				neutralStepSquared += neutralDryden.subtract(previousNeutral).lengthSquared();
+				unstableStepSquared += unstableDryden.subtract(previousUnstable).lengthSquared();
+				stableStepSquared += stableDryden.subtract(previousStable).lengthSquared();
+				samples++;
+			}
+			previousNeutral = neutralDryden;
+			previousUnstable = unstableDryden;
+			previousStable = stableDryden;
+		}
+
+		double neutralRms = Math.sqrt(neutralSquared / samples);
+		double unstableRms = Math.sqrt(unstableSquared / samples);
+		double stableRms = Math.sqrt(stableSquared / samples);
+		double neutralStepRate = Math.sqrt(neutralStepSquared / samples) / neutralRms;
+		double unstableStepRate = Math.sqrt(unstableStepSquared / samples) / unstableRms;
+		double stableStepRate = Math.sqrt(stableStepSquared / samples) / stableRms;
+		assertTrue(unstableRms > neutralRms * 1.30,
+				() -> "unstableRms=" + unstableRms + " neutralRms=" + neutralRms);
+		assertTrue(stableRms < neutralRms * 0.94,
+				() -> "stableRms=" + stableRms + " neutralRms=" + neutralRms);
+		assertTrue(unstableStepRate > neutralStepRate * 1.12,
+				() -> "unstableStepRate=" + unstableStepRate + " neutralStepRate=" + neutralStepRate);
+		assertTrue(stableStepRate < neutralStepRate * 0.94,
+				() -> "stableStepRate=" + stableStepRate + " neutralStepRate=" + neutralStepRate);
+	}
+
+	@Test
+	void ablShapesSurfaceBoundaryProfileWhileNeutralRetainsRawAnchors() throws ReflectiveOperationException {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics unstable = new DronePhysics(config);
+		DronePhysics stable = new DronePhysics(config);
+		Vec3 crosswind = new Vec3(10.0, 0.0, 0.0);
+		DroneEnvironment neutralEnvironment = ablEnvironment(crosswind, 0.0, 0.08, Vec3.ZERO, 0.0, 0.0);
+		DroneEnvironment unstableEnvironment = ablEnvironment(crosswind, 0.0, 0.08, Vec3.ZERO, 1.0, 1.0);
+		DroneEnvironment stableEnvironment = ablEnvironment(crosswind, 0.0, 0.08, Vec3.ZERO, -1.0, 0.0);
+		neutral.step(DroneInput.idle(), 0.005, neutralEnvironment);
+		unstable.step(DroneInput.idle(), 0.005, unstableEnvironment);
+		stable.step(DroneInput.idle(), 0.005, stableEnvironment);
+
+		Method boundaryWind = DronePhysics.class.getDeclaredMethod("boundaryLayerMeanWind", DroneEnvironment.class);
+		Method dirtyAir = DronePhysics.class.getDeclaredMethod("dirtyAirIntensity", DroneEnvironment.class);
+		boundaryWind.setAccessible(true);
+		dirtyAir.setAccessible(true);
+		Vec3 neutralWind = (Vec3) boundaryWind.invoke(neutral, neutralEnvironment);
+		Vec3 unstableWind = (Vec3) boundaryWind.invoke(unstable, unstableEnvironment);
+		Vec3 stableWind = (Vec3) boundaryWind.invoke(stable, stableEnvironment);
+		double neutralDirty = (double) dirtyAir.invoke(neutral, neutralEnvironment);
+		double unstableDirty = (double) dirtyAir.invoke(unstable, unstableEnvironment);
+		double stableDirty = (double) dirtyAir.invoke(stable, stableEnvironment);
+
+		assertEquals(0x3fff4f1cb2e7dcacL, Double.doubleToRawLongBits(neutralWind.x()),
+				"neutral boundary profile changed");
+		assertEquals(0x3fd5c28f5c28f5c3L, Double.doubleToRawLongBits(neutralDirty),
+				"neutral dirty-air ceiling changed");
+		assertTrue(unstableWind.x() > neutralWind.x() * 1.60,
+				() -> "unstableWind=" + unstableWind.x() + " neutralWind=" + neutralWind.x());
+		assertTrue(stableWind.x() < neutralWind.x() * 0.60,
+				() -> "stableWind=" + stableWind.x() + " neutralWind=" + neutralWind.x());
+		assertTrue(unstableDirty < neutralDirty * 0.55,
+				() -> "unstableDirty=" + unstableDirty + " neutralDirty=" + neutralDirty);
+		assertTrue(stableDirty > neutralDirty * 1.20,
+				() -> "stableDirty=" + stableDirty + " neutralDirty=" + neutralDirty);
+	}
+
+	@Test
+	void coherentSourceGustJoinsTheTransientWindWithoutChangingMeanOrDryden() {
+		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		Vec3 meanWind = new Vec3(8.0, 0.0, 0.0);
+		Vec3 adoptedSourceGust = new Vec3(3.0, 4.0, 12.0);
+		DroneEnvironment environment = sourceGustEnvironment(meanWind, 0.0, adoptedSourceGust);
+
+		physics.step(idle, 0.005, environment);
+		physics.step(idle, 0.005, environment);
+
+		double sourceMagnitude = adoptedSourceGust.length();
+		double expectedScale = 0.22 * 0.72 * 12.0 / sourceMagnitude;
+		Vec3 expectedGust = adoptedSourceGust.multiply(expectedScale);
+		assertVecClose(expectedGust, physics.state().windGustVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(
+				meanWind,
+				physics.aerodynamicTransientStateSnapshot().meanWindVelocityWorldMetersPerSecond(),
+				1.0e-12
+		);
+		assertEquals(Vec3.ZERO, physics.state().windBurbleVelocityWorldMetersPerSecond());
+		assertEquals(Vec3.ZERO, physics.state().drydenTurbulenceVelocityWorldMetersPerSecond());
+		assertVecClose(
+				meanWind.add(expectedGust),
+				physics.state().effectiveWindVelocityWorldMetersPerSecond(),
+				1.0e-12
+		);
+
+		DronePhysics reversed = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneEnvironment reversedEnvironment = sourceGustEnvironment(
+				meanWind,
+				0.0,
+				adoptedSourceGust.multiply(-1.0)
+		);
+		reversed.step(idle, 0.005, reversedEnvironment);
+		reversed.step(idle, 0.005, reversedEnvironment);
+		assertVecClose(
+				expectedGust.multiply(-1.0),
+				reversed.state().windGustVelocityWorldMetersPerSecond(),
+				1.0e-12
+		);
+	}
+
+	@Test
+	void ablShapesCoherentGustHorizontalAndVerticalComponentsWithoutExtraState() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics unstable = new DronePhysics(config);
+		DronePhysics stable = new DronePhysics(config);
+		Vec3 meanWind = Vec3.ZERO;
+		Vec3 sourceGust = new Vec3(3.0, 4.0, 0.0);
+		DroneEnvironment neutralEnvironment = ablEnvironment(meanWind, 0.0, 6.0, sourceGust, 0.0, 0.0);
+		DroneEnvironment unstableEnvironment = ablEnvironment(meanWind, 0.0, 6.0, sourceGust, 1.0, 1.0);
+		DroneEnvironment stableEnvironment = ablEnvironment(meanWind, 0.0, 6.0, sourceGust, -1.0, 0.0);
+
+		for (int i = 0; i < 2; i++) {
+			neutral.step(DroneInput.idle(), 0.005, neutralEnvironment);
+			unstable.step(DroneInput.idle(), 0.005, unstableEnvironment);
+			stable.step(DroneInput.idle(), 0.005, stableEnvironment);
+		}
+
+		Vec3 neutralGust = neutral.state().windGustVelocityWorldMetersPerSecond();
+		Vec3 unstableGust = unstable.state().windGustVelocityWorldMetersPerSecond();
+		Vec3 stableGust = stable.state().windGustVelocityWorldMetersPerSecond();
+		assertEquals(neutralGust.x() * 1.16, unstableGust.x(), 1.0e-12);
+		assertEquals(neutralGust.y() * 1.55, unstableGust.y(), 1.0e-12);
+		assertEquals(neutralGust.x() * 0.88, stableGust.x(), 1.0e-12);
+		assertEquals(neutralGust.y() * 0.48, stableGust.y(), 1.0e-12);
+		assertEquals(Vec3.ZERO, neutral.state().drydenTurbulenceVelocityWorldMetersPerSecond());
+		assertEquals(Vec3.ZERO, unstable.state().drydenTurbulenceVelocityWorldMetersPerSecond());
+		assertEquals(Vec3.ZERO, stable.state().drydenTurbulenceVelocityWorldMetersPerSecond());
+		assertVecClose(meanWind, neutral.aerodynamicTransientStateSnapshot().meanWindVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(meanWind, unstable.aerodynamicTransientStateSnapshot().meanWindVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(meanWind, stable.aerodynamicTransientStateSnapshot().meanWindVelocityWorldMetersPerSecond(), 1.0e-12);
+	}
+
+	@Test
+	void zeroSourceGustPreservesTheLegacyWindTraceExactly() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics legacy = new DronePhysics(config);
+		DronePhysics explicitNeutral = new DronePhysics(config);
+		DroneInput idle = DroneInput.idle();
+		Vec3 wind = new Vec3(10.0, 0.0, 0.0);
+		DroneEnvironment legacyEnvironment = new DroneEnvironment(
+				wind,
+				1.0,
+				6.0,
+				0.55
+		);
+		DroneEnvironment explicitNeutralEnvironment = sourceGustEnvironment(wind, 0.55, Vec3.ZERO);
+		long drydenHash = 0xcbf29ce484222325L;
+
+		for (int i = 0; i < 1800; i++) {
+			legacy.step(idle, 0.005, legacyEnvironment);
+			explicitNeutral.step(idle, 0.005, explicitNeutralEnvironment);
+			Vec3 dryden = explicitNeutral.state().drydenTurbulenceVelocityWorldMetersPerSecond();
+			drydenHash = (drydenHash ^ Double.doubleToRawLongBits(dryden.x())) * 0x100000001b3L;
+			drydenHash = (drydenHash ^ Double.doubleToRawLongBits(dryden.y())) * 0x100000001b3L;
+			drydenHash = (drydenHash ^ Double.doubleToRawLongBits(dryden.z())) * 0x100000001b3L;
+		}
+
+		assertEquals(legacy.aerodynamicTransientStateSnapshot(), explicitNeutral.aerodynamicTransientStateSnapshot());
+		assertEquals(
+				legacy.state().effectiveWindVelocityWorldMetersPerSecond(),
+				explicitNeutral.state().effectiveWindVelocityWorldMetersPerSecond()
+		);
+		assertEquals(0x81c227bb0d8c0c51L, drydenHash, "a741092d Dryden raw-bit trace changed");
+		assertEquals(
+				0x8fca93ca00512bd7L,
+				explicitNeutral.aerodynamicTransientStateSnapshot().drydenRandomState(),
+				"a741092d Dryden random call order changed"
+		);
+	}
+
+	@Test
+	void compactTerrainShearBuildsBoundedThreeAxisFlowDecaysAndKeepsNeutralTraceExact() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics active = new DronePhysics(config);
+		DronePhysics baseline = new DronePhysics(config);
+		DronePhysics explicitNeutral = new DronePhysics(config);
+		Vec3 wind = new Vec3(8.0, 0.0, 2.0);
+		DroneEnvironment activeEnvironment = terrainShearEnvironment(wind, 2.0, 0.65, -0.4, 0.7);
+		DroneEnvironment legacyEnvironment = new DroneEnvironment(wind, 1.0, 6.0, 0.0);
+		DroneEnvironment explicitNeutralEnvironment = terrainShearEnvironment(wind, 0.0, 0.0, 0.0, 0.0);
+		double maxPerturbation = 0.0;
+		double maxVertical = 0.0;
+
+		for (int i = 0; i < 500; i++) {
+			active.step(DroneInput.idle(), 0.005, activeEnvironment);
+			baseline.step(DroneInput.idle(), 0.005, legacyEnvironment);
+			explicitNeutral.step(DroneInput.idle(), 0.005, explicitNeutralEnvironment);
+			Vec3 perturbation = active.state().effectiveWindVelocityWorldMetersPerSecond()
+					.subtract(baseline.state().effectiveWindVelocityWorldMetersPerSecond());
+			maxPerturbation = Math.max(maxPerturbation, perturbation.length());
+			maxVertical = Math.max(maxVertical, Math.abs(perturbation.y()));
+		}
+
+		double observedMaxPerturbation = maxPerturbation;
+		double observedMaxVertical = maxVertical;
+		assertTrue(observedMaxPerturbation > 0.20, () -> "maxPerturbation=" + observedMaxPerturbation);
+		assertTrue(observedMaxPerturbation < 3.1, () -> "maxPerturbation=" + observedMaxPerturbation);
+		assertTrue(observedMaxVertical > 0.015, () -> "maxVertical=" + observedMaxVertical);
+		assertEquals(baseline.aerodynamicTransientStateSnapshot(), explicitNeutral.aerodynamicTransientStateSnapshot());
+		assertEquals(
+				baseline.state().effectiveWindVelocityWorldMetersPerSecond(),
+				explicitNeutral.state().effectiveWindVelocityWorldMetersPerSecond()
+		);
+		DronePhysics.AerodynamicTransientState activeSnapshot = active.aerodynamicTransientStateSnapshot();
+		assertTrue(activeSnapshot.compactTerrainShearVelocityWorldMetersPerSecond().length() > 0.01);
+		DronePhysics restored = new DronePhysics(config);
+		restored.restoreAerodynamicTransientState(activeSnapshot);
+		assertEquals(activeSnapshot, restored.aerodynamicTransientStateSnapshot());
+		active.step(DroneInput.idle(), 0.005, activeEnvironment);
+		restored.step(DroneInput.idle(), 0.005, activeEnvironment);
+		assertEquals(
+				active.state().effectiveWindVelocityWorldMetersPerSecond(),
+				restored.state().effectiveWindVelocityWorldMetersPerSecond()
+		);
+
+		for (int i = 0; i < 500; i++) {
+			active.step(DroneInput.idle(), 0.005, legacyEnvironment);
+		}
+		assertTrue(
+				active.state().windGustVelocityWorldMetersPerSecond().length() < 0.01,
+				() -> "residualGust=" + active.state().windGustVelocityWorldMetersPerSecond()
+		);
+	}
+
+	@Test
+	void compactUpdraftIsSmoothedAblShapedLocalVoxelAwareAndSigned() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics localUnstable = new DronePhysics(config);
+		DronePhysics coarseStable = new DronePhysics(config);
+		DronePhysics downdraft = new DronePhysics(config);
+		DronePhysics explicitNeutral = new DronePhysics(config);
+		DronePhysics legacyNeutral = new DronePhysics(config);
+		DroneEnvironment local = updraftEnvironment(4.0, 1.0, 1.0, 1.0);
+		DroneEnvironment coarse = updraftEnvironment(4.0, 0.72, -1.0, 0.0);
+		DroneEnvironment down = updraftEnvironment(-4.0, 1.0, 0.0, 0.0);
+		DroneEnvironment zero = updraftEnvironment(0.0, 0.0, 0.0, 0.0);
+
+		for (int i = 0; i < 500; i++) {
+			localUnstable.step(DroneInput.idle(), 0.005, local);
+			coarseStable.step(DroneInput.idle(), 0.005, coarse);
+			downdraft.step(DroneInput.idle(), 0.005, down);
+			explicitNeutral.step(DroneInput.idle(), 0.005, zero);
+			legacyNeutral.step(DroneInput.idle(), 0.005, DroneEnvironment.calm());
+		}
+
+		double localVertical = localUnstable.state().effectiveWindVelocityWorldMetersPerSecond().y();
+		double coarseVertical = coarseStable.state().effectiveWindVelocityWorldMetersPerSecond().y();
+		double downVertical = downdraft.state().effectiveWindVelocityWorldMetersPerSecond().y();
+		assertTrue(localVertical > coarseVertical + 0.75,
+				() -> "local=" + localVertical + " coarse=" + coarseVertical);
+		assertTrue(localVertical > 2.5 && localVertical <= 4.5);
+		assertTrue(downVertical < -2.0 && downVertical >= -4.5);
+		assertEquals(legacyNeutral.aerodynamicTransientStateSnapshot(), explicitNeutral.aerodynamicTransientStateSnapshot());
+		assertEquals(
+				legacyNeutral.state().effectiveWindVelocityWorldMetersPerSecond(),
+				explicitNeutral.state().effectiveWindVelocityWorldMetersPerSecond()
+		);
 	}
 
 	@Test
@@ -4394,6 +4944,36 @@ class DronePhysicsTest {
 		assertFalse(cache.resolve(sameAtmosphereDifferentWind));
 		assertAtmosphereCacheMatchesPureFunctions(cache, sameAtmosphereDifferentWind);
 
+		DroneEnvironment sameAtmosphereDifferentVentilation = atmosphereEnvironment(
+				new Vec3(-3.0, 4.0, 8.0),
+				1.0,
+				0.80,
+				42.0,
+				42.0,
+				0.80,
+				0.0,
+				0.0,
+				0.83,
+				0.881
+		);
+		assertFalse(cache.resolve(sameAtmosphereDifferentVentilation));
+		assertAtmosphereCacheMatchesPureFunctions(cache, sameAtmosphereDifferentVentilation);
+
+		DroneEnvironment changedPressure = atmosphereEnvironment(
+				Vec3.ZERO,
+				1.0,
+				0.80,
+				42.0,
+				42.0,
+				0.80,
+				0.0,
+				2400.0,
+				0.83,
+				0.881
+		);
+		assertTrue(cache.resolve(changedPressure));
+		assertAtmosphereCacheMatchesPureFunctions(cache, changedPressure);
+
 		DroneEnvironment lowerDensity = atmosphereEnvironment(Vec3.ZERO, 0.82, 0.80, 42.0);
 		assertTrue(cache.resolve(lowerDensity));
 		assertAtmosphereCacheMatchesPureFunctions(cache, lowerDensity);
@@ -4406,6 +4986,450 @@ class DronePhysicsTest {
 		assertTrue(cache.resolve(drier));
 		assertAtmosphereCacheMatchesPureFunctions(cache, drier);
 		assertFalse(cache.resolve(drier));
+
+		DroneEnvironment adoptedTemperature = atmosphereEnvironment(
+				Vec3.ZERO,
+				0.82,
+				0.0,
+				8.0,
+				31.0,
+				0.15,
+				0.0
+		);
+		assertTrue(cache.resolve(adoptedTemperature));
+		assertAtmosphereCacheMatchesPureFunctions(cache, adoptedTemperature);
+
+		DroneEnvironment adoptedHumidity = atmosphereEnvironment(
+				Vec3.ZERO,
+				0.82,
+				0.0,
+				8.0,
+				31.0,
+				0.75,
+				0.60
+		);
+		assertTrue(cache.resolve(adoptedHumidity));
+		assertAtmosphereCacheMatchesPureFunctions(cache, adoptedHumidity);
+
+		DroneEnvironment sameAdoptedAtmosphereDifferentWind = atmosphereEnvironment(
+				new Vec3(-21.0, 5.0, 9.0),
+				0.82,
+				0.0,
+				8.0,
+				31.0,
+				0.75,
+				0.60
+		);
+		assertFalse(cache.resolve(sameAdoptedAtmosphereDifferentWind));
+		assertAtmosphereCacheMatchesPureFunctions(cache, sameAdoptedAtmosphereDifferentWind);
+
+		// Source-only humidity participates in the cache key even when the final ambient
+		// humidity is already higher, because it alone is allowed to drive freezing icing.
+		DroneEnvironment changedSourceOnlyHumidity = atmosphereEnvironment(
+				Vec3.ZERO,
+				0.82,
+				0.0,
+				8.0,
+				-8.0,
+				0.85,
+				0.80
+		);
+		assertTrue(cache.resolve(changedSourceOnlyHumidity));
+		assertAtmosphereCacheMatchesPureFunctions(cache, changedSourceOnlyHumidity);
+		assertTrue(cache.frozenHumidityIcingWetness() > 0.0);
+	}
+
+	@Test
+	void atmosphereCacheDryPathPreservesLegacyRawBits() throws ReflectiveOperationException {
+		DronePhysics.AtmosphereCache cache = new DronePhysics.AtmosphereCache();
+		double[] densities = {0.35, 0.82, 1.0, 1.35};
+		double[] temperatures = {-40.0, -7.25, 25.0, 65.0};
+		Method viscosityRatio = DronePhysics.class.getDeclaredMethod("airDynamicViscosityRatio", double.class);
+		viscosityRatio.setAccessible(true);
+
+		for (int i = 0; i < densities.length; i++) {
+			DroneEnvironment environment = atmosphereEnvironment(
+					Vec3.ZERO,
+					densities[i],
+					0.0,
+					temperatures[i],
+					temperatures[i],
+					0.0,
+					0.0
+			);
+			assertTrue(cache.resolve(environment));
+			assertEquals(
+					Double.doubleToRawLongBits(densities[i]),
+					Double.doubleToRawLongBits(cache.effectiveAirDensityRatio())
+			);
+			assertEquals(
+					Double.doubleToRawLongBits(
+							DroneEnvironment.speedOfSoundMetersPerSecond(temperatures[i])
+					),
+					Double.doubleToRawLongBits(cache.speedOfSoundMetersPerSecond())
+			);
+			assertEquals(
+					Double.doubleToRawLongBits((double) viscosityRatio.invoke(null, temperatures[i])),
+					Double.doubleToRawLongBits(cache.dynamicViscosityRatio())
+			);
+			assertEquals(Double.doubleToRawLongBits(1.0),
+					Double.doubleToRawLongBits(cache.moistAirCoolingMultiplier()));
+			assertEquals(Double.doubleToRawLongBits(0.0),
+					Double.doubleToRawLongBits(cache.frozenHumidityIcingWetness()));
+		}
+	}
+
+	@Test
+	void atmosphereCacheMatchesMoistAirReferenceAnchors() throws ReflectiveOperationException {
+		double[] temperatures = {35.0, 45.0, 55.0};
+		double[] densityMultipliers = {
+				0.9789925675447962,
+				0.9641127350793487,
+				0.9408540051461148
+		};
+		double[] viscosityMultipliers = {
+				0.9855504432847805,
+				0.9753156378852663,
+				0.9593175696772218
+		};
+		double[] coolingMultipliers = {
+				0.9449911518390431,
+				0.9272770655706533,
+				0.90
+		};
+		double[] speedsOfSound = {
+				355.0691049058361,
+				363.1376574507501,
+				372.6689298817491
+		};
+		Method viscosityRatio = DronePhysics.class.getDeclaredMethod("airDynamicViscosityRatio", double.class);
+		viscosityRatio.setAccessible(true);
+		DronePhysics.AtmosphereCache cache = new DronePhysics.AtmosphereCache();
+
+		for (int i = 0; i < temperatures.length; i++) {
+			DroneEnvironment environment = atmosphereEnvironment(
+					Vec3.ZERO,
+					1.0,
+					0.0,
+					temperatures[i],
+					temperatures[i],
+					1.0,
+					0.0
+			);
+			assertTrue(cache.resolve(environment));
+			assertEquals(densityMultipliers[i], cache.effectiveAirDensityRatio(), 1.0e-15);
+			assertEquals(speedsOfSound[i], cache.speedOfSoundMetersPerSecond(), 1.0e-12);
+			assertEquals(coolingMultipliers[i], cache.moistAirCoolingMultiplier(), 1.0e-15);
+			double expectedViscosityRatio = MathUtil.clamp(
+					(double) viscosityRatio.invoke(null, temperatures[i]) * viscosityMultipliers[i],
+					0.64,
+					1.20
+			);
+			assertEquals(expectedViscosityRatio, cache.dynamicViscosityRatio(), 1.0e-15);
+		}
+	}
+
+	@Test
+	void moistSourceAtmosphereReducesReynoldsAndAirCoolingEndToEnd() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withBattery(16.8, 16.7, 0.024, 3.0, 90.0)
+				.withMotorThermal(55.0, 0.035, 180.0, 230.0);
+		DronePhysics dry = new DronePhysics(config);
+		DronePhysics humid = new DronePhysics(config);
+		DroneEnvironment dryHot = atmosphereEnvironment(
+				Vec3.ZERO,
+				1.0,
+				0.0,
+				55.0,
+				55.0,
+				0.0,
+				0.0
+		);
+		DroneEnvironment humidHot = atmosphereEnvironment(
+				Vec3.ZERO,
+				1.0,
+				0.0,
+				55.0,
+				55.0,
+				1.0,
+				1.0
+		);
+		DroneInput highLoad = new DroneInput(0.82, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 700; i++) {
+			dry.step(highLoad, 0.005, dryHot);
+			humid.step(highLoad, 0.005, humidHot);
+		}
+
+		assertTrue(humid.state().averageRotorReynoldsNumber()
+				< dry.state().averageRotorReynoldsNumber());
+		assertTrue(humid.state().averageMotorCoolingFactor()
+				< dry.state().averageMotorCoolingFactor() * 0.90);
+		assertTrue(humid.state().averageEscCoolingFactor()
+				< dry.state().averageEscCoolingFactor() * 0.90);
+		assertTrue(humid.state().batteryCoolingFactor()
+				< dry.state().batteryCoolingFactor() * 0.90);
+
+		// Isolate the cooling side of the thermal equation from humidity's simultaneous
+		// reduction in aerodynamic load: start identical hot components in still air.
+		DronePhysics dryCooling = new DronePhysics(config);
+		DronePhysics humidCooling = new DronePhysics(config);
+		dryCooling.step(DroneInput.idle(), 0.005, dryHot);
+		humidCooling.step(DroneInput.idle(), 0.005, humidHot);
+		for (int i = 0; i < dryCooling.state().motorCount(); i++) {
+			dryCooling.state().setMotorTemperatureCelsius(i, 120.0);
+			humidCooling.state().setMotorTemperatureCelsius(i, 120.0);
+			dryCooling.state().setEscTemperatureCelsius(i, 120.0);
+			humidCooling.state().setEscTemperatureCelsius(i, 120.0);
+		}
+		dryCooling.state().setBatteryTemperatureCelsius(120.0);
+		humidCooling.state().setBatteryTemperatureCelsius(120.0);
+		for (int i = 0; i < 400; i++) {
+			holdInStillAir(dryCooling);
+			holdInStillAir(humidCooling);
+			dryCooling.step(DroneInput.idle(), 0.005, dryHot);
+			humidCooling.step(DroneInput.idle(), 0.005, humidHot);
+		}
+		assertTrue(humidCooling.state().averageMotorTemperatureCelsius()
+				> dryCooling.state().averageMotorTemperatureCelsius());
+		assertTrue(humidCooling.state().averageEscTemperatureCelsius()
+				> dryCooling.state().averageEscTemperatureCelsius());
+		assertTrue(humidCooling.state().batteryTemperatureCelsius()
+				> dryCooling.state().batteryTemperatureCelsius());
+	}
+
+	@Test
+	void adoptedTemperatureDrivesThermalExchangeAndNeutralFlowPrimitivesStayBitwiseLegacy() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withBattery(16.8, 16.7, 0.020, 3.0, 90.0)
+				.withMotorThermal(35.0, 0.050, 180.0, 230.0);
+		DroneEnvironment noSource = atmosphereEnvironment(Vec3.ZERO, 1.0, 0.0, 25.0);
+		DroneEnvironment zeroQualitySourcePrimitives = atmosphereEnvironment(
+				Vec3.ZERO,
+				1.0,
+				0.0,
+				25.0,
+				25.0,
+				0.0,
+				0.0
+		);
+		DroneEnvironment adoptedHotSource = atmosphereEnvironment(
+				Vec3.ZERO,
+				1.0,
+				0.0,
+				25.0,
+				55.0,
+				0.0,
+				0.0
+		);
+		DronePhysics baseline = new DronePhysics(config);
+		DronePhysics qualityZero = new DronePhysics(config);
+		DronePhysics adoptedHot = new DronePhysics(config);
+		DroneInput load = new DroneInput(0.72, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 600; i++) {
+			baseline.step(load, 0.005, noSource);
+			qualityZero.step(load, 0.005, zeroQualitySourcePrimitives);
+			adoptedHot.step(load, 0.005, adoptedHotSource);
+		}
+
+		assertRawBitsEqual(
+				baseline.state().averageRotorReynoldsNumber(),
+				qualityZero.state().averageRotorReynoldsNumber()
+		);
+		assertRawBitsEqual(
+				baseline.state().averageMotorCoolingFactor(),
+				qualityZero.state().averageMotorCoolingFactor()
+		);
+		assertRawBitsEqual(
+				baseline.state().averageEscCoolingFactor(),
+				qualityZero.state().averageEscCoolingFactor()
+		);
+		assertRawBitsEqual(
+				baseline.state().batteryCoolingFactor(),
+				qualityZero.state().batteryCoolingFactor()
+		);
+		assertRawBitsEqual(
+				baseline.state().averageMotorTemperatureCelsius(),
+				qualityZero.state().averageMotorTemperatureCelsius()
+		);
+		assertRawBitsEqual(
+				baseline.state().averageEscTemperatureCelsius(),
+				qualityZero.state().averageEscTemperatureCelsius()
+		);
+		assertRawBitsEqual(
+				baseline.state().batteryTemperatureCelsius(),
+				qualityZero.state().batteryTemperatureCelsius()
+		);
+		assertRawBitsEqual(
+				baseline.state().maxRotorIcingSeverity(),
+				qualityZero.state().maxRotorIcingSeverity()
+		);
+		assertVecRawBitsEqual(
+				baseline.state().effectiveWindVelocityWorldMetersPerSecond(),
+				qualityZero.state().effectiveWindVelocityWorldMetersPerSecond()
+		);
+		assertVecRawBitsEqual(
+				baseline.state().windGustVelocityWorldMetersPerSecond(),
+				qualityZero.state().windGustVelocityWorldMetersPerSecond()
+		);
+		assertVecRawBitsEqual(
+				baseline.state().drydenTurbulenceVelocityWorldMetersPerSecond(),
+				qualityZero.state().drydenTurbulenceVelocityWorldMetersPerSecond()
+		);
+		assertTrue(adoptedHot.state().averageMotorTemperatureCelsius()
+				> baseline.state().averageMotorTemperatureCelsius() + 3.5,
+				() -> "baselineMotor=" + baseline.state().averageMotorTemperatureCelsius()
+						+ " adoptedHotMotor=" + adoptedHot.state().averageMotorTemperatureCelsius());
+		assertTrue(adoptedHot.state().averageEscTemperatureCelsius()
+				> baseline.state().averageEscTemperatureCelsius() + 3.0,
+				() -> "baselineEsc=" + baseline.state().averageEscTemperatureCelsius()
+						+ " adoptedHotEsc=" + adoptedHot.state().averageEscTemperatureCelsius());
+		assertTrue(adoptedHot.state().batteryTemperatureCelsius()
+				> baseline.state().batteryTemperatureCelsius() + 20.0);
+	}
+
+	@Test
+	void compactPressureAnomalyChangesEffectiveDensityAndRotorThrust() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DroneEnvironment lowPressure = atmosphereEnvironment(
+				Vec3.ZERO, 1.0, 0.0, 25.0, 25.0, 0.0, 0.0, -4500.0, 1.0, 1.0
+		);
+		DroneEnvironment highPressure = atmosphereEnvironment(
+				Vec3.ZERO, 1.0, 0.0, 25.0, 25.0, 0.0, 0.0, 4500.0, 1.0, 1.0
+		);
+		DronePhysics low = new DronePhysics(config);
+		DronePhysics high = new DronePhysics(config);
+		DroneInput input = new DroneInput(0.62, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 500; i++) {
+			holdInStillAir(low);
+			holdInStillAir(high);
+			low.step(input, 0.005, lowPressure);
+			high.step(input, 0.005, highPressure);
+		}
+
+		assertTrue(highPressure.effectiveAirDensityRatio()
+				> lowPressure.effectiveAirDensityRatio() * 1.08);
+		assertTrue(averageRotorThrust(high.state())
+				> averageRotorThrust(low.state()) * 1.025,
+				() -> "low=" + averageRotorThrust(low.state())
+						+ " high=" + averageRotorThrust(high.state()));
+	}
+
+	@Test
+	void compactLocalVoxelShelterReducesBodyCoolingWithoutRotorArrays() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.20, 200.0, 240.0);
+		DroneEnvironment cleanAir = atmosphereEnvironment(
+				Vec3.ZERO, 1.0, 0.0, 25.0, 25.0, 0.0, 0.0, 0.0, 1.0, 1.0
+		);
+		DroneEnvironment shelteredAir = atmosphereEnvironment(
+				Vec3.ZERO, 1.0, 0.0, 25.0, 25.0, 0.0, 0.0, 0.0, 0.83, 0.881
+		);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics sheltered = new DronePhysics(config);
+		clean.step(DroneInput.idle(), 0.005, cleanAir);
+		sheltered.step(DroneInput.idle(), 0.005, shelteredAir);
+		for (int i = 0; i < clean.state().motorCount(); i++) {
+			clean.state().setMotorTemperatureCelsius(i, 110.0);
+			sheltered.state().setMotorTemperatureCelsius(i, 110.0);
+			clean.state().setEscTemperatureCelsius(i, 110.0);
+			sheltered.state().setEscTemperatureCelsius(i, 110.0);
+		}
+		clean.state().setBatteryTemperatureCelsius(110.0);
+		sheltered.state().setBatteryTemperatureCelsius(110.0);
+
+		for (int i = 0; i < 300; i++) {
+			holdInStillAir(clean);
+			holdInStillAir(sheltered);
+			clean.step(DroneInput.idle(), 0.005, cleanAir);
+			sheltered.step(DroneInput.idle(), 0.005, shelteredAir);
+		}
+
+		assertEquals(
+				0.83,
+				sheltered.state().averageMotorCoolingFactor()
+						/ clean.state().averageMotorCoolingFactor(),
+				1.0e-12
+		);
+		assertEquals(
+				0.83,
+				sheltered.state().averageEscCoolingFactor()
+						/ clean.state().averageEscCoolingFactor(),
+				1.0e-12
+		);
+		assertEquals(
+				0.881,
+				sheltered.state().batteryCoolingFactor() / clean.state().batteryCoolingFactor(),
+				1.0e-12
+		);
+		assertTrue(sheltered.state().averageMotorTemperatureCelsius()
+				> clean.state().averageMotorTemperatureCelsius());
+		assertTrue(sheltered.state().averageEscTemperatureCelsius()
+				> clean.state().averageEscTemperatureCelsius());
+		assertTrue(sheltered.state().batteryTemperatureCelsius()
+				> clean.state().batteryTemperatureCelsius());
+	}
+
+	@Test
+	void onlyAdoptedSourceHumidityCreatesRainFreeIcing() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DroneEnvironment ambientHumidityOnly = atmosphereEnvironment(
+				Vec3.ZERO,
+				1.0,
+				0.0,
+				-8.0,
+				-8.0,
+				1.0,
+				0.0
+		);
+		DroneEnvironment adoptedSourceHumidity = atmosphereEnvironment(
+				Vec3.ZERO,
+				1.0,
+				0.0,
+				-8.0,
+				-8.0,
+				1.0,
+				1.0
+		);
+		DronePhysics ambientOnly = new DronePhysics(config);
+		DronePhysics sourceHumid = new DronePhysics(config);
+		DroneInput highLoad = new DroneInput(0.86, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 2500; i++) {
+			ambientOnly.step(highLoad, 0.010, ambientHumidityOnly);
+			sourceHumid.step(highLoad, 0.010, adoptedSourceHumidity);
+		}
+
+		assertEquals(0.0, ambientHumidityOnly.precipitationWetnessIntensity(), 1.0e-12);
+		assertEquals(0.0, adoptedSourceHumidity.precipitationWetnessIntensity(), 1.0e-12);
+		assertTrue(ambientOnly.state().maxRotorIcingSeverity() < 1.0e-12);
+		assertTrue(sourceHumid.state().maxRotorIcingSeverity() > 0.015,
+				() -> "sourceHumidityIcing=" + sourceHumid.state().maxRotorIcingSeverity());
+		assertTrue(sourceHumid.state().minRotorIcingThrustScale()
+				< ambientOnly.state().minRotorIcingThrustScale());
 	}
 
 	@Test
@@ -5685,6 +6709,51 @@ class DronePhysicsTest {
 				() -> "fastForwardPressureError=" + fastForward.state().barometerPressurePortErrorMeters()
 						+ " highSideslipPressureError=" + highSideslip.state().barometerPressurePortErrorMeters()
 		);
+	}
+
+	@Test
+	void localVoxelStaticPressureProducesSignedBoundedPortErrorAndNeutralRecovery() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorImbalanceIntensity(0.0);
+		DronePhysics positivePressure = new DronePhysics(config);
+		DronePhysics negativePressure = new DronePhysics(config);
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics legacyNeutral = new DronePhysics(config);
+		DroneEnvironment high = localStaticPressureEnvironment(800.0, 1.0);
+		DroneEnvironment low = localStaticPressureEnvironment(-800.0, 1.0);
+
+		for (int i = 0; i < 180; i++) {
+			for (DronePhysics physics : new DronePhysics[] {positivePressure, negativePressure, neutral, legacyNeutral}) {
+				physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+				physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+				physics.state().setOrientation(Quaternion.IDENTITY);
+				physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			}
+			positivePressure.step(DroneInput.idle(), 0.005, high);
+			negativePressure.step(DroneInput.idle(), 0.005, low);
+			neutral.step(DroneInput.idle(), 0.005, localStaticPressureEnvironment(800.0, 0.0));
+			legacyNeutral.step(DroneInput.idle(), 0.005, legacyLocalStaticPressureEnvironment(800.0));
+		}
+
+		double highError = positivePressure.state().barometerPressurePortErrorMeters();
+		double lowError = negativePressure.state().barometerPressurePortErrorMeters();
+		assertTrue(highError < -0.62, () -> "highPressureError=" + highError);
+		assertTrue(lowError > 0.62, () -> "lowPressureError=" + lowError);
+		assertEquals(Math.abs(highError), Math.abs(lowError), 0.03);
+		assertEquals(
+				Double.doubleToRawLongBits(legacyNeutral.state().barometerPressurePortErrorMeters()),
+				Double.doubleToRawLongBits(neutral.state().barometerPressurePortErrorMeters())
+		);
+
+		for (int i = 0; i < 260; i++) {
+			positivePressure.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			positivePressure.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			positivePressure.state().setOrientation(Quaternion.IDENTITY);
+			positivePressure.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			positivePressure.step(DroneInput.idle(), 0.005, DroneEnvironment.calm());
+		}
+		assertEquals(0.0, positivePressure.state().barometerPressurePortErrorMeters(), 0.002);
 	}
 
 	@Test
@@ -9196,6 +10265,238 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void explicitZeroLocalFlowPreservesLegacyRotorRawBits() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics legacy = new DronePhysics(config);
+		DronePhysics explicitZero = new DronePhysics(config);
+		DroneEnvironment legacyEnvironment = ablEnvironment(
+				Vec3.ZERO,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				Vec3.ZERO,
+				0.0,
+				0.0
+		);
+		DroneEnvironment explicitZeroEnvironment = localFlowEnvironment(
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO
+		);
+		DroneInput input = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		holdInStillAir(legacy);
+		holdInStillAir(explicitZero);
+		for (int step = 0; step < 260; step++) {
+			legacy.step(input, 0.005, legacyEnvironment);
+			explicitZero.step(input, 0.005, explicitZeroEnvironment);
+		}
+
+		assertEquals(legacy.aerodynamicTransientStateSnapshot(), explicitZero.aerodynamicTransientStateSnapshot());
+		assertVecRawBitsEqual(legacy.state().velocityMetersPerSecond(), explicitZero.state().velocityMetersPerSecond());
+		assertVecRawBitsEqual(
+				legacy.state().angularVelocityBodyRadiansPerSecond(),
+				explicitZero.state().angularVelocityBodyRadiansPerSecond()
+		);
+		for (int i = 0; i < config.rotors().size(); i++) {
+			assertRawBitsEqual(
+					legacy.state().motorOmegaRadiansPerSecond(i),
+					explicitZero.state().motorOmegaRadiansPerSecond(i)
+			);
+			assertRawBitsEqual(legacy.state().rotorThrustNewtons(i), explicitZero.state().rotorThrustNewtons(i));
+			assertVecRawBitsEqual(legacy.state().rotorForceBodyNewtons(i), explicitZero.state().rotorForceBodyNewtons(i));
+			assertRawBitsEqual(
+					legacy.state().rotorAerodynamicLoadFactor(i),
+					explicitZero.state().rotorAerodynamicLoadFactor(i)
+			);
+			assertRawBitsEqual(legacy.state().rotorStallIntensity(i), explicitZero.state().rotorStallIntensity(i));
+			assertRawBitsEqual(
+					legacy.state().rotorFlappingTiltRadians(i),
+					explicitZero.state().rotorFlappingTiltRadians(i)
+			);
+		}
+	}
+
+	@Test
+	void localWindJacobianCreatesMirroredPerRotorAxialLoads() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics positive = new DronePhysics(config);
+		DronePhysics negative = new DronePhysics(config);
+		DroneInput input = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		DroneEnvironment positiveGradient = localFlowEnvironment(
+				Vec3.ZERO,
+				new Vec3(0.0, 70.0, 0.0),
+				Vec3.ZERO,
+				Vec3.ZERO
+		);
+		DroneEnvironment negativeGradient = localFlowEnvironment(
+				Vec3.ZERO,
+				new Vec3(0.0, -70.0, 0.0),
+				Vec3.ZERO,
+				Vec3.ZERO
+		);
+		for (int step = 0; step < 260; step++) {
+			holdInStillAir(positive);
+			holdInStillAir(negative);
+			positive.step(input, 0.005, positiveGradient);
+			negative.step(input, 0.005, negativeGradient);
+		}
+
+		double positiveRightScale = positive.state().rotorAxialGustThrustScale(0);
+		double positiveLeftScale = positive.state().rotorAxialGustThrustScale(1);
+		double negativeRightScale = negative.state().rotorAxialGustThrustScale(0);
+		double negativeLeftScale = negative.state().rotorAxialGustThrustScale(1);
+		assertTrue(positiveRightScale > positiveLeftScale + 0.08,
+				() -> "positiveRight=" + positiveRightScale + " positiveLeft=" + positiveLeftScale);
+		assertTrue(negativeLeftScale > negativeRightScale + 0.08,
+				() -> "negativeRight=" + negativeRightScale + " negativeLeft=" + negativeLeftScale);
+		assertEquals(positiveRightScale, negativeLeftScale, 0.001);
+		assertEquals(positiveLeftScale, negativeRightScale, 0.001);
+		double positiveThrustDelta = positive.state().rotorThrustNewtons(0)
+				- positive.state().rotorThrustNewtons(1);
+		double negativeThrustDelta = negative.state().rotorThrustNewtons(1)
+				- negative.state().rotorThrustNewtons(0);
+		assertTrue(Math.abs(positiveThrustDelta) > 0.005, () -> "positiveThrustDelta=" + positiveThrustDelta);
+		assertTrue(Math.abs(negativeThrustDelta) > 0.005, () -> "negativeThrustDelta=" + negativeThrustDelta);
+	}
+
+	@Test
+	void pressureDiskGradientMirrorsLateralForceAndRaisesFlappingLoadAndStall() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics positive = new DronePhysics(config);
+		DronePhysics negative = new DronePhysics(config);
+		DroneInput input = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		DroneEnvironment neutralEnvironment = localFlowEnvironment(Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO);
+		DroneEnvironment positiveGradient = localFlowEnvironment(
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				new Vec3(100_000.0, 0.0, 0.0)
+		);
+		DroneEnvironment negativeGradient = localFlowEnvironment(
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				new Vec3(-100_000.0, 0.0, 0.0)
+		);
+		for (int step = 0; step < 300; step++) {
+			holdInStillAir(neutral);
+			holdInStillAir(positive);
+			holdInStillAir(negative);
+			neutral.step(input, 0.005, neutralEnvironment);
+			positive.step(input, 0.005, positiveGradient);
+			negative.step(input, 0.005, negativeGradient);
+		}
+
+		assertTrue(positive.state().rotorFlappingTiltRadians(0)
+				> neutral.state().rotorFlappingTiltRadians(0) + Math.toRadians(0.10));
+		assertTrue(positive.state().rotorAerodynamicLoadFactor(0)
+				> neutral.state().rotorAerodynamicLoadFactor(0) + 0.004);
+		assertTrue(positive.state().rotorStallIntensity(0)
+				> neutral.state().rotorStallIntensity(0) + 0.002);
+		double positiveLateralDelta = positive.state().rotorForceBodyNewtons(0).x()
+				- neutral.state().rotorForceBodyNewtons(0).x();
+		double negativeLateralDelta = negative.state().rotorForceBodyNewtons(0).x()
+				- neutral.state().rotorForceBodyNewtons(0).x();
+		assertTrue(positiveLateralDelta > 0.005, () -> "positiveDelta=" + positiveLateralDelta);
+		assertTrue(negativeLateralDelta < -0.005, () -> "negativeDelta=" + negativeLateralDelta);
+		assertEquals(positiveLateralDelta, -negativeLateralDelta, 0.002);
+		Vec3 arm = config.rotors().get(0).positionBodyMeters();
+		double positiveGradientTorqueY = arm.cross(new Vec3(positiveLateralDelta, 0.0, 0.0)).y();
+		double negativeGradientTorqueY = arm.cross(new Vec3(negativeLateralDelta, 0.0, 0.0)).y();
+		assertEquals(positiveGradientTorqueY, -negativeGradientTorqueY, 3.0e-4);
+	}
+
+	@Test
+	void diskGradientResponseCapsMatchSimLab() throws ReflectiveOperationException {
+		RotorSpec rotor = DroneConfig.racingQuad().rotors().get(0);
+		double omega = rotor.maxOmegaRadiansPerSecond();
+		Method thrustScale = DronePhysics.class.getDeclaredMethod(
+				"rotorDiskWindGradientThrustScale",
+				RotorSpec.class,
+				double.class,
+				double.class
+		);
+		Method loadFactor = DronePhysics.class.getDeclaredMethod(
+				"rotorDiskWindGradientLoadFactor",
+				RotorSpec.class,
+				double.class,
+				double.class
+		);
+		Method vibration = DronePhysics.class.getDeclaredMethod(
+				"rotorDiskWindGradientVibration",
+				RotorSpec.class,
+				double.class,
+				double.class
+		);
+		Method stall = DronePhysics.class.getDeclaredMethod(
+				"rotorDiskWindGradientStallIntensity",
+				RotorSpec.class,
+				double.class,
+				double.class
+		);
+		thrustScale.setAccessible(true);
+		loadFactor.setAccessible(true);
+		vibration.setAccessible(true);
+		stall.setAccessible(true);
+		assertEquals(0.955, (double) thrustScale.invoke(null, rotor, 1_000.0, omega), 1.0e-15);
+		assertEquals(0.18, (double) loadFactor.invoke(null, rotor, 1_000.0, omega), 1.0e-15);
+		assertEquals(0.18, (double) vibration.invoke(null, rotor, 1_000.0, omega), 1.0e-15);
+		assertEquals(0.14, (double) stall.invoke(null, rotor, 1_000.0, omega), 1.0e-15);
+
+		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		Method flapping = DronePhysics.class.getDeclaredMethod(
+				"updateRotorFlappingForce",
+				int.class,
+				RotorSpec.class,
+				Vec3.class,
+				double.class,
+				double.class,
+				double.class,
+				double.class,
+				double.class,
+				double.class,
+				double.class
+		);
+		flapping.setAccessible(true);
+		flapping.invoke(
+				physics,
+				0,
+				rotor,
+				Vec3.ZERO,
+				12.0,
+				0.0,
+				0.0,
+				12.0,
+				omega,
+				rotor.maxThrustNewtons(),
+				0.0
+		);
+		assertEquals(
+				Math.toRadians(4.5),
+				physics.state().rotorFlappingTiltRadians(0),
+				1.0e-15
+		);
+	}
+
+	@Test
 	void forwardFlightPropellerAdvanceRolloffBeatsTranslationalLiftBoost() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
@@ -9522,6 +10823,78 @@ class DronePhysicsTest {
 				() -> "lingeringStraightTorque=" + lingeringStraightTorque + " recoveredStraightTorque=" + recoveredStraightTorque);
 		assertTrue(recoveredStraightTorque.length() < 0.002,
 				() -> "recoveredStraightTorque=" + recoveredStraightTorque);
+	}
+
+	@Test
+	void compactLocalPressureCenterMirrorsCruiseYawTorque() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0);
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics positive = new DronePhysics(config);
+		DronePhysics negative = new DronePhysics(config);
+		Vec3 straightVelocity = new Vec3(0.0, 0.0, 18.0);
+		DroneEnvironment neutralEnvironment = localPressureCenterEnvironment(Vec3.ZERO);
+		DroneEnvironment positiveEnvironment = localPressureCenterEnvironment(new Vec3(0.018, 0.0, 0.0));
+		DroneEnvironment negativeEnvironment = localPressureCenterEnvironment(new Vec3(-0.018, 0.0, 0.0));
+
+		for (int i = 0; i < 120; i++) {
+			holdInCruise(neutral, straightVelocity);
+			holdInCruise(positive, straightVelocity);
+			holdInCruise(negative, straightVelocity);
+			neutral.step(DroneInput.idle(), 0.005, neutralEnvironment);
+			positive.step(DroneInput.idle(), 0.005, positiveEnvironment);
+			negative.step(DroneInput.idle(), 0.005, negativeEnvironment);
+		}
+
+		double neutralYaw = neutral.state().airframePressureCenterTorqueBodyNewtonMeters().y();
+		double positiveYaw = positive.state().airframePressureCenterTorqueBodyNewtonMeters().y();
+		double negativeYaw = negative.state().airframePressureCenterTorqueBodyNewtonMeters().y();
+		assertEquals(0.0, neutralYaw, 1.0e-9);
+		assertTrue(Math.abs(positiveYaw) > 0.003, () -> "positiveYaw=" + positiveYaw);
+		assertEquals(positiveYaw, -negativeYaw, 1.0e-9);
+
+		for (int i = 0; i < 260; i++) {
+			holdInCruise(positive, straightVelocity);
+			positive.step(DroneInput.idle(), 0.005, neutralEnvironment);
+		}
+		double recoveredYaw = positive.state().airframePressureCenterTorqueBodyNewtonMeters().y();
+		assertTrue(Math.abs(recoveredYaw) < 0.001, () -> "recoveredYaw=" + recoveredYaw);
+	}
+
+	@Test
+	void compactLocalPressureCenterProducesMirroredPoweredHoverWashMoment() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics positive = new DronePhysics(config);
+		DronePhysics negative = new DronePhysics(config);
+		DronePhysics unpowered = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		DroneEnvironment positiveEnvironment = localPressureCenterEnvironment(new Vec3(0.018, 0.0, 0.0));
+		DroneEnvironment negativeEnvironment = localPressureCenterEnvironment(new Vec3(-0.018, 0.0, 0.0));
+
+		for (int i = 0; i < 180; i++) {
+			holdInStillAir(positive);
+			holdInStillAir(negative);
+			holdInStillAir(unpowered);
+			positive.step(hover, 0.005, positiveEnvironment);
+			negative.step(hover, 0.005, negativeEnvironment);
+			unpowered.step(DroneInput.idle(), 0.005, positiveEnvironment);
+		}
+
+		Vec3 positiveTorque = positive.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 negativeTorque = negative.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 unpoweredTorque = unpowered.state().airframePressureCenterTorqueBodyNewtonMeters();
+		assertTrue(positive.state().averageRotorInducedVelocityMetersPerSecond() > 2.0);
+		assertTrue(Math.abs(positiveTorque.z()) > 0.0003, () -> "positiveTorque=" + positiveTorque);
+		assertEquals(positiveTorque.z(), -negativeTorque.z(), 1.0e-9);
+		assertTrue(unpoweredTorque.length() < 1.0e-8, () -> "unpoweredTorque=" + unpoweredTorque);
 	}
 
 	@Test
@@ -10258,6 +11631,51 @@ class DronePhysicsTest {
 		assertTrue(retainedWake.state().propwashIntensity() > freshAir.state().propwashIntensity() + 0.04);
 		assertTrue(retainedWake.state().propwashTorqueBodyNewtonMeters().length()
 				> freshAir.state().propwashTorqueBodyNewtonMeters().length() + 0.001);
+	}
+
+	@Test
+	void ablStabilityShapesPropwashWakeBuildAndReleasePersistence() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO);
+		DronePhysics unstable = new DronePhysics(config);
+		DronePhysics stable = new DronePhysics(config);
+		DroneEnvironment unstableEnvironment = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, 1.0, 1.0);
+		DroneEnvironment stableEnvironment = ablEnvironment(Vec3.ZERO, 0.0, 6.0, Vec3.ZERO, -1.0, 0.0);
+		Vec3 descent = new Vec3(0.0, -8.0, 0.0);
+		DroneInput lowThrottleDescent = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 240; i++) {
+			unstable.state().setOrientation(Quaternion.IDENTITY);
+			stable.state().setOrientation(Quaternion.IDENTITY);
+			unstable.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			stable.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			unstable.state().setVelocityMetersPerSecond(descent);
+			stable.state().setVelocityMetersPerSecond(descent);
+			unstable.step(lowThrottleDescent, 0.005, unstableEnvironment);
+			stable.step(lowThrottleDescent, 0.005, stableEnvironment);
+		}
+		double unstableBuiltWake = unstable.state().propwashWakeIntensity();
+		double stableBuiltWake = stable.state().propwashWakeIntensity();
+		assertTrue(stableBuiltWake > unstableBuiltWake + 0.030,
+				() -> "stableBuiltWake=" + stableBuiltWake + " unstableBuiltWake=" + unstableBuiltWake);
+
+		for (int i = 0; i < 32; i++) {
+			unstable.state().setOrientation(Quaternion.IDENTITY);
+			stable.state().setOrientation(Quaternion.IDENTITY);
+			unstable.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			stable.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			unstable.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			stable.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			unstable.step(lowThrottleDescent, 0.005, unstableEnvironment);
+			stable.step(lowThrottleDescent, 0.005, stableEnvironment);
+		}
+		double unstableLingeringWake = unstable.state().propwashWakeIntensity();
+		double stableLingeringWake = stable.state().propwashWakeIntensity();
+		assertTrue(stableLingeringWake > unstableLingeringWake + 0.025,
+				() -> "stableLingeringWake=" + stableLingeringWake
+						+ " unstableLingeringWake=" + unstableLingeringWake);
+		assertTrue(stableLingeringWake > 0.06, () -> "stableLingeringWake=" + stableLingeringWake);
 	}
 
 	@Test
@@ -12362,27 +13780,352 @@ class DronePhysicsTest {
 		);
 	}
 
+	private static DroneEnvironment atmosphereEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			double effectiveAmbientTemperatureCelsius,
+			double ambientHumidity,
+			double adoptedSourceHumidity
+	) {
+		return atmosphereEnvironment(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius,
+				effectiveAmbientTemperatureCelsius,
+				ambientHumidity,
+				adoptedSourceHumidity,
+				0.0,
+				1.0,
+				1.0
+		);
+	}
+
+	private static DroneEnvironment atmosphereEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			double effectiveAmbientTemperatureCelsius,
+			double ambientHumidity,
+			double adoptedSourceHumidity,
+			double adoptedSourcePressureAnomalyPascals,
+			double motorEscVentilationFactor,
+			double batteryVentilationFactor
+	) {
+		return new DroneEnvironment(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius,
+				null,
+				effectiveAmbientTemperatureCelsius,
+				ambientHumidity,
+				adoptedSourceHumidity,
+				adoptedSourcePressureAnomalyPascals,
+				motorEscVentilationFactor,
+				batteryVentilationFactor
+		);
+	}
+
+	private static DroneEnvironment sourceGustEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double turbulenceIntensity,
+			Vec3 adoptedSourceGustVelocityWorldMetersPerSecond
+	) {
+		return new DroneEnvironment(
+				windVelocityWorldMetersPerSecond,
+				1.0,
+				6.0,
+				turbulenceIntensity,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				adoptedSourceGustVelocityWorldMetersPerSecond
+		);
+	}
+
+	private static DroneEnvironment ablEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double turbulenceIntensity,
+			double groundClearanceMeters,
+			Vec3 adoptedSourceGustVelocityWorldMetersPerSecond,
+			double adoptedAblStability,
+			double adoptedAblMixingStrength
+	) {
+		return new DroneEnvironment(
+				windVelocityWorldMetersPerSecond,
+				1.0,
+				groundClearanceMeters,
+				turbulenceIntensity,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				adoptedSourceGustVelocityWorldMetersPerSecond,
+				adoptedAblStability,
+				adoptedAblMixingStrength
+		);
+	}
+
+	private static DroneEnvironment localFlowEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			Vec3 windDerivativeAlongBodyXPerMeter,
+			Vec3 windDerivativeAlongBodyZPerMeter,
+			Vec3 pressureGradientBodyPascalsPerMeter
+	) {
+		return new DroneEnvironment(
+				windVelocityWorldMetersPerSecond,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				Vec3.ZERO,
+				0.0,
+				0.0,
+				windDerivativeAlongBodyXPerMeter,
+				windDerivativeAlongBodyZPerMeter,
+				pressureGradientBodyPascalsPerMeter,
+				Vec3.ZERO
+		);
+	}
+
+	private static DroneEnvironment localPressureCenterEnvironment(Vec3 localPressureCenterOffsetBodyMeters) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				25.0,
+				0.0,
+				0.0,
+				0.0,
+				1.0,
+				1.0,
+				Vec3.ZERO,
+				0.0,
+				0.0,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				localPressureCenterOffsetBodyMeters
+		);
+	}
+
+	private static DroneEnvironment localStaticPressureEnvironment(double pressureAnomalyPascals, double exposure) {
+		return new DroneEnvironment(
+				Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0,
+				Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null,
+				25.0, 0.0, 0.0, pressureAnomalyPascals, 1.0, 1.0, Vec3.ZERO, 0.0, 0.0,
+				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, exposure
+		);
+	}
+
+	private static DroneEnvironment legacyLocalStaticPressureEnvironment(double pressureAnomalyPascals) {
+		return new DroneEnvironment(
+				Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0,
+				Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null,
+				25.0, 0.0, 0.0, pressureAnomalyPascals, 1.0, 1.0, Vec3.ZERO, 0.0, 0.0,
+				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO
+		);
+	}
+
+	private static DroneEnvironment terrainShearEnvironment(
+			Vec3 wind,
+			double shear,
+			double shelter,
+			double stability,
+			double mixing
+	) {
+		return new DroneEnvironment(
+				wind, 1.0, 6.0, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY,
+				null, null, null, null, 0.0, null, 0.0, 25.0, null,
+				25.0, 0.0, 0.0, 0.0, 1.0, 1.0, Vec3.ZERO, stability, mixing,
+				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, 0.0, shear, shelter
+		);
+	}
+
+	private static DroneEnvironment updraftEnvironment(
+			double updraft,
+			double localVoxelGain,
+			double stability,
+			double mixing
+	) {
+		return new DroneEnvironment(
+				Vec3.ZERO, 1.0, 6.0, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY,
+				null, null, null, null, 0.0, null, 0.0, 25.0, null,
+				25.0, 0.0, 0.0, 0.0, 1.0, 1.0, Vec3.ZERO, stability, mixing,
+				Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, 0.0, 0.0, 0.0,
+				updraft, localVoxelGain
+		);
+	}
+
 	private static void assertAtmosphereCacheMatchesPureFunctions(
 			DronePhysics.AtmosphereCache cache,
 			DroneEnvironment environment
 	) throws ReflectiveOperationException {
-		assertEquals(
-				Double.doubleToRawLongBits(environment.effectiveAirDensityRatio()),
-				Double.doubleToRawLongBits(cache.effectiveAirDensityRatio())
+		double fallbackTemperatureKelvin = MathUtil.clamp(
+				environment.ambientTemperatureCelsius() + 273.15,
+				233.15,
+				338.15
+		);
+		double effectiveTemperatureKelvin = MathUtil.clamp(
+				environment.effectiveAmbientTemperatureCelsius() + 273.15,
+				233.15,
+				338.15
+		);
+		double humidity = environment.ambientHumidity();
+		double vaporMoleFraction = humidity <= 1.0e-9
+				? 0.0
+				: DroneEnvironment.moistAirVaporMoleFraction(
+						environment.effectiveAmbientTemperatureCelsius(),
+						humidity
+				);
+		double densityMultiplier = humidity <= 1.0e-9
+				? 1.0
+				: DroneEnvironment.moistAirDensityMultiplierFromVaporMoleFraction(vaporMoleFraction);
+		double expectedDensityRatio = MathUtil.clamp(
+				environment.airDensityRatio()
+						* (fallbackTemperatureKelvin / effectiveTemperatureKelvin)
+						* densityMultiplier
+						* DroneEnvironment.pressureAirDensityMultiplier(
+								environment.adoptedSourcePressureAnomalyPascals()
+						),
+				0.35,
+				1.35
 		);
 		assertEquals(
-				Double.doubleToRawLongBits(
-						DroneEnvironment.speedOfSoundMetersPerSecond(environment.ambientTemperatureCelsius())
-				),
+				Double.doubleToRawLongBits(expectedDensityRatio),
+				Double.doubleToRawLongBits(cache.effectiveAirDensityRatio())
+		);
+		double expectedSpeedOfSound = humidity <= 1.0e-9
+				? DroneEnvironment.speedOfSoundMetersPerSecond(environment.effectiveAmbientTemperatureCelsius())
+				: DroneEnvironment.speedOfSoundMetersPerSecondFromVaporMoleFraction(
+						environment.effectiveAmbientTemperatureCelsius(),
+						vaporMoleFraction
+				);
+		assertEquals(
+				Double.doubleToRawLongBits(expectedSpeedOfSound),
 				Double.doubleToRawLongBits(cache.speedOfSoundMetersPerSecond())
 		);
 		Method viscosityRatio = DronePhysics.class.getDeclaredMethod("airDynamicViscosityRatio", double.class);
 		viscosityRatio.setAccessible(true);
-		double expectedViscosityRatio = (double) viscosityRatio.invoke(null, environment.ambientTemperatureCelsius());
+		double expectedViscosityRatio = (double) viscosityRatio.invoke(
+				null,
+				environment.effectiveAmbientTemperatureCelsius()
+		);
+		if (humidity > 1.0e-9) {
+			expectedViscosityRatio = MathUtil.clamp(
+					expectedViscosityRatio
+							* DroneEnvironment.moistAirDynamicViscosityMultiplierFromVaporMoleFraction(
+									vaporMoleFraction
+							),
+					0.64,
+					1.20
+			);
+		}
 		assertEquals(
 				Double.doubleToRawLongBits(expectedViscosityRatio),
 				Double.doubleToRawLongBits(cache.dynamicViscosityRatio())
 		);
+		double expectedCoolingMultiplier = humidity <= 1.0e-9
+				? 1.0
+				: DroneEnvironment.moistAirCoolingMultiplier(
+						environment.effectiveAmbientTemperatureCelsius(),
+						humidity
+				);
+		assertEquals(
+				Double.doubleToRawLongBits(expectedCoolingMultiplier),
+				Double.doubleToRawLongBits(cache.moistAirCoolingMultiplier())
+		);
+		assertEquals(
+				Double.doubleToRawLongBits(expectedFrozenHumidityIcingWetness(environment)),
+				Double.doubleToRawLongBits(cache.frozenHumidityIcingWetness())
+		);
+	}
+
+	private static double expectedFrozenHumidityIcingWetness(DroneEnvironment environment) {
+		double freezingFactor = IcingRotorCalibration.freezingTemperatureFactor(
+				environment.effectiveAmbientTemperatureCelsius()
+		);
+		double humidity = environment.adoptedSourceHumidity();
+		if (humidity <= 1.0e-9 || freezingFactor <= 1.0e-12) {
+			return 0.0;
+		}
+		double t = MathUtil.clamp((humidity - 0.72) / (0.98 - 0.72), 0.0, 1.0);
+		double saturationFactor = t * t * (3.0 - 2.0 * t);
+		return MathUtil.clamp(0.40 * freezingFactor * saturationFactor, 0.0, 0.40);
 	}
 
 	private static DroneConfig directControl(DroneConfig config) {
@@ -12411,6 +14154,16 @@ class DronePhysicsTest {
 		assertEquals(expected.x(), actual.x(), tolerance, () -> "expected=" + expected + " actual=" + actual);
 		assertEquals(expected.y(), actual.y(), tolerance, () -> "expected=" + expected + " actual=" + actual);
 		assertEquals(expected.z(), actual.z(), tolerance, () -> "expected=" + expected + " actual=" + actual);
+	}
+
+	private static void assertRawBitsEqual(double expected, double actual) {
+		assertEquals(Double.doubleToRawLongBits(expected), Double.doubleToRawLongBits(actual));
+	}
+
+	private static void assertVecRawBitsEqual(Vec3 expected, Vec3 actual) {
+		assertRawBitsEqual(expected.x(), actual.x());
+		assertRawBitsEqual(expected.y(), actual.y());
+		assertRawBitsEqual(expected.z(), actual.z());
 	}
 
 	private static void holdInStillAir(DronePhysics physics) {

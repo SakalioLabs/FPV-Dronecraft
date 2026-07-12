@@ -3732,7 +3732,7 @@ public final class OfflineFlightRecorder {
 				wind.z(),
 				environment.airDensityRatio(),
 				environment.effectiveAirDensityRatio(),
-				environment.ambientTemperatureCelsius(),
+				environment.effectiveAmbientTemperatureCelsius(),
 				environment.groundClearanceMeters(),
 				environment.groundEffectThrustMultiplier(physics.config()),
 				physics.config().rateSuper().x(),

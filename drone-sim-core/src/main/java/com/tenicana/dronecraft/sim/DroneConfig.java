@@ -2001,6 +2001,16 @@ public record DroneConfig(
 				.toList());
 	}
 
+	public DroneConfig withRotorTargetMaxOmegaScale(double targetMaxOmegaScale) {
+		return withRotors(rotors.stream()
+				.map(rotor -> rotor.withTargetMaxOmegaScale(targetMaxOmegaScale))
+				.toList());
+	}
+
+	public DroneConfig withRotorTargetMaxRpmScale(double targetMaxRpmScale) {
+		return withRotorTargetMaxOmegaScale(targetMaxRpmScale);
+	}
+
 	public DroneConfig withMotorWindingResistanceOhms(double motorWindingResistanceOhms) {
 		return withRotors(rotors.stream()
 				.map(rotor -> rotor.withMotorWindingResistanceOhms(motorWindingResistanceOhms))
