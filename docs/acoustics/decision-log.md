@@ -1966,3 +1966,24 @@
   nvcc_compiled=false`；尚无 100k device parity、crossover 或 Minecraft 接入。
 - 完整说明：
   [`decision-D121u-nvrtc-cuda-dda-fixture-parity.md`](decision-D121u-nvrtc-cuda-dda-fixture-parity.md)。
+
+## D121v — RTX 3060 CUDA DDA 100k 全语料通过
+
+- 状态：三轮 production-corpus device parity 与 repeat benchmark 通过；
+  synchronous Minecraft hot path 拒绝（2026-07-27）。
+- 合同：同一 `100,008 rays / 49,494 cells / 14,172,009 actual segments`；
+  每轮一次 timing-excluded parity、`5 warmup / 30 measured`、全部 24 batches。
+- kernel P95 min/median/max：`37.439 / 44.194 / 51.136 ms`。
+- D2H P95 min/median/max：`153.154 / 155.607 / 171.313 ms`。
+- submit P95 min/median/max：`363.906 / 373.223 / 404.050 ms`，
+  median `267,958 rays/s`。
+- correctness-workload 比值：相对 CPU P95 median `1206.2 ms` 为 `3.232×`；
+  不代表产品 Java 热路径。
+- 瓶颈：每 pass D2H 约 799 MB reserved segment records；D2H P95 是 kernel 的
+  约 3.52 倍；完整 submit 是 50 ms tick 的约 7.46 倍。
+- scaling：8k/16k/32k/65k/100k submit P95
+  `28.878/57.688/110.730/243.103/373.223 ms`；8k 已基本摊薄固定开销。
+- 决策：Java CPU DDA 继续服务小批直达声；CUDA 只保留为 aggregate-only、
+  compacted、异步大批 early-reflection/shadow-mode 候选。
+- 完整说明：
+  [`decision-D121v-rtx3060-cuda-dda-production-corpus.md`](decision-D121v-rtx3060-cuda-dda-production-corpus.md)。

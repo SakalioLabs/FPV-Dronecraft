@@ -42,6 +42,24 @@ CPU oracle. A passing report may claim `nvrtc_compiled=true` and
 `cuda_executed=true`; it does not claim that the CMake CUDA target was built
 with `nvcc`.
 
+Run the full repeat-aware 100,008-ray production corpus:
+
+```powershell
+.\gradlew.bat --no-daemon benchmarkCudaDdaNvrtcProductionCorpus
+```
+
+This runs three independent processes, each with 5 warmups, 30 measured
+full-corpus passes, and one timing-excluded full device parity pass. It retains
+every raw stage sample and records `nvidia-smi` snapshots. Run the diagnostic
+prefix scaling matrix with:
+
+```powershell
+.\gradlew.bat --no-daemon benchmarkCudaDdaNvrtcScalingMatrix
+```
+
+The matrix uses deterministic 8,192/16,384/32,768/65,536-ray prefixes and
+binds the 100,008-ray row to the formal repeat report.
+
 With a CUDA compiler and device available, the same command also builds and
 runs `mcfpv_dda_cuda_java_fixture`. The executable accepts:
 
@@ -100,4 +118,6 @@ for the original claim boundary, and
 [`decision-D121s-cuda-multi-batch-corpus.md`](../../docs/acoustics/decision-D121s-cuda-multi-batch-corpus.md)
 for the production corpus and bounded multi-batch implementation, and
 [`decision-D121u-nvrtc-cuda-dda-fixture-parity.md`](../../docs/acoustics/decision-D121u-nvrtc-cuda-dda-fixture-parity.md)
-for the first real RTX 3060 device parity evidence.
+for the first real RTX 3060 device parity evidence, and
+[`decision-D121v-rtx3060-cuda-dda-production-corpus.md`](../../docs/acoustics/decision-D121v-rtx3060-cuda-dda-production-corpus.md)
+for the full-corpus result and current synchronous-hot-path rejection.

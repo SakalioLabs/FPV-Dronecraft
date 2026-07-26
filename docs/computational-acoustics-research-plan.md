@@ -2996,3 +2996,22 @@ fixture_device_parity_verified=true / nvcc_compiled=false`。D121v 必须运行�
 H2D/kernel/D2H/submit-to-result 与 parity；在此之前仍无 crossover、native bridge
 或 Minecraft hot-path 接入。详见
 [`acoustics/decision-D121u-nvrtc-cuda-dda-fixture-parity.md`](acoustics/decision-D121u-nvrtc-cuda-dda-fixture-parity.md)。
+
+D121v 已在 RTX 3060 上关闭同一 100,008-ray production corpus 的真实 device
+parity gate。三轮独立进程各执行一次 timing-excluded 全语料逐段比较和
+`5 warmup + 30 measured` passes；每轮都验证
+`100,008 rays / 14,172,009 actual segments / 24 batches`，无 topology、material、
+flags、first hit 或三频带 mismatch。kernel P95 min/median/max 为
+`37.439/44.194/51.136 ms`，D2H 为 `153.154/155.607/171.313 ms`，Python Driver
+API submit-to-result 为 `363.906/373.223/404.050 ms`。相对 D121t 单线程
+correctness P95 median `1206.2 ms`，同类研究 workload 的 median 比值为
+`3.232×`，但不是产品热路径 speedup。
+
+当前 executor 每 pass 仍 D2H 全部 `799,190,304 bytes` reserved segment records，
+使 D2H P95 约为 kernel 的 3.52 倍；submit P95 约为 Minecraft 50 ms tick 的 7.46
+倍。因此明确拒绝同步接入。8k→100k prefix matrix 显示 submit throughput 在 8k
+已约 284k rays/s，32k 单次诊断约 296k，继续扩大没有端到端收益。下一阶段必须先做
+同前缀 compiled CPU baseline，并 A/B aggregate-only 与 count+prefix-sum compacted
+output、pinned/async copies、resident cell deltas；只有这些通过后才讨论 native
+bridge 与 shadow mode。当前产品仍使用 Java CPU DDA。详见
+[`acoustics/decision-D121v-rtx3060-cuda-dda-production-corpus.md`](acoustics/decision-D121v-rtx3060-cuda-dda-production-corpus.md)。

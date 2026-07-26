@@ -1352,6 +1352,12 @@ def cudaDdaNvrtcPython = new File(
 def cudaDdaNvrtcFixtureReport = layout.projectDirectory.file(
 	"build/research/cuda-dda-nvrtc-fixture-v1.json"
 ).asFile
+def cudaDdaNvrtcCorpusReport = layout.projectDirectory.file(
+	"build/research/cuda-dda-nvrtc-production-corpus-benchmark-v1.json"
+).asFile
+def cudaDdaNvrtcScalingReport = layout.projectDirectory.file(
+	"build/research/cuda-dda-nvrtc-scaling-matrix-v1.json"
+).asFile
 
 tasks.register("verifyCudaDdaSourceContract", Exec) {
 	group = "verification"
@@ -1463,6 +1469,53 @@ tasks.register("verifyCudaDdaNvrtcFixture", Exec) {
 		project.findProperty("iterations") ?: "10",
 		"--output-json",
 		cudaDdaNvrtcFixtureReport.absolutePath
+	)
+}
+
+tasks.register("benchmarkCudaDdaNvrtcProductionCorpus", Exec) {
+	group = "verification"
+	description = "Benchmarks repeat-aware RTX NVRTC DDA on the 100k corpus."
+	dependsOn(
+		"verifyCudaDdaProductionCorpus",
+		"ensureCudaDdaNvrtcEnvironment"
+	)
+	workingDir = rootDir
+	commandLine(
+		cudaDdaNvrtcPython.absolutePath,
+		"docs/scripts/benchmark_cuda_dda_nvrtc_corpus.py",
+		"--bundle",
+		ddaProductionCorpus.absolutePath,
+		"--output-json",
+		cudaDdaNvrtcCorpusReport.absolutePath,
+		"--repeats",
+		project.findProperty("repeats") ?: "3",
+		"--warmup",
+		project.findProperty("warmup") ?: "5",
+		"--iterations",
+		project.findProperty("iterations") ?: "30",
+		"--cpu-reference-p95-ms",
+		project.findProperty("cpuReferenceP95Ms") ?: "1206.2"
+	)
+}
+
+tasks.register("benchmarkCudaDdaNvrtcScalingMatrix", Exec) {
+	group = "verification"
+	description = "Measures 8k-to-100k NVRTC DDA prefix scaling."
+	dependsOn("benchmarkCudaDdaNvrtcProductionCorpus")
+	workingDir = rootDir
+	commandLine(
+		cudaDdaNvrtcPython.absolutePath,
+		"docs/scripts/benchmark_cuda_dda_nvrtc_scaling_matrix.py",
+		"--bundle",
+		ddaProductionCorpus.absolutePath,
+		"--formal-report",
+		cudaDdaNvrtcCorpusReport.absolutePath,
+		"--output-json",
+		cudaDdaNvrtcScalingReport.absolutePath,
+		"--warmup",
+		project.findProperty("matrixWarmup") ?: "3",
+		"--iterations",
+		project.findProperty("matrixIterations") ?: "10"
 	)
 }
 

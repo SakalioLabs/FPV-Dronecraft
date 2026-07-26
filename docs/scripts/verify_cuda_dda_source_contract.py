@@ -80,6 +80,32 @@ REQUIRED_NVRTC_RUNNER_TOKENS = {
     "device_execution_claim": '"cuda_executed": True',
     "nvrtc_claim": '"nvrtc_compiled": True',
     "nvcc_boundary": '"nvcc_compiled": False',
+    "raw_stage_samples": '"samples_ms": {',
+    "p99_timing": '"total_p99_ms":',
+    "parity_excluded_from_timing": "- pass_parity",
+}
+
+REQUIRED_NVRTC_BENCHMARK_TOKENS = {
+    "repeat_validation": "def validate_runs(",
+    "raw_sample_validation": 'for stage in ("h2d", "kernel", "d2h", "submit_to_result")',
+    "workload_identity": '"verified_segments"',
+    "p50_p95_p99": 'QUANTILES = ("p50", "p95", "p99")',
+    "gpu_state_snapshot": "def gpu_snapshot(",
+    "cpu_reference_comparison": '"cpu_p95_to_gpu_submit_p95_ratio"',
+    "raw_runs_retained": '"runs": runs',
+    "nvcc_boundary": '"nvcc_compiled": False',
+    "minecraft_boundary": "does not establish product hot-path crossover",
+}
+
+REQUIRED_NVRTC_MATRIX_TOKENS = {
+    "deterministic_prefixes": "ray_limits",
+    "prefix_device_parity": "entry_from_run(",
+    "formal_report_binding": '"formal_report_sha256"',
+    "formal_repeat_median": '"formal-repeat-median"',
+    "kernel_throughput": '"kernel_p95_rays_per_second"',
+    "submit_throughput": '"submit_p95_rays_per_second"',
+    "raw_prefix_run": '"raw_run": run',
+    "minecraft_boundary": "not a Minecraft native bridge result",
 }
 
 
@@ -110,6 +136,16 @@ def main() -> int:
         type=Path,
         default=Path("docs/scripts/run_cuda_dda_nvrtc.py"),
     )
+    parser.add_argument(
+        "--nvrtc-benchmark",
+        type=Path,
+        default=Path("docs/scripts/benchmark_cuda_dda_nvrtc_corpus.py"),
+    )
+    parser.add_argument(
+        "--nvrtc-matrix",
+        type=Path,
+        default=Path("docs/scripts/benchmark_cuda_dda_nvrtc_scaling_matrix.py"),
+    )
     arguments = parser.parse_args()
 
     missing_cuda = verify_tokens(arguments.cuda_source, REQUIRED_CUDA_TOKENS)
@@ -122,11 +158,21 @@ def main() -> int:
         arguments.nvrtc_runner,
         REQUIRED_NVRTC_RUNNER_TOKENS,
     )
+    missing_nvrtc_benchmark = verify_tokens(
+        arguments.nvrtc_benchmark,
+        REQUIRED_NVRTC_BENCHMARK_TOKENS,
+    )
+    missing_nvrtc_matrix = verify_tokens(
+        arguments.nvrtc_matrix,
+        REQUIRED_NVRTC_MATRIX_TOKENS,
+    )
     valid = not (
         missing_cuda
         or missing_cmake
         or missing_nvrtc_kernel
         or missing_nvrtc_runner
+        or missing_nvrtc_benchmark
+        or missing_nvrtc_matrix
     )
     report = {
         "status": "valid" if valid else "invalid",
@@ -135,14 +181,22 @@ def main() -> int:
         "cmake": str(arguments.cmake),
         "nvrtc_kernel": str(arguments.nvrtc_kernel),
         "nvrtc_runner": str(arguments.nvrtc_runner),
+        "nvrtc_benchmark": str(arguments.nvrtc_benchmark),
+        "nvrtc_matrix": str(arguments.nvrtc_matrix),
         "required_cuda_contracts": len(REQUIRED_CUDA_TOKENS),
         "required_cmake_contracts": len(REQUIRED_CMAKE_TOKENS),
         "required_nvrtc_kernel_contracts": len(REQUIRED_NVRTC_KERNEL_TOKENS),
         "required_nvrtc_runner_contracts": len(REQUIRED_NVRTC_RUNNER_TOKENS),
+        "required_nvrtc_benchmark_contracts": len(
+            REQUIRED_NVRTC_BENCHMARK_TOKENS
+        ),
+        "required_nvrtc_matrix_contracts": len(REQUIRED_NVRTC_MATRIX_TOKENS),
         "missing_cuda_contracts": missing_cuda,
         "missing_cmake_contracts": missing_cmake,
         "missing_nvrtc_kernel_contracts": missing_nvrtc_kernel,
         "missing_nvrtc_runner_contracts": missing_nvrtc_runner,
+        "missing_nvrtc_benchmark_contracts": missing_nvrtc_benchmark,
+        "missing_nvrtc_matrix_contracts": missing_nvrtc_matrix,
         "cuda_compiled": False,
         "cuda_executed": False,
         "claim_boundary": (

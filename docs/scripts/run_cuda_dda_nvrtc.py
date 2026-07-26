@@ -263,6 +263,13 @@ def execute(arguments: argparse.Namespace) -> dict:
     )
     cells = bundle.pop("_cell_records")
     rays = bundle.pop("_ray_records")
+    bundle_ray_count = len(rays)
+    if arguments.ray_limit is not None:
+        if arguments.ray_limit < 1 or arguments.ray_limit > bundle_ray_count:
+            raise ValueError(
+                f"--ray-limit must be within 1..{bundle_ray_count}"
+            )
+        rays = rays[: arguments.ray_limit]
     cell_map = {
         cell["packed"]: (cell["material_id"], cell["fill_fraction"])
         for cell in cells
@@ -356,6 +363,7 @@ def execute(arguments: argparse.Namespace) -> dict:
         total_samples: list[float] = []
         verified_rays = 0
         verified_segments = 0
+        parity_ms = 0.0
         total_passes = arguments.warmup + arguments.iterations
         for pass_index in range(total_passes):
             pass_start = time.perf_counter()
@@ -455,9 +463,11 @@ def execute(arguments: argparse.Namespace) -> dict:
                         host_segments,
                         host_results,
                     )
-                    pass_parity += (
+                    batch_parity_ms = (
                         time.perf_counter() - parity_start
                     ) * 1000.0
+                    pass_parity += batch_parity_ms
+                    parity_ms += batch_parity_ms
                     verified_rays += batch.ray_count
             if pass_index >= arguments.warmup:
                 h2d_samples.append(pass_h2d)
@@ -485,6 +495,7 @@ def execute(arguments: argparse.Namespace) -> dict:
             "bundle_sha256": bundle["file_sha256"],
             "snapshot_sha256": bundle["snapshot_sha256"],
             "cells": len(cells),
+            "bundle_rays": bundle_ray_count,
             "rays": len(rays),
             "batches": len(batches),
             "peak_batch_rays": peak_rays,
@@ -494,15 +505,26 @@ def execute(arguments: argparse.Namespace) -> dict:
             "measured_passes": arguments.iterations,
             "verified_rays": verified_rays,
             "verified_segments": verified_segments,
+            "parity_ms": parity_ms,
             "compile_ms": compile_ms,
             "h2d_p50_ms": percentile(h2d_samples, 0.50),
             "h2d_p95_ms": percentile(h2d_samples, 0.95),
+            "h2d_p99_ms": percentile(h2d_samples, 0.99),
             "kernel_p50_ms": percentile(kernel_samples, 0.50),
             "kernel_p95_ms": percentile(kernel_samples, 0.95),
+            "kernel_p99_ms": percentile(kernel_samples, 0.99),
             "d2h_p50_ms": percentile(d2h_samples, 0.50),
             "d2h_p95_ms": percentile(d2h_samples, 0.95),
+            "d2h_p99_ms": percentile(d2h_samples, 0.99),
             "total_p50_ms": percentile(total_samples, 0.50),
             "total_p95_ms": percentile(total_samples, 0.95),
+            "total_p99_ms": percentile(total_samples, 0.99),
+            "samples_ms": {
+                "h2d": h2d_samples,
+                "kernel": kernel_samples,
+                "d2h": d2h_samples,
+                "submit_to_result": total_samples,
+            },
         }
     finally:
         if end_event is not None:
@@ -526,6 +548,7 @@ def parse_arguments() -> argparse.Namespace:
         default=repository / "native/cuda-dda/src/dda_nvrtc_kernel.cu",
     )
     parser.add_argument("--device", type=int, default=0)
+    parser.add_argument("--ray-limit", type=int)
     parser.add_argument("--warmup", type=int, default=2)
     parser.add_argument("--iterations", type=int, default=10)
     parser.add_argument("--maximum-rays-per-batch", type=int, default=8192)
