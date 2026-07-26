@@ -85,16 +85,18 @@ REQUIRED_NVRTC_RUNNER_TOKENS = {
     "raw_stage_samples": '"samples_ms": {',
     "p99_timing": '"total_p99_ms":',
     "parity_excluded_from_timing": "- pass_parity",
-    "aggregate_mode": 'choices=("full", "aggregate")',
+    "aggregate_mode": 'choices=("full", "aggregate", "paired")',
     "aggregate_parity": '"aggregate_parity_verified": True',
-    "topology_claim_boundary": '"segment_topology_verified": full_topology',
-    "aggregate_zero_segment_d2h": "if full_topology\n                else 0",
+    "topology_claim_boundary": '"segment_topology_verified": mode_full_topology',
+    "aggregate_zero_segment_d2h": "if mode_full_topology\n                    else 0",
     "host_preparation_once": "def prepare_host_batches(",
     "host_preparation_mode": 'choices=("per-pass", "once")',
     "prepared_batch_reuse": "prepared_host_batches[batch_index]",
     "bounded_driver_preflight": "def probe_nvidia_driver(",
     "driver_probe_timeout": "timeout=timeout_seconds",
     "driver_probe_report": '"driver_probe_timeout_seconds":',
+    "paired_shared_context": '"shared_cuda_context": True',
+    "paired_alternating_order": '"alternating_execution_order": execution_order',
 }
 
 REQUIRED_NVRTC_BENCHMARK_TOKENS = {
@@ -119,6 +121,20 @@ REQUIRED_NVRTC_MATRIX_TOKENS = {
     "submit_throughput": '"submit_p95_rays_per_second"',
     "raw_prefix_run": '"raw_run": run',
     "minecraft_boundary": "not a Minecraft native bridge result",
+}
+
+REQUIRED_NVRTC_PAIRED_MATRIX_TOKENS = {
+    "shared_context_gate": 'report.get("shared_cuda_context") is not True',
+    "alternating_kernel_order": '"alternating_execution_order"',
+    "alternating_cpu_gpu_order": 'pair_order = ["gpu", "cpu"]',
+    "opposite_cpu_gpu_order": 'pair_order = ["cpu", "gpu"]',
+    "full_topology_gate": '"GPU full topology was not verified"',
+    "aggregate_claim_boundary": '"GPU aggregate mode overclaimed topology"',
+    "raw_submit_samples": '"submit_to_result"',
+    "deadline_miss_gate": '"passes_deadline_gate"',
+    "three_prefix_gate": "def first_three_prefix_gate(",
+    "gpu_snapshots": "def gpu_snapshot(",
+    "minecraft_boundary": "not a Minecraft ",
 }
 
 REQUIRED_CPU_PREFIX_TOKENS = {
@@ -178,6 +194,13 @@ def main() -> int:
         default=Path("docs/scripts/benchmark_cuda_dda_nvrtc_scaling_matrix.py"),
     )
     parser.add_argument(
+        "--nvrtc-paired-matrix",
+        type=Path,
+        default=Path(
+            "docs/scripts/benchmark_cuda_dda_nvrtc_paired_matrix.py"
+        ),
+    )
+    parser.add_argument(
         "--cpu-source",
         type=Path,
         default=Path("native/cuda-dda/src/dda_cpu_reference.cpp"),
@@ -207,6 +230,10 @@ def main() -> int:
         arguments.nvrtc_matrix,
         REQUIRED_NVRTC_MATRIX_TOKENS,
     )
+    missing_nvrtc_paired_matrix = verify_tokens(
+        arguments.nvrtc_paired_matrix,
+        REQUIRED_NVRTC_PAIRED_MATRIX_TOKENS,
+    )
     missing_cpu_source = verify_tokens(
         arguments.cpu_source,
         REQUIRED_CPU_PREFIX_TOKENS,
@@ -222,6 +249,7 @@ def main() -> int:
         or missing_nvrtc_runner
         or missing_nvrtc_benchmark
         or missing_nvrtc_matrix
+        or missing_nvrtc_paired_matrix
         or missing_cpu_source
         or missing_cpu_matrix
     )
@@ -234,6 +262,7 @@ def main() -> int:
         "nvrtc_runner": str(arguments.nvrtc_runner),
         "nvrtc_benchmark": str(arguments.nvrtc_benchmark),
         "nvrtc_matrix": str(arguments.nvrtc_matrix),
+        "nvrtc_paired_matrix": str(arguments.nvrtc_paired_matrix),
         "cpu_source": str(arguments.cpu_source),
         "cpu_matrix": str(arguments.cpu_matrix),
         "required_cuda_contracts": len(REQUIRED_CUDA_TOKENS),
@@ -244,6 +273,9 @@ def main() -> int:
             REQUIRED_NVRTC_BENCHMARK_TOKENS
         ),
         "required_nvrtc_matrix_contracts": len(REQUIRED_NVRTC_MATRIX_TOKENS),
+        "required_nvrtc_paired_matrix_contracts": len(
+            REQUIRED_NVRTC_PAIRED_MATRIX_TOKENS
+        ),
         "required_cpu_prefix_contracts": len(REQUIRED_CPU_PREFIX_TOKENS),
         "required_cpu_matrix_contracts": len(REQUIRED_CPU_MATRIX_TOKENS),
         "missing_cuda_contracts": missing_cuda,
@@ -252,6 +284,9 @@ def main() -> int:
         "missing_nvrtc_runner_contracts": missing_nvrtc_runner,
         "missing_nvrtc_benchmark_contracts": missing_nvrtc_benchmark,
         "missing_nvrtc_matrix_contracts": missing_nvrtc_matrix,
+        "missing_nvrtc_paired_matrix_contracts": (
+            missing_nvrtc_paired_matrix
+        ),
         "missing_cpu_prefix_contracts": missing_cpu_source,
         "missing_cpu_matrix_contracts": missing_cpu_matrix,
         "cuda_compiled": False,

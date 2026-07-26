@@ -14,6 +14,7 @@ from verify_cuda_dda_source_contract import (  # noqa: E402
     REQUIRED_NVRTC_RUNNER_TOKENS,
     REQUIRED_NVRTC_BENCHMARK_TOKENS,
     REQUIRED_NVRTC_MATRIX_TOKENS,
+    REQUIRED_NVRTC_PAIRED_MATRIX_TOKENS,
     REQUIRED_CPU_PREFIX_TOKENS,
     REQUIRED_CPU_MATRIX_TOKENS,
     verify_tokens,
@@ -64,6 +65,14 @@ class CudaDdaSourceContractTest(unittest.TestCase):
                 root
                 / "docs/scripts/benchmark_cuda_dda_nvrtc_scaling_matrix.py",
                 REQUIRED_NVRTC_MATRIX_TOKENS,
+            ),
+        )
+        self.assertEqual(
+            [],
+            verify_tokens(
+                root
+                / "docs/scripts/benchmark_cuda_dda_nvrtc_paired_matrix.py",
+                REQUIRED_NVRTC_PAIRED_MATRIX_TOKENS,
             ),
         )
         self.assertEqual(

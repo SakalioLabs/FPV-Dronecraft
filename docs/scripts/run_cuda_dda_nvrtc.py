@@ -378,12 +378,24 @@ def execute(arguments: argparse.Namespace) -> dict:
         module = check(
             driver.cuModuleLoadData(np.frombuffer(cubin, dtype=np.uint8))
         )
-        function_name = (
-            b"trace_kernel"
-            if arguments.output_mode == "full"
-            else b"trace_aggregate_kernel"
+        modes = (
+            ("full", "aggregate")
+            if arguments.output_mode == "paired"
+            else (arguments.output_mode,)
         )
-        function = check(driver.cuModuleGetFunction(module, function_name))
+        functions = {
+            mode: check(
+                driver.cuModuleGetFunction(
+                    module,
+                    (
+                        b"trace_kernel"
+                        if mode == "full"
+                        else b"trace_aggregate_kernel"
+                    ),
+                )
+            )
+            for mode in modes
+        }
 
         host_cells = np.zeros(len(cells), dtype=CELL_DTYPE)
         for index, cell in enumerate(cells):
@@ -400,10 +412,10 @@ def execute(arguments: argparse.Namespace) -> dict:
         )
         peak_rays = max(batch.ray_count for batch in batches)
         peak_segments = max(batch.segment_count for batch in batches)
-        full_topology = arguments.output_mode == "full"
+        full_topology_available = "full" in modes
         host_segments = (
             np.empty(peak_segments, dtype=SEGMENT_DTYPE)
-            if full_topology
+            if full_topology_available
             else None
         )
         host_results = np.empty(peak_rays, dtype=RESULT_DTYPE)
@@ -418,7 +430,7 @@ def execute(arguments: argparse.Namespace) -> dict:
         device_transmission = allocate(transmission.nbytes)
         device_segments = (
             allocate(peak_segments * SEGMENT_DTYPE.itemsize)
-            if full_topology
+            if full_topology_available
             else None
         )
         device_results = allocate(peak_rays * RESULT_DTYPE.itemsize)
@@ -439,131 +451,158 @@ def execute(arguments: argparse.Namespace) -> dict:
         start_event = check(driver.cuEventCreate(0))
         end_event = check(driver.cuEventCreate(0))
 
-        h2d_samples: list[float] = []
-        kernel_samples: list[float] = []
-        d2h_samples: list[float] = []
-        total_samples: list[float] = []
-        verified_rays = 0
-        verified_segments = 0
-        parity_ms = 0.0
+        mode_states = {
+            mode: {
+                "h2d": [],
+                "kernel": [],
+                "d2h": [],
+                "submit_to_result": [],
+                "verified_rays": 0,
+                "verified_segments": 0,
+                "parity_ms": 0.0,
+            }
+            for mode in modes
+        }
+        execution_order: list[list[str]] = []
         total_passes = arguments.warmup + arguments.iterations
         for pass_index in range(total_passes):
-            pass_start = time.perf_counter()
-            pass_h2d = 0.0
-            pass_kernel = 0.0
-            pass_d2h = 0.0
-            pass_parity = 0.0
-            for batch_index, batch in enumerate(batches):
-                if prepared_host_batches is None:
-                    host_rays = prepare_host_batches(rays, [batch])[0]
-                else:
-                    host_rays = prepared_host_batches[batch_index]
+            ordered_modes = (
+                modes
+                if pass_index % 2 == 0
+                else tuple(reversed(modes))
+            )
+            execution_order.append(list(ordered_modes))
+            for mode in ordered_modes:
+                state = mode_states[mode]
+                mode_full_topology = mode == "full"
+                pass_start = time.perf_counter()
+                pass_h2d = 0.0
+                pass_kernel = 0.0
+                pass_d2h = 0.0
+                pass_parity = 0.0
+                for batch_index, batch in enumerate(batches):
+                    if prepared_host_batches is None:
+                        host_rays = prepare_host_batches(rays, [batch])[0]
+                    else:
+                        host_rays = prepared_host_batches[batch_index]
 
-                stage_start = time.perf_counter()
-                check(
-                    driver.cuMemcpyHtoD(
-                        device_rays,
-                        host_rays.ctypes.data,
-                        host_rays.nbytes,
-                    )
-                )
-                pass_h2d += (time.perf_counter() - stage_start) * 1000.0
-
-                cell_pointer = _device_pointer_argument(device_cells)
-                cell_count = _scalar_argument(len(cells))
-                ray_pointer = _device_pointer_argument(device_rays)
-                ray_count = _scalar_argument(batch.ray_count)
-                transmission_pointer = _device_pointer_argument(
-                    device_transmission
-                )
-                segment_pointer = _device_pointer_argument(
-                    device_segments if device_segments is not None else 0
-                )
-                result_pointer = _device_pointer_argument(device_results)
-                kernel_arguments = (
-                    cell_pointer,
-                    cell_count,
-                    ray_pointer,
-                    ray_count,
-                    transmission_pointer,
-                    segment_pointer,
-                    result_pointer,
-                )
-                kernel_params = np.array(
-                    [argument.ctypes.data for argument in kernel_arguments],
-                    dtype=np.uintp,
-                )
-                check(driver.cuEventRecord(start_event, 0))
-                check(
-                    driver.cuLaunchKernel(
-                        function,
-                        (batch.ray_count + 127) // 128,
-                        1,
-                        1,
-                        128,
-                        1,
-                        1,
-                        0,
-                        0,
-                        kernel_params,
-                        0,
-                    )
-                )
-                check(driver.cuEventRecord(end_event, 0))
-                check(driver.cuEventSynchronize(end_event))
-                pass_kernel += check(
-                    driver.cuEventElapsedTime(start_event, end_event)
-                )
-
-                stage_start = time.perf_counter()
-                if full_topology:
+                    stage_start = time.perf_counter()
                     check(
-                        driver.cuMemcpyDtoH(
-                            host_segments.ctypes.data,
-                            device_segments,
-                            batch.segment_count * SEGMENT_DTYPE.itemsize,
+                        driver.cuMemcpyHtoD(
+                            device_rays,
+                            host_rays.ctypes.data,
+                            host_rays.nbytes,
                         )
                     )
-                check(
-                    driver.cuMemcpyDtoH(
-                        host_results.ctypes.data,
-                        device_results,
-                        batch.ray_count * RESULT_DTYPE.itemsize,
-                    )
-                )
-                pass_d2h += (time.perf_counter() - stage_start) * 1000.0
-
-                if pass_index == 0:
-                    parity_start = time.perf_counter()
-                    verified_segments += _verify_batch(
-                        rays,
-                        cell_map,
-                        batch,
-                        host_rays,
-                        host_segments,
-                        host_results,
-                    )
-                    batch_parity_ms = (
-                        time.perf_counter() - parity_start
+                    pass_h2d += (
+                        time.perf_counter() - stage_start
                     ) * 1000.0
-                    pass_parity += batch_parity_ms
-                    parity_ms += batch_parity_ms
-                    verified_rays += batch.ray_count
-            if pass_index >= arguments.warmup:
-                h2d_samples.append(pass_h2d)
-                kernel_samples.append(pass_kernel)
-                d2h_samples.append(pass_d2h)
-                total_samples.append(
-                    (time.perf_counter() - pass_start) * 1000.0
-                    - pass_parity
-                )
+
+                    cell_pointer = _device_pointer_argument(device_cells)
+                    cell_count = _scalar_argument(len(cells))
+                    ray_pointer = _device_pointer_argument(device_rays)
+                    ray_count = _scalar_argument(batch.ray_count)
+                    transmission_pointer = _device_pointer_argument(
+                        device_transmission
+                    )
+                    segment_pointer = _device_pointer_argument(
+                        device_segments if mode_full_topology else 0
+                    )
+                    result_pointer = _device_pointer_argument(device_results)
+                    kernel_arguments = (
+                        cell_pointer,
+                        cell_count,
+                        ray_pointer,
+                        ray_count,
+                        transmission_pointer,
+                        segment_pointer,
+                        result_pointer,
+                    )
+                    kernel_params = np.array(
+                        [
+                            argument.ctypes.data
+                            for argument in kernel_arguments
+                        ],
+                        dtype=np.uintp,
+                    )
+                    check(driver.cuEventRecord(start_event, 0))
+                    check(
+                        driver.cuLaunchKernel(
+                            functions[mode],
+                            (batch.ray_count + 127) // 128,
+                            1,
+                            1,
+                            128,
+                            1,
+                            1,
+                            0,
+                            0,
+                            kernel_params,
+                            0,
+                        )
+                    )
+                    check(driver.cuEventRecord(end_event, 0))
+                    check(driver.cuEventSynchronize(end_event))
+                    pass_kernel += check(
+                        driver.cuEventElapsedTime(start_event, end_event)
+                    )
+
+                    stage_start = time.perf_counter()
+                    if mode_full_topology:
+                        check(
+                            driver.cuMemcpyDtoH(
+                                host_segments.ctypes.data,
+                                device_segments,
+                                batch.segment_count
+                                * SEGMENT_DTYPE.itemsize,
+                            )
+                        )
+                    check(
+                        driver.cuMemcpyDtoH(
+                            host_results.ctypes.data,
+                            device_results,
+                            batch.ray_count * RESULT_DTYPE.itemsize,
+                        )
+                    )
+                    pass_d2h += (
+                        time.perf_counter() - stage_start
+                    ) * 1000.0
+
+                    if pass_index == 0:
+                        parity_start = time.perf_counter()
+                        state["verified_segments"] += _verify_batch(
+                            rays,
+                            cell_map,
+                            batch,
+                            host_rays,
+                            (
+                                host_segments
+                                if mode_full_topology
+                                else None
+                            ),
+                            host_results,
+                        )
+                        batch_parity_ms = (
+                            time.perf_counter() - parity_start
+                        ) * 1000.0
+                        pass_parity += batch_parity_ms
+                        state["parity_ms"] += batch_parity_ms
+                        state["verified_rays"] += batch.ray_count
+                if pass_index >= arguments.warmup:
+                    state["h2d"].append(pass_h2d)
+                    state["kernel"].append(pass_kernel)
+                    state["d2h"].append(pass_d2h)
+                    state["submit_to_result"].append(
+                        (time.perf_counter() - pass_start) * 1000.0
+                        - pass_parity
+                    )
 
         nvrtc_major, nvrtc_minor = check(nvrtc.nvrtcVersion())
         driver_version = check(driver.cuDriverGetVersion())
-        return {
+        common_report = {
             "status": "valid",
             "backend": "cuda-driver-nvrtc",
-            "schema": 1,
+            "schema": 2 if arguments.output_mode == "paired" else 1,
             "cuda_executed": True,
             "nvrtc_compiled": True,
             "nvcc_compiled": False,
@@ -585,44 +624,83 @@ def execute(arguments: argparse.Namespace) -> dict:
             "batches": len(batches),
             "peak_batch_rays": peak_rays,
             "peak_batch_segments": peak_segments,
-            "peak_segment_bytes": (
-                peak_segments * SEGMENT_DTYPE.itemsize
-                if full_topology
-                else 0
-            ),
-            "segment_topology_verified": full_topology,
-            "aggregate_parity_verified": True,
-            "d2h_reserved_segment_bytes_per_pass": (
-                sum(ray[1] for ray in rays) * SEGMENT_DTYPE.itemsize
-                if full_topology
-                else 0
-            ),
             "d2h_result_bytes_per_pass": len(rays) * RESULT_DTYPE.itemsize,
             "warmup_passes": arguments.warmup,
             "measured_passes": arguments.iterations,
-            "verified_rays": verified_rays,
-            "verified_segments": verified_segments,
-            "parity_ms": parity_ms,
             "compile_ms": compile_ms,
-            "h2d_p50_ms": percentile(h2d_samples, 0.50),
-            "h2d_p95_ms": percentile(h2d_samples, 0.95),
-            "h2d_p99_ms": percentile(h2d_samples, 0.99),
-            "kernel_p50_ms": percentile(kernel_samples, 0.50),
-            "kernel_p95_ms": percentile(kernel_samples, 0.95),
-            "kernel_p99_ms": percentile(kernel_samples, 0.99),
-            "d2h_p50_ms": percentile(d2h_samples, 0.50),
-            "d2h_p95_ms": percentile(d2h_samples, 0.95),
-            "d2h_p99_ms": percentile(d2h_samples, 0.99),
-            "total_p50_ms": percentile(total_samples, 0.50),
-            "total_p95_ms": percentile(total_samples, 0.95),
-            "total_p99_ms": percentile(total_samples, 0.99),
-            "samples_ms": {
-                "h2d": h2d_samples,
-                "kernel": kernel_samples,
-                "d2h": d2h_samples,
-                "submit_to_result": total_samples,
-            },
         }
+
+        def mode_report(mode: str) -> dict:
+            state = mode_states[mode]
+            mode_full_topology = mode == "full"
+            return {
+                "output_mode": mode,
+                "peak_segment_bytes": (
+                    peak_segments * SEGMENT_DTYPE.itemsize
+                    if mode_full_topology
+                    else 0
+                ),
+                "segment_topology_verified": mode_full_topology,
+                "aggregate_parity_verified": True,
+                "d2h_reserved_segment_bytes_per_pass": (
+                    sum(ray[1] for ray in rays) * SEGMENT_DTYPE.itemsize
+                    if mode_full_topology
+                    else 0
+                ),
+                "verified_rays": state["verified_rays"],
+                "verified_segments": state["verified_segments"],
+                "parity_ms": state["parity_ms"],
+                "h2d_p50_ms": percentile(state["h2d"], 0.50),
+                "h2d_p95_ms": percentile(state["h2d"], 0.95),
+                "h2d_p99_ms": percentile(state["h2d"], 0.99),
+                "kernel_p50_ms": percentile(state["kernel"], 0.50),
+                "kernel_p95_ms": percentile(state["kernel"], 0.95),
+                "kernel_p99_ms": percentile(state["kernel"], 0.99),
+                "d2h_p50_ms": percentile(state["d2h"], 0.50),
+                "d2h_p95_ms": percentile(state["d2h"], 0.95),
+                "d2h_p99_ms": percentile(state["d2h"], 0.99),
+                "total_p50_ms": percentile(
+                    state["submit_to_result"],
+                    0.50,
+                ),
+                "total_p95_ms": percentile(
+                    state["submit_to_result"],
+                    0.95,
+                ),
+                "total_p99_ms": percentile(
+                    state["submit_to_result"],
+                    0.99,
+                ),
+                "samples_ms": {
+                    "h2d": state["h2d"],
+                    "kernel": state["kernel"],
+                    "d2h": state["d2h"],
+                    "submit_to_result": state["submit_to_result"],
+                },
+            }
+
+        if arguments.output_mode == "paired":
+            reports = {mode: mode_report(mode) for mode in modes}
+            return {
+                **common_report,
+                "paired_execution": True,
+                "shared_cuda_context": True,
+                "alternating_execution_order": execution_order,
+                "segment_topology_verified": reports["full"][
+                    "segment_topology_verified"
+                ],
+                "aggregate_parity_verified": reports["aggregate"][
+                    "aggregate_parity_verified"
+                ],
+                "verified_rays": min(
+                    report["verified_rays"] for report in reports.values()
+                ),
+                "verified_segments": min(
+                    report["verified_segments"] for report in reports.values()
+                ),
+                "mode_reports": reports,
+            }
+        return {**common_report, **mode_report(modes[0])}
     finally:
         if end_event is not None:
             check(driver.cuEventDestroy(end_event))
@@ -649,7 +727,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--ray-limit", type=int)
     parser.add_argument(
         "--output-mode",
-        choices=("full", "aggregate"),
+        choices=("full", "aggregate", "paired"),
         default="full",
     )
     parser.add_argument(

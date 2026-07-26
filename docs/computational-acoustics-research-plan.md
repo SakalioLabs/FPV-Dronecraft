@@ -3072,3 +3072,19 @@ counts/flags/first-hit/三频带通过。full/aggregate submit P95 分别为
 在同一 CUDA context 交替运行 `128..8192` paired trials，并在同一时间窗重跑
 compiled CPU prefixes。详见
 [`acoustics/decision-D121z-bounded-driver-preflight-and-host-prepared-device-smoke.md`](acoustics/decision-D121z-bounded-driver-preflight-and-host-prepared-device-smoke.md)。
+
+D121aa 已完成同 CUDA context 的正式 paired crossover。runner 在一个 context
+内同时加载 full/aggregate entry points，复用 resident inputs、预展平 rays、
+events 与 allocations，并逐 pass 交替两种 kernel 顺序。每个
+`128/256/512/1024/2048/4096/8192` prefix 执行 3×(5 warmup + 30 measured)，
+CPU/GPU 也按 trial 交替相邻运行；全部 full topology 与 aggregate 数值 parity
+通过，全部 21 组前后 GPU 快照有效。
+
+按“P95 胜 CPU + P99 胜 CPU + 90 个 submit samples 对 50 ms 零 miss，并连续三档”
+的预设规则，aggregate gate 为 `256 rays`，full-debug gate 为 `512 rays`。8192
+档 CPU/full/aggregate P95 分别为 `91.440/24.444/4.521 ms`。实验后段共享 GPU
+显存约 7.0 GiB、利用率最高 90%，所以这是保守的同时间窗 research gate，不是独占
+GPU 或 Minecraft native bridge 结果。下一步 D121ab 必须把 Java direct-buffer
+pack、native submit、resident snapshot update 与 result unpack 全部计入
+256→2048 boundary microbenchmark；当前 direct rays 仍使用 Java CPU。详见
+[`acoustics/decision-D121aa-same-context-paired-cuda-dda-crossover.md`](acoustics/decision-D121aa-same-context-paired-cuda-dda-crossover.md)。

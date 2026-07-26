@@ -17,6 +17,12 @@ linked into Fabric, Minecraft, or the audio hot path.
 - `dda_nvrtc_kernel.cu` plus `docs/scripts/run_cuda_dda_nvrtc.py`: an
   independent device-only NVRTC/Driver API path for hosts that have a
   compatible NVIDIA driver but no full CUDA Toolkit or `nvcc`.
+- `--output-mode paired --host-preparation once` loads both full-topology and
+  aggregate kernels into one CUDA context, reuses resident inputs and device
+  allocations, and alternates their execution order on every pass. Use
+  `docs/scripts/benchmark_cuda_dda_nvrtc_paired_matrix.py` for the adjacent
+  compiled-CPU/full/aggregate prefix gate; its timing is still outside the
+  Minecraft native boundary.
 
 Run the repository fixture gate:
 

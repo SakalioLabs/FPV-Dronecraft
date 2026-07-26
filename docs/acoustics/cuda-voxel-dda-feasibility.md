@@ -595,6 +595,18 @@ topology。该 smoke 关闭 implementation gate，不构成小批量性能结论
 下一步是把两种 kernel 放进同一 CUDA context，按 trial 交替执行
 `128..8192`，并在相同桌面时间窗重跑 compiled CPU prefixes；在此之前仍不得冻结
 最小 CUDA offload batch。
+
+D121aa 已把独立进程 A/B 替换为真正的同 context paired runner。full 与
+aggregate 复用同一 module、resident inputs、预展平 rays、events 与 allocations，
+并逐 pass 交替顺序。对 `128..8192` 的 3×(5+30) 正式矩阵中，full topology 与
+aggregate 数值 parity 全部通过，CPU/GPU 也在相同时间窗按 trial 交替相邻运行。
+
+按连续三档的 P95、P99 与 50 ms 零 miss gate，aggregate 最小研究 batch 为
+`256 rays`，full-debug 为 `512 rays`。这只关闭 CUDA executor crossover，不关闭
+Java/native 边界：实验后段共享 GPU 利用率最高 90%，且尚未计入 direct buffer
+packing、JNI/JNA/Driver API 调用、resident cell updates 或 Minecraft scheduling。
+详见
+[`decision-D121aa-same-context-paired-cuda-dda-crossover.md`](decision-D121aa-same-context-paired-cuda-dda-crossover.md)。
 旧
 `dda-parity-100k-v1.bin` 的 magic 不属于当前 production bundle，仍不能作为
 CUDA executor 证据。FP32/SoA 性能 kernel 只能在 FP64 correctness gate 关闭后
