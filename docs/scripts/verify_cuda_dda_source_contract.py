@@ -115,6 +115,24 @@ REQUIRED_NVRTC_MATRIX_TOKENS = {
     "minecraft_boundary": "not a Minecraft native bridge result",
 }
 
+REQUIRED_CPU_PREFIX_TOKENS = {
+    "ray_limit_argument": 'argument == "--ray-limit"',
+    "positive_limit": "positive_uint64(",
+    "prefix_trace": "trace_batch(summary, ray_count)",
+    "bundle_ray_identity": '",\\"bundle_rays\\":"',
+    "executed_ray_identity": '",\\"rays\\":" << ray_count',
+    "oversize_rejection": "--ray-limit exceeds production bundle ray count",
+}
+
+REQUIRED_CPU_MATRIX_TOKENS = {
+    "repeat_validation": "def validate_group(",
+    "gpu_hash_binding": '"gpu_matrix_sha256"',
+    "same_ray_keys": "set(gpu_entries) != set(limits)",
+    "crossover_ratio": '"cpu_p95_to_gpu_submit_p95_ratio"',
+    "raw_runs": '"runs": runs',
+    "screening_boundary": "their crossover ratios are screening evidence",
+}
+
 
 def verify_tokens(path: Path, tokens: dict[str, str]) -> list[str]:
     text = path.read_text(encoding="utf-8")
@@ -153,6 +171,16 @@ def main() -> int:
         type=Path,
         default=Path("docs/scripts/benchmark_cuda_dda_nvrtc_scaling_matrix.py"),
     )
+    parser.add_argument(
+        "--cpu-source",
+        type=Path,
+        default=Path("native/cuda-dda/src/dda_cpu_reference.cpp"),
+    )
+    parser.add_argument(
+        "--cpu-matrix",
+        type=Path,
+        default=Path("docs/scripts/benchmark_cuda_dda_cpu_prefix_matrix.py"),
+    )
     arguments = parser.parse_args()
 
     missing_cuda = verify_tokens(arguments.cuda_source, REQUIRED_CUDA_TOKENS)
@@ -173,6 +201,14 @@ def main() -> int:
         arguments.nvrtc_matrix,
         REQUIRED_NVRTC_MATRIX_TOKENS,
     )
+    missing_cpu_source = verify_tokens(
+        arguments.cpu_source,
+        REQUIRED_CPU_PREFIX_TOKENS,
+    )
+    missing_cpu_matrix = verify_tokens(
+        arguments.cpu_matrix,
+        REQUIRED_CPU_MATRIX_TOKENS,
+    )
     valid = not (
         missing_cuda
         or missing_cmake
@@ -180,6 +216,8 @@ def main() -> int:
         or missing_nvrtc_runner
         or missing_nvrtc_benchmark
         or missing_nvrtc_matrix
+        or missing_cpu_source
+        or missing_cpu_matrix
     )
     report = {
         "status": "valid" if valid else "invalid",
@@ -190,6 +228,8 @@ def main() -> int:
         "nvrtc_runner": str(arguments.nvrtc_runner),
         "nvrtc_benchmark": str(arguments.nvrtc_benchmark),
         "nvrtc_matrix": str(arguments.nvrtc_matrix),
+        "cpu_source": str(arguments.cpu_source),
+        "cpu_matrix": str(arguments.cpu_matrix),
         "required_cuda_contracts": len(REQUIRED_CUDA_TOKENS),
         "required_cmake_contracts": len(REQUIRED_CMAKE_TOKENS),
         "required_nvrtc_kernel_contracts": len(REQUIRED_NVRTC_KERNEL_TOKENS),
@@ -198,12 +238,16 @@ def main() -> int:
             REQUIRED_NVRTC_BENCHMARK_TOKENS
         ),
         "required_nvrtc_matrix_contracts": len(REQUIRED_NVRTC_MATRIX_TOKENS),
+        "required_cpu_prefix_contracts": len(REQUIRED_CPU_PREFIX_TOKENS),
+        "required_cpu_matrix_contracts": len(REQUIRED_CPU_MATRIX_TOKENS),
         "missing_cuda_contracts": missing_cuda,
         "missing_cmake_contracts": missing_cmake,
         "missing_nvrtc_kernel_contracts": missing_nvrtc_kernel,
         "missing_nvrtc_runner_contracts": missing_nvrtc_runner,
         "missing_nvrtc_benchmark_contracts": missing_nvrtc_benchmark,
         "missing_nvrtc_matrix_contracts": missing_nvrtc_matrix,
+        "missing_cpu_prefix_contracts": missing_cpu_source,
+        "missing_cpu_matrix_contracts": missing_cpu_matrix,
         "cuda_compiled": False,
         "cuda_executed": False,
         "claim_boundary": (

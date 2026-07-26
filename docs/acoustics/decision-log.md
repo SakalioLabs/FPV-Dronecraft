@@ -2005,3 +2005,19 @@
 - 决策：接受传输瓶颈已删除；拒绝端到端加速 claim 与同步 hot-path 接入。
 - 完整说明：
   [`decision-D121w-cuda-dda-aggregate-output-ablation.md`](decision-D121w-cuda-dda-aggregate-output-ablation.md)。
+
+## D121x — 8k→100k CPU/GPU prefix crossover 筛查通过
+
+- 状态：compiled C++20 CPU 三轮五档矩阵通过；`>=8192 rays` 未见 crossover
+  （2026-07-27）。
+- CPU P95 median：8k/16k/32k/65k/100k 为
+  `64.074/133.308/268.599/532.197/813.781 ms`。
+- CPU P95 throughput：约 `121,996–127,852 rays/s`，区间内近似线性。
+- GPU full-topology submit P95：`28.878/57.688/110.730/243.103/373.223 ms`。
+- 筛查比值：CPU/GPU P95 `2.219/2.311/2.426/2.189/2.180×`；交叉点若存在，
+  低于 8192 rays。
+- 环境边界：新 100k CPU P95 比 D121t 低约 32.5%，证明共享桌面绝对值不稳定；
+  非 full GPU prefix 也只是单进程诊断，ratio 不是 release threshold。
+- 产品决策：当前几十条 direct rays/update 继续使用 Java CPU DDA。
+- 完整说明：
+  [`decision-D121x-cpu-gpu-dda-prefix-crossover.md`](decision-D121x-cpu-gpu-dda-prefix-crossover.md)。

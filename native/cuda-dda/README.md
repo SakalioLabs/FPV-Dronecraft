@@ -71,6 +71,17 @@ the segment buffer. It verifies counts, flags, first material, and three-band
 results against the CPU oracle while explicitly reporting
 `segment_topology_verified=false`; full mode remains the topology gate.
 
+Run the compiled CPU prefix matrix bound to the GPU scaling report:
+
+```powershell
+.\gradlew.bat --no-daemon benchmarkCudaDdaCpuPrefixMatrix
+```
+
+The CPU executable accepts `--ray-limit N`, rejects limits above the bundle
+ray count, and reports both `bundle_rays` and executed `rays`. The matrix uses
+the same 8,192/16,384/32,768/65,536/100,008 keys as the GPU report and retains
+three repeats of every prefix.
+
 With a CUDA compiler and device available, the same command also builds and
 runs `mcfpv_dda_cuda_java_fixture`. The executable accepts:
 
@@ -133,4 +144,6 @@ for the first real RTX 3060 device parity evidence, and
 [`decision-D121v-rtx3060-cuda-dda-production-corpus.md`](../../docs/acoustics/decision-D121v-rtx3060-cuda-dda-production-corpus.md)
 for the full-corpus result and current synchronous-hot-path rejection, and
 [`decision-D121w-cuda-dda-aggregate-output-ablation.md`](../../docs/acoustics/decision-D121w-cuda-dda-aggregate-output-ablation.md)
-for the output-transfer ablation and its inconclusive end-to-end result.
+for the output-transfer ablation and its inconclusive end-to-end result, and
+[`decision-D121x-cpu-gpu-dda-prefix-crossover.md`](../../docs/acoustics/decision-D121x-cpu-gpu-dda-prefix-crossover.md)
+for the first aligned CPU/GPU prefix screen.

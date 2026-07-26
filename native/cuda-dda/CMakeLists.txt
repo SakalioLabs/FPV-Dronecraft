@@ -108,6 +108,34 @@ if(BUILD_TESTING)
 				"${MCFPV_DDA_FIXTURE}"
 		)
 		add_test(
+			NAME mcfpv_dda_cpu_reference_java_fixture_prefix
+			COMMAND
+				mcfpv_dda_cpu_reference
+				--ray-limit 2
+				--warmup 1
+				--iterations 2
+				$<$<BOOL:${MCFPV_DDA_EXPECTED_RESULTS}>:--expected-results>
+				$<$<BOOL:${MCFPV_DDA_EXPECTED_RESULTS}>:${MCFPV_DDA_EXPECTED_RESULTS}>
+				"${MCFPV_DDA_FIXTURE}"
+		)
+		set_tests_properties(
+			mcfpv_dda_cpu_reference_java_fixture_prefix
+			PROPERTIES PASS_REGULAR_EXPRESSION "\"rays\":2"
+		)
+		add_test(
+			NAME mcfpv_dda_cpu_reference_java_fixture_prefix_reject
+			COMMAND
+				mcfpv_dda_cpu_reference
+				--ray-limit 4
+				--warmup 1
+				--iterations 2
+				"${MCFPV_DDA_FIXTURE}"
+		)
+		set_tests_properties(
+			mcfpv_dda_cpu_reference_java_fixture_prefix_reject
+			PROPERTIES WILL_FAIL TRUE
+		)
+		add_test(
 			NAME mcfpv_dda_batch_plan_java_fixture
 			COMMAND
 				mcfpv_dda_batch_plan

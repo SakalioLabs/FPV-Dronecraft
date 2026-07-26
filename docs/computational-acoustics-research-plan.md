@@ -3031,3 +3031,18 @@ P95 median 为 `35.086 ms`。但三轮 kernel P95 有 `130.100 ms` 离群，shar
 host/device buffers 中交替 full/aggregate paired trials，并补 compiled CPU
 aggregate prefix matrix。详见
 [`acoustics/decision-D121w-cuda-dda-aggregate-output-ablation.md`](acoustics/decision-D121w-cuda-dda-aggregate-output-ablation.md)。
+
+D121x 已把 compiled C++20 CPU oracle 与 D121v 的五个确定性 prefixes 对齐。
+每档执行 3×(5 warmup + 30 measured)，CPU P95 median 在
+8k/16k/32k/65k/100k 分别为
+`64.074/133.308/268.599/532.197/813.781 ms`，吞吐约
+`121,996–127,852 rays/s`。对应 GPU full-topology submit P95 的筛查比值为
+`2.219/2.311/2.426/2.189/2.180×`，所以 `>=8192 rays` 全部处于 GPU 优势区，
+crossover 只能在更小批量。
+
+但新的 100k CPU P95 比 D121t 的 `1206.2 ms` 快约 32.5%，且小于 100k 的 GPU
+行是单进程诊断；这再次否定用非同时桌面测量冻结 release threshold。D121y 必须在
+GPU driver 恢复、无外部 compute workload 时测试 `128..8192`，并在同 context
+内交替 CPU/full/aggregate、预展平 host rays。当前产品几十条 direct rays/update
+仍使用 Java CPU DDA。详见
+[`acoustics/decision-D121x-cpu-gpu-dda-prefix-crossover.md`](acoustics/decision-D121x-cpu-gpu-dda-prefix-crossover.md)。

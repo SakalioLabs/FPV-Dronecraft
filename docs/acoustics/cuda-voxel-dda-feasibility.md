@@ -570,8 +570,14 @@ material 与三频带一致，同时把 segment buffer 和 799 MB reserved-segme
 三轮也未稳定改善。因此只关闭输出传输风险，不晋升端到端性能。详见
 [`decision-D121w-cuda-dda-aggregate-output-ablation.md`](decision-D121w-cuda-dda-aggregate-output-ablation.md)。
 
-下一步必须做同 context、预展平 buffer 的 paired full/aggregate A/B，并补相同
-prefix 的 CPU aggregate crossover。
+D121x 已补相同 8k→100k prefixes 的 compiled CPU full-topology baseline。
+CPU P95 median 为 `64.074/133.308/268.599/532.197/813.781 ms`，GPU submit
+筛查比值在全部五档为 `2.18×–2.43×`，因此 crossover 低于 8192 rays、尚未定位。
+新 100k CPU 结果比 D121t 快约 32.5%，强调必须 paired。详见
+[`decision-D121x-cpu-gpu-dda-prefix-crossover.md`](decision-D121x-cpu-gpu-dda-prefix-crossover.md)。
+
+下一步必须做 `128..8192` 小批量筛查，以及同 context、预展平 buffer 的 paired
+full/aggregate A/B。
 旧
 `dda-parity-100k-v1.bin` 的 magic 不属于当前 production bundle，仍不能作为
 CUDA executor 证据。FP32/SoA 性能 kernel 只能在 FP64 correctness gate 关闭后

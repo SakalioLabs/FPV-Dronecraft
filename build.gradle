@@ -1361,6 +1361,9 @@ def cudaDdaNvrtcScalingReport = layout.projectDirectory.file(
 def cudaDdaNvrtcAggregateReport = layout.projectDirectory.file(
 	"build/research/cuda-dda-nvrtc-aggregate-corpus-benchmark-v1.json"
 ).asFile
+def cudaDdaCpuPrefixReport = layout.projectDirectory.file(
+	"build/research/cuda-dda-cpu-prefix-matrix-v1.json"
+).asFile
 
 tasks.register("verifyCudaDdaSourceContract", Exec) {
 	group = "verification"
@@ -1547,6 +1550,45 @@ tasks.register("benchmarkCudaDdaNvrtcAggregateCorpus", Exec) {
 		project.findProperty("iterations") ?: "30",
 		"--cpu-reference-p95-ms",
 		project.findProperty("cpuReferenceP95Ms") ?: "1206.2"
+	)
+}
+
+tasks.register("benchmarkCudaDdaCpuPrefixMatrix", Exec) {
+	group = "verification"
+	description = "Benchmarks CPU DDA on the 8k-to-100k CUDA prefixes."
+	dependsOn(
+		"verifyCudaDdaProductionCorpus",
+		"buildCudaDdaResearch"
+	)
+	workingDir = rootDir
+	doFirst {
+		if (!cudaDdaNvrtcScalingReport.isFile()) {
+			throw new GradleException(
+				"Run benchmarkCudaDdaNvrtcScalingMatrix first"
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/benchmark_cuda_dda_cpu_prefix_matrix.py",
+		"--executor",
+		cudaDdaCpuReferenceExecutable.absolutePath,
+		"--bundle",
+		ddaProductionCorpus.absolutePath,
+		"--expected-results",
+		ddaProductionCorpusExpected.absolutePath,
+		"--gpu-matrix",
+		cudaDdaNvrtcScalingReport.absolutePath,
+		"--output-json",
+		cudaDdaCpuPrefixReport.absolutePath,
+		"--repeats",
+		project.findProperty("repeats") ?: "3",
+		"--warmup",
+		project.findProperty("warmup") ?: "5",
+		"--iterations",
+		project.findProperty("iterations") ?: "30",
+		"--cpu-label",
+		System.getenv("PROCESSOR_IDENTIFIER") ?: "unspecified"
 	)
 }
 
