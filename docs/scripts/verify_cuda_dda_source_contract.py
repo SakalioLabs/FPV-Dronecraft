@@ -62,6 +62,8 @@ REQUIRED_NVRTC_KERNEL_TOKENS = {
     "first_material_output": "result.first_material = packed",
     "three_band_accumulation": "result.loss[band] +=",
     "truncation_flag": "result.flags = TRUNCATED_FLAG",
+    "compile_time_output_specialization": "if constexpr (WRITE_SEGMENTS)",
+    "aggregate_entry_point": '__global__ void trace_aggregate_kernel',
 }
 
 REQUIRED_NVRTC_RUNNER_TOKENS = {
@@ -83,6 +85,10 @@ REQUIRED_NVRTC_RUNNER_TOKENS = {
     "raw_stage_samples": '"samples_ms": {',
     "p99_timing": '"total_p99_ms":',
     "parity_excluded_from_timing": "- pass_parity",
+    "aggregate_mode": 'choices=("full", "aggregate")',
+    "aggregate_parity": '"aggregate_parity_verified": True',
+    "topology_claim_boundary": '"segment_topology_verified": full_topology',
+    "aggregate_zero_segment_d2h": "if full_topology\n                else 0",
 }
 
 REQUIRED_NVRTC_BENCHMARK_TOKENS = {
@@ -94,7 +100,8 @@ REQUIRED_NVRTC_BENCHMARK_TOKENS = {
     "cpu_reference_comparison": '"cpu_p95_to_gpu_submit_p95_ratio"',
     "raw_runs_retained": '"runs": runs',
     "nvcc_boundary": '"nvcc_compiled": False',
-    "minecraft_boundary": "does not establish product hot-path crossover",
+    "minecraft_boundary": "not a Minecraft native bridge measurement",
+    "aggregate_cpu_boundary": '"cpu_comparison_workload_equivalent"',
 }
 
 REQUIRED_NVRTC_MATRIX_TOKENS = {

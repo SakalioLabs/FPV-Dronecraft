@@ -1987,3 +1987,21 @@
   compacted、异步大批 early-reflection/shadow-mode 候选。
 - 完整说明：
   [`decision-D121v-rtx3060-cuda-dda-production-corpus.md`](decision-D121v-rtx3060-cuda-dda-production-corpus.md)。
+
+## D121w — CUDA DDA aggregate-only 输出消融部分通过
+
+- 状态：aggregate correctness 与 D2H 消融通过；端到端 gate 不确定
+  （2026-07-27）。
+- 实现：full/aggregate 为同一 templated FP64 traversal 的两个编译期 specialization；
+  aggregate cubin 不含 segment store。
+- 正确性：三轮各验证 `100,008 rays / 14,172,009 implicit segments / 24 batches`；
+  aggregate flags、counts、first material 与三频带全部一致。
+- 内存/传输：peak segment buffer `33,551,904→0 bytes`；每 pass reserved segment
+  D2H `799,190,304→0 bytes`；只回读 7,200,576-byte results。
+- D2H P95 median：`155.607→5.847 ms`，减少约 96.2%、约 26.6×。
+- kernel P95 median：`44.194→35.086 ms`，但三轮有 `130.100 ms` 离群。
+- submit P95：`283.902/449.393/469.385 ms`，未稳定优于 full；共享桌面 GPU
+  显存占用升至约 9.3 GiB，非 paired 环境不允许性能晋升。
+- 决策：接受传输瓶颈已删除；拒绝端到端加速 claim 与同步 hot-path 接入。
+- 完整说明：
+  [`decision-D121w-cuda-dda-aggregate-output-ablation.md`](decision-D121w-cuda-dda-aggregate-output-ablation.md)。

@@ -60,6 +60,17 @@ prefix scaling matrix with:
 The matrix uses deterministic 8,192/16,384/32,768/65,536-ray prefixes and
 binds the 100,008-ray row to the formal repeat report.
 
+Run the compile-time aggregate-only output ablation:
+
+```powershell
+.\gradlew.bat --no-daemon benchmarkCudaDdaNvrtcAggregateCorpus
+```
+
+Aggregate mode executes the same FP64 traversal but does not allocate or write
+the segment buffer. It verifies counts, flags, first material, and three-band
+results against the CPU oracle while explicitly reporting
+`segment_topology_verified=false`; full mode remains the topology gate.
+
 With a CUDA compiler and device available, the same command also builds and
 runs `mcfpv_dda_cuda_java_fixture`. The executable accepts:
 
@@ -120,4 +131,6 @@ for the production corpus and bounded multi-batch implementation, and
 [`decision-D121u-nvrtc-cuda-dda-fixture-parity.md`](../../docs/acoustics/decision-D121u-nvrtc-cuda-dda-fixture-parity.md)
 for the first real RTX 3060 device parity evidence, and
 [`decision-D121v-rtx3060-cuda-dda-production-corpus.md`](../../docs/acoustics/decision-D121v-rtx3060-cuda-dda-production-corpus.md)
-for the full-corpus result and current synchronous-hot-path rejection.
+for the full-corpus result and current synchronous-hot-path rejection, and
+[`decision-D121w-cuda-dda-aggregate-output-ablation.md`](../../docs/acoustics/decision-D121w-cuda-dda-aggregate-output-ablation.md)
+for the output-transfer ablation and its inconclusive end-to-end result.

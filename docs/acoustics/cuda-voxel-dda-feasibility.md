@@ -563,7 +563,15 @@ tick 的约 7.46 倍。8k prefix 已基本达到端到端吞吐平台，主要�
 799 MB reserved segment records，而不是缺少更多 rays。详见
 [`decision-D121v-rtx3060-cuda-dda-production-corpus.md`](decision-D121v-rtx3060-cuda-dda-production-corpus.md)。
 
-下一步必须实现 aggregate-only/compacted output 与相同 prefix 的 CPU crossover。
+D121w 已实现编译期 aggregate-only specialization。它保持 counts、flags、first
+material 与三频带一致，同时把 segment buffer 和 799 MB reserved-segment D2H
+归零；D2H P95 median 从 `155.607` 降至 `5.847 ms`。但共享 WDDM 环境出现
+约 9.3 GiB 显存占用和一个 `130.100 ms` kernel P95 离群，Python submit P95
+三轮也未稳定改善。因此只关闭输出传输风险，不晋升端到端性能。详见
+[`decision-D121w-cuda-dda-aggregate-output-ablation.md`](decision-D121w-cuda-dda-aggregate-output-ablation.md)。
+
+下一步必须做同 context、预展平 buffer 的 paired full/aggregate A/B，并补相同
+prefix 的 CPU aggregate crossover。
 旧
 `dda-parity-100k-v1.bin` 的 magic 不属于当前 production bundle，仍不能作为
 CUDA executor 证据。FP32/SoA 性能 kernel 只能在 FP64 correctness gate 关闭后

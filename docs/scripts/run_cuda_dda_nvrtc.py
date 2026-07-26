@@ -180,7 +180,7 @@ def _verify_batch(
     cell_map: dict[int, tuple[int, float]],
     batch: Batch,
     ray_array: np.ndarray,
-    segments: np.ndarray,
+    segments: np.ndarray | None,
     results: np.ndarray,
 ) -> int:
     verified_segments = 0
@@ -226,29 +226,32 @@ def _verify_batch(
             atol=1.0e-5,
         ):
             raise RuntimeError(f"CUDA band mismatch for ray {ray_index}")
-        base = int(ray_array[offset]["segment_offset"])
-        for segment_index, expected_segment in enumerate(expected["segments"]):
-            actual_segment = segments[base + segment_index]
-            topology = (
-                int(actual_segment["packed"]),
-                int(actual_segment["material_id"]),
-                float(actual_segment["fill_fraction"]),
-            )
-            expected_topology = (
-                expected_segment[0],
-                expected_segment[2],
-                expected_segment[3],
-            )
-            if topology != expected_topology or not math.isclose(
-                float(actual_segment["length"]),
-                expected_segment[1],
-                rel_tol=1.0e-12,
-                abs_tol=1.0e-12,
+        if segments is not None:
+            base = int(ray_array[offset]["segment_offset"])
+            for segment_index, expected_segment in enumerate(
+                expected["segments"]
             ):
-                raise RuntimeError(
-                    f"CUDA segment mismatch for ray {ray_index}, "
-                    f"segment {segment_index}"
+                actual_segment = segments[base + segment_index]
+                topology = (
+                    int(actual_segment["packed"]),
+                    int(actual_segment["material_id"]),
+                    float(actual_segment["fill_fraction"]),
                 )
+                expected_topology = (
+                    expected_segment[0],
+                    expected_segment[2],
+                    expected_segment[3],
+                )
+                if topology != expected_topology or not math.isclose(
+                    float(actual_segment["length"]),
+                    expected_segment[1],
+                    rel_tol=1.0e-12,
+                    abs_tol=1.0e-12,
+                ):
+                    raise RuntimeError(
+                        f"CUDA segment mismatch for ray {ray_index}, "
+                        f"segment {segment_index}"
+                    )
         verified_segments += len(expected["segments"])
     return verified_segments
 
@@ -310,7 +313,12 @@ def execute(arguments: argparse.Namespace) -> dict:
         module = check(
             driver.cuModuleLoadData(np.frombuffer(cubin, dtype=np.uint8))
         )
-        function = check(driver.cuModuleGetFunction(module, b"trace_kernel"))
+        function_name = (
+            b"trace_kernel"
+            if arguments.output_mode == "full"
+            else b"trace_aggregate_kernel"
+        )
+        function = check(driver.cuModuleGetFunction(module, function_name))
 
         host_cells = np.zeros(len(cells), dtype=CELL_DTYPE)
         for index, cell in enumerate(cells):
@@ -327,7 +335,12 @@ def execute(arguments: argparse.Namespace) -> dict:
         )
         peak_rays = max(batch.ray_count for batch in batches)
         peak_segments = max(batch.segment_count for batch in batches)
-        host_segments = np.empty(peak_segments, dtype=SEGMENT_DTYPE)
+        full_topology = arguments.output_mode == "full"
+        host_segments = (
+            np.empty(peak_segments, dtype=SEGMENT_DTYPE)
+            if full_topology
+            else None
+        )
         host_results = np.empty(peak_rays, dtype=RESULT_DTYPE)
 
         def allocate(byte_count: int):
@@ -338,7 +351,11 @@ def execute(arguments: argparse.Namespace) -> dict:
         device_cells = allocate(host_cells.nbytes)
         device_rays = allocate(peak_rays * RAY_DTYPE.itemsize)
         device_transmission = allocate(transmission.nbytes)
-        device_segments = allocate(peak_segments * SEGMENT_DTYPE.itemsize)
+        device_segments = (
+            allocate(peak_segments * SEGMENT_DTYPE.itemsize)
+            if full_topology
+            else None
+        )
         device_results = allocate(peak_rays * RESULT_DTYPE.itemsize)
         check(
             driver.cuMemcpyHtoD(
@@ -399,7 +416,9 @@ def execute(arguments: argparse.Namespace) -> dict:
                 transmission_pointer = _device_pointer_argument(
                     device_transmission
                 )
-                segment_pointer = _device_pointer_argument(device_segments)
+                segment_pointer = _device_pointer_argument(
+                    device_segments if device_segments is not None else 0
+                )
                 result_pointer = _device_pointer_argument(device_results)
                 kernel_arguments = (
                     cell_pointer,
@@ -437,13 +456,14 @@ def execute(arguments: argparse.Namespace) -> dict:
                 )
 
                 stage_start = time.perf_counter()
-                check(
-                    driver.cuMemcpyDtoH(
-                        host_segments.ctypes.data,
-                        device_segments,
-                        batch.segment_count * SEGMENT_DTYPE.itemsize,
+                if full_topology:
+                    check(
+                        driver.cuMemcpyDtoH(
+                            host_segments.ctypes.data,
+                            device_segments,
+                            batch.segment_count * SEGMENT_DTYPE.itemsize,
+                        )
                     )
-                )
                 check(
                     driver.cuMemcpyDtoH(
                         host_results.ctypes.data,
@@ -490,6 +510,7 @@ def execute(arguments: argparse.Namespace) -> dict:
             "device": device_name,
             "compute_capability": f"{major}.{minor}",
             "architecture": architecture,
+            "output_mode": arguments.output_mode,
             "driver_version": driver_version,
             "nvrtc_version": f"{nvrtc_major}.{nvrtc_minor}",
             "bundle_sha256": bundle["file_sha256"],
@@ -500,7 +521,19 @@ def execute(arguments: argparse.Namespace) -> dict:
             "batches": len(batches),
             "peak_batch_rays": peak_rays,
             "peak_batch_segments": peak_segments,
-            "peak_segment_bytes": peak_segments * SEGMENT_DTYPE.itemsize,
+            "peak_segment_bytes": (
+                peak_segments * SEGMENT_DTYPE.itemsize
+                if full_topology
+                else 0
+            ),
+            "segment_topology_verified": full_topology,
+            "aggregate_parity_verified": True,
+            "d2h_reserved_segment_bytes_per_pass": (
+                sum(ray[1] for ray in rays) * SEGMENT_DTYPE.itemsize
+                if full_topology
+                else 0
+            ),
+            "d2h_result_bytes_per_pass": len(rays) * RESULT_DTYPE.itemsize,
             "warmup_passes": arguments.warmup,
             "measured_passes": arguments.iterations,
             "verified_rays": verified_rays,
@@ -549,6 +582,11 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument("--device", type=int, default=0)
     parser.add_argument("--ray-limit", type=int)
+    parser.add_argument(
+        "--output-mode",
+        choices=("full", "aggregate"),
+        default="full",
+    )
     parser.add_argument("--warmup", type=int, default=2)
     parser.add_argument("--iterations", type=int, default=10)
     parser.add_argument("--maximum-rays-per-batch", type=int, default=8192)

@@ -3015,3 +3015,19 @@ correctness P95 median `1206.2 ms`，同类研究 workload 的 median 比值为
 output、pinned/async copies、resident cell deltas；只有这些通过后才讨论 native
 bridge 与 shadow mode。当前产品仍使用 Java CPU DDA。详见
 [`acoustics/decision-D121v-rtx3060-cuda-dda-production-corpus.md`](acoustics/decision-D121v-rtx3060-cuda-dda-production-corpus.md)。
+
+D121w 已把 full-topology/debug 输出与产品所需 aggregate 输出拆成同一 templated
+FP64 traversal 的两个编译期 CUDA entry points。aggregate specialization 不分配
+segment buffer，不执行 segment store，每 pass reserved-segment D2H 从
+`799,190,304` 降为 `0 bytes`，只回读 `7,200,576 bytes` results。三轮各自仍由
+CPU oracle 重算 `100,008 rays / 14,172,009 implicit segments`，counts、flags、
+first material 与三频带全部一致；逐段 topology claim 明确只属于 D121v full mode。
+
+D2H P95 median 从 `155.607` 降到 `5.847 ms`，减少约 96.2%、约 26.6×；kernel
+P95 median 为 `35.086 ms`。但三轮 kernel P95 有 `130.100 ms` 离群，shared WDDM
+桌面显存占用同时由先前约 5.45 GiB 升至约 9.3 GiB；Python submit P95 三轮为
+`469.385/449.393/283.902 ms`，未稳定改善。因此本轮只接受 D2H 消融与 aggregate
+正确性，不接受端到端加速或 CPU crossover。D121x 必须在同一 context、预展平
+host/device buffers 中交替 full/aggregate paired trials，并补 compiled CPU
+aggregate prefix matrix。详见
+[`acoustics/decision-D121w-cuda-dda-aggregate-output-ablation.md`](acoustics/decision-D121w-cuda-dda-aggregate-output-ablation.md)。

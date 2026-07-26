@@ -85,6 +85,7 @@ __device__ double initial_t(
 	return (boundary - start) / delta;
 }
 
+template <bool WRITE_SEGMENTS>
 __device__ void visit_cell(
 		const DeviceCell* cells,
 		const int cell_count,
@@ -112,34 +113,31 @@ __device__ void visit_cell(
 			result.first_material = packed;
 		}
 	}
-	segments[segment_offset
-			+ static_cast<unsigned long long>(result.segment_count)] = {
-				packed,
-				length,
-				cell.material_id,
-				cell.fill_fraction
-			};
+	if constexpr (WRITE_SEGMENTS) {
+		segments[segment_offset
+				+ static_cast<unsigned long long>(result.segment_count)] = {
+					packed,
+					length,
+					cell.material_id,
+					cell.fill_fraction
+				};
+	}
 	++result.segment_count;
 }
 
 }  // namespace
 
-extern "C" __global__ void trace_kernel(
+template <bool WRITE_SEGMENTS>
+__device__ void trace_ray(
 		const DeviceCell* cells,
 		const int cell_count,
 		const DeviceRay* rays,
 		const int ray_count,
 		const double* transmission,
 		DeviceSegment* segments,
-		DeviceResult* results
+		DeviceResult* results,
+		const int ray_index
 	) {
-	const int ray_index = static_cast<int>(
-			blockIdx.x * blockDim.x + threadIdx.x
-	);
-	if (ray_index >= ray_count) {
-		return;
-	}
-
 	const DeviceRay ray = rays[ray_index];
 	DeviceResult result{};
 	const double delta[3] = {
@@ -154,7 +152,7 @@ extern "C" __global__ void trace_kernel(
 	);
 
 	if (total_length <= 1.0e-12) {
-		visit_cell(
+		visit_cell<WRITE_SEGMENTS>(
 				cells,
 				cell_count,
 				transmission,
@@ -206,7 +204,7 @@ extern "C" __global__ void trace_kernel(
 			);
 			const double segment_length =
 					fmax(0.0, exit_t - entry_t) * total_length;
-			visit_cell(
+			visit_cell<WRITE_SEGMENTS>(
 					cells,
 					cell_count,
 					transmission,
@@ -249,4 +247,56 @@ extern "C" __global__ void trace_kernel(
 		result.gain[band] = pow(10.0, -result.loss[band] / 10.0);
 	}
 	results[ray_index] = result;
+}
+
+extern "C" __global__ void trace_kernel(
+		const DeviceCell* cells,
+		const int cell_count,
+		const DeviceRay* rays,
+		const int ray_count,
+		const double* transmission,
+		DeviceSegment* segments,
+		DeviceResult* results
+	) {
+	const int ray_index = static_cast<int>(
+			blockIdx.x * blockDim.x + threadIdx.x
+	);
+	if (ray_index < ray_count) {
+		trace_ray<true>(
+				cells,
+				cell_count,
+				rays,
+				ray_count,
+				transmission,
+				segments,
+				results,
+				ray_index
+		);
+	}
+}
+
+extern "C" __global__ void trace_aggregate_kernel(
+		const DeviceCell* cells,
+		const int cell_count,
+		const DeviceRay* rays,
+		const int ray_count,
+		const double* transmission,
+		DeviceSegment* segments,
+		DeviceResult* results
+	) {
+	const int ray_index = static_cast<int>(
+			blockIdx.x * blockDim.x + threadIdx.x
+	);
+	if (ray_index < ray_count) {
+		trace_ray<false>(
+				cells,
+				cell_count,
+				rays,
+				ray_count,
+				transmission,
+				segments,
+				results,
+				ray_index
+		);
+	}
 }

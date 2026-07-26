@@ -23,6 +23,7 @@ def validate_runs(
     warmup: int,
     iterations: int,
     expected_rays: int,
+    output_mode: str,
 ) -> None:
     if len(runs) < 2:
         raise ValueError("at least two CUDA benchmark runs are required")
@@ -53,6 +54,8 @@ def validate_runs(
             raise ValueError(f"run {index} has the wrong iteration count")
         if run.get("rays") != expected_rays:
             raise ValueError(f"run {index} has the wrong ray count")
+        if run.get("output_mode") != output_mode:
+            raise ValueError(f"run {index} has the wrong output mode")
         if run.get("verified_rays") != expected_rays:
             raise ValueError(f"run {index} did not verify every ray")
         current = (
@@ -151,12 +154,14 @@ def build_report(
     expected_rays: int,
     cpu_reference_p95_ms: float,
     gpu_snapshots: list[dict[str, object]],
+    output_mode: str,
 ) -> dict[str, object]:
     validate_runs(
         runs,
         warmup=warmup,
         iterations=iterations,
         expected_rays=expected_rays,
+        output_mode=output_mode,
     )
     first = runs[0]
     metrics = {
@@ -177,6 +182,7 @@ def build_report(
         "driver_version": first["driver_version"],
         "nvrtc_version": first["nvrtc_version"],
         "architecture": first["architecture"],
+        "output_mode": output_mode,
         "bundle_sha256": first["bundle_sha256"],
         "snapshot_sha256": first["snapshot_sha256"],
         "cells": first["cells"],
@@ -191,8 +197,11 @@ def build_report(
         "measured_passes_per_repeat": iterations,
         "metrics": metrics,
         "cpu_reference_p95_ms": cpu_reference_p95_ms,
+        "cpu_comparison_workload_equivalent": output_mode == "full",
         "cpu_p95_to_gpu_submit_p95_ratio": (
             cpu_reference_p95_ms / gpu_submit_p95
+            if output_mode == "full"
+            else None
         ),
         "gpu_submit_p95_rays_per_second": (
             expected_rays * 1000.0 / gpu_submit_p95
@@ -204,15 +213,16 @@ def build_report(
         ),
         "gpu_snapshots": gpu_snapshots,
         "runs": runs,
-        "retains_every_segment": True,
+        "retains_every_segment": output_mode == "full",
         "cuda_executed": True,
         "nvrtc_compiled": True,
         "nvcc_compiled": False,
         "claim_boundary": (
-            "This compares the repeat-aware, segment-retaining correctness "
-            "workload with its compiled single-threaded CPU oracle. The "
-            "Python Driver API submit time is not a Minecraft native bridge "
-            "measurement and does not establish product hot-path crossover."
+            "Full mode compares the repeat-aware, segment-retaining "
+            "correctness workload with its compiled single-threaded CPU "
+            "oracle. Aggregate mode is an output-ablation and is not "
+            "workload-equivalent to that CPU baseline. Python Driver API "
+            "submit time is not a Minecraft native bridge measurement."
         ),
     }
 
@@ -227,6 +237,7 @@ def run_once(
     iterations: int,
     maximum_rays_per_batch: int,
     maximum_segments_per_batch: int,
+    output_mode: str,
 ) -> dict[str, object]:
     completed = subprocess.run(
         [
@@ -246,6 +257,8 @@ def run_once(
             str(maximum_rays_per_batch),
             "--maximum-segments-per-batch",
             str(maximum_segments_per_batch),
+            "--output-mode",
+            output_mode,
         ],
         check=True,
         capture_output=True,
@@ -292,6 +305,11 @@ def main() -> int:
     parser.add_argument("--warmup", type=int, default=5)
     parser.add_argument("--iterations", type=int, default=30)
     parser.add_argument("--expected-rays", type=int, default=100_008)
+    parser.add_argument(
+        "--output-mode",
+        choices=("full", "aggregate"),
+        default="full",
+    )
     parser.add_argument("--maximum-rays-per-batch", type=int, default=8192)
     parser.add_argument(
         "--maximum-segments-per-batch",
@@ -329,6 +347,7 @@ def main() -> int:
                 maximum_segments_per_batch=(
                     arguments.maximum_segments_per_batch
                 ),
+                output_mode=arguments.output_mode,
             )
         )
         snapshots.append(gpu_snapshot(arguments.device))
@@ -339,6 +358,7 @@ def main() -> int:
         expected_rays=arguments.expected_rays,
         cpu_reference_p95_ms=arguments.cpu_reference_p95_ms,
         gpu_snapshots=snapshots,
+        output_mode=arguments.output_mode,
     )
     write_atomic(arguments.output_json, report)
     print(json.dumps(report, indent=2, sort_keys=True))

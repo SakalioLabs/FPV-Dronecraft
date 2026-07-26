@@ -1358,6 +1358,9 @@ def cudaDdaNvrtcCorpusReport = layout.projectDirectory.file(
 def cudaDdaNvrtcScalingReport = layout.projectDirectory.file(
 	"build/research/cuda-dda-nvrtc-scaling-matrix-v1.json"
 ).asFile
+def cudaDdaNvrtcAggregateReport = layout.projectDirectory.file(
+	"build/research/cuda-dda-nvrtc-aggregate-corpus-benchmark-v1.json"
+).asFile
 
 tasks.register("verifyCudaDdaSourceContract", Exec) {
 	group = "verification"
@@ -1516,6 +1519,34 @@ tasks.register("benchmarkCudaDdaNvrtcScalingMatrix", Exec) {
 		project.findProperty("matrixWarmup") ?: "3",
 		"--iterations",
 		project.findProperty("matrixIterations") ?: "10"
+	)
+}
+
+tasks.register("benchmarkCudaDdaNvrtcAggregateCorpus", Exec) {
+	group = "verification"
+	description = "Benchmarks aggregate-only RTX NVRTC DDA on the 100k corpus."
+	dependsOn(
+		"verifyCudaDdaProductionCorpus",
+		"ensureCudaDdaNvrtcEnvironment"
+	)
+	workingDir = rootDir
+	commandLine(
+		cudaDdaNvrtcPython.absolutePath,
+		"docs/scripts/benchmark_cuda_dda_nvrtc_corpus.py",
+		"--bundle",
+		ddaProductionCorpus.absolutePath,
+		"--output-json",
+		cudaDdaNvrtcAggregateReport.absolutePath,
+		"--output-mode",
+		"aggregate",
+		"--repeats",
+		project.findProperty("repeats") ?: "3",
+		"--warmup",
+		project.findProperty("warmup") ?: "5",
+		"--iterations",
+		project.findProperty("iterations") ?: "30",
+		"--cpu-reference-p95-ms",
+		project.findProperty("cpuReferenceP95Ms") ?: "1206.2"
 	)
 }
 

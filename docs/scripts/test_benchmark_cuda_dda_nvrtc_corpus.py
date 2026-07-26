@@ -34,6 +34,7 @@ def valid_run(total_p95: float = 400.0) -> dict:
         "driver_version": 13030,
         "nvrtc_version": "13.3",
         "architecture": "sm_86",
+        "output_mode": "full",
         "samples_ms": {
             "h2d": samples,
             "kernel": samples,
@@ -59,6 +60,7 @@ class CudaDdaNvrtcBenchmarkTest(unittest.TestCase):
             expected_rays=20,
             cpu_reference_p95_ms=900.0,
             gpu_snapshots=[],
+            output_mode="full",
         )
         self.assertEqual("valid", report["status"])
         self.assertEqual(450.0, report["metrics"]["total_p95_ms"]["median"])
@@ -76,6 +78,7 @@ class CudaDdaNvrtcBenchmarkTest(unittest.TestCase):
                 warmup=1,
                 iterations=2,
                 expected_rays=20,
+                output_mode="full",
             )
 
     def test_missing_raw_sample_fails_closed(self):
@@ -88,7 +91,26 @@ class CudaDdaNvrtcBenchmarkTest(unittest.TestCase):
                 warmup=1,
                 iterations=2,
                 expected_rays=20,
+                output_mode="full",
             )
+
+    def test_aggregate_output_does_not_claim_cpu_crossover(self):
+        first = valid_run()
+        second = valid_run()
+        first["output_mode"] = "aggregate"
+        second["output_mode"] = "aggregate"
+        report = build_report(
+            [first, second],
+            warmup=1,
+            iterations=2,
+            expected_rays=20,
+            cpu_reference_p95_ms=900.0,
+            gpu_snapshots=[],
+            output_mode="aggregate",
+        )
+        self.assertFalse(report["cpu_comparison_workload_equivalent"])
+        self.assertIsNone(report["cpu_p95_to_gpu_submit_p95_ratio"])
+        self.assertFalse(report["retains_every_segment"])
 
 
 if __name__ == "__main__":
