@@ -1340,6 +1340,18 @@ def ddaProductionCorpus = layout.projectDirectory.file(
 def ddaProductionCorpusExpected = layout.projectDirectory.file(
 	"build/research/dda-production-corpus-v1.expected-v1.bin"
 ).asFile
+def cudaDdaNvrtcEnvironment = layout.projectDirectory.dir(
+	"build/cuda-python-env"
+).asFile
+def cudaDdaNvrtcPython = new File(
+	cudaDdaNvrtcEnvironment,
+	System.getProperty("os.name").toLowerCase().contains("windows")
+		? "Scripts/python.exe"
+		: "bin/python"
+)
+def cudaDdaNvrtcFixtureReport = layout.projectDirectory.file(
+	"build/research/cuda-dda-nvrtc-fixture-v1.json"
+).asFile
 
 tasks.register("verifyCudaDdaSourceContract", Exec) {
 	group = "verification"
@@ -1413,6 +1425,44 @@ tasks.register("verifyCudaDdaResearch", Exec) {
 		"-C",
 		"Release",
 		"--output-on-failure"
+	)
+}
+
+tasks.register("ensureCudaDdaNvrtcEnvironment", Exec) {
+	group = "verification"
+	description = "Creates the pinned isolated CUDA Python/NVRTC environment."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/ensure_cuda_dda_nvrtc_environment.py",
+		"--environment",
+		cudaDdaNvrtcEnvironment.absolutePath,
+		"--requirements",
+		file(
+			"native/cuda-dda/cuda-python-requirements.txt"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyCudaDdaNvrtcFixture", Exec) {
+	group = "verification"
+	description = "Compiles and executes CUDA DDA fixture parity through NVRTC."
+	dependsOn(
+		":computational-acoustics-core:ddaProductionExpectedResultsFixture",
+		"ensureCudaDdaNvrtcEnvironment"
+	)
+	workingDir = rootDir
+	commandLine(
+		cudaDdaNvrtcPython.absolutePath,
+		"docs/scripts/run_cuda_dda_nvrtc.py",
+		"--bundle",
+		ddaProductionFixture.absolutePath,
+		"--warmup",
+		project.findProperty("warmup") ?: "2",
+		"--iterations",
+		project.findProperty("iterations") ?: "10",
+		"--output-json",
+		cudaDdaNvrtcFixtureReport.absolutePath
 	)
 }
 

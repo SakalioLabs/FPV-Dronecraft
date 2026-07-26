@@ -52,6 +52,36 @@ REQUIRED_CMAKE_TOKENS = {
     "host_batch_plan_test": "mcfpv_dda_batch_plan_self_test",
 }
 
+REQUIRED_NVRTC_KERNEL_TOKENS = {
+    "device_entry_point": 'extern "C" __global__ void trace_kernel',
+    "simultaneous_tie_policy": "fabs(t_max[axis] - crossing) <= epsilon",
+    "tie_epsilon_absolute": "1.0e-12",
+    "tie_epsilon_relative": "fabs(crossing) * 1.0e-12",
+    "sparse_snapshot_lookup": "__device__ DeviceCell sample_cell",
+    "segment_topology_output": "struct DeviceSegment",
+    "first_material_output": "result.first_material = packed",
+    "three_band_accumulation": "result.loss[band] +=",
+    "truncation_flag": "result.flags = TRUNCATED_FLAG",
+}
+
+REQUIRED_NVRTC_RUNNER_TOKENS = {
+    "strict_bundle_reader": "require_complete=True",
+    "bounded_batch_planner": "def plan_batches(",
+    "explicit_cell_layout": "CELL_DTYPE = np.dtype(",
+    "explicit_ray_layout": "RAY_DTYPE = np.dtype(",
+    "explicit_segment_layout": "SEGMENT_DTYPE = np.dtype(",
+    "explicit_result_layout": "RESULT_DTYPE = np.dtype(",
+    "nvrtc_cubin": "nvrtc.nvrtcGetCUBIN(",
+    "driver_module_load": "driver.cuModuleLoadData(",
+    "driver_kernel_launch": "driver.cuLaunchKernel(",
+    "per_batch_offset_rebase": 'host_rays[offset]["segment_offset"] = segment_offset',
+    "segment_parity": "CUDA segment mismatch for ray",
+    "band_parity": "CUDA band mismatch for ray",
+    "device_execution_claim": '"cuda_executed": True',
+    "nvrtc_claim": '"nvrtc_compiled": True',
+    "nvcc_boundary": '"nvcc_compiled": False',
+}
+
 
 def verify_tokens(path: Path, tokens: dict[str, str]) -> list[str]:
     text = path.read_text(encoding="utf-8")
@@ -70,24 +100,54 @@ def main() -> int:
         type=Path,
         default=Path("native/cuda-dda/CMakeLists.txt"),
     )
+    parser.add_argument(
+        "--nvrtc-kernel",
+        type=Path,
+        default=Path("native/cuda-dda/src/dda_nvrtc_kernel.cu"),
+    )
+    parser.add_argument(
+        "--nvrtc-runner",
+        type=Path,
+        default=Path("docs/scripts/run_cuda_dda_nvrtc.py"),
+    )
     arguments = parser.parse_args()
 
     missing_cuda = verify_tokens(arguments.cuda_source, REQUIRED_CUDA_TOKENS)
     missing_cmake = verify_tokens(arguments.cmake, REQUIRED_CMAKE_TOKENS)
+    missing_nvrtc_kernel = verify_tokens(
+        arguments.nvrtc_kernel,
+        REQUIRED_NVRTC_KERNEL_TOKENS,
+    )
+    missing_nvrtc_runner = verify_tokens(
+        arguments.nvrtc_runner,
+        REQUIRED_NVRTC_RUNNER_TOKENS,
+    )
+    valid = not (
+        missing_cuda
+        or missing_cmake
+        or missing_nvrtc_kernel
+        or missing_nvrtc_runner
+    )
     report = {
-        "status": "valid" if not missing_cuda and not missing_cmake else "invalid",
-        "schema": 1,
+        "status": "valid" if valid else "invalid",
+        "schema": 2,
         "cuda_source": str(arguments.cuda_source),
         "cmake": str(arguments.cmake),
+        "nvrtc_kernel": str(arguments.nvrtc_kernel),
+        "nvrtc_runner": str(arguments.nvrtc_runner),
         "required_cuda_contracts": len(REQUIRED_CUDA_TOKENS),
         "required_cmake_contracts": len(REQUIRED_CMAKE_TOKENS),
+        "required_nvrtc_kernel_contracts": len(REQUIRED_NVRTC_KERNEL_TOKENS),
+        "required_nvrtc_runner_contracts": len(REQUIRED_NVRTC_RUNNER_TOKENS),
         "missing_cuda_contracts": missing_cuda,
         "missing_cmake_contracts": missing_cmake,
+        "missing_nvrtc_kernel_contracts": missing_nvrtc_kernel,
+        "missing_nvrtc_runner_contracts": missing_nvrtc_runner,
         "cuda_compiled": False,
         "cuda_executed": False,
         "claim_boundary": (
-            "Static source validation is not CUDA compilation, device parity, "
-            "or performance evidence."
+            "This static source validation is not the separate NVRTC device "
+            "execution gate and provides no device parity or performance evidence."
         ),
     }
     print(json.dumps(report, indent=2, sort_keys=True))

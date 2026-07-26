@@ -1949,3 +1949,20 @@
   热路径或优化 CPU 上限；未编译/执行 CUDA。
 - 完整说明：
   [`decision-D121t-cuda-dda-cpu-corpus-baseline.md`](decision-D121t-cuda-dda-cpu-corpus-baseline.md)。
+
+## D121u — RTX 3060 NVRTC CUDA DDA 夹具一致性通过
+
+- 状态：NVRTC 13.3 编译、Driver API cubin load/launch 与 RTX 3060 device parity
+  通过（2026-07-27）。
+- 工具链：固定 gitignored venv；`cuda-python 13.3.1`、
+  `nvidia-cuda-nvrtc 13.3.33`、`numpy 2.5.1`；不依赖完整 Toolkit。
+- 设备：RTX 3060、compute capability `8.6`、Driver API `13030`、目标 `sm_86`。
+- smoke：1024-element kernel 的 H2D/device/D2H/exact equality 通过。
+- fixture：`8 cells / 3 rays / 231 actual segments`；逐段 topology/material/fill/
+  length、flags、first material 与三频带全部和 Python oracle 一致。
+- 正式 2 warmup/10 measured：kernel P50/P95 `0.1792/0.187392 ms`；
+  submit-to-result `0.2493/0.2788 ms`。tiny fixture 不用于性能结论。
+- 状态边界：`nvrtc_compiled=true / cuda_executed=true /
+  nvcc_compiled=false`；尚无 100k device parity、crossover 或 Minecraft 接入。
+- 完整说明：
+  [`decision-D121u-nvrtc-cuda-dda-fixture-parity.md`](decision-D121u-nvrtc-cuda-dda-fixture-parity.md)。

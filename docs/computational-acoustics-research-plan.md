@@ -2978,3 +2978,21 @@ Java DDA 热路径或优化 CPU 上限。未来 CUDA 必须使用完全相同的
 corpus-pass P50/P95/P99 与原始 repeats；只报告单 kernel 或最好一轮无效。当前仍为
 `cuda_compiled=false / cuda_executed=false`。详见
 [`acoustics/decision-D121t-cuda-dda-cpu-corpus-baseline.md`](acoustics/decision-D121t-cuda-dda-cpu-corpus-baseline.md)。
+
+D121u 已找到并验证无需完整 CUDA Toolkit 的真实 device 执行路径。固定的
+`cuda-python 13.3.1 + nvidia-cuda-nvrtc 13.3.33 + numpy 2.5.1` 隔离环境直接使用
+Windows NVIDIA Driver API；device-only CUDA C++ 由 NVRTC 13.3 编译为 `sm_86`
+cubin，在 RTX 3060 上加载并执行。先行 1024-element smoke kernel 完成显存往返和
+exact equality；随后 canonical Java DDA fixture 的 `3 rays / 231 segments` 对
+packed topology、length、material、fill、flags、first material 与三频带 loss/gain
+逐项通过独立 Python oracle。
+
+正式 fixture gate 为 2 warmup/10 measured，kernel P50/P95 为
+`0.1792/0.187392 ms`，完整 submit-to-result 为 `0.2493/0.2788 ms`。这只关闭真实
+device compile/load/launch 和小夹具 parity 风险，tiny workload 不能用于速度结论。
+当前精确状态为 `nvrtc_compiled=true / cuda_executed=true /
+fixture_device_parity_verified=true / nvcc_compiled=false`。D121v 必须运行同一
+100,008-ray corpus 的全部 24 batches，并按 D121t 的三轮重复合同冻结
+H2D/kernel/D2H/submit-to-result 与 parity；在此之前仍无 crossover、native bridge
+或 Minecraft hot-path 接入。详见
+[`acoustics/decision-D121u-nvrtc-cuda-dda-fixture-parity.md`](acoustics/decision-D121u-nvrtc-cuda-dda-fixture-parity.md)。

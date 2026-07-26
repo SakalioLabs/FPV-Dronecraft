@@ -548,7 +548,14 @@ CUDA correctness workload 的同负载对照，不代表产品 Java 热路径或
 详见
 [`decision-D121t-cuda-dda-cpu-corpus-baseline.md`](decision-D121t-cuda-dda-cpu-corpus-baseline.md)。
 
-下一步必须在安装 CUDA Toolkit 的机器上真实运行同一 corpus/sidecar。旧
+D121u 已用 NVIDIA 官方 CUDA Python/NVRTC wheel 绕过完整 Toolkit/`nvcc` 缺失，
+在本机 RTX 3060 上真实编译、加载并执行 device-only FP64 DDA kernel。canonical
+fixture 的 `3 rays / 231 segments` 已逐段与 Python CPU oracle 一致；精确状态为
+`nvrtc_compiled=true / cuda_executed=true / nvcc_compiled=false`。tiny fixture
+timing 不能用于 crossover，详见
+[`decision-D121u-nvrtc-cuda-dda-fixture-parity.md`](decision-D121u-nvrtc-cuda-dda-fixture-parity.md)。
+
+下一步必须用这条 NVRTC/Driver API 路径真实运行同一 100k corpus/sidecar。旧
 `dda-parity-100k-v1.bin` 的 magic 不属于当前 production bundle，仍不能作为
 CUDA executor 证据。FP32/SoA 性能 kernel 只能在 FP64 correctness gate 关闭后
 实现。此阶段不得修改 Fabric audio backend。
@@ -575,13 +582,12 @@ SoA、snapshot、corpus 和端到端指标与 CUDA 对照，不能用另一套�
 ## 10. 当前决策
 
 - **已采用**：Java CPU DDA，用于当前直达声与遮挡。
-- **可构建源代码存在但未验证**：RTX 3060 上的大批量 CUDA DDA；FP64 correctness
-  kernel 已写入仓库，但没有经过 `nvcc` 或 device execution。
+- **小夹具 device path 已验证**：RTX 3060 上的 FP64 NVRTC kernel 已真实执行，
+  canonical fixture 的 231 segments 已逐项通过；完整 CMake/`nvcc` target 仍未构建。
 - **已实现的主机与源码安全门**：确定性有界 batch planner；默认 8192 rays、
   1,048,576 segments；current production-format 100k corpus/sidecar；
   CUDA bounded multi-batch source；无 CUDA toolchain 的 host typecheck。
-- **未实现**：可用 CUDA toolchain、device parity/timing 证据、native bridge、
-  resident chunk
+- **未实现**：100k device parity/timing 与 crossover、native bridge、resident chunk
   delta snapshot；
   production bundle 已有 CPU writer/reader、Minecraft capture adapter 与语义内容
   指纹、JVM property/client command 两个 opt-in 游戏内原子导出入口、独立 Python

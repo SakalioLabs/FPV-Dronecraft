@@ -14,6 +14,9 @@ linked into Fabric, Minecraft, or the audio hot path.
 - `mcfpv_dda_cuda`: compiled only when CMake finds a CUDA compiler. Its FP64
   kernel emits every visited segment and compares topology, material data,
   flags, first hit, and three-band accumulation against the same CPU oracle.
+- `dda_nvrtc_kernel.cu` plus `docs/scripts/run_cuda_dda_nvrtc.py`: an
+  independent device-only NVRTC/Driver API path for hosts that have a
+  compatible NVIDIA driver but no full CUDA Toolkit or `nvcc`.
 
 Run the repository fixture gate:
 
@@ -24,6 +27,20 @@ Run the repository fixture gate:
 When `nvcc` is unavailable, this command must say that the CUDA target is
 disabled and run the CPU reference and host batch-plan CTests. That is a valid host/toolchain audit,
 not CUDA parity evidence.
+
+Run the real CUDA device fixture through the pinned, gitignored Python/NVRTC
+environment:
+
+```powershell
+.\gradlew.bat --no-daemon verifyCudaDdaNvrtcFixture
+```
+
+This gate creates or verifies `build/cuda-python-env`, compiles the
+device-only kernel to the detected `sm_XX` cubin, loads it through the CUDA
+Driver API, and compares every fixture segment and aggregate with the Python
+CPU oracle. A passing report may claim `nvrtc_compiled=true` and
+`cuda_executed=true`; it does not claim that the CMake CUDA target was built
+with `nvcc`.
 
 With a CUDA compiler and device available, the same command also builds and
 runs `mcfpv_dda_cuda_java_fixture`. The executable accepts:
@@ -81,4 +98,6 @@ See
 [`decision-D069-conditional-cuda-dda-prototype.md`](../../docs/acoustics/decision-D069-conditional-cuda-dda-prototype.md)
 for the original claim boundary, and
 [`decision-D121s-cuda-multi-batch-corpus.md`](../../docs/acoustics/decision-D121s-cuda-multi-batch-corpus.md)
-for the production corpus and bounded multi-batch implementation.
+for the production corpus and bounded multi-batch implementation, and
+[`decision-D121u-nvrtc-cuda-dda-fixture-parity.md`](../../docs/acoustics/decision-D121u-nvrtc-cuda-dda-fixture-parity.md)
+for the first real RTX 3060 device parity evidence.

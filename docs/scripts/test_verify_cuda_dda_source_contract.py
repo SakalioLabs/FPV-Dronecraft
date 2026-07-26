@@ -10,6 +10,8 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from verify_cuda_dda_source_contract import (  # noqa: E402
     REQUIRED_CMAKE_TOKENS,
     REQUIRED_CUDA_TOKENS,
+    REQUIRED_NVRTC_KERNEL_TOKENS,
+    REQUIRED_NVRTC_RUNNER_TOKENS,
     verify_tokens,
 )
 
@@ -29,6 +31,20 @@ class CudaDdaSourceContractTest(unittest.TestCase):
             verify_tokens(
                 root / "native/cuda-dda/CMakeLists.txt",
                 REQUIRED_CMAKE_TOKENS,
+            ),
+        )
+        self.assertEqual(
+            [],
+            verify_tokens(
+                root / "native/cuda-dda/src/dda_nvrtc_kernel.cu",
+                REQUIRED_NVRTC_KERNEL_TOKENS,
+            ),
+        )
+        self.assertEqual(
+            [],
+            verify_tokens(
+                root / "docs/scripts/run_cuda_dda_nvrtc.py",
+                REQUIRED_NVRTC_RUNNER_TOKENS,
             ),
         )
 
