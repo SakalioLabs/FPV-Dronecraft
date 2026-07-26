@@ -2963,3 +2963,18 @@ physical_endpoint_opened=false / captures_audio=false`。下一步必须在有 C
 Toolkit 的机器运行同一 100k bundle/sidecar，获得逐批 device parity 和完整
 `8192/16384/32768/65536/100008` 性能矩阵后才判断 crossover。详见
 [`acoustics/decision-D121s-cuda-multi-batch-corpus.md`](acoustics/decision-D121s-cuda-multi-batch-corpus.md)。
+
+D121t 已为同一 100,008-ray production corpus 冻结三轮 compiled C++20 CPU
+correctness baseline。每轮为 5 次 warmup 与 30 次 measured full-corpus batches，
+并强制 snapshot/hash、rays/cells 与 checksum 跨轮一致。P50 min/median/max 为
+`850.0525 / 872.4689 / 935.0673 ms`；P95 为
+`1050.2913 / 1206.2000 / 1210.3220 ms`；P99 为
+`1054.4735 / 1208.1123 / 1272.7716 ms`。P95 median throughput 约
+82,912 rays/s。
+
+这个基线是单线程且保留全部 visited segments 的 correctness workload，不是产品
+Java DDA 热路径或优化 CPU 上限。未来 CUDA 必须使用完全相同的 bundle/sidecar，
+覆盖全部 24 batches，在相同 3×(5 warmup + 30 measured) 合同下报告完整
+corpus-pass P50/P95/P99 与原始 repeats；只报告单 kernel 或最好一轮无效。当前仍为
+`cuda_compiled=false / cuda_executed=false`。详见
+[`acoustics/decision-D121t-cuda-dda-cpu-corpus-baseline.md`](acoustics/decision-D121t-cuda-dda-cpu-corpus-baseline.md)。

@@ -65,6 +65,18 @@ ordinary C++ compiler using warnings as errors. This catches host-side
 multi-batch type errors but is not CUDA compilation, device parity, or
 performance evidence.
 
+Record the repeat-aware CPU correctness baseline used by the future CUDA
+crossover:
+
+```powershell
+.\gradlew.bat --no-daemon benchmarkCudaDdaCpuProductionCorpus
+```
+
+The task runs three repeats of 5 warmups plus 30 measured full-corpus batches,
+requires identical workload identity and checksum in every repeat, and reports
+the raw runs plus min/median/max. This is a single-threaded correctness-oracle
+baseline that retains every segment, not the optimized Minecraft hot path.
+
 See
 [`decision-D069-conditional-cuda-dda-prototype.md`](../../docs/acoustics/decision-D069-conditional-cuda-dda-prototype.md)
 for the original claim boundary, and

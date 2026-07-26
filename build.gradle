@@ -1328,6 +1328,12 @@ def cudaDdaBatchPlanExecutable = new File(
 		? "Release/mcfpv_dda_batch_plan.exe"
 		: "mcfpv_dda_batch_plan"
 )
+def cudaDdaCpuReferenceExecutable = new File(
+	cudaDdaBuild,
+	System.getProperty("os.name").toLowerCase().contains("windows")
+		? "Release/mcfpv_dda_cpu_reference.exe"
+		: "mcfpv_dda_cpu_reference"
+)
 def ddaProductionCorpus = layout.projectDirectory.file(
 	"build/research/dda-production-corpus-v1.bin"
 ).asFile
@@ -1482,6 +1488,36 @@ tasks.register("verifyCudaDdaProductionCorpus") {
 		"verifyPythonDdaProductionCorpusExpectedResults",
 		"verifyNativeDdaProductionCorpus",
 		"planCudaDdaProductionCorpus"
+	)
+}
+
+tasks.register("benchmarkCudaDdaCpuProductionCorpus", Exec) {
+	group = "verification"
+	description = "Benchmarks the compiled CPU oracle on the 100k DDA corpus."
+	dependsOn("verifyCudaDdaProductionCorpus")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/benchmark_cuda_dda_cpu_corpus.py",
+		"--executor",
+		cudaDdaCpuReferenceExecutable.absolutePath,
+		"--bundle",
+		ddaProductionCorpus.absolutePath,
+		"--expected-results",
+		ddaProductionCorpusExpected.absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "cuda-dda-cpu-production-corpus-benchmark-v1.json"
+		).absolutePath,
+		"--repeats",
+		project.findProperty("repeats") ?: "3",
+		"--warmup",
+		project.findProperty("warmup") ?: "5",
+		"--iterations",
+		project.findProperty("iterations") ?: "30",
+		"--cpu-label",
+		System.getenv("PROCESSOR_IDENTIFIER") ?: "unspecified"
 	)
 }
 

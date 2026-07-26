@@ -540,6 +540,14 @@ timing aggregation。无 `nvcc` 环境下，host translation-unit 以 MSVC
 `/W4 /WX /permissive-` 通过，但这不是 CUDA 编译或执行证据。详见
 [`decision-D121s-cuda-multi-batch-corpus.md`](decision-D121s-cuda-multi-batch-corpus.md)。
 
+D121t 在同一 bundle/sidecar 上执行三轮 compiled C++20 CPU correctness
+baseline，每轮 `5 warmup / 30 measured` full-corpus batches。P95
+min/median/max 为 `1050.2913 / 1206.2000 / 1210.3220 ms`，median throughput
+约 `82,912 rays/s`。该执行器单线程并保留全部 visited segments，因此只作为未来
+CUDA correctness workload 的同负载对照，不代表产品 Java 热路径或优化 CPU 上限。
+详见
+[`decision-D121t-cuda-dda-cpu-corpus-baseline.md`](decision-D121t-cuda-dda-cpu-corpus-baseline.md)。
+
 下一步必须在安装 CUDA Toolkit 的机器上真实运行同一 corpus/sidecar。旧
 `dda-parity-100k-v1.bin` 的 magic 不属于当前 production bundle，仍不能作为
 CUDA executor 证据。FP32/SoA 性能 kernel 只能在 FP64 correctness gate 关闭后

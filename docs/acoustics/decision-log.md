@@ -1934,3 +1934,18 @@
   Minecraft audio hot path。
 - 完整说明：
   [`decision-D121s-cuda-multi-batch-corpus.md`](decision-D121s-cuda-multi-batch-corpus.md)。
+
+## D121t — 100k CUDA DDA CPU correctness 基线通过
+
+- 状态：三轮 compiled C++20 CPU oracle benchmark 与 workload identity gate
+  通过（2026-07-27）。
+- 合同：每轮 `5 warmup / 30 measured` full-corpus batches；三轮 snapshot/hash、
+  rays/cells/checksum 必须一致；保留每轮原始值与 min/median/max。
+- P50 min/median/max：`850.0525 / 872.4689 / 935.0673 ms`。
+- P95 min/median/max：`1050.2913 / 1206.2000 / 1210.3220 ms`；
+  median 约 `82,912 rays/s`。
+- P99 min/median/max：`1054.4735 / 1208.1123 / 1272.7716 ms`。
+- 边界：单线程、保留全部 segments 的 correctness workload；不是 Minecraft Java
+  热路径或优化 CPU 上限；未编译/执行 CUDA。
+- 完整说明：
+  [`decision-D121t-cuda-dda-cpu-corpus-baseline.md`](decision-D121t-cuda-dda-cpu-corpus-baseline.md)。
