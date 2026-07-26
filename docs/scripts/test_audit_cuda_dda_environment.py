@@ -1,7 +1,9 @@
 import importlib.util
+import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 MODULE_PATH = Path(__file__).with_name("audit_cuda_dda_environment.py")
@@ -16,6 +18,16 @@ SPEC.loader.exec_module(audit)
 
 
 class CudaDdaEnvironmentAuditTest(unittest.TestCase):
+    @mock.patch.object(audit.subprocess, "run")
+    def test_command_timeout_becomes_bounded_probe_error(self, run):
+        run.side_effect = subprocess.TimeoutExpired(["nvidia-smi"], 30)
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "nvidia-smi timed out after 30 seconds",
+        ):
+            audit.run_command("nvidia-smi", ("-L",))
+
     def test_reports_ready_only_with_device_nvcc_and_host_compiler(self):
         paths = {
             "nvidia-smi": "/bin/nvidia-smi",

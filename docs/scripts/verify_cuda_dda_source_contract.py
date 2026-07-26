@@ -92,6 +92,9 @@ REQUIRED_NVRTC_RUNNER_TOKENS = {
     "host_preparation_once": "def prepare_host_batches(",
     "host_preparation_mode": 'choices=("per-pass", "once")',
     "prepared_batch_reuse": "prepared_host_batches[batch_index]",
+    "bounded_driver_preflight": "def probe_nvidia_driver(",
+    "driver_probe_timeout": "timeout=timeout_seconds",
+    "driver_probe_report": '"driver_probe_timeout_seconds":',
 }
 
 REQUIRED_NVRTC_BENCHMARK_TOKENS = {

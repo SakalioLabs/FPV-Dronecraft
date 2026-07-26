@@ -21,15 +21,20 @@ GPU_QUERY = (
 
 
 def run_command(executable: str, arguments: tuple[str, ...]) -> str:
-    completed = subprocess.run(
-        (executable, *arguments),
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=30,
-    )
+    try:
+        completed = subprocess.run(
+            (executable, *arguments),
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise RuntimeError(
+            f"{Path(executable).name} timed out after 30 seconds"
+        ) from error
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
         raise RuntimeError(

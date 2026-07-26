@@ -3059,3 +3059,16 @@ arrays 与 rebased offsets 在 measured passes 前一次构造并复核，`host_
 只完成 CPU/纯主机验证。D121z 必须先恢复 smoke/fixture，再在同 context 运行
 128→8192 的预展平 full/aggregate paired trials。详见
 [`acoustics/decision-D121y-small-prefix-cpu-floor-and-host-preparation.md`](acoustics/decision-D121y-small-prefix-cpu-floor-and-host-preparation.md)。
+
+D121z 已关闭驱动异常时无界等待的安全缺口。NVRTC runner 现在在导入 bindings 与
+`cuInit` 前执行可配置、默认 10 秒的 `nvidia-smi -L` 预检；环境引导仅检查固定
+package/NVRTC，不再先初始化设备；独立环境审计把 30 秒超时转换为稳定失败证据。
+
+本次 2 秒探针运行时驱动已恢复。RTX 3060 上的 canonical fixture 以
+`host-preparation=once` 分别完成 full 与 aggregate 的真实 device 校验：
+两者均验证 `3 rays / 231 implicit segments`，full topology 通过，aggregate
+counts/flags/first-hit/三频带通过。full/aggregate submit P95 分别为
+`1.120/0.860 ms`，但 3-ray 数字仅是 smoke，不是 crossover。下一步 D121aa 必须
+在同一 CUDA context 交替运行 `128..8192` paired trials，并在同一时间窗重跑
+compiled CPU prefixes。详见
+[`acoustics/decision-D121z-bounded-driver-preflight-and-host-prepared-device-smoke.md`](acoustics/decision-D121z-bounded-driver-preflight-and-host-prepared-device-smoke.md)。

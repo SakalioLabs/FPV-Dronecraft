@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import shutil
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -107,6 +109,38 @@ def percentile(samples: list[float], quantile: float) -> float:
     ordered = sorted(samples)
     index = max(0, math.ceil(quantile * len(ordered)) - 1)
     return ordered[min(index, len(ordered) - 1)]
+
+
+def probe_nvidia_driver(
+    *,
+    timeout_seconds: float,
+    executable: str | None = None,
+    run=subprocess.run,
+) -> str:
+    nvidia_smi = executable or shutil.which("nvidia-smi")
+    if nvidia_smi is None:
+        raise RuntimeError("nvidia-smi is unavailable")
+    try:
+        completed = run(
+            [nvidia_smi, "-L"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise RuntimeError(
+            f"NVIDIA driver probe timed out after {timeout_seconds:g} seconds"
+        ) from error
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        raise RuntimeError(
+            f"NVIDIA driver probe exited {completed.returncode}: {detail}"
+        )
+    output = completed.stdout.strip()
+    if not output:
+        raise RuntimeError("NVIDIA driver probe returned no devices")
+    return output
 
 
 def prepare_host_batches(
@@ -279,6 +313,9 @@ def _verify_batch(
 
 def execute(arguments: argparse.Namespace) -> dict:
     _check_layouts()
+    driver_probe = probe_nvidia_driver(
+        timeout_seconds=arguments.driver_probe_timeout,
+    )
     driver, nvrtc, check = _cuda_imports()
     bundle = verify_file(
         arguments.bundle,
@@ -537,6 +574,8 @@ def execute(arguments: argparse.Namespace) -> dict:
             "host_preparation": arguments.host_preparation,
             "host_prepare_ms": host_prepare_ms,
             "driver_version": driver_version,
+            "driver_probe": driver_probe,
+            "driver_probe_timeout_seconds": arguments.driver_probe_timeout,
             "nvrtc_version": f"{nvrtc_major}.{nvrtc_minor}",
             "bundle_sha256": bundle["file_sha256"],
             "snapshot_sha256": bundle["snapshot_sha256"],
@@ -606,6 +645,7 @@ def parse_arguments() -> argparse.Namespace:
         default=repository / "native/cuda-dda/src/dda_nvrtc_kernel.cu",
     )
     parser.add_argument("--device", type=int, default=0)
+    parser.add_argument("--driver-probe-timeout", type=float, default=10.0)
     parser.add_argument("--ray-limit", type=int)
     parser.add_argument(
         "--output-mode",
@@ -629,6 +669,8 @@ def parse_arguments() -> argparse.Namespace:
     result = parser.parse_args()
     if result.warmup < 0 or result.iterations < 1:
         parser.error("--warmup must be non-negative and --iterations positive")
+    if result.driver_probe_timeout <= 0.0:
+        parser.error("--driver-probe-timeout must be positive")
     return result
 
 

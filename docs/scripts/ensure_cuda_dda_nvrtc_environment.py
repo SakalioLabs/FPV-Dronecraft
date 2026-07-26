@@ -29,7 +29,7 @@ def usable(interpreter: Path) -> bool:
         return False
     probe = """
 import importlib.metadata
-from cuda.bindings import driver, nvrtc
+from cuda.bindings import nvrtc
 expected = {
     "cuda-python": "13.3.1",
     "cuda-bindings": "13.3.1",
@@ -39,7 +39,6 @@ expected = {
 for package, version in expected.items():
     assert importlib.metadata.version(package) == version
 assert nvrtc.nvrtcVersion()[0] == nvrtc.nvrtcResult.NVRTC_SUCCESS
-assert driver.cuInit(0)[0] == driver.CUresult.CUDA_SUCCESS
 """
     result = subprocess.run(
         [str(interpreter), "-c", probe],

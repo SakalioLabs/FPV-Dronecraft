@@ -584,6 +584,17 @@ D121y 已补 `128..8192` CPU floor，P95 median 为
 
 下一步必须先恢复 device smoke，再做 `128..8192` 同 context、预展平 buffer 的
 paired full/aggregate A/B。
+
+D121z 已加入 device init 前的有界驱动预检：默认 10 秒，超时、非零退出或无设备
+输出均 fail closed；依赖环境检查不再调用 `cuInit`。驱动恢复后，
+`host-preparation=once` 已在 canonical fixture 上真实执行 full/aggregate，
+两者均通过 `3 rays / 231 implicit segments` aggregate parity，full 另通过逐段
+topology。该 smoke 关闭 implementation gate，不构成小批量性能结论。详见
+[`decision-D121z-bounded-driver-preflight-and-host-prepared-device-smoke.md`](decision-D121z-bounded-driver-preflight-and-host-prepared-device-smoke.md)。
+
+下一步是把两种 kernel 放进同一 CUDA context，按 trial 交替执行
+`128..8192`，并在相同桌面时间窗重跑 compiled CPU prefixes；在此之前仍不得冻结
+最小 CUDA offload batch。
 旧
 `dda-parity-100k-v1.bin` 的 magic 不属于当前 production bundle，仍不能作为
 CUDA executor 证据。FP32/SoA 性能 kernel 只能在 FP64 correctness gate 关闭后
