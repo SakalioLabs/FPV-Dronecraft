@@ -65,6 +65,39 @@ tasks.register("ddaProductionExpectedResultsFixture", JavaExec) {
 	)
 }
 
+tasks.register("ddaProductionCorpus", JavaExec) {
+	group = "verification"
+	description = "Generates the large production-format DDA corpus."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.DdaProductionCorpusCli"
+	)
+	args(
+		project.findProperty("corpusOutput")
+			?: "build/research/dda-production-corpus-v1.bin",
+		project.findProperty("rays") ?: "100008"
+	)
+}
+
+tasks.register("ddaProductionCorpusExpectedResults", JavaExec) {
+	group = "verification"
+	description = "Generates Java CPU expected results for the DDA corpus."
+	dependsOn("ddaProductionCorpus")
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.DdaProductionExpectedResultsCli"
+	)
+	args(
+		"generate",
+		project.findProperty("corpusOutput")
+			?: "build/research/dda-production-corpus-v1.bin",
+		project.findProperty("corpusExpectedResults")
+			?: "build/research/dda-production-corpus-v1.expected-v1.bin"
+	)
+}
+
 tasks.register("verifyDdaProductionBundleFile", JavaExec) {
 	group = "verification"
 	description = "Verifies a production DDA bundle with the Java reader."

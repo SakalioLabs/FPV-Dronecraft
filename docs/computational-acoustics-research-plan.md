@@ -2941,3 +2941,25 @@ loop、逐批 parity 与按完整 corpus submission 汇总的 stage timing。当
 `cuda_compiled=false / cuda_executed=false / minecraft_client_started=false /
 physical_endpoint_opened=false / captures_audio=false`。详见
 [`acoustics/decision-D121r-cuda-dda-bounded-batch-gate.md`](acoustics/decision-D121r-cuda-dda-bounded-batch-gate.md)。
+
+D121s 已补齐 current production-bundle 格式的 100k correctness corpus，并把
+CUDA source 从“多批即拒绝”推进到真正的 bounded multi-batch executor。合成场景含
+49,494 个稀疏材质 cells，100,008 条射线来自 10 个发射点的球面扇形并带 8 条对抗
+射线；bundle 为 6,190,460 bytes，Java CPU oracle 实际走过 14,172,009 个
+segments。Java、Python 与 compiled C++20 reader 对 rays、segments、snapshot hash、
+bundle hash 和 expected-results hash 全部一致。
+
+默认 `8192 rays / 1,048,576 segments` 限制得到 24 个 batches，peak segment
+buffer 为 33,551,904 bytes；若无界单批则需 799,190,304 bytes，峰值降低约
+23.8 倍。CUDA source 现在按 peak batch 分配 host/device buffers，每批重基准
+segment offsets，D2H 后逐批与同一 CPU oracle 比较；H2D/kernel/D2H 和
+submit-to-result sample 均明确代表一次完整 corpus pass 的所有批次之和。
+
+由于本机仍无 `nvcc`，新增 host translation-unit gate 以 MSVC
+`/W4 /WX /permissive-` 实编译多批 host logic；负控注入类型错误会正确失败。
+这不是 CUDA 编译或执行证据。当前仍为
+`cuda_compiled=false / cuda_executed=false / minecraft_client_started=false /
+physical_endpoint_opened=false / captures_audio=false`。下一步必须在有 CUDA
+Toolkit 的机器运行同一 100k bundle/sidecar，获得逐批 device parity 和完整
+`8192/16384/32768/65536/100008` 性能矩阵后才判断 crossover。详见
+[`acoustics/decision-D121s-cuda-multi-batch-corpus.md`](acoustics/decision-D121s-cuda-multi-batch-corpus.md)。

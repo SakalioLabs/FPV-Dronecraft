@@ -157,17 +157,47 @@ void batch_plan_self_test() {
 			"zero ray limit must reject"
 	);
 	require_rejection(
-			[]() {
-				static_cast<void>(checked_bytes(
-						std::numeric_limits<std::uint64_t>::max(),
-						2U
-				));
-			},
-			"byte overflow must reject"
+		[]() {
+			static_cast<void>(checked_bytes(
+					std::numeric_limits<std::uint64_t>::max(),
+					2U
+			));
+		},
+		"byte overflow must reject"
 	);
+	const std::vector<std::int32_t> corpus = {5, 5, 5, 5, 5, 5, 5};
+	const std::vector<Batch> partitioned = plan_batches(
+			corpus,
+			BatchLimits{3U, 1000U}
+	);
+	std::uint64_t covered = 0U;
+	std::uint64_t expected_first = 0U;
+	for (const Batch& batch : partitioned) {
+		require(
+				batch.first_ray == expected_first,
+				"batches must be contiguous and ordered"
+		);
+		std::uint64_t rebased = 0U;
+		for (std::uint64_t offset = 0; offset < batch.ray_count; ++offset) {
+			rebased += static_cast<std::uint64_t>(
+					corpus[static_cast<std::size_t>(batch.first_ray + offset)]
+			);
+		}
+		require(
+				rebased == batch.segment_count,
+				"rebased offsets must equal the batch segment count"
+		);
+		require(
+				batch.segment_count <= 1000U && batch.ray_count <= 3U,
+				"batches must respect both limits"
+		);
+		expected_first += batch.ray_count;
+		covered += batch.ray_count;
+	}
+	require(covered == corpus.size(), "every ray must be planned exactly once");
 	std::cout
 			<< "{\"status\":\"valid\",\"schema\":1,"
-			<< "\"cases\":7,\"cuda_compiled\":false,"
+			<< "\"cases\":8,\"cuda_compiled\":false,"
 			<< "\"cuda_executed\":false}\n";
 }
 

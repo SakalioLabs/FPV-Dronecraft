@@ -1910,3 +1910,27 @@
   production-bundle magic，未冒充 100k device evidence。
 - 完整说明：
   [`decision-D121r-cuda-dda-bounded-batch-gate.md`](decision-D121r-cuda-dda-bounded-batch-gate.md)。
+
+## D121s — 100k production corpus 与 CUDA 多批执行器通过主机门
+
+- 状态：current `MCFPDDA1` 100k corpus、Java expected-results、三语言 reader
+  parity、bounded multi-batch CUDA source 与 host typecheck 通过（2026-07-27）。
+- 语料：`100,008 rays / 49,494 cells / 24,974,697 reserved segments`；
+  bundle `6,190,460 bytes`，实际 CPU oracle trace `14,172,009 segments`。
+- 哈希：bundle
+  `83d73cdc86d90dd5dbe3ed049c92c8bd226679f4612b9d6811399cba7b89bcf2`；
+  expected-results
+  `5f8f538be276f3efdeafedfe0601982a5dc1fb044dd1bf45b19a8ae400a7994d`。
+- 独立验证：Java、Python、compiled C++20 reader 对 bundle/sidecar 的 rays、
+  segments、snapshot 与文件哈希一致。
+- 默认规划：`24 batches / peak 1,048,497 segments / 33,551,904 bytes`；
+  原 single-batch reservation 为 `799,190,304 bytes`，峰值降低约 23.8 倍。
+- CUDA source：按 peak batch 分配 host/device buffer；每批重基准
+  `segment_offset`；每批 D2H 后与同一 CPU oracle 比较；一次 timing sample 是完整
+  corpus 内所有批次之和。
+- 无 `nvcc` 门：MSVC `/W4 /WX /permissive-` host translation-unit typecheck
+  passed；故意注入未声明标识符的负控正确失败。static CUDA contract 为 `27/27`。
+- 边界：仍未编译或执行 CUDA，未测 device parity/latency/crossover，未接入
+  Minecraft audio hot path。
+- 完整说明：
+  [`decision-D121s-cuda-multi-batch-corpus.md`](decision-D121s-cuda-multi-batch-corpus.md)。

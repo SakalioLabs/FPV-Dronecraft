@@ -29,9 +29,15 @@ REQUIRED_CUDA_TOKENS = {
     "shared_bounded_batch_planner": "mcfpv::cuda_dda::plan_batches(",
     "bounded_ray_limit": "maximum_rays_per_batch",
     "bounded_segment_limit": "maximum_segments_per_batch",
-    "multi_batch_fail_closed": (
-        "current executor refuses unbounded allocation"
+    "multi_batch_execution_loop": "for (const mcfpv::cuda_dda::Batch& batch : batch_plan)",
+    "per_batch_rebased_offsets": "ray.segment_offset = rebased_offset;",
+    "batch_local_parity_offsets": (
+        "rays[static_cast<std::size_t>(offset)]"
     ),
+    "peak_bounded_device_allocation": "peak_batch_segments,",
+    "checked_allocation_bytes": "mcfpv::cuda_dda::checked_bytes(",
+    "per_batch_parity": "compare_batch(",
+    "batch_plan_reported": '",\\"batch_count\\":"',
     "segment_record_size_contract": "sizeof(DeviceSegment) == 32U",
 }
 

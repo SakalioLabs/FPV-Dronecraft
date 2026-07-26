@@ -1322,6 +1322,18 @@ def cudaDdaSource = layout.projectDirectory.dir(
 def cudaDdaBuild = layout.buildDirectory.dir(
 	"native/cuda-dda"
 ).get().asFile
+def cudaDdaBatchPlanExecutable = new File(
+	cudaDdaBuild,
+	System.getProperty("os.name").toLowerCase().contains("windows")
+		? "Release/mcfpv_dda_batch_plan.exe"
+		: "mcfpv_dda_batch_plan"
+)
+def ddaProductionCorpus = layout.projectDirectory.file(
+	"build/research/dda-production-corpus-v1.bin"
+).asFile
+def ddaProductionCorpusExpected = layout.projectDirectory.file(
+	"build/research/dda-production-corpus-v1.expected-v1.bin"
+).asFile
 
 tasks.register("verifyCudaDdaSourceContract", Exec) {
 	group = "verification"
@@ -1330,6 +1342,16 @@ tasks.register("verifyCudaDdaSourceContract", Exec) {
 	commandLine(
 		"python",
 		"docs/scripts/verify_cuda_dda_source_contract.py"
+	)
+}
+
+tasks.register("typecheckCudaDdaHostLogic", Exec) {
+	group = "verification"
+	description = "Type-checks CUDA DDA host logic without a CUDA toolchain."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/typecheck_cuda_dda_host_logic.py"
 	)
 }
 
@@ -1358,7 +1380,8 @@ tasks.register("buildCudaDdaResearch", Exec) {
 	description = "Builds the CPU reference and CUDA DDA executor when available."
 	dependsOn(
 		"configureCudaDdaResearch",
-		"verifyCudaDdaSourceContract"
+		"verifyCudaDdaSourceContract",
+		"typecheckCudaDdaHostLogic"
 	)
 	workingDir = rootDir
 	commandLine(
@@ -1384,6 +1407,81 @@ tasks.register("verifyCudaDdaResearch", Exec) {
 		"-C",
 		"Release",
 		"--output-on-failure"
+	)
+}
+
+tasks.register("verifyPythonDdaProductionCorpus", Exec) {
+	group = "verification"
+	description = "Verifies the 100k production DDA corpus with Python."
+	dependsOn(
+		":computational-acoustics-core:ddaProductionCorpusExpectedResults"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_dda_production_bundle.py",
+		"--bundle",
+		ddaProductionCorpus.absolutePath,
+		"--require-complete"
+	)
+}
+
+tasks.register("verifyPythonDdaProductionCorpusExpectedResults", Exec) {
+	group = "verification"
+	description = "Replays the 100k Java DDA sidecar with Python."
+	dependsOn(
+		":computational-acoustics-core:ddaProductionCorpusExpectedResults"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_dda_production_expected_results.py",
+		"--bundle",
+		ddaProductionCorpus.absolutePath,
+		"--expected-results",
+		ddaProductionCorpusExpected.absolutePath
+	)
+}
+
+tasks.register("verifyNativeDdaProductionCorpus", Exec) {
+	group = "verification"
+	description = "Replays the 100k Java DDA sidecar with compiled C++."
+	dependsOn(
+		":computational-acoustics-core:ddaProductionCorpusExpectedResults",
+		"buildNativeDdaProductionBundle"
+	)
+	workingDir = rootDir
+	commandLine(
+		nativeDdaExecutable.absolutePath,
+		"--require-complete",
+		"--expected-results",
+		ddaProductionCorpusExpected.absolutePath,
+		ddaProductionCorpus.absolutePath
+	)
+}
+
+tasks.register("planCudaDdaProductionCorpus", Exec) {
+	group = "verification"
+	description = "Plans bounded CUDA batches for the 100k DDA corpus."
+	dependsOn(
+		":computational-acoustics-core:ddaProductionCorpus",
+		"buildCudaDdaResearch"
+	)
+	workingDir = rootDir
+	commandLine(
+		cudaDdaBatchPlanExecutable.absolutePath,
+		ddaProductionCorpus.absolutePath
+	)
+}
+
+tasks.register("verifyCudaDdaProductionCorpus") {
+	group = "verification"
+	description = "Runs the complete host-side 100k CUDA DDA corpus gate."
+	dependsOn(
+		"verifyPythonDdaProductionCorpus",
+		"verifyPythonDdaProductionCorpusExpectedResults",
+		"verifyNativeDdaProductionCorpus",
+		"planCudaDdaProductionCorpus"
 	)
 }
 

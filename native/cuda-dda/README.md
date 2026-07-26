@@ -38,13 +38,35 @@ mcfpv_dda_cuda
   <MCFPDDA1 bundle>
 ```
 
-The current CUDA correctness executor still implements one device batch. It
-uses the shared host planner before any CUDA allocation and rejects a corpus
-that needs more than one bounded batch. This closes the unbounded-allocation
-failure mode, but it does not yet execute a 100k-ray corpus. The next CUDA
-implementation step is to execute every planned batch (or use two-pass
-count/prefix-sum) while preserving the same CPU oracle and timing contract.
+The CUDA correctness executor consumes every batch from the shared host plan.
+Device and host buffers are sized to the peak planned batch, ray segment
+offsets are rebased for each batch, and every completed batch is compared
+against the same CPU oracle before its buffers are reused. Stage timings are
+reported as sums over all batches in one complete corpus pass.
+
+Generate the current production-format 100,008-ray corpus and its Java CPU
+sidecar:
+
+```powershell
+.\gradlew.bat --no-daemon verifyCudaDdaProductionCorpus
+```
+
+This single gate generates the corpus and sidecar, verifies both with Python
+and compiled C++20 readers, runs the native regression tests, host-typechecks
+the CUDA source, and prints the bounded batch plan. Generated artifacts stay
+under ignored `build/research`. The reference corpus contains 49,494 cells and
+100,008 rays. With the default 32 MiB segment budget it plans as 24 batches
+instead of one 799,190,304-byte segment allocation. Java, Python, and compiled
+C++20 readers agree on the bundle and expected-results hashes.
+
+On hosts without `nvcc`, `typecheckCudaDdaHostLogic` rewrites CUDA-only syntax
+to a host translation unit and compiles the host execution logic with the
+ordinary C++ compiler using warnings as errors. This catches host-side
+multi-batch type errors but is not CUDA compilation, device parity, or
+performance evidence.
 
 See
 [`decision-D069-conditional-cuda-dda-prototype.md`](../../docs/acoustics/decision-D069-conditional-cuda-dda-prototype.md)
-for the claim boundary and stop conditions.
+for the original claim boundary, and
+[`decision-D121s-cuda-multi-batch-corpus.md`](../../docs/acoustics/decision-D121s-cuda-multi-batch-corpus.md)
+for the production corpus and bounded multi-batch implementation.

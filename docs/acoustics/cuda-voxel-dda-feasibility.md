@@ -526,15 +526,22 @@ device parsing、kernel execution 或 timing。
 它也明确输出 `cuda_compiled=false`、`cuda_executed=false`。
 
 D121r 冻结默认 `8192 rays / 1,048,576 segments`，32-byte segment 布局对应
-32 MiB segment budget。当前 `.cu` 尚只有 single-batch executor；规划结果多于一批
-时会在任何 CUDA allocation 前拒绝，不再按整个语料无界申请。普通 C++ planner 已
-用 production fixture 验证 ray-limit、segment-limit、单射线超限与 overflow。
+32 MiB segment budget。普通 C++ planner 已用 production fixture 验证
+ray-limit、segment-limit、单射线超限与 overflow。
 详见
 [`decision-D121r-cuda-dda-bounded-batch-gate.md`](decision-D121r-cuda-dda-bounded-batch-gate.md)。
 
-下一步必须先生成 current production-bundle 格式的 100,008-ray corpus，再在安装
-CUDA Toolkit 的机器上实现并真实运行 planned multi-batch loop。旧
-`dda-parity-100k-v1.bin` 的 magic 不属于当前 production bundle，不能直接作为
+D121s 已生成 current production-bundle 格式的 `100,008 rays / 49,494 cells`
+corpus 与 Java expected-results；Java、Python、compiled C++20 reader 全部一致。
+默认规划为 `24 batches / peak 1,048,497 segments / 33,551,904 bytes`，而无界
+single-batch segment reservation 为 `799,190,304 bytes`。`.cu` 已实现 planned
+multi-batch loop、逐批 offset rebase、逐批 CPU oracle parity 与完整 corpus-pass
+timing aggregation。无 `nvcc` 环境下，host translation-unit 以 MSVC
+`/W4 /WX /permissive-` 通过，但这不是 CUDA 编译或执行证据。详见
+[`decision-D121s-cuda-multi-batch-corpus.md`](decision-D121s-cuda-multi-batch-corpus.md)。
+
+下一步必须在安装 CUDA Toolkit 的机器上真实运行同一 corpus/sidecar。旧
+`dda-parity-100k-v1.bin` 的 magic 不属于当前 production bundle，仍不能作为
 CUDA executor 证据。FP32/SoA 性能 kernel 只能在 FP64 correctness gate 关闭后
 实现。此阶段不得修改 Fabric audio backend。
 
@@ -562,10 +569,11 @@ SoA、snapshot、corpus 和端到端指标与 CUDA 对照，不能用另一套�
 - **已采用**：Java CPU DDA，用于当前直达声与遮挡。
 - **可构建源代码存在但未验证**：RTX 3060 上的大批量 CUDA DDA；FP64 correctness
   kernel 已写入仓库，但没有经过 `nvcc` 或 device execution。
-- **已实现的主机安全门**：确定性有界 batch planner；默认 8192 rays、1,048,576
-  segments；CUDA single-batch 入口在规划需要多批时于 allocation 前拒绝。
-- **未实现**：planned CUDA multi-batch loop、可用 CUDA toolchain、device 运行
-  证据、native bridge、resident chunk
+- **已实现的主机与源码安全门**：确定性有界 batch planner；默认 8192 rays、
+  1,048,576 segments；current production-format 100k corpus/sidecar；
+  CUDA bounded multi-batch source；无 CUDA toolchain 的 host typecheck。
+- **未实现**：可用 CUDA toolchain、device parity/timing 证据、native bridge、
+  resident chunk
   delta snapshot；
   production bundle 已有 CPU writer/reader、Minecraft capture adapter 与语义内容
   指纹、JVM property/client command 两个 opt-in 游戏内原子导出入口、独立 Python

@@ -429,20 +429,23 @@ __global__ void trace_kernel(
 	return output.str();
 }
 
-void compare_results(
+void compare_batch(
 		const Summary& summary,
 		const std::vector<DeviceRay>& rays,
 		const std::vector<DeviceResult>& results,
-		const std::vector<DeviceSegment>& segments
+		const std::vector<DeviceSegment>& segments,
+		const std::uint64_t first_ray,
+		const std::uint64_t ray_count
 	) {
-	for (std::size_t ray_index = 0;
-			ray_index < summary.rays.size();
-			++ray_index) {
+	for (std::uint64_t offset = 0; offset < ray_count; ++offset) {
+		const std::size_t ray_index =
+				static_cast<std::size_t>(first_ray + offset);
 		const ExpectedTrace expected = trace_ray(
 				summary.rays[ray_index],
 				summary.cells
 		);
-		const DeviceResult& actual = results[ray_index];
+		const DeviceResult& actual =
+				results[static_cast<std::size_t>(offset)];
 		const std::uint8_t expected_flags = static_cast<std::uint8_t>(
 				(expected.reached ? kReachedFlag : 0U)
 				| (expected.stopped ? kStoppedFlag : 0U)
@@ -482,7 +485,10 @@ void compare_results(
 			const ExpectedSegment& expected_segment =
 					expected.segments[segment_index];
 			const DeviceSegment& actual_segment = segments.at(
-					static_cast<std::size_t>(rays[ray_index].segment_offset)
+					static_cast<std::size_t>(
+							rays[static_cast<std::size_t>(offset)]
+									.segment_offset
+					)
 					+ segment_index
 			);
 			if (actual_segment.packed != expected_segment.packed
@@ -551,17 +557,20 @@ void run(const Arguments& arguments) {
 							arguments.maximum_segments_per_batch
 					}
 			);
-	if (batch_plan.size() != 1U) {
-		throw std::runtime_error(
-				"CUDA corpus requires bounded multi-batch executor; "
-				"current executor refuses unbounded allocation"
-		);
-	}
-	if (segment_capacity > std::numeric_limits<std::size_t>::max()
-			/ sizeof(DeviceSegment)) {
-		throw std::runtime_error("CUDA segment buffer is too large");
+	if (batch_plan.empty()) {
+		throw std::runtime_error("production bundle contains no rays");
 	}
 	const auto flatten_end = Clock::now();
+
+	std::uint64_t peak_batch_rays = 0U;
+	std::uint64_t peak_batch_segments = 0U;
+	for (const mcfpv::cuda_dda::Batch& batch : batch_plan) {
+		peak_batch_rays = std::max(peak_batch_rays, batch.ray_count);
+		peak_batch_segments = std::max(
+				peak_batch_segments,
+				batch.segment_count
+		);
+	}
 
 	double transmission[8 * kBands]{};
 	for (std::size_t material = 0; material < kMaterials.size(); ++material) {
@@ -593,22 +602,30 @@ void run(const Arguments& arguments) {
 	require_cuda(
 			cudaMalloc(
 					reinterpret_cast<void**>(&device_rays),
-					rays.size() * sizeof(DeviceRay)
+					static_cast<std::size_t>(mcfpv::cuda_dda::checked_bytes(
+							peak_batch_rays,
+							sizeof(DeviceRay)
+					))
 			),
 			"allocate rays"
 	);
 	require_cuda(
 			cudaMalloc(
 					reinterpret_cast<void**>(&device_segments),
-					static_cast<std::size_t>(segment_capacity)
-							* sizeof(DeviceSegment)
+					static_cast<std::size_t>(mcfpv::cuda_dda::checked_bytes(
+							peak_batch_segments,
+							sizeof(DeviceSegment)
+					))
 			),
 			"allocate segments"
 	);
 	require_cuda(
 			cudaMalloc(
 					reinterpret_cast<void**>(&device_results),
-					rays.size() * sizeof(DeviceResult)
+					static_cast<std::size_t>(mcfpv::cuda_dda::checked_bytes(
+							peak_batch_rays,
+							sizeof(DeviceResult)
+					))
 			),
 			"allocate results"
 	);
@@ -623,9 +640,14 @@ void run(const Arguments& arguments) {
 	);
 
 	std::vector<DeviceSegment> host_segments(
-			static_cast<std::size_t>(segment_capacity)
+			static_cast<std::size_t>(peak_batch_segments)
 	);
-	std::vector<DeviceResult> host_results(rays.size());
+	std::vector<DeviceResult> host_results(
+			static_cast<std::size_t>(peak_batch_rays)
+	);
+	std::vector<DeviceRay> batch_rays(
+			static_cast<std::size_t>(peak_batch_rays)
+	);
 	cudaEvent_t h2d_end{};
 	cudaEvent_t kernel_end{};
 	cudaEvent_t d2h_end{};
@@ -633,87 +655,128 @@ void run(const Arguments& arguments) {
 	require_cuda(cudaEventCreate(&kernel_end), "create kernel event");
 	require_cuda(cudaEventCreate(&d2h_end), "create D2H event");
 
-	const std::int32_t ray_count = static_cast<std::int32_t>(rays.size());
 	const dim3 block(128U);
-	const dim3 grid(static_cast<unsigned int>(
-			(ray_count + static_cast<std::int32_t>(block.x) - 1)
-			/ static_cast<std::int32_t>(block.x)
-	));
 	StageSamples samples;
 	const std::int32_t total_batches =
 			arguments.warmup + arguments.iterations;
-	for (std::int32_t batch = 0; batch < total_batches; ++batch) {
+	bool verified = false;
+	for (std::int32_t pass = 0; pass < total_batches; ++pass) {
 		const auto total_start = Clock::now();
-		cudaEvent_t batch_start{};
-		require_cuda(cudaEventCreate(&batch_start), "create batch event");
-		require_cuda(cudaEventRecord(batch_start), "record batch start");
-		require_cuda(
-				cudaMemcpyAsync(
-						device_rays,
-						rays.data(),
-						rays.size() * sizeof(DeviceRay),
-						cudaMemcpyHostToDevice
-				),
-				"upload rays"
-		);
-		require_cuda(cudaEventRecord(h2d_end), "record H2D end");
-		trace_kernel<<<grid, block>>>(
-				device_cells,
-				static_cast<std::int32_t>(cells.size()),
-				device_rays,
-				ray_count,
-				device_segments,
-				device_results
-		);
-		require_cuda(cudaGetLastError(), "launch DDA kernel");
-		require_cuda(cudaEventRecord(kernel_end), "record kernel end");
-		require_cuda(
-				cudaMemcpyAsync(
-						host_results.data(),
-						device_results,
-						host_results.size() * sizeof(DeviceResult),
-						cudaMemcpyDeviceToHost
-				),
-				"read results"
-		);
-		require_cuda(
-				cudaMemcpyAsync(
-						host_segments.data(),
-						device_segments,
-						host_segments.size() * sizeof(DeviceSegment),
-						cudaMemcpyDeviceToHost
-				),
-				"read segments"
-		);
-		require_cuda(cudaEventRecord(d2h_end), "record D2H end");
-		require_cuda(cudaEventSynchronize(d2h_end), "synchronize batch");
-		const double total_ms = milliseconds(Clock::now() - total_start);
+		double pass_h2d_ms = 0.0;
+		double pass_kernel_ms = 0.0;
+		double pass_d2h_ms = 0.0;
+		for (const mcfpv::cuda_dda::Batch& batch : batch_plan) {
+			const std::size_t batch_ray_count =
+					static_cast<std::size_t>(batch.ray_count);
+			std::uint64_t rebased_offset = 0U;
+			for (std::size_t offset = 0; offset < batch_ray_count; ++offset) {
+				DeviceRay ray = rays[
+						static_cast<std::size_t>(batch.first_ray) + offset
+				];
+				ray.segment_offset = rebased_offset;
+				rebased_offset += static_cast<std::uint64_t>(
+						ray.maximum_cells
+				);
+				batch_rays[offset] = ray;
+			}
+			cudaEvent_t batch_start{};
+			require_cuda(
+					cudaEventCreate(&batch_start),
+					"create batch event"
+			);
+			require_cuda(cudaEventRecord(batch_start), "record batch start");
+			require_cuda(
+					cudaMemcpyAsync(
+							device_rays,
+							batch_rays.data(),
+							batch_ray_count * sizeof(DeviceRay),
+							cudaMemcpyHostToDevice
+					),
+					"upload rays"
+			);
+			require_cuda(cudaEventRecord(h2d_end), "record H2D end");
+			const std::int32_t ray_count =
+					static_cast<std::int32_t>(batch.ray_count);
+			const dim3 grid(static_cast<unsigned int>(
+					(ray_count + static_cast<std::int32_t>(block.x) - 1)
+					/ static_cast<std::int32_t>(block.x)
+			));
+			trace_kernel<<<grid, block>>>(
+					device_cells,
+					static_cast<std::int32_t>(cells.size()),
+					device_rays,
+					ray_count,
+					device_segments,
+					device_results
+			);
+			require_cuda(cudaGetLastError(), "launch DDA kernel");
+			require_cuda(cudaEventRecord(kernel_end), "record kernel end");
+			require_cuda(
+					cudaMemcpyAsync(
+							host_results.data(),
+							device_results,
+							batch_ray_count * sizeof(DeviceResult),
+							cudaMemcpyDeviceToHost
+					),
+					"read results"
+			);
+			require_cuda(
+					cudaMemcpyAsync(
+							host_segments.data(),
+							device_segments,
+							static_cast<std::size_t>(batch.segment_count)
+									* sizeof(DeviceSegment),
+							cudaMemcpyDeviceToHost
+					),
+					"read segments"
+			);
+			require_cuda(cudaEventRecord(d2h_end), "record D2H end");
+			require_cuda(cudaEventSynchronize(d2h_end), "synchronize batch");
 
-		float h2d_ms = 0.0F;
-		float kernel_ms = 0.0F;
-		float d2h_ms = 0.0F;
-		require_cuda(
-				cudaEventElapsedTime(&h2d_ms, batch_start, h2d_end),
-				"measure H2D"
-		);
-		require_cuda(
-				cudaEventElapsedTime(&kernel_ms, h2d_end, kernel_end),
-				"measure kernel"
-		);
-		require_cuda(
-				cudaEventElapsedTime(&d2h_ms, kernel_end, d2h_end),
-				"measure D2H"
-		);
-		require_cuda(cudaEventDestroy(batch_start), "destroy batch event");
-		if (batch >= arguments.warmup) {
-			samples.h2d_ms.push_back(h2d_ms);
-			samples.kernel_ms.push_back(kernel_ms);
-			samples.d2h_ms.push_back(d2h_ms);
+			float h2d_ms = 0.0F;
+			float kernel_ms = 0.0F;
+			float d2h_ms = 0.0F;
+			require_cuda(
+					cudaEventElapsedTime(&h2d_ms, batch_start, h2d_end),
+					"measure H2D"
+			);
+			require_cuda(
+					cudaEventElapsedTime(&kernel_ms, h2d_end, kernel_end),
+					"measure kernel"
+			);
+			require_cuda(
+					cudaEventElapsedTime(&d2h_ms, kernel_end, d2h_end),
+					"measure D2H"
+			);
+			require_cuda(
+					cudaEventDestroy(batch_start),
+					"destroy batch event"
+			);
+			pass_h2d_ms += h2d_ms;
+			pass_kernel_ms += kernel_ms;
+			pass_d2h_ms += d2h_ms;
+
+			if (!verified) {
+				compare_batch(
+						summary,
+						batch_rays,
+						host_results,
+						host_segments,
+						batch.first_ray,
+						batch.ray_count
+				);
+			}
+		}
+		verified = true;
+		const double total_ms = milliseconds(Clock::now() - total_start);
+		if (pass >= arguments.warmup) {
+			samples.h2d_ms.push_back(pass_h2d_ms);
+			samples.kernel_ms.push_back(pass_kernel_ms);
+			samples.d2h_ms.push_back(pass_d2h_ms);
 			samples.total_ms.push_back(total_ms);
 		}
 	}
 
-	compare_results(summary, rays, host_results, host_segments);
 	const cudaDeviceProp properties = [&]() {
 		int device = 0;
 		require_cuda(cudaGetDevice(&device), "get CUDA device");
@@ -738,6 +801,18 @@ void run(const Arguments& arguments) {
 			<< ",\"rays\":" << summary.rays.size()
 			<< ",\"cells\":" << summary.cells.size()
 			<< ",\"segment_capacity\":" << segment_capacity
+			<< ",\"batch_count\":" << batch_plan.size()
+			<< ",\"maximum_rays_per_batch\":"
+			<< arguments.maximum_rays_per_batch
+			<< ",\"maximum_segments_per_batch\":"
+			<< arguments.maximum_segments_per_batch
+			<< ",\"peak_batch_rays\":" << peak_batch_rays
+			<< ",\"peak_batch_segments\":" << peak_batch_segments
+			<< ",\"peak_segment_bytes\":"
+			<< mcfpv::cuda_dda::checked_bytes(
+					peak_batch_segments,
+					sizeof(DeviceSegment)
+			)
 			<< ",\"warmup_batches\":" << arguments.warmup
 			<< ",\"measured_batches\":" << arguments.iterations
 			<< ",\"parse_ms\":" << milliseconds(parse_end - parse_start)
@@ -752,7 +827,10 @@ void run(const Arguments& arguments) {
 			<< ",\"segments\":true"
 			<< ",\"first_material\":true"
 			<< ",\"flags\":true"
-			<< ",\"bands_tolerance\":1e-5}}\n";
+			<< ",\"bands_tolerance\":1e-5"
+			<< ",\"scope\":\"every planned batch\"}"
+			<< ",\"timing_scope\":\"sum over all batches per corpus pass\""
+			<< "}\n";
 
 	require_cuda(cudaEventDestroy(h2d_end), "destroy H2D event");
 	require_cuda(cudaEventDestroy(kernel_end), "destroy kernel event");
