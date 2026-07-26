@@ -104,7 +104,7 @@ def main() -> int:
     parser.add_argument("--executor", type=Path, required=True)
     parser.add_argument("--bundle", type=Path, required=True)
     parser.add_argument("--expected-results", type=Path, required=True)
-    parser.add_argument("--gpu-matrix", type=Path, required=True)
+    parser.add_argument("--gpu-matrix", type=Path)
     parser.add_argument("--output-json", type=Path, required=True)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--warmup", type=int, default=5)
@@ -127,13 +127,16 @@ def main() -> int:
     if arguments.warmup < 1 or arguments.iterations < 2:
         raise ValueError("warmup and iterations are too small")
 
-    gpu_payload = arguments.gpu_matrix.read_bytes()
-    gpu_report = json.loads(gpu_payload)
-    if gpu_report.get("status") != "valid":
-        raise ValueError("GPU matrix is not valid")
-    gpu_entries = gpu_entries_by_rays(gpu_report)
-    if set(gpu_entries) != set(limits):
-        raise ValueError("CPU and GPU matrix ray limits differ")
+    gpu_payload = None
+    gpu_entries = None
+    if arguments.gpu_matrix is not None:
+        gpu_payload = arguments.gpu_matrix.read_bytes()
+        gpu_report = json.loads(gpu_payload)
+        if gpu_report.get("status") != "valid":
+            raise ValueError("GPU matrix is not valid")
+        gpu_entries = gpu_entries_by_rays(gpu_report)
+        if set(gpu_entries) != set(limits):
+            raise ValueError("CPU and GPU matrix ray limits differ")
 
     entries = []
     for ray_limit in limits:
@@ -157,23 +160,23 @@ def main() -> int:
         p50 = summary(runs, "batch_p50_ms")
         p95 = summary(runs, "batch_p95_ms")
         p99 = summary(runs, "batch_p99_ms")
-        gpu_submit_p95 = float(
-            gpu_entries[ray_limit]["metrics"]["total_p95_ms"]
-        )
-        entries.append(
-            {
+        entry = {
                 "rays": ray_limit,
                 "batch_p50_ms": p50,
                 "batch_p95_ms": p95,
                 "batch_p99_ms": p99,
                 "p95_rays_per_second": ray_limit * 1000.0 / p95["median"],
-                "gpu_submit_p95_ms": gpu_submit_p95,
-                "cpu_p95_to_gpu_submit_p95_ratio": (
-                    p95["median"] / gpu_submit_p95
-                ),
                 "runs": runs,
             }
-        )
+        if gpu_entries is not None:
+            gpu_submit_p95 = float(
+                gpu_entries[ray_limit]["metrics"]["total_p95_ms"]
+            )
+            entry["gpu_submit_p95_ms"] = gpu_submit_p95
+            entry["cpu_p95_to_gpu_submit_p95_ratio"] = (
+                p95["median"] / gpu_submit_p95
+            )
+        entries.append(entry)
 
     report = {
         "status": "valid",
@@ -184,7 +187,11 @@ def main() -> int:
         "repeats": arguments.repeats,
         "warmup_batches_per_repeat": arguments.warmup,
         "measured_batches_per_repeat": arguments.iterations,
-        "gpu_matrix_sha256": hashlib.sha256(gpu_payload).hexdigest(),
+        "gpu_matrix_sha256": (
+            hashlib.sha256(gpu_payload).hexdigest()
+            if gpu_payload is not None
+            else None
+        ),
         "entries": entries,
         "single_threaded": True,
         "retains_every_segment": True,
@@ -192,8 +199,9 @@ def main() -> int:
         "cuda_executed": False,
         "claim_boundary": (
             "This is a single-threaded segment-retaining correctness prefix "
-            "matrix. GPU prefix rows below 100008 rays are single-process "
-            "diagnostics, so their crossover ratios are screening evidence."
+            "matrix. When a GPU matrix is supplied, GPU prefix rows below "
+            "100008 rays are single-process diagnostics, so their crossover "
+            "ratios are screening evidence."
         ),
     }
     write_atomic(arguments.output_json, report)

@@ -89,6 +89,9 @@ REQUIRED_NVRTC_RUNNER_TOKENS = {
     "aggregate_parity": '"aggregate_parity_verified": True',
     "topology_claim_boundary": '"segment_topology_verified": full_topology',
     "aggregate_zero_segment_d2h": "if full_topology\n                else 0",
+    "host_preparation_once": "def prepare_host_batches(",
+    "host_preparation_mode": 'choices=("per-pass", "once")',
+    "prepared_batch_reuse": "prepared_host_batches[batch_index]",
 }
 
 REQUIRED_NVRTC_BENCHMARK_TOKENS = {
@@ -130,7 +133,7 @@ REQUIRED_CPU_MATRIX_TOKENS = {
     "same_ray_keys": "set(gpu_entries) != set(limits)",
     "crossover_ratio": '"cpu_p95_to_gpu_submit_p95_ratio"',
     "raw_runs": '"runs": runs',
-    "screening_boundary": "their crossover ratios are screening evidence",
+    "screening_boundary": "ratios are screening evidence",
 }
 
 

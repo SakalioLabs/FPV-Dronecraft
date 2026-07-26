@@ -3046,3 +3046,16 @@ GPU driver 恢复、无外部 compute workload 时测试 `128..8192`，并在同
 内交替 CPU/full/aggregate、预展平 host rays。当前产品几十条 direct rays/update
 仍使用 Java CPU DDA。详见
 [`acoustics/decision-D121x-cpu-gpu-dda-prefix-crossover.md`](acoustics/decision-D121x-cpu-gpu-dda-prefix-crossover.md)。
+
+D121y 已冻结更小的 `128/256/512/1024/2048/4096/8192` CPU floor。三轮
+P95 median 分别为
+`1.279/2.540/4.551/11.206/25.410/49.598/85.865 ms`，将作为未来 GPU paired
+实验的明确目标。NVRTC runner 同时新增 `host-preparation=once`：所有 batch ray
+arrays 与 rebased offsets 在 measured passes 前一次构造并复核，`host_prepare_ms`
+单独报告，避免 D121w 的 Python rebuild 成本继续污染 submit timing。
+
+本轮 GPU 未运行：共享 RTX 3060 的外部 LoRA 训练结束后，`nvidia-smi` 仍连续
+30 秒超时，外部 Torch CUDA probe 也停在驱动初始化。为避免新增残留 context，
+只完成 CPU/纯主机验证。D121z 必须先恢复 smoke/fixture，再在同 context 运行
+128→8192 的预展平 full/aggregate paired trials。详见
+[`acoustics/decision-D121y-small-prefix-cpu-floor-and-host-preparation.md`](acoustics/decision-D121y-small-prefix-cpu-floor-and-host-preparation.md)。

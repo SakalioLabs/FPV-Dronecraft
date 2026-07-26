@@ -82,6 +82,17 @@ ray count, and reports both `bundle_rays` and executed `rays`. The matrix uses
 the same 8,192/16,384/32,768/65,536/100,008 keys as the GPU report and retains
 three repeats of every prefix.
 
+Run the CPU-only small-prefix floor:
+
+```powershell
+.\gradlew.bat --no-daemon benchmarkCudaDdaCpuSmallPrefixMatrix
+```
+
+The NVRTC runner also accepts `--host-preparation once`. This prepares and
+validates all batch ray arrays before measured passes and reports
+`host_prepare_ms` separately. The historical default remains `per-pass` so
+existing full-corpus reports retain their workload definition.
+
 With a CUDA compiler and device available, the same command also builds and
 runs `mcfpv_dda_cuda_java_fixture`. The executable accepts:
 
@@ -146,4 +157,6 @@ for the full-corpus result and current synchronous-hot-path rejection, and
 [`decision-D121w-cuda-dda-aggregate-output-ablation.md`](../../docs/acoustics/decision-D121w-cuda-dda-aggregate-output-ablation.md)
 for the output-transfer ablation and its inconclusive end-to-end result, and
 [`decision-D121x-cpu-gpu-dda-prefix-crossover.md`](../../docs/acoustics/decision-D121x-cpu-gpu-dda-prefix-crossover.md)
-for the first aligned CPU/GPU prefix screen.
+for the first aligned CPU/GPU prefix screen, and
+[`decision-D121y-small-prefix-cpu-floor-and-host-preparation.md`](../../docs/acoustics/decision-D121y-small-prefix-cpu-floor-and-host-preparation.md)
+for the small CPU floor and pre-flattened host contract.

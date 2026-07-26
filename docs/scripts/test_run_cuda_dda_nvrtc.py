@@ -11,6 +11,7 @@ from run_cuda_dda_nvrtc import (
     RESULT_DTYPE,
     SEGMENT_DTYPE,
     plan_batches,
+    prepare_host_batches,
 )
 
 
@@ -46,6 +47,22 @@ class CudaDdaNvrtcTest(unittest.TestCase):
             "single ray exceeds CUDA batch segment limit",
         ):
             plan_batches([1_001], maximum_rays=3, maximum_segments=1_000)
+
+    def test_prepared_batches_rebase_segment_offsets_once(self):
+        rays = [
+            ((0.0, 0.0, 0.0, 1.0, 0.0, 0.0), 3),
+            ((1.0, 0.0, 0.0, 2.0, 0.0, 0.0), 5),
+            ((2.0, 0.0, 0.0, 3.0, 0.0, 0.0), 7),
+        ]
+        batches = plan_batches(
+            [3, 5, 7],
+            maximum_rays=2,
+            maximum_segments=10,
+        )
+        prepared = prepare_host_batches(rays, batches)
+        self.assertEqual([0, 3], list(prepared[0]["segment_offset"]))
+        self.assertEqual([0], list(prepared[1]["segment_offset"]))
+        self.assertEqual([3, 5], list(prepared[0]["maximum_cells"]))
 
 
 if __name__ == "__main__":

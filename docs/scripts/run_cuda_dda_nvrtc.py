@@ -109,6 +109,27 @@ def percentile(samples: list[float], quantile: float) -> float:
     return ordered[min(index, len(ordered) - 1)]
 
 
+def prepare_host_batches(
+    rays: list[tuple],
+    batches: list[Batch],
+) -> list[np.ndarray]:
+    result = []
+    for batch in batches:
+        host_rays = np.zeros(batch.ray_count, dtype=RAY_DTYPE)
+        segment_offset = 0
+        for offset in range(batch.ray_count):
+            coordinates, maximum_cells = rays[batch.first_ray + offset]
+            host_rays[offset]["start"] = coordinates[:3]
+            host_rays[offset]["end"] = coordinates[3:]
+            host_rays[offset]["maximum_cells"] = maximum_cells
+            host_rays[offset]["segment_offset"] = segment_offset
+            segment_offset += maximum_cells
+        if segment_offset != batch.segment_count:
+            raise ValueError("prepared CUDA batch segment count changed")
+        result.append(host_rays)
+    return result
+
+
 def _check_layouts() -> None:
     expected = {
         "DeviceCell": (CELL_DTYPE.itemsize, 24),
@@ -282,6 +303,13 @@ def execute(arguments: argparse.Namespace) -> dict:
         arguments.maximum_rays_per_batch,
         arguments.maximum_segments_per_batch,
     )
+    host_prepare_start = time.perf_counter()
+    prepared_host_batches = (
+        prepare_host_batches(rays, batches)
+        if arguments.host_preparation == "once"
+        else None
+    )
+    host_prepare_ms = (time.perf_counter() - host_prepare_start) * 1000.0
 
     check(driver.cuInit(0))
     device = check(driver.cuDeviceGet(arguments.device))
@@ -388,16 +416,11 @@ def execute(arguments: argparse.Namespace) -> dict:
             pass_kernel = 0.0
             pass_d2h = 0.0
             pass_parity = 0.0
-            for batch in batches:
-                host_rays = np.zeros(batch.ray_count, dtype=RAY_DTYPE)
-                segment_offset = 0
-                for offset in range(batch.ray_count):
-                    coordinates, maximum_cells = rays[batch.first_ray + offset]
-                    host_rays[offset]["start"] = coordinates[:3]
-                    host_rays[offset]["end"] = coordinates[3:]
-                    host_rays[offset]["maximum_cells"] = maximum_cells
-                    host_rays[offset]["segment_offset"] = segment_offset
-                    segment_offset += maximum_cells
+            for batch_index, batch in enumerate(batches):
+                if prepared_host_batches is None:
+                    host_rays = prepare_host_batches(rays, [batch])[0]
+                else:
+                    host_rays = prepared_host_batches[batch_index]
 
                 stage_start = time.perf_counter()
                 check(
@@ -511,6 +534,8 @@ def execute(arguments: argparse.Namespace) -> dict:
             "compute_capability": f"{major}.{minor}",
             "architecture": architecture,
             "output_mode": arguments.output_mode,
+            "host_preparation": arguments.host_preparation,
+            "host_prepare_ms": host_prepare_ms,
             "driver_version": driver_version,
             "nvrtc_version": f"{nvrtc_major}.{nvrtc_minor}",
             "bundle_sha256": bundle["file_sha256"],
@@ -586,6 +611,11 @@ def parse_arguments() -> argparse.Namespace:
         "--output-mode",
         choices=("full", "aggregate"),
         default="full",
+    )
+    parser.add_argument(
+        "--host-preparation",
+        choices=("per-pass", "once"),
+        default="per-pass",
     )
     parser.add_argument("--warmup", type=int, default=2)
     parser.add_argument("--iterations", type=int, default=10)

@@ -1364,6 +1364,9 @@ def cudaDdaNvrtcAggregateReport = layout.projectDirectory.file(
 def cudaDdaCpuPrefixReport = layout.projectDirectory.file(
 	"build/research/cuda-dda-cpu-prefix-matrix-v1.json"
 ).asFile
+def cudaDdaCpuSmallPrefixReport = layout.projectDirectory.file(
+	"build/research/cuda-dda-cpu-small-prefix-matrix-v1.json"
+).asFile
 
 tasks.register("verifyCudaDdaSourceContract", Exec) {
 	group = "verification"
@@ -1581,6 +1584,38 @@ tasks.register("benchmarkCudaDdaCpuPrefixMatrix", Exec) {
 		cudaDdaNvrtcScalingReport.absolutePath,
 		"--output-json",
 		cudaDdaCpuPrefixReport.absolutePath,
+		"--repeats",
+		project.findProperty("repeats") ?: "3",
+		"--warmup",
+		project.findProperty("warmup") ?: "5",
+		"--iterations",
+		project.findProperty("iterations") ?: "30",
+		"--cpu-label",
+		System.getenv("PROCESSOR_IDENTIFIER") ?: "unspecified"
+	)
+}
+
+tasks.register("benchmarkCudaDdaCpuSmallPrefixMatrix", Exec) {
+	group = "verification"
+	description = "Benchmarks CPU DDA on deterministic 128-to-8192 prefixes."
+	dependsOn(
+		"verifyCudaDdaProductionCorpus",
+		"buildCudaDdaResearch"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/benchmark_cuda_dda_cpu_prefix_matrix.py",
+		"--executor",
+		cudaDdaCpuReferenceExecutable.absolutePath,
+		"--bundle",
+		ddaProductionCorpus.absolutePath,
+		"--expected-results",
+		ddaProductionCorpusExpected.absolutePath,
+		"--output-json",
+		cudaDdaCpuSmallPrefixReport.absolutePath,
+		"--ray-limits",
+		"128,256,512,1024,2048,4096,8192",
 		"--repeats",
 		project.findProperty("repeats") ?: "3",
 		"--warmup",

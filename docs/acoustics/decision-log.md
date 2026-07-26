@@ -2021,3 +2021,18 @@
 - 产品决策：当前几十条 direct rays/update 继续使用 Java CPU DDA。
 - 完整说明：
   [`decision-D121x-cpu-gpu-dda-prefix-crossover.md`](decision-D121x-cpu-gpu-dda-prefix-crossover.md)。
+
+## D121y — 128→8192 CPU floor 与 host 预展平合同通过
+
+- 状态：CPU 小 prefix 三轮矩阵通过；CUDA host-preparation 实现完成，device timing
+  因驱动异常延期（2026-07-27）。
+- CPU P95 median：128/256/512/1024/2048/4096/8192 rays 为
+  `1.279/2.540/4.551/11.206/25.410/49.598/85.865 ms`。
+- runner：新增 `--host-preparation=once`；batch arrays 和 rebased offsets 在
+  measured passes 前一次构造，`host_prepare_ms` 单独报告。
+- 守卫：每批准备后的 maximum-cells 总和必须等于 planner segment count。
+- 驱动边界：外部 LoRA 训练结束后 `nvidia-smi` 仍连续 30 秒超时；未继续创建 context，
+  未把异常期结果写入 crossover。
+- 下一步：驱动恢复后同 context 运行 128→8192 full/aggregate paired trials。
+- 完整说明：
+  [`decision-D121y-small-prefix-cpu-floor-and-host-preparation.md`](decision-D121y-small-prefix-cpu-floor-and-host-preparation.md)。
