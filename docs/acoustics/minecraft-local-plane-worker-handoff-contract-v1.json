@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121c-worker-fixture",
+  "capacity": {
+    "maximum_sources": 16,
+    "pending_requests_per_source": 1,
+    "policy": "latest generation wins independently for each source",
+    "pending_overwrite_is_allowed": true,
+    "stale_solved_result_is_never_published": true
+  },
+  "ownership": {
+    "producer": "client tick freezes scalar source/listener coordinates and a complete immutable scene snapshot",
+    "worker": "owns one reusable LocalPlaneSceneSolver workspace and never reads ClientLevel, BlockState, VoxelShape, OpenAL, PCM or renderer state",
+    "consumer": "applies only a published result whose source id and generation match the latest requested generation",
+    "result": "fixed-capacity primitive DTO with at most six selected paths and six clusters"
+  },
+  "fallback": {
+    "incomplete_snapshot": "publish no explicit early paths and request direct plus conservative late fallback",
+    "over_budget_snapshot": "same as incomplete snapshot",
+    "stale_generation": "discard without publication",
+    "worker_unavailable": "retain prior smoothed render state; do not block the audio thread"
+  },
+  "timing": {
+    "minecraft_tick_budget_ms": 50.0,
+    "source_counts": [1, 4, 8, 16],
+    "p99_end_to_end_batch_budget_ms": 25.0,
+    "p99_worker_solve_per_scene_budget_us": 100.0,
+    "p99_consumer_copy_per_scene_budget_us": 100.0,
+    "benchmark_is_offline": true
+  },
+  "gates": {
+    "actual_worker_thread_required": true,
+    "pending_overwrite_fixture_required": true,
+    "stale_solve_discard_fixture_required": true,
+    "incomplete_fallback_fixture_required": true,
+    "all_source_counts_required": true,
+    "independent_timeline_verifier_required": true,
+    "submit_and_consumer_copy_zero_allocation_required": true,
+    "live_early_renderer_enabled": false
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "minecraft_client_started": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "worker_handoff_measured": false,
+  "release_calibrated": false
+}

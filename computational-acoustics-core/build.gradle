@@ -1,0 +1,669 @@
+plugins {
+	id "java-library"
+}
+
+dependencies {
+	testImplementation(platform("org.junit:junit-bom:5.10.3"))
+	testImplementation("org.junit.jupiter:junit-jupiter")
+	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+	useJUnitPlatform()
+}
+
+tasks.register("ddaBenchmark", JavaExec) {
+	group = "verification"
+	description = "Runs the deterministic CPU direct-path DDA batch baseline."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.acoustics.tools.DdaBatchBenchmark")
+	args(project.findProperty("iterations") ?: "5")
+}
+
+tasks.register("ddaParityCorpus", JavaExec) {
+	group = "verification"
+	description = "Generates the versioned CPU DDA parity corpus."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.acoustics.tools.DdaParityCorpusCli")
+	args(
+		project.findProperty("output")
+			?: "build/research/dda-parity-v1.bin",
+		project.findProperty("randomRays") ?: "4096",
+		project.findProperty("raySeed") ?: "0x4650564444410001",
+		project.findProperty("materialSeed") ?: "0x4D4154455249414C"
+	)
+}
+
+tasks.register("ddaProductionBundleFixture", JavaExec) {
+	group = "verification"
+	description = "Generates the deterministic production DDA bundle fixture."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.DdaProductionSnapshotBundleCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/dda-production-fixture-v1.bin"
+	)
+}
+
+tasks.register("ddaProductionExpectedResultsFixture", JavaExec) {
+	group = "verification"
+	description = "Generates Java CPU expected results for the DDA fixture."
+	dependsOn("ddaProductionBundleFixture")
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.DdaProductionExpectedResultsCli"
+	)
+	args(
+		"generate",
+		"build/research/dda-production-fixture-v1.bin",
+		"build/research/dda-production-fixture-v1.expected-v1.bin"
+	)
+}
+
+tasks.register("verifyDdaProductionBundleFile", JavaExec) {
+	group = "verification"
+	description = "Verifies a production DDA bundle with the Java reader."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.DdaProductionSnapshotBundleVerifyCli"
+	)
+	doFirst {
+		if (!project.hasProperty("bundle")) {
+			throw new GradleException(
+				"Pass -Pbundle=<production-dda-bundle>"
+			)
+		}
+		args(
+			"--require-complete",
+			rootProject.file(project.property("bundle")).absolutePath
+		)
+	}
+}
+
+tasks.register("generateDdaProductionExpectedResults", JavaExec) {
+	group = "verification"
+	description = "Generates Java CPU expected results for a complete DDA bundle."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.DdaProductionExpectedResultsCli"
+	)
+	doFirst {
+		if (!project.hasProperty("bundle")) {
+			throw new GradleException(
+				"Pass -Pbundle=<production-dda-bundle>"
+			)
+		}
+		def bundle = rootProject.file(project.property("bundle"))
+		def expected = project.hasProperty("expectedResults")
+			? rootProject.file(project.property("expectedResults"))
+			: new File(bundle.parentFile, bundle.name + ".expected-v1.bin")
+		args("generate", bundle.absolutePath, expected.absolutePath)
+	}
+}
+
+tasks.register("verifyDdaProductionExpectedResults", JavaExec) {
+	group = "verification"
+	description = "Recomputes and verifies Java CPU DDA expected results."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.DdaProductionExpectedResultsCli"
+	)
+	doFirst {
+		if (!project.hasProperty("bundle")
+				|| !project.hasProperty("expectedResults")) {
+			throw new GradleException(
+				"Pass -Pbundle=<bundle> -PexpectedResults=<sidecar>"
+			)
+		}
+		args(
+			"verify",
+			rootProject.file(project.property("bundle")).absolutePath,
+			rootProject.file(project.property("expectedResults")).absolutePath
+		)
+	}
+}
+
+tasks.register("portalBenchmark", JavaExec) {
+	group = "verification"
+	description = "Runs the bounded local-air A* latency baseline."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.acoustics.tools.PortalAStarBenchmark")
+	args(project.findProperty("searches") ?: "1000")
+}
+
+tasks.register("reverbEnvironmentReference", JavaExec) {
+	group = "verification"
+	description = "Writes deterministic synthetic environment reverb evidence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.ReverbEnvironmentReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/reverb-environment-reference-v1.json"
+	)
+}
+
+tasks.register("airShoeboxVoxelReference", JavaExec) {
+	group = "verification"
+	description = "Decomposes AIR effective absorption and voxel room error."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.AirShoeboxVoxelReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/air-shoebox-voxel-reference-v1.json"
+	)
+}
+
+tasks.register("ptbMaterialMixtureReference", JavaExec) {
+	group = "verification"
+	description = "Compares current and PTB-candidate mixed-surface decay."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.PtbMaterialMixtureReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/ptb-material-mixture-v1.json"
+	)
+}
+
+tasks.register("ptbMaterialMixtureConvergence", JavaExec) {
+	group = "verification"
+	description = "Runs heterogeneous material hit and budget convergence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "PtbMaterialMixtureConvergenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/ptb-material-mixture-convergence-v1.json"
+	)
+}
+
+tasks.register("ptbMaterialMixtureDiffuseControl", JavaExec) {
+	group = "verification"
+	description = "Runs the all-diffuse control for material convergence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "PtbMaterialMixtureConvergenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/ptb-material-mixture-diffuse-v1.json",
+		"diffuse"
+	)
+}
+
+tasks.register("ptbMaterialMixtureLateDiffuse2", JavaExec) {
+	group = "verification"
+	description = "Preserves two early material hits, then diffuses transport."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "PtbMaterialMixtureConvergenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/ptb-material-mixture-late-diffuse-2-v1.json",
+		"late-diffuse-2"
+	)
+}
+
+tasks.register("ptbPathMixingTimeReference", JavaExec) {
+	group = "verification"
+	description = "Tests MFP-scaled early/late transitions across room shapes."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "PtbPathMixingTimeReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/ptb-path-mixing-time-v1.json"
+	)
+}
+
+tasks.register("doorwayReverbContinuity", JavaExec) {
+	group = "verification"
+	description = "Measures nested doorway escape and reverb continuity."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.DoorwayReverbContinuityCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/doorway-reverb-continuity-v1.json"
+	)
+}
+
+tasks.register("twoRoomPortalCoupling", JavaExec) {
+	group = "verification"
+	description = "Measures transport and return through a two-room portal."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.TwoRoomPortalCouplingCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/two-room-portal-coupling-v1.json"
+	)
+}
+
+tasks.register("fdnDoorTransition", JavaExec) {
+	group = "verification"
+	description = "Measures 200 ms FDN smoothing for D078 door endpoints."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.FdnDoorTransitionCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/fdn-door-transition-v1.json"
+	)
+}
+
+tasks.register("airSceneCompositionInverse", JavaExec) {
+	group = "verification"
+	description = "Fits D111 AIR scene mixtures and runs spatial voxel holdouts."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "AirSceneCompositionInverseCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/air-scene-composition-inverse-v1.json"
+	)
+}
+
+tasks.register("dechorateCpuDdaExperiment", JavaExec) {
+	group = "verification"
+	description = "Runs D116 Java CPU DDA paths for the 66 dEchorate scenarios."
+	dependsOn(rootProject.tasks.named("analyzeDechorateSofaSubset"))
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "DechorateCpuDdaExperimentCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/dechorate-cpu-dda-experiment-v1.json",
+		"build/research/dechorate-measured-sofa-analysis-v1.json"
+	)
+}
+
+tasks.register("ddaFirstOrderBatchBenchmark", JavaExec) {
+	group = "verification"
+	description = "Measures D117 reusable seven-path DDA parity and allocation."
+	dependsOn(rootProject.tasks.named(
+		"analyzeDechorateMultichannelGeneralization"
+	))
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "DdaFirstOrderBatchBenchmarkCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/dda-first-order-batch-benchmark-v1.json",
+		"build/research/dechorate-multichannel-generalization-v1.json"
+	)
+}
+
+tasks.register("boundedFirstOrderGainReference", JavaExec) {
+	group = "verification"
+	description = "Writes D120 bounded-gain parity and allocation evidence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "BoundedFirstOrderGainReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/bounded-first-order-gain-reference-v1.json",
+		"docs/acoustics/bounded-first-order-gain-contract-v1.json"
+	)
+}
+
+tasks.register("earlyLateEnergyLedgerReference", JavaExec) {
+	group = "verification"
+	description = "Writes D121 early/late energy conservation evidence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "EarlyLateEnergyLedgerReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/minecraft-early-late-energy-ledger-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-early-late-energy-ledger-contract-v1.json"
+	)
+}
+
+tasks.register("localPlaneReflectionReference", JavaExec) {
+	group = "verification"
+	description = "Writes D121 local-plane geometry and visibility evidence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "LocalPlaneReflectionReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/local-plane-reflection-v1.json",
+		"docs/acoustics/local-plane-reflection-contract-v1.json"
+	)
+}
+
+tasks.register("localPlaneSceneReference", JavaExec) {
+	group = "verification"
+	description = "Writes D121b bounded local-plane scene evidence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "LocalPlaneSceneReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/minecraft-local-plane-scene-v1.json",
+		"docs/acoustics/minecraft-local-plane-scene-contract-v1.json"
+	)
+}
+
+tasks.register("localPlaneWorkerHandoffReference", JavaExec) {
+	group = "verification"
+	description = "Writes D121c latest-generation worker handoff evidence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "LocalPlaneWorkerHandoffReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-local-plane-worker-handoff-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-local-plane-worker-handoff-contract-v1.json"
+	)
+}
+
+tasks.register("frozenBlockViewSnapshotProducerReference", JavaExec) {
+	group = "verification"
+	description = "Writes D121e frozen-block-view producer evidence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "FrozenBlockViewSnapshotProducerReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-frozen-block-view-snapshot-producer-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-frozen-block-view-snapshot-producer-contract-v1.json"
+	)
+}
+
+tasks.register("coverageAwareSnapshotCacheReference", JavaExec) {
+	group = "verification"
+	description = "Writes D121f exact-coverage cache trajectory evidence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "CoverageAwareSnapshotCacheReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-coverage-aware-snapshot-cache-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-coverage-aware-snapshot-cache-contract-v1.json"
+	)
+}
+
+tasks.register("earlyReflectionClusterSlewReference", JavaExec) {
+	group = "verification"
+	description = "Writes D121h early-cluster slew and crossfade evidence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "EarlyReflectionClusterSlewReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-early-cluster-slew-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-early-cluster-slew-contract-v1.json"
+	)
+}
+
+tasks.register("nullEarlyReflectionRendererReference", JavaExec) {
+	group = "verification"
+	description = "Writes D121i null fractional-delay renderer evidence."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "NullEarlyReflectionRendererReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-null-early-renderer-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-null-early-renderer-contract-v1.json"
+	)
+}
+
+tasks.register("fractionalDelayRendererBenchmark", JavaExec) {
+	group = "verification"
+	description = "Benchmarks D121j linear and cubic-Lagrange renderers."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "FractionalDelayRendererBenchmarkCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-fractional-delay-renderer-benchmark-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-fractional-delay-selection-contract-v1.json"
+	)
+}
+
+tasks.register("highBandFractionalDelayBenchmark", JavaExec) {
+	group = "verification"
+	description = "Benchmarks the D121k hybrid high-band sinc renderer."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "HighBandFractionalDelayBenchmarkCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-high-band-fractional-delay-benchmark-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-high-band-fractional-delay-contract-v1.json"
+	)
+}
+
+tasks.register("pairedHighBandRendererBudget", JavaExec) {
+	group = "verification"
+	description = "Measures D121l paired 1/4/6-source renderer budgets."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "PairedHighBandRendererBudgetCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-paired-high-band-renderer-budget-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-paired-high-band-renderer-budget-contract-v1.json"
+	)
+}
+
+tasks.register("endpointDisabledAcousticReplay", JavaExec) {
+	group = "verification"
+	description = "Replays D121m world events into a pure-memory wet bus."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "EndpointDisabledAcousticReplayCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-endpoint-disabled-acoustic-replay-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-endpoint-disabled-acoustic-replay-contract-v1.json"
+	)
+}
+
+tasks.register("canonicalWorldEventReplay", JavaExec) {
+	group = "verification"
+	description = "Replays D121n canonical ordered world events."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "CanonicalWorldEventReplayCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-canonical-world-event-replay-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-canonical-world-event-replay-contract-v1.json"
+	)
+}
+
+tasks.register("nativeWorldEventTraceReplay", JavaExec) {
+	group = "verification"
+	description = "Replays D121o bounded native callback tracing."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "NativeWorldEventTraceReplayCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-native-world-event-trace-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-native-world-event-trace-contract-v1.json"
+	)
+}
+
+tasks.register("nativeEventTraceDiagnosticGate", JavaExec) {
+	group = "verification"
+	description = "Evaluates D121p fail-closed native trace launch cases."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "NativeEventTraceDiagnosticGateCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-native-trace-launch-gate-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-native-trace-launch-gate-contract-v1.json"
+	)
+}
+
+tasks.register("nativeTraceAlcEvidenceReference", JavaExec) {
+	group = "verification"
+	description = "Builds the D121q pure-memory trace/ALC evidence bundle."
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools."
+			+ "NativeTraceAlcEvidenceReferenceCli"
+	)
+	args(
+		project.findProperty("output")
+			?: "build/research/"
+				+ "minecraft-native-trace-alc-evidence-reference-v1.json",
+		"docs/acoustics/"
+			+ "minecraft-native-trace-alc-evidence-contract-v1.json"
+	)
+}
+
+tasks.register("reverbRuntimeBenchmark", JavaExec) {
+	group = "verification"
+	description = "Measures the runtime reflection probe and shared FDN baseline."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.acoustics.tools.ReverbRuntimeBenchmark"
+	)
+	args(project.findProperty("iterations") ?: "200")
+}
+
+tasks.register("udfaIirBenchmark", JavaExec) {
+	group = "verification"
+	description = "Measures four-shelf UDFA IIR error and sample throughput."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.acoustics.tools.UdfaIirBenchmark")
+	args(project.findProperty("samples") ?: "2000000")
+}
+
+tasks.register("udfaDoubleEdgeBenchmark", JavaExec) {
+	group = "verification"
+	description = "Measures single- and double-edge UDFA geometry evaluation cost."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.acoustics.tools.UdfaDoubleEdgeBenchmark")
+	args(project.findProperty("iterations") ?: "1000000")
+}
+
+tasks.register("btmsReference", JavaExec) {
+	group = "verification"
+	description = "Evaluates the exact infinite-wedge BTMS complex reference."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.acoustics.tools.BtmsReferenceCli")
+	if (project.hasProperty("btmsArgs")) {
+		args(project.property("btmsArgs").toString().split(","))
+	}
+}

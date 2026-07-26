@@ -22,7 +22,7 @@ fabricApi {
 		createSourceSet = true
 		modId = "fpvdrone-gametest"
 		enableGameTests = true
-		enableClientGameTests = false
+		enableClientGameTests = true
 		eula = true
 	}
 }
@@ -35,6 +35,8 @@ dependencies {
 
 	implementation project(":drone-sim-core")
 	include project(":drone-sim-core")
+	implementation project(":computational-acoustics-core")
+	include project(":computational-acoustics-core")
 
 	testImplementation(platform("org.junit:junit-bom:5.10.3"))
 	testImplementation("org.junit.jupiter:junit-jupiter")
@@ -96,6 +98,501 @@ tasks.register("playablePresetJars") {
 
 tasks.test {
 	useJUnitPlatform()
+}
+
+tasks.register("minecraftVoxelShapeLocalPlaneReference", JavaExec) {
+	group = "verification"
+	description = "Executes native VoxelShape slab/stair union fixtures offline."
+	dependsOn("clientClasses")
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.client.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.client.sound."
+			+ "MinecraftVoxelShapeLocalPlaneReferenceCli"
+	)
+	args(
+		rootProject.file(
+			"build/research/minecraft-voxel-shape-local-plane-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"docs/acoustics/local-plane-reflection-contract-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("minecraftSharedLocalPlaneSnapshotReference", JavaExec) {
+	group = "verification"
+	description = "Executes D121d native-shape shared snapshot fixtures."
+	dependsOn("clientClasses")
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.client.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.client.sound."
+			+ "MinecraftSharedLocalPlaneSnapshotReferenceCli"
+	)
+	args(
+		rootProject.file(
+			"build/research/"
+				+ "minecraft-shared-local-plane-snapshot-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"docs/acoustics/"
+				+ "minecraft-shared-local-plane-snapshot-contract-v1.json"
+		).absolutePath
+	)
+}
+
+def clientGameTestDdaOutput = rootProject.layout.projectDirectory.file(
+	"build/research/minecraft-dda-client-gametest-v1.bin"
+).asFile
+def clientGameTestReverbOutput = rootProject.layout.projectDirectory.file(
+	"build/research/minecraft-reverb-client-gametest-v1.json"
+).asFile
+def clientGameTestReverbPerformanceOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/minecraft-reverb-performance-v1.json"
+	).asFile
+def clientGameTestPortalOutput = rootProject.layout.projectDirectory.file(
+	"build/research/minecraft-portal-client-gametest-v1.json"
+).asFile
+def clientGameTestOpenAlOutput = rootProject.layout.projectDirectory.file(
+	"build/research/openal-native-capability-v1.json"
+).asFile
+def clientGameTestOpenAlRoutingOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-efx-source-routing-v1.json"
+	).asFile
+def clientGameTestOpenAlControllerOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-efx-controller-v1.json"
+	).asFile
+def clientGameTestOpenAlReloadOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-efx-reload-v1.json"
+	).asFile
+def clientGameTestOpenAlFailoverOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-efx-fault-failover-v1.json"
+	).asFile
+def clientGameTestListenerHandoffOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/listener-reverb-queue-handoff-v1.json"
+	).asFile
+def clientGameTestBackendCapabilityPolicyOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-backend-capability-policy-v1.json"
+	).asFile
+def clientGameTestOpenAlClockOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-clock-latency-v1.json"
+	).asFile
+def clientGameTestOpenAlDopplerOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-native-doppler-guard-v1.json"
+	).asFile
+def clientGameTestDopplerPcmOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/doppler-pcm-conformance-v1.json"
+	).asFile
+def clientGameTestDopplerChunkOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/doppler-production-chunk-trace-v1.json"
+	).asFile
+def clientGameTestDopplerChunkPcmOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/doppler-production-chunk-trace-v1.pcm"
+	).asFile
+def clientGameTestDopplerChunkBlackboxOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/doppler-production-chunk-blackbox-v1.csv"
+	).asFile
+def clientGameTestOpenAlStreamingQueueOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-streaming-queue-v1.json"
+	).asFile
+def clientGameTestOpenAlEventQueueHealthOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-events-queue-health-v1.json"
+	).asFile
+def clientGameTestOpenAlLoopbackRenderOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-loopback-render-v1.json"
+	).asFile
+def clientGameTestOpenAlLoopbackRenderPcmOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-loopback-render-v1.pcm"
+	).asFile
+def clientGameTestBackendTransferOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-backend-transfer-v1.json"
+	).asFile
+def clientGameTestBackendTransferDryPcmOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-backend-transfer-dry-v1.pcm"
+	).asFile
+def clientGameTestBackendTransferEfxPcmOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-backend-transfer-efx-v1.pcm"
+	).asFile
+def clientGameTestBackendTransferJavaPcmOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-backend-transfer-java-fdn-v1.pcm"
+	).asFile
+def clientGameTestBackendMatrixOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-backend-environment-matrix-v1.json"
+	).asFile
+def clientGameTestBackendMatrixPcmOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-backend-environment-matrix-v1.pcm"
+	).asFile
+def clientGameTestBackendTransitionOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-backend-transition-v1.json"
+	).asFile
+def clientGameTestBackendTransitionDryPcmOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-backend-transition-dry-v1.pcm"
+	).asFile
+def clientGameTestBackendTransitionEfxPcmOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-backend-transition-efx-v1.pcm"
+	).asFile
+def clientGameTestBackendTransitionJavaPcmOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/openal-backend-transition-java-fdn-v1.pcm"
+	).asFile
+def clientGameTestAudioLabDryOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/audio-lab-dry-control-v1.json"
+	).asFile
+def clientGameTestAudioLabJavaOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/audio-lab-java-fdn-control-v1.json"
+	).asFile
+def clientGameTestAudioLabEfxOutput =
+	rootProject.layout.projectDirectory.file(
+		"build/research/audio-lab-openal-efx-reload-v1.json"
+	).asFile
+
+tasks.named("runClientGameTest").configure {
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestDdaOutput",
+			clientGameTestDdaOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestReverbOutput",
+		clientGameTestReverbOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestReverbPerformanceOutput",
+		clientGameTestReverbPerformanceOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestPortalOutput",
+		clientGameTestPortalOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestOpenAlOutput",
+		clientGameTestOpenAlOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestOpenAlRoutingOutput",
+		clientGameTestOpenAlRoutingOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestOpenAlControllerOutput",
+		clientGameTestOpenAlControllerOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestOpenAlReloadOutput",
+		clientGameTestOpenAlReloadOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestOpenAlFailoverOutput",
+		clientGameTestOpenAlFailoverOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestListenerHandoffOutput",
+		clientGameTestListenerHandoffOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.listenerHandoffD107Report",
+		rootProject.file(
+			"build/research/listener-reverb-history-handoff-v1.json"
+		).absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestBackendCapabilityPolicyOutput",
+		clientGameTestBackendCapabilityPolicyOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestOpenAlClockOutput",
+		clientGameTestOpenAlClockOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestOpenAlDopplerOutput",
+		clientGameTestOpenAlDopplerOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestDopplerPcmOutput",
+		clientGameTestDopplerPcmOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestDopplerChunkOutput",
+		clientGameTestDopplerChunkOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestDopplerChunkPcmOutput",
+		clientGameTestDopplerChunkPcmOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestDopplerChunkBlackboxOutput",
+			clientGameTestDopplerChunkBlackboxOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestOpenAlStreamingQueueOutput",
+			clientGameTestOpenAlStreamingQueueOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestOpenAlEventQueueHealthOutput",
+			clientGameTestOpenAlEventQueueHealthOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestOpenAlLoopbackRenderOutput",
+			clientGameTestOpenAlLoopbackRenderOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestOpenAlLoopbackRenderPcmOutput",
+			clientGameTestOpenAlLoopbackRenderPcmOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestBackendTransferOutput",
+			clientGameTestBackendTransferOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestBackendTransferDryPcmOutput",
+			clientGameTestBackendTransferDryPcmOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestBackendTransferEfxPcmOutput",
+			clientGameTestBackendTransferEfxPcmOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestBackendTransferJavaPcmOutput",
+			clientGameTestBackendTransferJavaPcmOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestBackendMatrixOutput",
+			clientGameTestBackendMatrixOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestBackendMatrixPcmOutput",
+			clientGameTestBackendMatrixPcmOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestBackendTransitionOutput",
+			clientGameTestBackendTransitionOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestBackendTransitionDryPcmOutput",
+			clientGameTestBackendTransitionDryPcmOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestBackendTransitionEfxPcmOutput",
+			clientGameTestBackendTransitionEfxPcmOutput.absolutePath
+	)
+	systemProperty(
+			"fpvdrone.acoustics.clientGameTestBackendTransitionJavaPcmOutput",
+			clientGameTestBackendTransitionJavaPcmOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestAudioLabDryOutput",
+		clientGameTestAudioLabDryOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestAudioLabJavaOutput",
+		clientGameTestAudioLabJavaOutput.absolutePath
+	)
+	systemProperty(
+		"fpvdrone.acoustics.clientGameTestAudioLabEfxOutput",
+		clientGameTestAudioLabEfxOutput.absolutePath
+	)
+	systemProperty("fpvdrone.openalEfx", "true")
+	systemProperty("fpvdrone.listenerReverb", "true")
+}
+
+tasks.register("verifyAcousticProfileFile", JavaExec) {
+	group = "verification"
+	description = "Strictly verifies a generated acoustic source profile with the runtime decoder."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.client.sound.AcousticProfileVerifyCli")
+	doFirst {
+		if (!project.hasProperty("profile")) {
+			throw new GradleException("Pass -Pprofile=<acoustic-profile-json>")
+		}
+		args(rootProject.file(project.property("profile")).absolutePath)
+	}
+}
+
+tasks.register("listenerReverbRuntimeBenchmark", JavaExec) {
+	group = "verification"
+	description = "Measures six-source shared wet-stream P99 and cleanup."
+	classpath = sourceSets.client.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.client.sound."
+			+ "ListenerReverbRuntimeBenchmark"
+	)
+	args(
+		project.findProperty("output")
+			?: rootProject.file(
+				"build/research/listener-reverb-runtime-v1.json"
+			).absolutePath
+	)
+}
+
+tasks.register("openAlEfxRuntimeBenchmark", JavaExec) {
+	group = "verification"
+	description = "Measures 12-source dry and shared-EFX loopback P99."
+	classpath = sourceSets.client.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.client.sound."
+			+ "OpenAlEfxRuntimeBenchmark"
+	)
+	args(
+		rootProject.file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		).absolutePath,
+		project.findProperty("output")
+			?: rootProject.file(
+				"build/research/openal-efx-runtime-v1.json"
+			).absolutePath
+	)
+}
+
+tasks.register("backendColdStartContinuityProbe", JavaExec) {
+	group = "research"
+	description = "Renders D105 cold-start EFX/Java ownership boundaries."
+	classpath = sourceSets.client.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.client.sound."
+			+ "BackendColdStartContinuityProbe"
+	)
+	args(
+		rootProject.file(
+			"build/research/openal-backend-transition-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		).absolutePath,
+		rootProject.file(
+			"build/research/openal-efx-fault-failover-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"build/research/backend-cold-start-continuity-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"build/research/backend-cold-start-continuity-v1.pcm"
+		).absolutePath,
+		rootProject.file(
+			"build/research/backend-cold-start-dry-v1.pcm"
+		).absolutePath,
+		rootProject.file(
+			"build/research/backend-cold-start-java-wet-v1.pcm"
+		).absolutePath
+	)
+	doFirst {
+		for (def required : [
+			"build/research/openal-backend-transition-v1.json",
+			"build/research/doppler-production-chunk-trace-v1.json",
+			"build/research/doppler-production-chunk-trace-v1.pcm",
+			"build/research/openal-efx-fault-failover-v1.json"
+		]) {
+			if (!rootProject.file(required).isFile()) {
+				throw new GradleException(
+					"Missing D105 source artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+}
+
+tasks.register("fdnHistoryPrerollSweep", JavaExec) {
+	group = "research"
+	description = "Sweeps D106 bounded FDN mixed-input pre-roll history."
+	classpath = sourceSets.client.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.client.sound.FdnHistoryPrerollSweep"
+	)
+	args(
+		rootProject.file(
+			"build/research/openal-backend-transition-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		).absolutePath,
+		rootProject.file(
+			"build/research/fdn-history-preroll-sweep-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"build/research/fdn-history-preroll-sweep-v1.pcm"
+		).absolutePath
+	)
+	doFirst {
+		for (def required : [
+			"build/research/openal-backend-transition-v1.json",
+			"build/research/doppler-production-chunk-trace-v1.json",
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		]) {
+			if (!rootProject.file(required).isFile()) {
+				throw new GradleException(
+					"Missing D106 source artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+}
+
+tasks.register("listenerReverbHistoryHandoffProbe", JavaExec) {
+	group = "research"
+	description = "Measures D107 shadow-history synthesis and wet-stream handoff."
+	classpath = sourceSets.client.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.client.sound."
+			+ "ListenerReverbHistoryHandoffProbe"
+	)
+	args(
+		rootProject.file(
+			"build/research/fdn-history-preroll-sweep-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"build/research/listener-reverb-history-handoff-v1.json"
+		).absolutePath,
+		rootProject.file(
+			"build/research/listener-reverb-history-handoff-v1.pcm"
+		).absolutePath
+	)
+	doFirst {
+		if (!rootProject.file(
+				"build/research/fdn-history-preroll-sweep-v1.json"
+		).isFile()) {
+			throw new GradleException(
+				"Missing D106 report; run "
+					+ ":fabric-mod:fdnHistoryPrerollSweep first."
+			)
+		}
+	}
 }
 
 tasks.register("flightModelComparison", JavaExec) {

@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "air_paper": {
+    "title": "A Binaural Room Impulse Response Database for the Evaluation of Dereverberation Algorithms",
+    "authors": ["Marco Jeub", "Magnus Schafer", "Peter Vary"],
+    "year": 2009,
+    "doi": "10.1109/ICDSP.2009.5201259",
+    "official_url": "https://www.iks.rwth-aachen.de/fileadmin/publications/jeub09a.pdf",
+    "bytes": 188568,
+    "sha256": "f2cb2d4194fceb050df3f8403762488f1dd4fe4e2c255961a9fe07261db94c53",
+    "evidence_page_1_based": 3,
+    "table": 1,
+    "figure_page_1_based": 4,
+    "figure": 3,
+    "copyright_note": "The official publication page permits personal use; extracted facts and citations only, no redistributed paper."
+  },
+  "air_rooms": [
+    {
+      "id": "air-booth",
+      "paper_label": "Studio booth",
+      "dimensions_m": [3.0, 1.8, 2.2],
+      "wall_surface": ["custom-made low-reflective panels"],
+      "wall_surface_counts": null,
+      "floor_cover": "carpet",
+      "furniture": [],
+      "furniture_absence_explicit": true,
+      "ceiling_surface": null,
+      "semantic_material_classes": ["engineered-acoustic-panel", "carpet"]
+    },
+    {
+      "id": "air-lecture",
+      "paper_label": "Lecture room",
+      "dimensions_m": [10.8, 10.9, 3.15],
+      "wall_surface": ["glass windows", "concrete wall"],
+      "wall_surface_counts": [3, 1],
+      "floor_cover": "parquet",
+      "furniture": ["wooden tables", "chairs"],
+      "furniture_absence_explicit": false,
+      "ceiling_surface": null,
+      "semantic_material_classes": ["glass", "concrete", "wood-floor", "table", "chair"]
+    }
+  ],
+  "dechorate_metadata": {
+    "record": "https://zenodo.org/records/6576203",
+    "doi": "10.5281/zenodo.6576203",
+    "version": "2.0 HDF5",
+    "license": "CC BY 4.0",
+    "file_url": "https://zenodo.org/records/6576203/files/dEchorate_database.csv?download=1",
+    "filename": "dEchorate_database.csv",
+    "bytes": 2931172,
+    "sha256": "0851ff6c4d0a83248bc1f78cef9b8d2506ad9592b2b3069e430c56dea10850f2",
+    "expected_rows": 10912,
+    "expected_rows_per_room_code": 992,
+    "expected_loopback_rows_without_spatial_coordinates": 352,
+    "expected_room_codes": [
+      "000000",
+      "000001",
+      "000010",
+      "000100",
+      "001000",
+      "010000",
+      "011000",
+      "011100",
+      "011110",
+      "011111",
+      "020002"
+    ],
+    "paper_doi": "10.1186/s13636-021-00229-0",
+    "selection_reason": "Measured RIR corpus with exact source/microphone coordinates, per-facet reflective state, controlled furniture condition, real/synthetic comparison, and published room-material construction."
+  },
+  "claim_boundary": "AIR Table 1 supplies semantic room inventory but not octave absorption, scattering, ceiling construction, or complete surface-area fractions. dEchorate metadata is screened as the next controlled reference; its multi-gigabyte RIR payload is not fetched by this evidence audit."
+}

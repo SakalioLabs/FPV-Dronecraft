@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d120-exploratory-evaluation",
+  "model": {
+    "name": "bounded-material-first-order-energy-gain",
+    "fit_performed": false,
+    "bands": [
+      "low",
+      "mid",
+      "high"
+    ],
+    "equation": "G_b = visible ? clamp_positive(((max(d_direct, d_min) / max(d_reflected, d_min))^2) * (1 - absorption_b) * (1 - scattering) * 10^(clamp(correction_b_db, -6, 3) / 10), 1e-6, 1) : 0",
+    "unsupported_query_correction_db": 0.0,
+    "minimum_distance_m": 0.25,
+    "minimum_positive_energy_gain": 1e-06,
+    "maximum_energy_gain": 1.0,
+    "calibration_correction_db_bounds": [
+      -6.0,
+      3.0
+    ],
+    "positive_gain_reporting_db_bounds": [
+      -60.0,
+      0.0
+    ]
+  },
+  "spatial_support": {
+    "rule": "A calibration correction may be applied only when the source is inside the closed source support bounds and the listener is inside the separately fitted closed listener support bounds. Otherwise every correction is exactly 0 dB.",
+    "production_default": "unsupported",
+    "fallback": "material-path-prior"
+  },
+  "arrival_clustering": {
+    "sample_rate_hz": 48000,
+    "speed_of_sound_m_per_s": 343.0,
+    "maximum_adjacent_separation_samples": 16,
+    "rule": "Visible reflected arrivals are stably sorted by path length. Adjacent arrivals separated by no more than 16 samples join the same cluster. Cluster energy is summed per band and arrival time is total-energy weighted."
+  },
+  "gates": {
+    "finite_non_negative_output": true,
+    "energy_gain_never_exceeds_one": true,
+    "unsupported_correction_is_zero_db": true,
+    "invisible_path_is_silent": true,
+    "java_hot_path_zero_allocation_required": true,
+    "independent_python_parity_required": true,
+    "measured_rir_evaluation_is_exploratory": true
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "release_calibrated": false,
+  "claim_boundary": "D120 freezes a physically bounded first-order energy-gain and collision-clustering contract before exploratory reuse of the D118 measured RIRs. The constants are safety and runtime-policy bounds, not fitted release parameters."
+}

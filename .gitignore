@@ -6,6 +6,13 @@ out/
 .idea/
 *.iml
 *.log
+__pycache__/
+*.pyc
 hs_err_pid*
 replay_pid*
 docs/data/raw/
+docs/data/external/
+docs/data/acoustic-captures/
+docs/data/acoustic-cache/
+/external-data/
+/tmp/

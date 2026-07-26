@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "dataset": {
+    "doi": "10.57745/L8MNF5",
+    "repository": "Recherche Data Gouv",
+    "dataset_version_observed": "1.1",
+    "license": "Etalab Open Licence 2.0",
+    "last_repository_update_observed_utc": "2026-07-03T13:54:33Z"
+  },
+  "file": {
+    "datafile_id": 709440,
+    "persistent_id": "doi:10.57745/TB9O6P",
+    "access_url": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/709440",
+    "filename": "straight_plate_tripped_BPT_acoustic_autopower.h5",
+    "description": "Acoustic autopower, rotor BP-T",
+    "bytes": 4332048,
+    "md5": "bc0b9c815bdca9f2e073303d315eed7b",
+    "sha256": "ce86109218a1cb871205a3abfbfa3b2d74e69634757266dc03eb73ba762fdffe"
+  },
+  "paired_files": [
+    {
+      "role": "straight_baseline",
+      "datafile_id": 709433,
+      "filename": "straight_B_acoustic_autopower.h5",
+      "bytes": 4332048,
+      "md5": "9987760e4146aa8d6f4374ba2ba7e5fc",
+      "sha256": "5ce7411ccaaee7d13a32a5ad8fec0bb16c720ad335b0540a7d3af17cd90d0faf"
+    },
+    {
+      "role": "straight_tripped_candidate",
+      "datafile_id": 709441,
+      "filename": "straight_tripped_BT_acoustic_autopower.h5",
+      "bytes": 4332048,
+      "md5": "f402f09880c7b59457e36882c90bad27",
+      "sha256": "a56a9fa7dd3b6019686c32ac426b9630228a287dc8d17db5fff825c767afdbfb"
+    }
+  ],
+  "observed_hdf5_contract": {
+    "group": "straight_plate_tripped_BPT_acoustic",
+    "datasets": {
+      "Autopower": {
+        "shape": [
+          8193,
+          13,
+          5
+        ],
+        "dtype": "float64",
+        "unit": "Pa^2",
+        "axis_order": [
+          "frequency",
+          "theta",
+          "rpm"
+        ]
+      },
+      "RPM": {
+        "shape": [
+          1,
+          5
+        ],
+        "values": [
+          4000.0,
+          5000.0,
+          6000.0,
+          7000.0,
+          8000.0
+        ]
+      },
+      "frequency_Hz": {
+        "shape": [
+          1,
+          8193
+        ],
+        "minimum": 0.0,
+        "maximum": 25600.0,
+        "uniform_bin_width": 3.125
+      },
+      "radius_m": {
+        "shape": [
+          1,
+          1
+        ],
+        "value": 1.62
+      },
+      "theta_deg": {
+        "shape": [
+          1,
+          13
+        ],
+        "values": [
+          60.0,
+          50.0,
+          40.0,
+          30.0,
+          20.0,
+          10.0,
+          0.0,
+          -10.0,
+          -20.0,
+          -30.0,
+          -40.0,
+          -50.0,
+          -60.0
+        ]
+      }
+    }
+  },
+  "analysis": {
+    "blade_count": 2,
+    "blade_count_provenance": "inferred from the dominant line at approximately 2*RPM/60; must be confirmed from publication or CAD before any broader physical claim",
+    "maximum_harmonics": 8,
+    "tone_half_width_hz": 6.25,
+    "minimum_tone_prominence_db": 6.0,
+    "reference_distance_m": 1.0,
+    "normalization": "free-field 20*log10(1.62/1.0), validation only"
+  },
+  "release_constraints": {
+    "release_profile_eligible": false,
+    "raw_pressure_time_history_available": false,
+    "phase_available": false,
+    "pcm_synthesis_allowed": false,
+    "release_profile_fitting_allowed": false
+  }
+}

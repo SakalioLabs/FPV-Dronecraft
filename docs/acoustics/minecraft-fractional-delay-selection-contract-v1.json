@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121j-fractional-delay-selection",
+  "algorithms": [
+    "linear FIR",
+    "third-order Lagrange FIR",
+    "first-order Thiran all-pass",
+    "second-order Thiran all-pass"
+  ],
+  "static_screen": {
+    "fractional_delays": [0.1, 0.25, 0.5, 0.75, 0.9],
+    "sample_rate_hz": 48000,
+    "passband_hz": 12000,
+    "fullband_hz": 20000,
+    "metrics": [
+      "maximum absolute magnitude error dB",
+      "maximum wrapped phase error degrees"
+    ]
+  },
+  "time_varying_screen": {
+    "base_delay_samples": 100,
+    "fractional_range": [0.05, 0.95],
+    "reference": "32-tap normalized Lanczos-windowed sinc",
+    "signal": "deterministic FPV-like harmonic plus broadband excitation",
+    "metrics": [
+      "RMSE versus windowed-sinc reference",
+      "maximum absolute error",
+      "maximum adjacent output step",
+      "all outputs finite"
+    ]
+  },
+  "selection": {
+    "required": [
+      "better 12 kHz magnitude accuracy than linear",
+      "time-varying RMSE no worse than linear",
+      "no recursive coefficient-change transient risk",
+      "12-slot renderer P99 below 500 ns per output frame",
+      "zero steady-state allocation"
+    ],
+    "candidate": "third-order Lagrange FIR"
+  },
+  "research_basis": [
+    {
+      "title": "Splitting the Unit Delay—Tools for Fractional Delay Filter Design",
+      "doi": "10.1109/79.482137"
+    },
+    {
+      "title": "Principles of Fractional Delay Filters",
+      "doi": "10.1109/ICASSP.2000.860248"
+    },
+    {
+      "title": "Elimination of Transients in Time-Varying Allpass Fractional Delay Filters",
+      "claim": "recursive all-pass coefficient changes require explicit state handling to avoid transients"
+    }
+  ],
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "minecraft_client_started": false,
+  "client_level_read": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "live_early_renderer_enabled": false,
+  "release_calibrated": false
+}

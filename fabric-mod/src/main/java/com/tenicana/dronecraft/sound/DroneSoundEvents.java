@@ -10,6 +10,10 @@ import com.tenicana.dronecraft.FpvDronecraftMod;
 public final class DroneSoundEvents {
 	public static final SoundEvent MOTOR_LOOP = registerFixedRange("drone.motor_loop", 48.0f);
 	public static final SoundEvent PROPELLER_LOOP = registerFixedRange("drone.propeller_loop", 48.0f);
+	public static final SoundEvent LISTENER_REVERB_BUS =
+			registerFixedRange("drone.listener_reverb_bus", 1.0f);
+	public static final SoundEvent AUDIO_LAB_MARKER =
+			registerFixedRange("drone.audio_lab_marker", 1.0f);
 	public static final SoundEvent IMPACT = registerFixedRange("drone.impact", 32.0f);
 
 	private DroneSoundEvents() {

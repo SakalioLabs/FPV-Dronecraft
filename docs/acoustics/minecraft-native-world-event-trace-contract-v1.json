@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "decision": "D121o",
+  "purpose": "Freeze a default-off, fixed-capacity native callback trace before an authorized Minecraft runtime test.",
+  "enable_property": "fpvdrone.acoustics.nativeEventTrace",
+  "fabric_capacity": 256,
+  "reference_capacity": 8,
+  "reference_record_count": 12,
+  "reference_retained_count": 8,
+  "reference_overwritten_count": 4,
+  "retained_ordinals_inclusive": [5, 12],
+  "record_fields": [
+    "ordinal",
+    "active_world_epoch",
+    "local_sequence",
+    "thread_id",
+    "kind",
+    "disposition",
+    "inclusive_bounds"
+  ],
+  "overflow_policy": "overwrite-oldest-and-count",
+  "disabled_policy": "strict-no-op-before-validation",
+  "export_policy": "caller-preallocates-entry-array",
+  "gates": {
+    "steady_record_allocation_windows_bytes": [0, 0, 0, 0, 0],
+    "all_reference_events_on_one_thread": true,
+    "chronological_export": true
+  },
+  "runtime_boundaries": {
+    "captures_audio": false,
+    "physical_endpoint_opened": false,
+    "minecraft_client_started": false,
+    "client_level_read": false,
+    "native_callback_delivery_measured": false,
+    "cuda_executed": false,
+    "release_calibrated": false
+  }
+}

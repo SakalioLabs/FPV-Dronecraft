@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121-scene-fixture",
+  "normalization": {
+    "explicit_first_order_candidate_count": 6,
+    "explicit_candidate_mean_equation": "E_candidate_b = sum(first_order_path_gain_b) / 6",
+    "environment_budget_equation": "E_budget_b = clamp(listener_probe_first_hit_energy_b, 0, 1)"
+  },
+  "partition": {
+    "explicit_early_allocated_equation": "E_early_b = min(E_candidate_b, E_budget_b)",
+    "explicit_early_rejected_equation": "E_rejected_b = max(0, E_candidate_b - E_budget_b)",
+    "late_residual_equation": "E_late_b = max(0, E_budget_b - E_early_b)",
+    "conservation_equation": "E_early_b + E_late_b = E_budget_b",
+    "late_wet_gain_equation": "wet = min(0.45, sqrt(mean(E_late)) * 0.4 * (1 - openness))"
+  },
+  "scene_requirements": {
+    "block_material_mapping_version": 1,
+    "material_table_hash_required": true,
+    "snapshot_complete_required": true,
+    "continuous_local_plane_required_for_early_delay": true,
+    "one_meter_block_boundary_as_precise_delay_forbidden": true,
+    "dda_visibility_required": true,
+    "unsupported_spatial_calibration_falls_back": true,
+    "moving_source_cache_invalidation_required": true
+  },
+  "gates": {
+    "finite_non_negative_energy": true,
+    "per_band_conservation": true,
+    "early_and_late_never_exceed_environment_budget": true,
+    "wet_gain_never_exceeds_existing_fdn_cap": true,
+    "independent_reference_required": true,
+    "minecraft_live_audio_enabled": false
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "release_calibrated": false,
+  "claim_boundary": "D121 freezes an offline energy-accounting contract before building Minecraft scene fixtures. It prevents explicit early taps and statistical late reverb from spending the same listener-probe first-hit energy twice; it is not a release-calibrated mix."
+}

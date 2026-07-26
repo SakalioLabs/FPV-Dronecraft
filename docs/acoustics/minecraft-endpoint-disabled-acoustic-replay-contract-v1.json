@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121m-endpoint-disabled-replay",
+  "renderer_contract_version": 2,
+  "renderer": {
+    "sample_rate_hz": 48000,
+    "block_size": 256,
+    "low_mid_interpolation": "third-order Lagrange",
+    "high_interpolation": "8-tap beta-2 Kaiser sinc with 1024 phase intervals",
+    "high_minimum_delay_samples": 4,
+    "short_delay_fallback": "third-order Lagrange",
+    "physical_backend": "none"
+  },
+  "scene": {
+    "coverage": [0, -1, 0, 4, 2, 4],
+    "halo": 1,
+    "material": "stone diagnostic hypothesis",
+    "source_count": 1,
+    "worker": "latest-generation LocalPlaneSceneWorkerHandoff"
+  },
+  "trace": [
+    {"tick": 0, "event": "initial-capture", "expected": "complete rebuild"},
+    {"tick": 1, "event": "outside-coverage-block-update", "expected": "cache hit"},
+    {"tick": 2, "event": "inside-coverage-block-update", "expected": "complete rebuild"},
+    {"tick": 3, "event": "chunk-unload", "expected": "incomplete conservative fallback"},
+    {"tick": 4, "event": "chunk-reload", "expected": "complete rebuild"},
+    {"tick": 5, "event": "block-update-during-capture", "expected": "dirty capture discarded and fallback"},
+    {"tick": 6, "event": "stable-retry", "expected": "complete rebuild"},
+    {"tick": 7, "event": "no-world-change", "expected": "cache hit"},
+    {"tick": 8, "event": "world-change", "expected": "new tracker identity and complete rebuild"}
+  ],
+  "latest_generation_probe": {
+    "submit_before_worker_start": [1, 2],
+    "expected_applied_generation": 2,
+    "expected_pending_overwrites_minimum": 1
+  },
+  "gates": {
+    "trace_event_count": 9,
+    "cache_hits": 2,
+    "rebuilds": 7,
+    "incomplete_fallbacks": 2,
+    "complete_results_with_clusters": 7,
+    "dirty_during_capture_discards": 1,
+    "world_change_forces_rebuild": true,
+    "outside_coverage_update_does_not_rebuild": true,
+    "latest_generation_only": true,
+    "wet_outputs_finite": true,
+    "maximum_adjacent_wet_step": 0.25,
+    "incomplete_fade_reaches_zero_within_block": true,
+    "steady_renderer_allocation_windows_bytes": 0,
+    "energy_budget_enforced_by_renderer_submit": true
+  },
+  "required_prior_statuses": {
+    "d121k": "verified-minecraft-high-band-fractional-delay-runtime-gate-failed",
+    "d121l": "verified-minecraft-paired-high-band-renderer-budget"
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "minecraft_client_started": false,
+  "client_level_read": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "live_early_renderer_enabled": false,
+  "release_calibrated": false
+}

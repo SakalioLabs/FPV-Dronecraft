@@ -29,6 +29,8 @@ class DroneSoundResourcesTest {
 		assertTrue(sounds.keySet().containsAll(Set.of(
 				"drone.motor_loop",
 				"drone.propeller_loop",
+				"drone.listener_reverb_bus",
+				"drone.audio_lab_marker",
 				"drone.impact"
 		)));
 	}
@@ -57,6 +59,25 @@ class DroneSoundResourcesTest {
 			assertArrayEquals(OGG_MAGIC, java.util.Arrays.copyOf(header, OGG_MAGIC.length), name + " must be Ogg");
 			assertTrue(contains(header, VORBIS_MARKER), name + " must contain a Vorbis identification header");
 		}
+	}
+
+	@Test
+	void continuousDroneLayersUseMinecraftStreamingChannels() throws IOException {
+		String json = Files.readString(ASSET_ROOT.resolve("sounds.json"), StandardCharsets.UTF_8);
+		JsonObject sounds = JsonParser.parseString(json).getAsJsonObject();
+
+		assertTrue(sounds.getAsJsonObject("drone.motor_loop")
+				.getAsJsonArray("sounds").get(0).getAsJsonObject()
+				.get("stream").getAsBoolean());
+		assertTrue(sounds.getAsJsonObject("drone.propeller_loop")
+				.getAsJsonArray("sounds").get(0).getAsJsonObject()
+				.get("stream").getAsBoolean());
+		assertTrue(sounds.getAsJsonObject("drone.listener_reverb_bus")
+				.getAsJsonArray("sounds").get(0).getAsJsonObject()
+				.get("stream").getAsBoolean());
+		assertTrue(sounds.getAsJsonObject("drone.audio_lab_marker")
+				.getAsJsonArray("sounds").get(0).getAsJsonObject()
+				.get("stream").getAsBoolean());
 	}
 
 	private static Set<Path> referencedSoundAssets() throws IOException {

@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "official_folder": "https://drive.google.com/drive/folders/1yGTh_BjnVNwDgBsn5mkuW3i4rJIgZwlS",
+  "official_repository_evidence": "README.md at d3e664f1e7a7d46241d7f7b3b3761448686b9537",
+  "source_selection": {
+    "4": [
+      {"microphone_id": 10, "sofa_array_id": 3, "receiver_index": 0},
+      {"microphone_id": 19, "sofa_array_id": 4, "receiver_index": 4},
+      {"microphone_id": 20, "sofa_array_id": 5, "receiver_index": 0}
+    ],
+    "6": [
+      {"microphone_id": 14, "sofa_array_id": 3, "receiver_index": 4},
+      {"microphone_id": 29, "sofa_array_id": 6, "receiver_index": 4},
+      {"microphone_id": 0, "sofa_array_id": 1, "receiver_index": 0}
+    ]
+  },
+  "google_drive_ids": {
+    "000000": {
+      "4": ["1xFNnmJGZtAntK3KtqaPj5xnYx-gK41-X", "1JER4Q9g0bUdZd4mjqyuo80f4btwc10Qp", "1k1FtTUFIZbOYVP4IBRJ9DJr6Le_K0eiZ"],
+      "6": ["1wD8yurHY8p9l5yPyIseWibvySQZ7UqCn", "1miZK7mvdDR5gLQNRJt49DvC9tcNgkcyF", "1hZLfc5bOg7fIwq3VlmW-YA7N8qOIMT0Y"]
+    },
+    "000001": {
+      "4": ["1FLTOYtueZqiQeqoYmPrxHIvQIeVFXFEM", "1npmKaIeb7pCKGXt3RhwPaDcSALLELJpO", "1yvWy2_MPH9gJ-_4bkadOxhzkhw_0V5u0"],
+      "6": ["1laUUhF0cYxTy6OufVoG_jxdm9KGcTvY8", "1Jt8rPJvtbvwFsZYL9oY6_sQnGAuLwEYV", "1jcRtXwgTWfvR2flYHNTU4thLEfgRWLio"]
+    },
+    "000010": {
+      "4": ["1MOj4GkG1EEdDKbOI7plyCm7-98PfMnGj", "11-k-n7wG0XCA-sHElZIxXPqPctJ3PFZ3", "187h2YwZzaifUP5I0H6nj59zi6OjukoTx"],
+      "6": ["1nR4Z2_9FW3-G_C16sN3MGHlYcB5nnIlW", "1gr_G4WyPRNJiy6nK2BYuWP-whqBBLAFK", "1kc_v5-XyG_TLSREc21BnqGGNsYcPOQHy"]
+    },
+    "000100": {
+      "4": ["1ktYoG3QZcmVIWgP_SFlm7dpAh88ZJ0IP", "1eoBrHxWhEyk6Z3Fu1qJOEG_kwmcTOqQw", "1J1r2r1n4hugeggFY2GmDEyyvMNs3_vyu"],
+      "6": ["1NAOQQ5YUINreWW0xekmYJD1CpzWM6FPr", "1jTaz4aKD3wl-eyr7llwrgJD3l0WDxNyb", "1wTtqpQK3nYluso6gQM-7OBp-9nFvCX0y"]
+    },
+    "001000": {
+      "4": ["1JTimQin5iME6m3Jn-kZGx39zgy6jShKQ", "1dgja_BrxYttmKtRRvE3PyhMqZRkvo3MY", "1p1rJ8al4cxBqKVFW2-WWQJDmoqM0-RH_"],
+      "6": ["1WPnPPcR4-nLkqJHYLJIvnTPr-HRQuV-V", "1ptdUcZN-3Mw_ntHSK9H_ro4cB_Y3l0g0", "17c4OW6o62taRjZdMHWYg81KsJriF_azu"]
+    },
+    "010000": {
+      "4": ["1Q7zqGbGjaLrFcGiCL1WpZNYPidTyEb0K", "1-GqmXDNx7kMjw788B1ho6MZXnwhCbX6d", "1md6UM7hEpOiWesdhZ7aM32jAWpORPyCn"],
+      "6": ["1BlV87nMMsWLfdrOwOuVAlvw9N6nOHToq", "1zljb8tggE4EUHaoKTXufkAaZtf6W3b0c", "1CSUtQ9T-Ax8utuLWCf4ajYpSPTQeGpHZ"]
+    },
+    "011000": {
+      "4": ["1q2nvx9hi0LGotQQxjOff7xuDiKLtAitb", "1ZEPplqZhYXowI5YM8KBhSLhEfFvLH0YS", "16GgLc_6fvTvKhcOq8LNPtFKun00jZCb3"],
+      "6": ["1LgD2Xrcz4_GZCqACLuBs-fZ9uvJ5-k-P", "1ssg9bHT7jxXZrKY1-RiOHWmy5bF5C0ab", "1A3X6pVa_iUkLjBOa0e-n0L-pYsSCj92l"]
+    },
+    "011100": {
+      "4": ["1cwc9KH5nAKUrp5bpyqqcVMbYvQ74gZ1f", "1JhZHvt8ssdQIthk1oDHd7AOjf54EQStz", "1H2Idekh4WtwiaCOpqOwGsOkdeBJqo5w2"],
+      "6": ["12rp-FF2tQ1FakP4E_CBmLzsdCZILXXuc", "1r0TkGk6E7-jBgUzq_AUEtUZvPh7JDor7", "16XgpzGqq-_1kfUoGo53yNEnNTjrJm-KA"]
+    },
+    "011110": {
+      "4": ["1ltiB2b6DR2QhwrTfpp9PB7pz4Nc_BgeX", "1GY6-EaUG742da8Be5G2IOC7cW_Wep6Pd", "1ew_5PauQJZxFz5hf1ESshEBSbUIscsn-"],
+      "6": ["1JBkngCD3lJtack5-ZxmxW00APIcwQ8hs", "1RJRNsIesGyE69MSpSJgfqjX3T5hvMjwG", "1QstkUzVqVVdKyjb8OBzTeZWHf7_QHBVJ"]
+    },
+    "011111": {
+      "4": ["1gu9-CmvcZBZYIi7qxSF636-YTVcZMIXd", "1II61lKzKD9OiouARXRsckHMJk6p9tLiI", "1Up9b5aOEncBgN8FZWBjaVTg-1bsV82nW"],
+      "6": ["1pcOR18l_2cgJBMrVF8Fz8k88WpTK4rDC", "1A8khtpvYnKMkSwxofNIAAkM5m3D3gDhw", "1eeZojbmOfbxmBoqOgoEWjXWQ8Ue-tJtq"]
+    },
+    "020002": {
+      "4": ["1lVQDpavnexFfarMjlXsOtfSeFo4N6BHn", "1j-qbYUCozrb8g-WiTWEUIHA1qqjfWPA3", "1IaocEIBK5x5vCjOIWsZef45tUQHOtSo7"],
+      "6": ["1q5UFdh4Ws5hfLGLl7Guf69EEv52qLq31", "1YUuKamFH3FACNGJMWzH7LYM79t0Cp1pG", "1EJyPd5A-B1xMq9DsBV21N2VATFa1y4VL"]
+    }
+  },
+  "expected_files": 66,
+  "sofa_contract": {
+    "sampling_rate_hz": 48000,
+    "receivers_per_file": 5,
+    "samples_per_receiver": 48000,
+    "data_ir_shape": [1, 5, 48000],
+    "room_dimensions_m": [5.705, 5.965, 2.355]
+  },
+  "claim_boundary": "The Google Drive IDs are pinned from the public folder linked by the official repository. File bytes and SHA-256 values are established by the generated inventory after download; filename room identity must be cross-checked because the observed 2024 SOFA RoomDescription is stale."
+}

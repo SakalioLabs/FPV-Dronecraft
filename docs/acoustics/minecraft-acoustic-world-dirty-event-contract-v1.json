@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121g-live-event-verification",
+  "minecraft_version": "1.21.11",
+  "fabric_api_version": "0.141.4+1.21.11",
+  "official_event_surface": {
+    "chunk_load": "ClientChunkEvents.CHUNK_LOAD; callback occurs after the chunk is present",
+    "chunk_unload": "ClientChunkEvents.CHUNK_UNLOAD; callback occurs while the chunk is still present",
+    "world_change": "ClientWorldEvents.AFTER_CLIENT_WORLD_CHANGE",
+    "client_block_change_event": "not present in Fabric lifecycle events v1"
+  },
+  "native_block_hook": {
+    "target": "ClientLevel.setBlock(BlockPos,BlockState,int,int)",
+    "injection": "RETURN",
+    "dirty_requires": "returned true",
+    "reason": "covers successful client-side state mutations without treating failed writes as geometry changes"
+  },
+  "adapter": {
+    "thread": "client thread callbacks only",
+    "maximum_active_coverages": 4,
+    "block_rule": "mark only when the changed cell intersects an active exact coverage",
+    "chunk_rule": "mark only the intersection of the chunk xz footprint and each active coverage including its bounded y range",
+    "world_rule": "replace tracker identity and clear active coverages",
+    "worker_rule": "workers receive immutable snapshots and tokens; they never read ClientLevel",
+    "audio_rule": "adapter has no audio, OpenAL, PCM or renderer dependency"
+  },
+  "scheduler": {
+    "enable_property": "fpvdrone.acoustics.localPlaneSchedulerResearch",
+    "default": false,
+    "maximum_sources": 6,
+    "maximum_shared_coverages": 4,
+    "flow": "client tick planner -> active coverage -> coverage cache -> immutable scene snapshot -> latest-generation worker",
+    "result_policy": "poll telemetry only; no early result is applied to audio or renderer state"
+  },
+  "gates": {
+    "named_1_21_11_compile_required": true,
+    "remapped_fabric_event_compile_required": true,
+    "source_contract_tests_required": true,
+    "drone_sound_manager_named_compile_required": true,
+    "runtime_event_delivery_required": false,
+    "actual_client_level_read_required": false,
+    "minecraft_client_started": false
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "minecraft_client_started": false,
+  "client_level_read": false,
+  "runtime_event_delivery_measured": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "live_early_renderer_enabled": false,
+  "release_calibrated": false
+}

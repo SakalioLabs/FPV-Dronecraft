@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "session_id": "example-5inch-2207-5x43x3-session01",
+  "hardware": {
+    "airframe_id": "example:single-rotor-rig-no-airframe",
+    "source_configuration": "single_rotor_bench",
+    "motor_id": "example:2207-1750kv",
+    "propeller_id": "example:5x4.3x3",
+    "blade_count": 3,
+    "motor_pole_pairs": 7,
+    "blade_pass_harmonics": 12,
+    "microphone_id": "example:class1-measurement-mic",
+    "signal_chain_id": "example:48khz-24bit-gain-a"
+  },
+  "acquisition": {
+    "sample_rate_hz": 48000,
+    "bit_depth": 24,
+    "channel": 0,
+    "microphone_distance_m": 1.0,
+    "reference_level_correction_db": 0.0,
+    "signal_start_s": 2.0,
+    "signal_duration_s": 5.0,
+    "background_start_s": 2.0,
+    "background_duration_s": 5.0
+  },
+  "calibration": {
+    "wav": "raw/calibrator-94db-1khz.wav",
+    "channel": 0,
+    "level_db_spl": 94.0,
+    "frequency_hz": 1000.0,
+    "start_s": 1.0,
+    "duration_s": 10.0,
+    "tone_half_width_hz": 20.0
+  },
+  "analysis": {
+    "welch_resolution_hz": 5.0,
+    "overlap_fraction": 0.75,
+    "tonal_half_width_hz": 40.0,
+    "maximum_rpm_cv": 0.025,
+    "minimum_snr_db": 10.0,
+    "maximum_peak_normalized": 0.99,
+    "minimum_tone_prominence_db": 6.0
+  },
+  "environment_defaults": {
+    "voltage_v": 16.0,
+    "ambient_temperature_c": 20.0,
+    "relative_humidity_percent": 50.0,
+    "ambient_pressure_kpa": 101.325
+  },
+  "matrix": {
+    "training_plane_rpm": [
+      8000,
+      12000,
+      16000,
+      20000,
+      24000,
+      28000
+    ],
+    "validation_plane_rpm": [
+      10000,
+      14000,
+      18000,
+      22000,
+      26000
+    ],
+    "directivity_reference_rpm": 16000,
+    "training_elevation_deg": [
+      -90,
+      -60,
+      -30,
+      30,
+      60,
+      90
+    ],
+    "validation_elevation_deg": [
+      -75,
+      -45,
+      -15,
+      15,
+      45,
+      75
+    ],
+    "training_takes": 2,
+    "validation_takes": 1
+  }
+}

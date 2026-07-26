@@ -18,3 +18,3754 @@ subprojects {
 		}
 	}
 }
+
+def dechoratePythonDependencies = file(
+	"external-data/computational-acoustics/dechorate-python-deps"
+)
+
+tasks.register("testAcousticResearchScripts", Exec) {
+	group = "verification"
+	description = "Runs the lightweight Python acoustic-research regressions."
+	dependsOn("ensureDechorateAnalysisDependencies")
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"-m",
+		"unittest",
+		"discover",
+		"-s",
+		"docs/scripts",
+		"-p",
+		"test_*.py"
+	)
+}
+
+def promotedWaveGolden = layout.projectDirectory.file(
+	"two-edge-wave-reference/src/test/resources/golden/"
+		+ "double-edge-wave-4000hz-v1.json"
+).asFile
+
+tasks.register("verifyPromotedWaveGolden", Exec) {
+	group = "verification"
+	description = "Verifies the promoted 4 kHz double-edge wave golden."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_2p5d_wave_golden.py",
+		"--fixture-json",
+		promotedWaveGolden.absolutePath
+	)
+}
+
+tasks.register("verifyPublicSourceDataRegistry", Exec) {
+	group = "verification"
+	description = "Validates public acoustic-source dataset release eligibility."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_public_source_data_registry.py"
+	)
+}
+
+def airRirArchive = layout.projectDirectory.file(
+	"external-data/computational-acoustics/air_database_release_1_4.zip"
+).asFile
+def airRirReport = layout.projectDirectory.file(
+	"build/research/air-rir-reference-v1.json"
+).asFile
+
+tasks.register("fetchAirRirReference", Exec) {
+	group = "acoustic research"
+	description = "Downloads and verifies the pinned measured AIR v1.4 RIRs."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/fetch_air_rir_reference.py",
+		"external-data/computational-acoustics"
+	)
+}
+
+tasks.register("analyzeAirRirReference", Exec) {
+	group = "acoustic research"
+	description = "Analyzes measured AIR RIR RT60, EDT, DRR, and model bands."
+	dependsOn("fetchAirRirReference")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/analyze_air_rir_reference.py",
+		"--archive",
+		airRirArchive.absolutePath,
+		"--output-json",
+		airRirReport.absolutePath
+	)
+}
+
+tasks.register("verifyAirShoeboxVoxelReference", Exec) {
+	group = "verification"
+	description = "Binds AIR measured bands to the Java shoebox/voxel report."
+	dependsOn(
+		"analyzeAirRirReference",
+		":computational-acoustics-core:airShoeboxVoxelReference"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_air_shoebox_voxel_reference.py",
+		"--air-report",
+		airRirReport.absolutePath,
+		"--voxel-report",
+		file(
+			"build/research/air-shoebox-voxel-reference-v1.json"
+		).absolutePath
+	)
+}
+
+def ptbMaterialDirectory = layout.projectDirectory.dir(
+	"external-data/computational-acoustics/material-absorption"
+).asFile
+def ptbMaterialSelectionCsv = new File(
+	ptbMaterialDirectory,
+	"ptb-selection-table.csv"
+)
+def ptbMaterialReport = layout.projectDirectory.file(
+	"build/research/ptb-material-absorption-v1.json"
+).asFile
+def ptbMaterialMixtureReport = layout.projectDirectory.file(
+	"build/research/ptb-material-mixture-v1.json"
+).asFile
+
+tasks.register("fetchPtbMaterialAbsorption", Exec) {
+	group = "acoustic research"
+	description = "Downloads and verifies the pinned PTB absorption workbook."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/fetch_ptb_material_absorption.py",
+		ptbMaterialDirectory.absolutePath
+	)
+}
+
+tasks.register("analyzePtbMaterialAbsorption", Exec) {
+	group = "acoustic research"
+	description = "Builds provisional PTB-derived Minecraft material bands."
+	dependsOn("fetchPtbMaterialAbsorption")
+	workingDir = rootDir
+	doFirst {
+		if (!ptbMaterialSelectionCsv.isFile()) {
+			throw new GradleException(
+				"Missing ptb-selection-table.csv extraction cache. "
+					+ "Export the PTB selection_table worksheet as CSV; "
+					+ "the pinned ZIP entry remains authoritative."
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/analyze_ptb_material_absorption.py",
+		"--manifest",
+		file(
+			"docs/acoustics/ptb-material-selection-v1.json"
+		).absolutePath,
+		"--selection-csv",
+		ptbMaterialSelectionCsv.absolutePath,
+		"--output-json",
+		ptbMaterialReport.absolutePath,
+		"--energy-weights",
+		"1,1,1,1,1,1"
+	)
+}
+
+tasks.register("verifyPtbMaterialMixtureReference", Exec) {
+	group = "verification"
+	description = "Binds PTB candidates to the mixed-surface voxel report."
+	dependsOn(
+		"analyzePtbMaterialAbsorption",
+		":computational-acoustics-core:ptbMaterialMixtureReference"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_ptb_material_mixture_reference.py",
+		"--material-report",
+		ptbMaterialReport.absolutePath,
+		"--mixture-report",
+		ptbMaterialMixtureReport.absolutePath,
+		"--output-json",
+		file(
+			"build/research/ptb-material-mixture-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyPtbMaterialMixtureConvergence", Exec) {
+	group = "verification"
+	description = "Separates configured scattering from diffuse control."
+	dependsOn(
+		"verifyPtbMaterialMixtureReference",
+		":computational-acoustics-core:ptbMaterialMixtureConvergence",
+		":computational-acoustics-core:ptbMaterialMixtureDiffuseControl",
+		":computational-acoustics-core:ptbMaterialMixtureLateDiffuse2"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_ptb_material_mixture_convergence.py",
+		"--configured-report",
+		file(
+			"build/research/ptb-material-mixture-convergence-v1.json"
+		).absolutePath,
+		"--diffuse-report",
+		file(
+			"build/research/ptb-material-mixture-diffuse-v1.json"
+		).absolutePath,
+		"--late-diffuse-report",
+		file(
+			"build/research/ptb-material-mixture-late-diffuse-2-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "ptb-material-mixture-convergence-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyPtbPathMixingTime", Exec) {
+	group = "verification"
+	description = "Verifies MFP-scaled late diffusion across room shapes."
+	dependsOn(":computational-acoustics-core:ptbPathMixingTimeReference")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_ptb_path_mixing_time.py",
+		"--report",
+		file(
+			"build/research/ptb-path-mixing-time-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "ptb-path-mixing-time-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyDoorwayReverbContinuity", Exec) {
+	group = "verification"
+	description = "Verifies nested doorway escape and reverb monotonicity."
+	dependsOn(":computational-acoustics-core:doorwayReverbContinuity")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_doorway_reverb_continuity.py",
+		"--report",
+		file(
+			"build/research/doorway-reverb-continuity-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "doorway-reverb-continuity-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyTwoRoomPortalCoupling", Exec) {
+	group = "verification"
+	description = "Verifies two-room portal transport and return."
+	dependsOn(":computational-acoustics-core:twoRoomPortalCoupling")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_two_room_portal_coupling.py",
+		"--report",
+		file(
+			"build/research/two-room-portal-coupling-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "two-room-portal-coupling-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyFdnDoorTransition", Exec) {
+	group = "verification"
+	description = "Verifies 200 ms FDN door parameter smoothing."
+	dependsOn(
+		":computational-acoustics-core:doorwayReverbContinuity",
+		":computational-acoustics-core:fdnDoorTransition"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_fdn_door_transition.py",
+		"--transition-report",
+		file(
+			"build/research/fdn-door-transition-v1.json"
+		).absolutePath,
+		"--doorway-report",
+		file(
+			"build/research/doorway-reverb-continuity-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "fdn-door-transition-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyListenerReverbPerformance", Exec) {
+	group = "verification"
+	description = "Verifies integrated capture/probe and wet-stream P99."
+	dependsOn(":fabric-mod:listenerReverbRuntimeBenchmark")
+	workingDir = rootDir
+	doFirst {
+		def minecraftReport = file(
+			"build/research/minecraft-reverb-performance-v1.json"
+		)
+		if (!minecraftReport.isFile()) {
+			throw new GradleException(
+				"Missing integrated reverb performance report; run "
+					+ ":fabric-mod:runClientGameTest first."
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_listener_reverb_performance.py",
+		"--minecraft-report",
+		file(
+			"build/research/minecraft-reverb-performance-v1.json"
+		).absolutePath,
+		"--audio-report",
+		file(
+			"build/research/listener-reverb-runtime-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/listener-reverb-performance-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftPortalGameTest", Exec) {
+	group = "verification"
+	description = "Verifies the live Minecraft closed/open/closed portal report."
+	workingDir = rootDir
+	doFirst {
+		def portalReport = file(
+			"build/research/minecraft-portal-client-gametest-v1.json"
+		)
+		if (!portalReport.isFile()) {
+			throw new GradleException(
+				"Missing integrated Minecraft portal report; run "
+					+ ":fabric-mod:runClientGameTest first."
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_minecraft_portal_gametest.py",
+		"--report",
+		file(
+			"build/research/minecraft-portal-client-gametest-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-portal-client-gametest-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlNativeCapability", Exec) {
+	group = "verification"
+	description = "Verifies live sound-thread OpenAL EFX/HRTF capability."
+	workingDir = rootDir
+	doFirst {
+		def capabilityReport = file(
+			"build/research/openal-native-capability-v1.json"
+		)
+		if (!capabilityReport.isFile()) {
+			throw new GradleException(
+				"Missing OpenAL capability report; run "
+					+ ":fabric-mod:runClientGameTest first."
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_native_capability.py",
+		"--report",
+		file(
+			"build/research/openal-native-capability-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-native-capability-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlEfxSourceRouting", Exec) {
+	group = "verification"
+	description = "Verifies transient EFX routing on a live drone channel."
+	workingDir = rootDir
+	doFirst {
+		def routingReport = file(
+			"build/research/openal-efx-source-routing-v1.json"
+		)
+		if (!routingReport.isFile()) {
+			throw new GradleException(
+				"Missing OpenAL routing report; run "
+					+ ":fabric-mod:runClientGameTest first."
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_efx_source_routing.py",
+		"--report",
+		file(
+			"build/research/openal-efx-source-routing-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-efx-source-routing-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlEfxController", Exec) {
+	group = "verification"
+	description = "Verifies opt-in shared EFX and source-removal cleanup."
+	workingDir = rootDir
+	doFirst {
+		def controllerReport = file(
+			"build/research/openal-efx-controller-v1.json"
+		)
+		if (!controllerReport.isFile()) {
+			throw new GradleException(
+				"Missing OpenAL EFX controller report; run "
+					+ ":fabric-mod:runClientGameTest first."
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_efx_controller.py",
+		"--report",
+		file(
+			"build/research/openal-efx-controller-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-efx-controller-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlEfxReload", Exec) {
+	group = "verification"
+	description = "Verifies EFX recovery across a Minecraft sound-engine reload."
+	workingDir = rootDir
+	doFirst {
+		def reloadReport = file(
+			"build/research/openal-efx-reload-v1.json"
+		)
+		if (!reloadReport.isFile()) {
+			throw new GradleException(
+				"Missing OpenAL EFX reload report; run "
+					+ ":fabric-mod:runClientGameTest first."
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_efx_reload.py",
+		"--report",
+		file(
+			"build/research/openal-efx-reload-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-efx-reload-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlClockLatency", Exec) {
+	group = "verification"
+	description = "Verifies available OpenAL timing telemetry across reload."
+	workingDir = rootDir
+	doFirst {
+		def clockReport = file(
+			"build/research/openal-clock-latency-v1.json"
+		)
+		if (!clockReport.isFile()) {
+			throw new GradleException(
+				"Missing OpenAL clock/latency report; run "
+					+ ":fabric-mod:runClientGameTest first."
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_clock_latency.py",
+		"--report",
+		file(
+			"build/research/openal-clock-latency-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-clock-latency-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlNativeDopplerGuard", Exec) {
+	group = "verification"
+	description = "Verifies live OpenAL native-Doppler ownership and reload evidence."
+	workingDir = rootDir
+	doFirst {
+		def dopplerReport = file(
+			"build/research/openal-native-doppler-guard-v1.json"
+		)
+		if (!dopplerReport.isFile()) {
+			throw new GradleException(
+				"Missing OpenAL native Doppler guard report; run "
+					+ ":fabric-mod:runClientGameTest first."
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_native_doppler_guard.py",
+		"--report",
+		file(
+			"build/research/openal-native-doppler-guard-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-native-doppler-guard-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyDopplerPcmConformance", Exec) {
+	group = "verification"
+	description = "Verifies live Minecraft kinematics-to-PCM16 Doppler evidence."
+	workingDir = rootDir
+	doFirst {
+		def dopplerPcmReport = file(
+			"build/research/doppler-pcm-conformance-v1.json"
+		)
+		if (!dopplerPcmReport.isFile()) {
+			throw new GradleException(
+				"Missing Doppler PCM report; run "
+					+ ":fabric-mod:runClientGameTest first."
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_doppler_pcm_conformance.py",
+		"--report",
+		file(
+			"build/research/doppler-pcm-conformance-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "doppler-pcm-conformance-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyDopplerProductionChunkTrace", Exec) {
+	group = "verification"
+	description = "Verifies exact production PCM chunks and server blackbox binding."
+	workingDir = rootDir
+	doFirst {
+		for (def required : [
+			"build/research/doppler-production-chunk-trace-v1.json",
+			"build/research/doppler-production-chunk-trace-v1.pcm",
+			"build/research/doppler-production-chunk-blackbox-v1.csv"
+		]) {
+			if (!file(required).isFile()) {
+				throw new GradleException(
+					"Missing Doppler chunk artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_doppler_production_chunk_trace.py",
+		"--report",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		"--pcm",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		).absolutePath,
+		"--blackbox",
+		file(
+			"build/research/doppler-production-chunk-blackbox-v1.csv"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "doppler-production-chunk-trace-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlStreamingQueue", Exec) {
+	group = "verification"
+	description = "Verifies production PCM hashes bound to OpenAL streaming buffers."
+	workingDir = rootDir
+	doFirst {
+		for (def required : [
+			"build/research/openal-streaming-queue-v1.json",
+			"build/research/doppler-production-chunk-trace-v1.json"
+		]) {
+			if (!file(required).isFile()) {
+				throw new GradleException(
+					"Missing OpenAL queue artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_streaming_queue.py",
+		"--report",
+		file(
+			"build/research/openal-streaming-queue-v1.json"
+		).absolutePath,
+		"--pcm-report",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-streaming-queue-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlEventsQueueHealth", Exec) {
+	group = "verification"
+	description = "Verifies bounded AL_SOFT_events production queue-health evidence."
+	workingDir = rootDir
+	doFirst {
+		for (def required : [
+			"build/research/openal-events-queue-health-v1.json",
+			"build/research/openal-streaming-queue-v1.json"
+		]) {
+			if (!file(required).isFile()) {
+				throw new GradleException(
+					"Missing OpenAL events artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_events_queue_health.py",
+		"--report",
+		file(
+			"build/research/openal-events-queue-health-v1.json"
+		).absolutePath,
+		"--queue-report",
+		file(
+			"build/research/openal-streaming-queue-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-events-queue-health-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlLoopbackRender", Exec) {
+	group = "verification"
+	description = "Verifies isolated OpenAL Soft rendering of production drone PCM."
+	workingDir = rootDir
+	doFirst {
+		for (def required : [
+			"build/research/openal-loopback-render-v1.json",
+			"build/research/openal-loopback-render-v1.pcm",
+			"build/research/doppler-production-chunk-trace-v1.json",
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		]) {
+			if (!file(required).isFile()) {
+				throw new GradleException(
+					"Missing OpenAL loopback artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_loopback_render.py",
+		"--report",
+		file(
+			"build/research/openal-loopback-render-v1.json"
+		).absolutePath,
+		"--rendered-pcm",
+		file(
+			"build/research/openal-loopback-render-v1.pcm"
+		).absolutePath,
+		"--trace-report",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		"--trace-pcm",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-loopback-render-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlBackendTransfer", Exec) {
+	group = "verification"
+	description = "Verifies controlled dry, OpenAL EFX, and Java FDN transfers."
+	workingDir = rootDir
+	doFirst {
+		for (def required : [
+			"build/research/openal-backend-transfer-v1.json",
+			"build/research/openal-backend-transfer-dry-v1.pcm",
+			"build/research/openal-backend-transfer-efx-v1.pcm",
+			"build/research/openal-backend-transfer-java-fdn-v1.pcm",
+			"build/research/doppler-production-chunk-trace-v1.json",
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		]) {
+			if (!file(required).isFile()) {
+				throw new GradleException(
+					"Missing backend-transfer artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_backend_transfer.py",
+		"--report",
+		file(
+			"build/research/openal-backend-transfer-v1.json"
+		).absolutePath,
+		"--dry-pcm",
+		file(
+			"build/research/openal-backend-transfer-dry-v1.pcm"
+		).absolutePath,
+		"--efx-pcm",
+		file(
+			"build/research/openal-backend-transfer-efx-v1.pcm"
+		).absolutePath,
+		"--java-pcm",
+		file(
+			"build/research/openal-backend-transfer-java-fdn-v1.pcm"
+		).absolutePath,
+		"--trace-report",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		"--trace-pcm",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-backend-transfer-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlBackendEnvironmentMatrix", Exec) {
+	group = "verification"
+	description = "Verifies closed, partial-portal, and open backend transfers."
+	workingDir = rootDir
+	doFirst {
+		for (def required : [
+			"build/research/openal-backend-environment-matrix-v1.json",
+			"build/research/openal-backend-environment-matrix-v1.pcm",
+			"build/research/doppler-production-chunk-trace-v1.json",
+			"build/research/doppler-production-chunk-trace-v1.pcm",
+			"build/research/minecraft-portal-client-gametest-v1.json"
+		]) {
+			if (!file(required).isFile()) {
+				throw new GradleException(
+					"Missing backend-matrix artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_backend_environment_matrix.py",
+		"--report",
+		file(
+			"build/research/openal-backend-environment-matrix-v1.json"
+		).absolutePath,
+		"--matrix-pcm",
+		file(
+			"build/research/openal-backend-environment-matrix-v1.pcm"
+		).absolutePath,
+		"--trace-report",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		"--trace-pcm",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		).absolutePath,
+		"--portal-report",
+		file(
+			"build/research/minecraft-portal-client-gametest-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-backend-environment-matrix-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlBackendTransition", Exec) {
+	group = "verification"
+	description = "Verifies exact-boundary EFX and Java FDN environment updates."
+	workingDir = rootDir
+	doFirst {
+		for (def required : [
+			"build/research/openal-backend-transition-v1.json",
+			"build/research/openal-backend-transition-dry-v1.pcm",
+			"build/research/openal-backend-transition-efx-v1.pcm",
+			"build/research/openal-backend-transition-java-fdn-v1.pcm",
+			"build/research/doppler-production-chunk-trace-v1.json",
+			"build/research/doppler-production-chunk-trace-v1.pcm",
+			"build/research/minecraft-portal-client-gametest-v1.json"
+		]) {
+			if (!file(required).isFile()) {
+				throw new GradleException(
+					"Missing backend-transition artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_backend_transition.py",
+		"--report",
+		file(
+			"build/research/openal-backend-transition-v1.json"
+		).absolutePath,
+		"--dry-pcm",
+		file(
+			"build/research/openal-backend-transition-dry-v1.pcm"
+		).absolutePath,
+		"--efx-pcm",
+		file(
+			"build/research/openal-backend-transition-efx-v1.pcm"
+		).absolutePath,
+		"--java-pcm",
+		file(
+			"build/research/openal-backend-transition-java-fdn-v1.pcm"
+		).absolutePath,
+		"--trace-report",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		"--trace-pcm",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		).absolutePath,
+		"--portal-report",
+		file(
+			"build/research/minecraft-portal-client-gametest-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-backend-transition-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("generateAudioContinuityFixture", Exec) {
+	group = "research"
+	description = "Generates the deterministic PCM24 click/dropout fixture."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"tools/acoustics/analyze_audio_continuity.py",
+		"fixture",
+		"--output-wav",
+		file(
+			"build/research/audio-continuity-fixture-v1.wav"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/audio-continuity-fixture-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyAudioContinuityFixture", Exec) {
+	group = "verification"
+	description = "Verifies click/dropout detection and claim boundaries."
+	dependsOn("generateAudioContinuityFixture")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_audio_continuity_fixture.py",
+		"--report",
+		file(
+			"build/research/audio-continuity-fixture-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "audio-continuity-fixture-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyAudioLabProtocol", Exec) {
+	group = "verification"
+	description = "Verifies dry/Java-FDN/EFX audio-lab timelines."
+	workingDir = rootDir
+	doFirst {
+		[
+			file("build/research/audio-lab-dry-control-v1.json"),
+			file("build/research/audio-lab-java-fdn-control-v1.json"),
+			file("build/research/audio-lab-openal-efx-reload-v1.json")
+		].each { report ->
+			if (!report.isFile()) {
+				throw new GradleException(
+					"Missing audio-lab report ${report}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_audio_lab_protocol.py",
+		"--dry-report",
+		file(
+			"build/research/audio-lab-dry-control-v1.json"
+		).absolutePath,
+		"--java-report",
+		file(
+			"build/research/audio-lab-java-fdn-control-v1.json"
+		).absolutePath,
+		"--efx-report",
+		file(
+			"build/research/audio-lab-openal-efx-reload-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/audio-lab-protocol-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("generateAudioLabAlignmentFixture", Exec) {
+	group = "research"
+	description = "Generates a deterministic marker-alignment PCM24 fixture."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"tools/acoustics/align_audio_lab_capture.py",
+		"fixture",
+		"--output-wav",
+		file(
+			"build/research/audio-lab-alignment-fixture-v1.wav"
+		).absolutePath,
+		"--output-timeline",
+		file(
+			"build/research/"
+				+ "audio-lab-alignment-timeline-fixture-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/audio-lab-alignment-fixture-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyAudioLabAlignmentFixture", Exec) {
+	group = "verification"
+	description = "Verifies three-tone recorder/Minecraft time alignment."
+	dependsOn("generateAudioLabAlignmentFixture")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_audio_lab_alignment_fixture.py",
+		"--report",
+		file(
+			"build/research/audio-lab-alignment-fixture-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "audio-lab-alignment-fixture-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("generateAudioLabSessionFixture", Exec) {
+	group = "research"
+	description = "Generates the deterministic six-condition audio-lab session fixture."
+	workingDir = rootDir
+	doFirst {
+		delete(
+			file("build/research/audio-lab-session-fixture-v1"),
+			file("build/research/audio-lab-session-plan-fixture-v1.json"),
+			file("build/research/audio-lab-session-fixture-v1.json"),
+			file("build/research/audio-lab-abx-fixture-v1")
+		)
+	}
+	commandLine(
+		"python",
+		"tools/acoustics/manage_audio_lab_session.py",
+		"fixture",
+		"--output-root",
+		file(
+			"build/research/audio-lab-session-fixture-v1"
+		).absolutePath,
+		"--output-plan",
+		file(
+			"build/research/audio-lab-session-plan-fixture-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/audio-lab-session-fixture-v1.json"
+		).absolutePath,
+		"--blind-directory",
+		file(
+			"build/research/audio-lab-abx-fixture-v1"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyAudioLabSessionFixture", Exec) {
+	group = "verification"
+	description = "Verifies D088 capture-matrix, hash-chain, and ABX packaging."
+	dependsOn("generateAudioLabSessionFixture")
+	workingDir = rootDir
+	doFirst {
+		delete(
+			file(
+				"build/research/"
+					+ "audio-lab-session-fixture-verification-v1.json"
+			)
+		)
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_audio_lab_session_fixture.py",
+		"--report",
+		file(
+			"build/research/audio-lab-session-fixture-v1.json"
+		).absolutePath,
+		"--plan",
+		file(
+			"build/research/audio-lab-session-plan-fixture-v1.json"
+		).absolutePath,
+		"--blind-directory",
+		file(
+			"build/research/audio-lab-abx-fixture-v1"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "audio-lab-session-fixture-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("generateAudioLabAbxStatisticsFixture", Exec) {
+	group = "research"
+	description = "Generates preregistered synthetic participant ABX responses."
+	dependsOn("generateAudioLabSessionFixture")
+	workingDir = rootDir
+	doFirst {
+		delete(
+			file(
+				"build/research/"
+					+ "audio-lab-listening-protocol-fixture-v1.json"
+			),
+			file(
+				"build/research/"
+					+ "audio-lab-listening-responses-fixture-v1.csv"
+			),
+			file(
+				"build/research/"
+					+ "audio-lab-listening-analysis-fixture-v1.json"
+			)
+		)
+	}
+	commandLine(
+		"python",
+		"tools/acoustics/score_audio_lab_abx.py",
+		"fixture",
+		"--session-report",
+		file(
+			"build/research/audio-lab-session-fixture-v1.json"
+		).absolutePath,
+		"--public-manifest",
+		file(
+			"build/research/"
+				+ "audio-lab-abx-fixture-v1/public-manifest.json"
+		).absolutePath,
+		"--private-key",
+		file(
+			"build/research/"
+				+ "audio-lab-abx-fixture-v1/private-answer-key.json"
+		).absolutePath,
+		"--output-protocol",
+		file(
+			"build/research/"
+				+ "audio-lab-listening-protocol-fixture-v1.json"
+		).absolutePath,
+		"--output-responses",
+		file(
+			"build/research/"
+				+ "audio-lab-listening-responses-fixture-v1.csv"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "audio-lab-listening-analysis-fixture-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyAudioLabAbxStatisticsFixture", Exec) {
+	group = "verification"
+	description = "Verifies participant-level ABX statistics and claim boundaries."
+	dependsOn("generateAudioLabAbxStatisticsFixture")
+	workingDir = rootDir
+	doFirst {
+		delete(
+			file(
+				"build/research/"
+					+ "audio-lab-listening-verification-fixture-v1.json"
+			)
+		)
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_audio_lab_abx_fixture.py",
+		"--protocol",
+		file(
+			"build/research/"
+				+ "audio-lab-listening-protocol-fixture-v1.json"
+		).absolutePath,
+		"--responses-csv",
+		file(
+			"build/research/"
+				+ "audio-lab-listening-responses-fixture-v1.csv"
+		).absolutePath,
+		"--report",
+		file(
+			"build/research/"
+				+ "audio-lab-listening-analysis-fixture-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "audio-lab-listening-verification-fixture-v1.json"
+		).absolutePath
+	)
+}
+
+def ddaProductionFixture = layout.projectDirectory.file(
+	"build/research/dda-production-fixture-v1.bin"
+).asFile
+
+tasks.register("verifyDdaProductionBundleContract", Exec) {
+	group = "verification"
+	description = "Verifies the Java production DDA bundle with Python."
+	dependsOn(":computational-acoustics-core:ddaProductionBundleFixture")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_dda_production_bundle.py",
+		"--bundle",
+		ddaProductionFixture.absolutePath,
+		"--expect-fixture"
+	)
+}
+
+def ddaProductionExpectedFixture = layout.projectDirectory.file(
+	"build/research/dda-production-fixture-v1.expected-v1.bin"
+).asFile
+
+tasks.register("verifyDdaProductionExpectedResultsContract", Exec) {
+	group = "verification"
+	description = "Verifies Java CPU DDA expected results with Python."
+	dependsOn(
+		":computational-acoustics-core:ddaProductionExpectedResultsFixture"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_dda_production_expected_results.py",
+		"--bundle",
+		ddaProductionFixture.absolutePath,
+		"--expected-results",
+		ddaProductionExpectedFixture.absolutePath
+	)
+}
+
+def nativeDdaSource = layout.projectDirectory.dir(
+	"native/dda-production-bundle"
+).asFile
+def nativeDdaBuild = layout.buildDirectory.dir(
+	"native/dda-production-bundle"
+).get().asFile
+def nativeDdaExecutable = new File(
+	nativeDdaBuild,
+	System.getProperty("os.name").toLowerCase().contains("windows")
+		? "Release/mcfpv_dda_bundle_verify.exe"
+		: "mcfpv_dda_bundle_verify"
+)
+
+tasks.register("configureNativeDdaProductionBundle", Exec) {
+	group = "verification"
+	description = "Configures the optional C++ production DDA bundle verifier."
+	dependsOn(
+		":computational-acoustics-core:ddaProductionExpectedResultsFixture"
+	)
+	workingDir = rootDir
+	commandLine(
+		"cmake",
+		"-S",
+		nativeDdaSource.absolutePath,
+		"-B",
+		nativeDdaBuild.absolutePath,
+		"-DBUILD_TESTING=ON",
+		"-DMCFPV_DDA_FIXTURE=${ddaProductionFixture.absolutePath}",
+		"-DMCFPV_DDA_EXPECTED_RESULTS=${ddaProductionExpectedFixture.absolutePath}"
+	)
+}
+
+tasks.register("buildNativeDdaProductionBundle", Exec) {
+	group = "verification"
+	description = "Builds the optional C++ production DDA bundle verifier."
+	dependsOn("configureNativeDdaProductionBundle")
+	workingDir = rootDir
+	commandLine(
+		"cmake",
+		"--build",
+		nativeDdaBuild.absolutePath,
+		"--config",
+		"Release",
+		"--parallel",
+		"1"
+	)
+}
+
+tasks.register("verifyNativeDdaProductionBundle", Exec) {
+	group = "verification"
+	description = "Runs C++ production DDA bundle parity and corruption tests."
+	dependsOn("buildNativeDdaProductionBundle")
+	workingDir = rootDir
+	commandLine(
+		"ctest",
+		"--test-dir",
+		nativeDdaBuild.absolutePath,
+		"-C",
+		"Release",
+		"--output-on-failure"
+	)
+}
+
+def cudaDdaSource = layout.projectDirectory.dir(
+	"native/cuda-dda"
+).asFile
+def cudaDdaBuild = layout.buildDirectory.dir(
+	"native/cuda-dda"
+).get().asFile
+
+tasks.register("verifyCudaDdaSourceContract", Exec) {
+	group = "verification"
+	description = "Verifies fail-closed contracts in the conditional CUDA DDA source."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_cuda_dda_source_contract.py"
+	)
+}
+
+tasks.register("configureCudaDdaResearch", Exec) {
+	group = "verification"
+	description = "Configures the CPU reference and optional CUDA DDA executor."
+	dependsOn(
+		":computational-acoustics-core:ddaProductionExpectedResultsFixture"
+	)
+	workingDir = rootDir
+	commandLine(
+		"cmake",
+		"-S",
+		cudaDdaSource.absolutePath,
+		"-B",
+		cudaDdaBuild.absolutePath,
+		"-DBUILD_TESTING=ON",
+		"-DMCFPV_ENABLE_CUDA=ON",
+		"-DMCFPV_DDA_FIXTURE=${ddaProductionFixture.absolutePath}",
+		"-DMCFPV_DDA_EXPECTED_RESULTS=${ddaProductionExpectedFixture.absolutePath}"
+	)
+}
+
+tasks.register("buildCudaDdaResearch", Exec) {
+	group = "verification"
+	description = "Builds the CPU reference and CUDA DDA executor when available."
+	dependsOn(
+		"configureCudaDdaResearch",
+		"verifyCudaDdaSourceContract"
+	)
+	workingDir = rootDir
+	commandLine(
+		"cmake",
+		"--build",
+		cudaDdaBuild.absolutePath,
+		"--config",
+		"Release",
+		"--parallel",
+		"1"
+	)
+}
+
+tasks.register("verifyCudaDdaResearch", Exec) {
+	group = "verification"
+	description = "Runs CPU fixture parity and CUDA fixture parity when compiled."
+	dependsOn("buildCudaDdaResearch")
+	workingDir = rootDir
+	commandLine(
+		"ctest",
+		"--test-dir",
+		cudaDdaBuild.absolutePath,
+		"-C",
+		"Release",
+		"--output-on-failure"
+	)
+}
+
+tasks.register("verifyPythonDdaProductionBundleFile", Exec) {
+	group = "verification"
+	description = "Verifies a complete production DDA bundle with Python."
+	workingDir = rootDir
+	doFirst {
+		if (!project.hasProperty("bundle")) {
+			throw new GradleException(
+				"Pass -Pbundle=<production-dda-bundle>"
+			)
+		}
+		commandLine(
+			"python",
+			"docs/scripts/verify_dda_production_bundle.py",
+			"--bundle",
+			file(project.property("bundle")).absolutePath,
+			"--require-complete"
+		)
+	}
+}
+
+tasks.register("verifyNativeDdaProductionBundleFile", Exec) {
+	group = "verification"
+	description = "Verifies a complete production DDA bundle with C++."
+	dependsOn("buildNativeDdaProductionBundle")
+	workingDir = rootDir
+	doFirst {
+		if (!project.hasProperty("bundle")) {
+			throw new GradleException(
+				"Pass -Pbundle=<production-dda-bundle>"
+			)
+		}
+		commandLine(
+			nativeDdaExecutable.absolutePath,
+			"--require-complete",
+			file(project.property("bundle")).absolutePath
+		)
+	}
+}
+
+tasks.register("verifyPythonDdaExpectedResultsFile", Exec) {
+	group = "verification"
+	description = "Replays Java DDA expected results independently in Python."
+	dependsOn(
+		":computational-acoustics-core:generateDdaProductionExpectedResults"
+	)
+	workingDir = rootDir
+	doFirst {
+		if (!project.hasProperty("bundle")) {
+			throw new GradleException(
+				"Pass -Pbundle=<production-dda-bundle>"
+			)
+		}
+		def bundle = file(project.property("bundle"))
+		def expected = project.hasProperty("expectedResults")
+			? file(project.property("expectedResults"))
+			: new File(bundle.parentFile, bundle.name + ".expected-v1.bin")
+		commandLine(
+			"python",
+			"docs/scripts/verify_dda_production_expected_results.py",
+			"--bundle",
+			bundle.absolutePath,
+			"--expected-results",
+			expected.absolutePath
+		)
+	}
+}
+
+tasks.register("verifyNativeDdaExpectedResultsFile", Exec) {
+	group = "verification"
+	description = "Replays Java DDA expected results independently in C++."
+	dependsOn(
+		":computational-acoustics-core:generateDdaProductionExpectedResults",
+		"buildNativeDdaProductionBundle"
+	)
+	workingDir = rootDir
+	doFirst {
+		if (!project.hasProperty("bundle")) {
+			throw new GradleException(
+				"Pass -Pbundle=<production-dda-bundle>"
+			)
+		}
+		def bundle = file(project.property("bundle"))
+		def expected = project.hasProperty("expectedResults")
+			? file(project.property("expectedResults"))
+			: new File(bundle.parentFile, bundle.name + ".expected-v1.bin")
+		commandLine(
+			nativeDdaExecutable.absolutePath,
+			"--require-complete",
+			"--expected-results",
+			expected.absolutePath,
+			bundle.absolutePath
+		)
+	}
+}
+
+tasks.register("verifyMinecraftDdaCapture") {
+	group = "verification"
+	description = "Verifies one complete Minecraft DDA capture in Java, Python, and C++."
+	dependsOn(
+		":computational-acoustics-core:verifyDdaProductionBundleFile",
+		"verifyPythonDdaProductionBundleFile",
+		"verifyNativeDdaProductionBundleFile"
+	)
+}
+
+tasks.register("auditCudaDdaEnvironment", Exec) {
+	group = "verification"
+	description = "Writes a no-claims CUDA DDA hardware/toolchain audit."
+	workingDir = rootDir
+	def output = project.findProperty("output")
+			?: "build/research/cuda-dda-environment-v1.json"
+	commandLine(
+			"python",
+			"docs/scripts/audit_cuda_dda_environment.py",
+			"--output-json",
+			file(output).absolutePath
+	)
+}
+
+tasks.register("prepareMinecraftDdaParityOracle") {
+	group = "verification"
+	description = "Verifies a live capture and replays Java expected DDA results in Python and C++."
+	dependsOn(
+		"verifyMinecraftDdaCapture",
+		"verifyPythonDdaExpectedResultsFile",
+		"verifyNativeDdaExpectedResultsFile"
+	)
+}
+
+tasks.register("captureAndVerifyMinecraftDda", GradleBuild) {
+	group = "verification"
+	description = "Captures a real Client GameTest DDA bundle, then runs the complete CPU parity oracle."
+	dependsOn(":fabric-mod:runClientGameTest")
+	dir = rootDir
+	tasks = ["prepareMinecraftDdaParityOracle"]
+	startParameter.projectProperties = [
+		bundle: "build/research/minecraft-dda-client-gametest-v1.bin"
+	]
+}
+
+tasks.register("verifyAcousticBackendRuntimeBudget", Exec) {
+	group = "verification"
+	description = "Benchmarks and verifies D101 EFX/Java runtime budgets."
+	dependsOn(
+		":fabric-mod:listenerReverbRuntimeBenchmark",
+		":fabric-mod:openAlEfxRuntimeBenchmark"
+	)
+	workingDir = rootDir
+	doFirst {
+		for (def required : [
+			"build/research/doppler-production-chunk-trace-v1.json",
+			"build/research/doppler-production-chunk-trace-v1.pcm",
+			"build/research/listener-reverb-runtime-v1.json",
+			"build/research/openal-efx-runtime-v1.json"
+		]) {
+			if (!file(required).isFile()) {
+				throw new GradleException(
+					"Missing D101 runtime input ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_acoustic_backend_runtime_budget.py",
+		"--efx-report",
+		file(
+			"build/research/openal-efx-runtime-v1.json"
+		).absolutePath,
+		"--java-report",
+		file(
+			"build/research/listener-reverb-runtime-v1.json"
+		).absolutePath,
+		"--trace-report",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		"--trace-pcm",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "acoustic-backend-runtime-budget-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyOpenAlEfxFaultFailover", Exec) {
+	group = "verification"
+	description = "Verifies D102 sound-thread EFX failure and recovery cycles."
+	workingDir = rootDir
+	doFirst {
+		if (!file(
+			"build/research/openal-efx-fault-failover-v1.json"
+		).isFile()) {
+			throw new GradleException(
+				"Missing D102 failover report; run "
+					+ ":fabric-mod:runClientGameTest first."
+			)
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_openal_efx_fault_failover.py",
+		"--report",
+		file(
+			"build/research/openal-efx-fault-failover-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-efx-fault-failover-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyBackendCapabilityPolicyTimeline", Exec) {
+	group = "verification"
+	description = "Verifies D103 live capability, policy, and timeline evidence."
+	workingDir = rootDir
+	doFirst {
+		for (def required : [
+			"build/research/openal-backend-capability-policy-v1.json",
+			"build/research/openal-native-capability-v1.json",
+			"build/research/openal-efx-fault-failover-v1.json"
+		]) {
+			if (!file(required).isFile()) {
+				throw new GradleException(
+					"Missing D103 artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_backend_capability_policy_timeline.py",
+		"--report",
+		file(
+			"build/research/openal-backend-capability-policy-v1.json"
+		).absolutePath,
+		"--capability-report",
+		file(
+			"build/research/openal-native-capability-v1.json"
+		).absolutePath,
+		"--failover-report",
+		file(
+			"build/research/openal-efx-fault-failover-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "openal-backend-capability-policy-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("analyzeBackendFailoverContinuity", Exec) {
+	group = "research"
+	description = "Builds the D104 exclusive-owner EFX/Java continuity splice."
+	workingDir = rootDir
+	doFirst {
+		for (def required : [
+			"build/research/openal-backend-transition-v1.json",
+			"build/research/openal-backend-transition-dry-v1.pcm",
+			"build/research/openal-backend-transition-efx-v1.pcm",
+			"build/research/openal-backend-transition-java-fdn-v1.pcm",
+			"build/research/openal-efx-fault-failover-v1.json"
+		]) {
+			if (!file(required).isFile()) {
+				throw new GradleException(
+					"Missing D104 source artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/analyze_backend_failover_continuity.py",
+		"--transition-report",
+		file(
+			"build/research/openal-backend-transition-v1.json"
+		).absolutePath,
+		"--dry-pcm",
+		file(
+			"build/research/openal-backend-transition-dry-v1.pcm"
+		).absolutePath,
+		"--efx-pcm",
+		file(
+			"build/research/openal-backend-transition-efx-v1.pcm"
+		).absolutePath,
+		"--java-pcm",
+		file(
+			"build/research/openal-backend-transition-java-fdn-v1.pcm"
+		).absolutePath,
+		"--failover-report",
+		file(
+			"build/research/openal-efx-fault-failover-v1.json"
+		).absolutePath,
+		"--output-report",
+		file(
+			"build/research/backend-failover-continuity-v1.json"
+		).absolutePath,
+		"--output-pcm",
+		file(
+			"build/research/backend-failover-continuity-v1.pcm"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyBackendFailoverContinuity", Exec) {
+	group = "verification"
+	description = "Verifies D104 click, dropout, and exclusive-owner gates."
+	dependsOn("analyzeBackendFailoverContinuity")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_backend_failover_continuity.py",
+		"--report",
+		file(
+			"build/research/backend-failover-continuity-v1.json"
+		).absolutePath,
+		"--output-pcm",
+		file(
+			"build/research/backend-failover-continuity-v1.pcm"
+		).absolutePath,
+		"--transition-report",
+		file(
+			"build/research/openal-backend-transition-v1.json"
+		).absolutePath,
+		"--dry-pcm",
+		file(
+			"build/research/openal-backend-transition-dry-v1.pcm"
+		).absolutePath,
+		"--efx-pcm",
+		file(
+			"build/research/openal-backend-transition-efx-v1.pcm"
+		).absolutePath,
+		"--java-pcm",
+		file(
+			"build/research/openal-backend-transition-java-fdn-v1.pcm"
+		).absolutePath,
+		"--failover-report",
+		file(
+			"build/research/openal-efx-fault-failover-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "backend-failover-continuity-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyBackendColdStartContinuity", Exec) {
+	group = "verification"
+	description = "Verifies D105 cold-start onset, dropout, and tail loss."
+	dependsOn(
+		":fabric-mod:backendColdStartContinuityProbe",
+		"analyzeBackendFailoverContinuity"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_backend_cold_start_continuity.py",
+		"--report",
+		file(
+			"build/research/backend-cold-start-continuity-v1.json"
+		).absolutePath,
+		"--cold-pcm",
+		file(
+			"build/research/backend-cold-start-continuity-v1.pcm"
+		).absolutePath,
+		"--dry-pcm",
+		file(
+			"build/research/backend-cold-start-dry-v1.pcm"
+		).absolutePath,
+		"--java-wet-pcm",
+		file(
+			"build/research/backend-cold-start-java-wet-v1.pcm"
+		).absolutePath,
+		"--transition-report",
+		file(
+			"build/research/openal-backend-transition-v1.json"
+		).absolutePath,
+		"--transition-dry-pcm",
+		file(
+			"build/research/openal-backend-transition-dry-v1.pcm"
+		).absolutePath,
+		"--trace-report",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		"--trace-pcm",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		).absolutePath,
+		"--failover-report",
+		file(
+			"build/research/openal-efx-fault-failover-v1.json"
+		).absolutePath,
+		"--warm-report",
+		file(
+			"build/research/backend-failover-continuity-v1.json"
+		).absolutePath,
+		"--warm-pcm",
+		file(
+			"build/research/backend-failover-continuity-v1.pcm"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "backend-cold-start-continuity-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyFdnHistoryPrerollSweep", Exec) {
+	group = "verification"
+	description = "Verifies D106 FDN pre-roll quality and P99 selection."
+	dependsOn(":fabric-mod:fdnHistoryPrerollSweep")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_fdn_history_preroll_sweep.py",
+		"--report",
+		file(
+			"build/research/fdn-history-preroll-sweep-v1.json"
+		).absolutePath,
+		"--sidecar",
+		file(
+			"build/research/fdn-history-preroll-sweep-v1.pcm"
+		).absolutePath,
+		"--transition-report",
+		file(
+			"build/research/openal-backend-transition-v1.json"
+		).absolutePath,
+		"--trace-report",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.json"
+		).absolutePath,
+		"--trace-pcm",
+		file(
+			"build/research/doppler-production-chunk-trace-v1.pcm"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "fdn-history-preroll-sweep-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyListenerReverbHistoryHandoff", Exec) {
+	group = "verification"
+	description = "Verifies D107 history, phase ownership, and handoff budgets."
+	dependsOn(":fabric-mod:listenerReverbHistoryHandoffProbe")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_listener_reverb_history_handoff.py",
+		"--report",
+		file(
+			"build/research/listener-reverb-history-handoff-v1.json"
+		).absolutePath,
+		"--pcm",
+		file(
+			"build/research/listener-reverb-history-handoff-v1.pcm"
+		).absolutePath,
+		"--d106-report",
+		file(
+			"build/research/fdn-history-preroll-sweep-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "listener-reverb-history-handoff-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyListenerReverbQueueHandoff", Exec) {
+	group = "verification"
+	description = "Verifies D108 live listener source restart and first-wet queue."
+	workingDir = rootDir
+	doFirst {
+		for (def required : [
+			"build/research/listener-reverb-queue-handoff-v1.json",
+			"build/research/listener-reverb-history-handoff-v1.json",
+			"build/research/openal-efx-fault-failover-v1.json"
+		]) {
+			if (!file(required).isFile()) {
+				throw new GradleException(
+					"Missing D108 artifact ${required}; run "
+						+ ":fabric-mod:runClientGameTest first."
+				)
+			}
+		}
+	}
+	commandLine(
+		"python",
+		"docs/scripts/verify_listener_reverb_queue_handoff.py",
+		"--report",
+		file(
+			"build/research/listener-reverb-queue-handoff-v1.json"
+		).absolutePath,
+		"--d107-report",
+		file(
+			"build/research/listener-reverb-history-handoff-v1.json"
+		).absolutePath,
+		"--fault-report",
+		file(
+			"build/research/openal-efx-fault-failover-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "listener-reverb-queue-handoff-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("analyzeEfxRecoverySlew", Exec) {
+	group = "verification"
+	description = "Screens D109 direct fresh-EFX reset against short onset slews."
+	dependsOn("verifyBackendColdStartContinuity")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/analyze_efx_recovery_slew.py",
+		"--d105-report",
+		file(
+			"build/research/backend-cold-start-continuity-v1.json"
+		).absolutePath,
+		"--cold-pcm",
+		file(
+			"build/research/backend-cold-start-continuity-v1.pcm"
+		).absolutePath,
+		"--dry-pcm",
+		file(
+			"build/research/backend-cold-start-dry-v1.pcm"
+		).absolutePath,
+		"--java-wet-pcm",
+		file(
+			"build/research/backend-cold-start-java-wet-v1.pcm"
+		).absolutePath,
+		"--d104-report",
+		file(
+			"build/research/backend-failover-continuity-v1.json"
+		).absolutePath,
+		"--warm-pcm",
+		file(
+			"build/research/backend-failover-continuity-v1.pcm"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/efx-recovery-slew-screen-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyEfxRecoverySlew", Exec) {
+	group = "verification"
+	description = "Independently verifies D109 EFX recovery slew selection."
+	dependsOn("analyzeEfxRecoverySlew")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_efx_recovery_slew.py",
+		"--report",
+		file(
+			"build/research/efx-recovery-slew-screen-v1.json"
+		).absolutePath,
+		"--d105-report",
+		file(
+			"build/research/backend-cold-start-continuity-v1.json"
+		).absolutePath,
+		"--cold-pcm",
+		file(
+			"build/research/backend-cold-start-continuity-v1.pcm"
+		).absolutePath,
+		"--dry-pcm",
+		file(
+			"build/research/backend-cold-start-dry-v1.pcm"
+		).absolutePath,
+		"--java-wet-pcm",
+		file(
+			"build/research/backend-cold-start-java-wet-v1.pcm"
+		).absolutePath,
+		"--d104-report",
+		file(
+			"build/research/backend-failover-continuity-v1.json"
+		).absolutePath,
+		"--warm-pcm",
+		file(
+			"build/research/backend-failover-continuity-v1.pcm"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/efx-recovery-slew-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("analyzeAcousticCalibrationAdmissibility", Exec) {
+	group = "verification"
+	description = "Separates D110 room-RIR targets from block-material priors."
+	dependsOn(
+		"analyzeAirRirReference",
+		"verifyAirShoeboxVoxelReference",
+		"analyzePtbMaterialAbsorption",
+		"verifyOpenAlBackendEnvironmentMatrix"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/analyze_acoustic_calibration_admissibility.py",
+		"--air-report",
+		file("build/research/air-rir-reference-v1.json").absolutePath,
+		"--shoebox-report",
+		file(
+			"build/research/air-shoebox-voxel-reference-v1.json"
+		).absolutePath,
+		"--ptb-report",
+		file(
+			"build/research/ptb-material-absorption-v1.json"
+		).absolutePath,
+		"--matrix-report",
+		file(
+			"build/research/openal-backend-environment-matrix-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/acoustic-calibration-admissibility-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyAcousticCalibrationAdmissibility", Exec) {
+	group = "verification"
+	description = "Independently verifies D110 calibration eligibility."
+	dependsOn("analyzeAcousticCalibrationAdmissibility")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_acoustic_calibration_admissibility.py",
+		"--report",
+		file(
+			"build/research/acoustic-calibration-admissibility-v1.json"
+		).absolutePath,
+		"--air-report",
+		file("build/research/air-rir-reference-v1.json").absolutePath,
+		"--shoebox-report",
+		file(
+			"build/research/air-shoebox-voxel-reference-v1.json"
+		).absolutePath,
+		"--ptb-report",
+		file(
+			"build/research/ptb-material-absorption-v1.json"
+		).absolutePath,
+		"--matrix-report",
+		file(
+			"build/research/openal-backend-environment-matrix-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "acoustic-calibration-admissibility-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyAirSceneCompositionInverse", Exec) {
+	group = "verification"
+	description = "Verifies D111 simplex inverse and spatial voxel holdouts."
+	dependsOn(
+		"verifyAcousticCalibrationAdmissibility",
+		":computational-acoustics-core:airSceneCompositionInverse"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_air_scene_composition_inverse.py",
+		"--report",
+		file(
+			"build/research/air-scene-composition-inverse-v1.json"
+		).absolutePath,
+		"--d110-report",
+		file(
+			"build/research/acoustic-calibration-admissibility-v1.json"
+		).absolutePath,
+		"--shoebox-report",
+		file(
+			"build/research/air-shoebox-voxel-reference-v1.json"
+		).absolutePath,
+		"--ptb-report",
+		file(
+			"build/research/ptb-material-absorption-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "air-scene-composition-inverse-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("analyzePtbBroadbandProductScreen", Exec) {
+	group = "verification"
+	description = "Screens PTB wide-band products without AIR target leakage."
+	dependsOn("verifyAirSceneCompositionInverse")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/analyze_ptb_broadband_product_screen.py",
+		"--manifest",
+		file(
+			"docs/acoustics/ptb-material-selection-v1.json"
+		).absolutePath,
+		"--selection-csv",
+		ptbMaterialSelectionCsv.absolutePath,
+		"--shoebox-report",
+		file(
+			"build/research/air-shoebox-voxel-reference-v1.json"
+		).absolutePath,
+		"--ptb-report",
+		file(
+			"build/research/ptb-material-absorption-v1.json"
+		).absolutePath,
+		"--d111-report",
+		file(
+			"build/research/air-scene-composition-inverse-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/ptb-broadband-product-screen-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyPtbBroadbandProductScreen", Exec) {
+	group = "verification"
+	description = "Independently verifies the D112 PTB product screen."
+	dependsOn("analyzePtbBroadbandProductScreen")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_ptb_broadband_product_screen.py",
+		"--report",
+		file(
+			"build/research/ptb-broadband-product-screen-v1.json"
+		).absolutePath,
+		"--manifest",
+		file(
+			"docs/acoustics/ptb-material-selection-v1.json"
+		).absolutePath,
+		"--selection-csv",
+		ptbMaterialSelectionCsv.absolutePath,
+		"--shoebox-report",
+		file(
+			"build/research/air-shoebox-voxel-reference-v1.json"
+		).absolutePath,
+		"--ptb-report",
+		file(
+			"build/research/ptb-material-absorption-v1.json"
+		).absolutePath,
+		"--d111-report",
+		file(
+			"build/research/air-scene-composition-inverse-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "ptb-broadband-product-screen-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("fetchAirRoomConstructionEvidence", Exec) {
+	group = "research data"
+	description = "Fetches hash-pinned AIR paper and dEchorate metadata."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/fetch_air_room_construction_evidence.py",
+		"--manifest",
+		file(
+			"docs/acoustics/air-room-construction-evidence-v1.json"
+		).absolutePath,
+		"--output-directory",
+		file(
+			"external-data/computational-acoustics/"
+				+ "room-construction-evidence"
+		).absolutePath
+	)
+}
+
+tasks.register("analyzeAirRoomConstructionEvidence", Exec) {
+	group = "verification"
+	description = "Audits AIR material identifiability and dEchorate metadata."
+	dependsOn(
+		"fetchAirRoomConstructionEvidence",
+		"verifyPtbBroadbandProductScreen"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/analyze_air_room_construction_evidence.py",
+		"--manifest",
+		file(
+			"docs/acoustics/air-room-construction-evidence-v1.json"
+		).absolutePath,
+		"--paper",
+		file(
+			"external-data/computational-acoustics/"
+				+ "room-construction-evidence/jeub09a.pdf"
+		).absolutePath,
+		"--dechorate-metadata",
+		file(
+			"external-data/computational-acoustics/"
+				+ "room-construction-evidence/dEchorate_database.csv"
+		).absolutePath,
+		"--shoebox-report",
+		file(
+			"build/research/air-shoebox-voxel-reference-v1.json"
+		).absolutePath,
+		"--d112-report",
+		file(
+			"build/research/ptb-broadband-product-screen-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/air-room-construction-evidence-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyAirRoomConstructionEvidence", Exec) {
+	group = "verification"
+	description = "Independently verifies the D113 evidence audit."
+	dependsOn("analyzeAirRoomConstructionEvidence")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_air_room_construction_evidence.py",
+		"--report",
+		file(
+			"build/research/air-room-construction-evidence-v1.json"
+		).absolutePath,
+		"--manifest",
+		file(
+			"docs/acoustics/air-room-construction-evidence-v1.json"
+		).absolutePath,
+		"--paper",
+		file(
+			"external-data/computational-acoustics/"
+				+ "room-construction-evidence/jeub09a.pdf"
+		).absolutePath,
+		"--dechorate-metadata",
+		file(
+			"external-data/computational-acoustics/"
+				+ "room-construction-evidence/dEchorate_database.csv"
+		).absolutePath,
+		"--shoebox-report",
+		file(
+			"build/research/air-shoebox-voxel-reference-v1.json"
+		).absolutePath,
+		"--d112-report",
+		file(
+			"build/research/ptb-broadband-product-screen-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "air-room-construction-evidence-verification-v1.json"
+		).absolutePath
+	)
+}
+
+def dechorateFacetManifest = file(
+	"docs/acoustics/dechorate-facet-rir-experiment-v1.json"
+)
+def dechorateSourceEvidenceDirectory = file(
+	"external-data/computational-acoustics/dechorate-source-evidence"
+)
+def dechorateRirPayload = file(
+	"external-data/computational-acoustics/"
+		+ "room-construction-evidence/dEchorate_rirs_gzip7.hdf5"
+)
+
+tasks.register("fetchDechorateSourceEvidence", Exec) {
+	group = "research data"
+	description = "Fetches hash-pinned dEchorate source-code evidence."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/fetch_dechorate_source_evidence.py",
+		"--manifest",
+		dechorateFacetManifest.absolutePath,
+		"--output-directory",
+		dechorateSourceEvidenceDirectory.absolutePath
+	)
+}
+
+tasks.register("analyzeDechorateFacetRirExperiment", Exec) {
+	group = "verification"
+	description = "Builds D114 facet snapshots and the minimal RIR manifest."
+	dependsOn(
+		"fetchDechorateSourceEvidence",
+		"verifyAirRoomConstructionEvidence"
+	)
+	workingDir = rootDir
+	def arguments = [
+		"python",
+		"docs/scripts/analyze_dechorate_facet_rir_experiment.py",
+		"--manifest",
+		dechorateFacetManifest.absolutePath,
+		"--metadata",
+		file(
+			"external-data/computational-acoustics/"
+				+ "room-construction-evidence/dEchorate_database.csv"
+		).absolutePath,
+		"--source-directory",
+		dechorateSourceEvidenceDirectory.absolutePath,
+		"--d113-report",
+		file(
+			"build/research/air-room-construction-evidence-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/dechorate-facet-rir-experiment-v1.json"
+		).absolutePath
+	]
+	if (dechorateRirPayload.isFile()) {
+		arguments.addAll([
+			"--rir-payload",
+			dechorateRirPayload.absolutePath
+		])
+	}
+	commandLine(arguments)
+}
+
+tasks.register("verifyDechorateFacetRirExperiment", Exec) {
+	group = "verification"
+	description = "Independently verifies the D114 experiment contract."
+	dependsOn("analyzeDechorateFacetRirExperiment")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_dechorate_facet_rir_experiment.py",
+		"--report",
+		file(
+			"build/research/dechorate-facet-rir-experiment-v1.json"
+		).absolutePath,
+		"--manifest",
+		dechorateFacetManifest.absolutePath,
+		"--metadata",
+		file(
+			"external-data/computational-acoustics/"
+				+ "room-construction-evidence/dEchorate_database.csv"
+		).absolutePath,
+		"--source-directory",
+		dechorateSourceEvidenceDirectory.absolutePath,
+		"--d113-report",
+		file(
+			"build/research/air-room-construction-evidence-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "dechorate-facet-rir-experiment-verification-v1.json"
+		).absolutePath
+	)
+}
+
+def dechorateSofaManifest = file(
+	"docs/acoustics/dechorate-sofa-subset-v1.json"
+)
+def dechorateSofaPins = file(
+	"docs/acoustics/dechorate-sofa-subset-pins-v1.json"
+)
+def dechorateSofaDirectory = file(
+	"external-data/computational-acoustics/dechorate-sofa-subset"
+)
+def dechorateSofaInventory = file(
+	"build/research/dechorate-sofa-subset-inventory-v1.json"
+)
+
+tasks.register("ensureDechorateAnalysisDependencies", Exec) {
+	group = "research data"
+	description = "Installs the pinned gitignored SOFA analysis stack."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/ensure_dechorate_analysis_dependencies.py",
+		"--target",
+		dechoratePythonDependencies.absolutePath
+	)
+}
+
+tasks.register("fetchDechorateSofaSubset", Exec) {
+	group = "research data"
+	description = "Fetches and hash-verifies the 66-file dEchorate SOFA set."
+	dependsOn("verifyDechorateFacetRirExperiment")
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/fetch_dechorate_sofa_subset.py",
+		"--manifest",
+		dechorateSofaManifest.absolutePath,
+		"--pins",
+		dechorateSofaPins.absolutePath,
+		"--output-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--inventory-json",
+		dechorateSofaInventory.absolutePath,
+		"--workers",
+		"6"
+	)
+}
+
+tasks.register("analyzeDechorateSofaSubset", Exec) {
+	group = "verification"
+	description = "Analyzes 66 measured SOFA RIRs against room geometry."
+	dependsOn(
+		"ensureDechorateAnalysisDependencies",
+		"fetchDechorateSofaSubset"
+	)
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/analyze_dechorate_sofa_subset.py",
+		"--subset-manifest",
+		dechorateSofaManifest.absolutePath,
+		"--pins",
+		dechorateSofaPins.absolutePath,
+		"--inventory",
+		dechorateSofaInventory.absolutePath,
+		"--d114-report",
+		file(
+			"build/research/dechorate-facet-rir-experiment-v1.json"
+		).absolutePath,
+		"--sofa-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--output-json",
+		file(
+			"build/research/dechorate-measured-sofa-analysis-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyDechorateSofaSubset", Exec) {
+	group = "verification"
+	description = "Recomputes and verifies the D115 measured-RIR report."
+	dependsOn("analyzeDechorateSofaSubset")
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/verify_dechorate_sofa_subset.py",
+		"--report",
+		file(
+			"build/research/dechorate-measured-sofa-analysis-v1.json"
+		).absolutePath,
+		"--subset-manifest",
+		dechorateSofaManifest.absolutePath,
+		"--pins",
+		dechorateSofaPins.absolutePath,
+		"--inventory",
+		dechorateSofaInventory.absolutePath,
+		"--d114-report",
+		file(
+			"build/research/dechorate-facet-rir-experiment-v1.json"
+		).absolutePath,
+		"--sofa-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "dechorate-measured-sofa-analysis-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("analyzeDechorateCpuDdaExperiment", Exec) {
+	group = "verification"
+	description = "Analyzes D116 Java CPU-DDA paths and controlled holdouts."
+	dependsOn(
+		"ensureDechorateAnalysisDependencies",
+		":computational-acoustics-core:dechorateCpuDdaExperiment"
+	)
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/analyze_dechorate_cpu_dda_experiment.py",
+		"--dda-report",
+		file(
+			"build/research/dechorate-cpu-dda-experiment-v1.json"
+		).absolutePath,
+		"--measured-report",
+		file(
+			"build/research/dechorate-measured-sofa-analysis-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/dechorate-cpu-dda-analysis-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyDechorateCpuDdaExperiment", Exec) {
+	group = "verification"
+	description = "Reconstructs and verifies the D116 CPU-DDA analysis."
+	dependsOn("analyzeDechorateCpuDdaExperiment")
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/verify_dechorate_cpu_dda_experiment.py",
+		"--report",
+		file(
+			"build/research/dechorate-cpu-dda-analysis-v1.json"
+		).absolutePath,
+		"--dda-report",
+		file(
+			"build/research/dechorate-cpu-dda-experiment-v1.json"
+		).absolutePath,
+		"--measured-report",
+		file(
+			"build/research/dechorate-measured-sofa-analysis-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "dechorate-cpu-dda-analysis-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("analyzeDechorateMultichannelGeneralization", Exec) {
+	group = "verification"
+	description = "Audits 330 SOFA channels and screens position-general models."
+	dependsOn(
+		"ensureDechorateAnalysisDependencies",
+		"verifyDechorateCpuDdaExperiment"
+	)
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "analyze_dechorate_multichannel_generalization.py",
+		"--subset-manifest",
+		dechorateSofaManifest.absolutePath,
+		"--pins",
+		dechorateSofaPins.absolutePath,
+		"--inventory",
+		dechorateSofaInventory.absolutePath,
+		"--metadata",
+		file(
+			"external-data/computational-acoustics/"
+				+ "room-construction-evidence/dEchorate_database.csv"
+		).absolutePath,
+		"--sofa-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--d116-report",
+		file(
+			"build/research/dechorate-cpu-dda-analysis-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "dechorate-multichannel-generalization-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyDechorateMultichannelGeneralization", Exec) {
+	group = "verification"
+	description = "Recomputes and verifies the D117 330-channel analysis."
+	dependsOn("analyzeDechorateMultichannelGeneralization")
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "verify_dechorate_multichannel_generalization.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "dechorate-multichannel-generalization-v1.json"
+		).absolutePath,
+		"--subset-manifest",
+		dechorateSofaManifest.absolutePath,
+		"--pins",
+		dechorateSofaPins.absolutePath,
+		"--inventory",
+		dechorateSofaInventory.absolutePath,
+		"--metadata",
+		file(
+			"external-data/computational-acoustics/"
+				+ "room-construction-evidence/dEchorate_database.csv"
+		).absolutePath,
+		"--sofa-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--d116-report",
+		file(
+			"build/research/dechorate-cpu-dda-analysis-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "dechorate-multichannel-generalization-verification-v1.json"
+		).absolutePath
+	)
+}
+
+def dechorateConfirmatoryPreregistration = file(
+	"docs/acoustics/dechorate-confirmatory-shards-v1.json"
+)
+def dechorateConfirmatoryDriveManifest = file(
+	"docs/acoustics/dechorate-confirmatory-drive-manifest-v1.json"
+)
+def dechorateConfirmatoryInventoryPins = file(
+	"docs/acoustics/dechorate-confirmatory-inventory-pins-v1.json"
+)
+def dechorateConfirmatoryDirectory = file(
+	"external-data/computational-acoustics/dechorate-confirmatory-shards"
+)
+def dechorateConfirmatoryInventory = file(
+	"build/research/dechorate-confirmatory-inventory-v1.json"
+)
+def dechorateConfirmatoryResult = file(
+	"docs/acoustics/dechorate-confirmatory-result-v1.json"
+)
+
+tasks.register("verifyDechorateConfirmatoryDriveManifest", Exec) {
+	group = "verification"
+	description = "Verifies the preregistered D118 filename/Drive-ID set."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_dechorate_confirmatory_drive_manifest.py",
+		"--preregistration",
+		dechorateConfirmatoryPreregistration.absolutePath,
+		"--manifest",
+		dechorateConfirmatoryDriveManifest.absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "dechorate-confirmatory-drive-manifest-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("fetchDechorateConfirmatoryShards", Exec) {
+	group = "research data"
+	description = "Fetches and enforces 33 immutable D118 SOFA byte pins."
+	dependsOn("verifyDechorateConfirmatoryDriveManifest")
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/fetch_dechorate_confirmatory_shards.py",
+		"--preregistration",
+		dechorateConfirmatoryPreregistration.absolutePath,
+		"--manifest",
+		dechorateConfirmatoryDriveManifest.absolutePath,
+		"--pins",
+		dechorateConfirmatoryInventoryPins.absolutePath,
+		"--output-directory",
+		dechorateConfirmatoryDirectory.absolutePath,
+		"--inventory-json",
+		dechorateConfirmatoryInventory.absolutePath,
+		"--workers",
+		"6"
+	)
+}
+
+tasks.register("analyzeDechorateConfirmatoryHoldout", Exec) {
+	group = "verification"
+	description = "Reconstructs the frozen-model D118 confirmatory result."
+	dependsOn(
+		"ensureDechorateAnalysisDependencies",
+		"fetchDechorateConfirmatoryShards",
+		"verifyDechorateMultichannelGeneralization"
+	)
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/analyze_dechorate_confirmatory_holdout.py",
+		"--preregistration",
+		dechorateConfirmatoryPreregistration.absolutePath,
+		"--drive-manifest",
+		dechorateConfirmatoryDriveManifest.absolutePath,
+		"--inventory-pins",
+		dechorateConfirmatoryInventoryPins.absolutePath,
+		"--metadata",
+		file(
+			"external-data/computational-acoustics/"
+				+ "room-construction-evidence/dEchorate_database.csv"
+		).absolutePath,
+		"--sofa-directory",
+		dechorateConfirmatoryDirectory.absolutePath,
+		"--d117-report",
+		file(
+			"build/research/"
+				+ "dechorate-multichannel-generalization-v1.json"
+		).absolutePath,
+		"--annotation-pins",
+		dechorateSofaPins.absolutePath,
+		"--annotation-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--output-json",
+		file(
+			"build/research/dechorate-confirmatory-result-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyDechorateConfirmatoryHoldout", Exec) {
+	group = "verification"
+	description = "Recomputes and verifies the preserved D118 failure."
+	dependsOn(
+		"ensureDechorateAnalysisDependencies",
+		"fetchDechorateConfirmatoryShards",
+		"verifyDechorateMultichannelGeneralization"
+	)
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/verify_dechorate_confirmatory_holdout.py",
+		"--report",
+		dechorateConfirmatoryResult.absolutePath,
+		"--preregistration",
+		dechorateConfirmatoryPreregistration.absolutePath,
+		"--drive-manifest",
+		dechorateConfirmatoryDriveManifest.absolutePath,
+		"--inventory-pins",
+		dechorateConfirmatoryInventoryPins.absolutePath,
+		"--metadata",
+		file(
+			"external-data/computational-acoustics/"
+				+ "room-construction-evidence/dEchorate_database.csv"
+		).absolutePath,
+		"--sofa-directory",
+		dechorateConfirmatoryDirectory.absolutePath,
+		"--d117-report",
+		file(
+			"build/research/"
+				+ "dechorate-multichannel-generalization-v1.json"
+		).absolutePath,
+		"--annotation-pins",
+		dechorateSofaPins.absolutePath,
+		"--annotation-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "dechorate-confirmatory-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("diagnoseDechorateEchoWindowGeneralization", Exec) {
+	group = "verification"
+	description = "Diagnoses D118 target stability and model extrapolation."
+	dependsOn(
+		"ensureDechorateAnalysisDependencies",
+		"fetchDechorateConfirmatoryShards",
+		"verifyDechorateMultichannelGeneralization",
+		"verifyDechorateConfirmatoryHoldout"
+	)
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "diagnose_dechorate_echo_window_generalization.py",
+		"--old-pins",
+		dechorateSofaPins.absolutePath,
+		"--old-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--new-pins",
+		dechorateConfirmatoryInventoryPins.absolutePath,
+		"--new-directory",
+		dechorateConfirmatoryDirectory.absolutePath,
+		"--annotation-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--d118-result",
+		dechorateConfirmatoryResult.absolutePath,
+		"--d117-report",
+		file(
+			"build/research/"
+				+ "dechorate-multichannel-generalization-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "dechorate-echo-window-failure-diagnostic-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyDechorateEchoWindowGeneralization", Exec) {
+	group = "verification"
+	description = "Recomputes and verifies the D119 failure diagnosis."
+	dependsOn("diagnoseDechorateEchoWindowGeneralization")
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "verify_dechorate_echo_window_generalization.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "dechorate-echo-window-failure-diagnostic-v1.json"
+		).absolutePath,
+		"--old-pins",
+		dechorateSofaPins.absolutePath,
+		"--old-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--new-pins",
+		dechorateConfirmatoryInventoryPins.absolutePath,
+		"--new-directory",
+		dechorateConfirmatoryDirectory.absolutePath,
+		"--annotation-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--d118-result",
+		dechorateConfirmatoryResult.absolutePath,
+		"--d117-report",
+		file(
+			"build/research/"
+				+ "dechorate-multichannel-generalization-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "dechorate-echo-window-failure-diagnostic-"
+				+ "verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyDdaFirstOrderBatchBenchmark", Exec) {
+	group = "verification"
+	description = "Verifies D117 reusable DDA parity and zero allocation."
+	dependsOn(
+		":computational-acoustics-core:ddaFirstOrderBatchBenchmark"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_dda_first_order_batch_benchmark.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "dda-first-order-batch-benchmark-v1.json"
+		).absolutePath,
+		"--d117-report",
+		file(
+			"build/research/"
+				+ "dechorate-multichannel-generalization-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "dda-first-order-batch-benchmark-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyBoundedFirstOrderGainReference", Exec) {
+	group = "verification"
+	description = "Independently verifies the D120 bounded-gain reference."
+	dependsOn(
+		":computational-acoustics-core:boundedFirstOrderGainReference"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_bounded_first_order_gain.py",
+		"--report",
+		file(
+			"build/research/bounded-first-order-gain-reference-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/bounded-first-order-gain-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "bounded-first-order-gain-reference-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftEarlyLateEnergyLedger", Exec) {
+	group = "verification"
+	description = "Independently verifies D121 early/late energy accounting."
+	dependsOn(
+		":computational-acoustics-core:earlyLateEnergyLedgerReference"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_minecraft_early_late_energy_ledger.py",
+		"--report",
+		file(
+			"build/research/minecraft-early-late-energy-ledger-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-early-late-energy-ledger-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-early-late-energy-ledger-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyLocalPlaneReflection", Exec) {
+	group = "verification"
+	description = "Independently verifies D121 local-plane geometry and DDA."
+	dependsOn(
+		":computational-acoustics-core:localPlaneReflectionReference"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_local_plane_reflection.py",
+		"--report",
+		file("build/research/local-plane-reflection-v1.json").absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/local-plane-reflection-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/local-plane-reflection-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftVoxelShapeLocalPlane", Exec) {
+	group = "verification"
+	description = "Verifies executed native Minecraft VoxelShape fixtures."
+	dependsOn(
+		":fabric-mod:minecraftVoxelShapeLocalPlaneReference",
+		"verifyLocalPlaneReflection"
+	)
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/verify_minecraft_voxel_shape_local_plane.py",
+		"--report",
+		file(
+			"build/research/minecraft-voxel-shape-local-plane-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/local-plane-reflection-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-voxel-shape-local-plane-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftLocalPlaneScene", Exec) {
+	group = "verification"
+	description = "Independently verifies the D121b bounded scene solve."
+	dependsOn(
+		":computational-acoustics-core:localPlaneSceneReference",
+		"verifyMinecraftVoxelShapeLocalPlane",
+		"verifyMinecraftEarlyLateEnergyLedger"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_minecraft_local_plane_scene.py",
+		"--report",
+		file(
+			"build/research/minecraft-local-plane-scene-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/minecraft-local-plane-scene-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-local-plane-scene-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftLocalPlaneWorkerHandoff", Exec) {
+	group = "verification"
+	description = "Independently verifies D121c worker handoff timelines."
+	dependsOn(
+		":computational-acoustics-core:localPlaneWorkerHandoffReference",
+		"verifyMinecraftLocalPlaneScene"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_minecraft_local_plane_worker_handoff.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-local-plane-worker-handoff-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-local-plane-worker-handoff-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-local-plane-worker-handoff-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftSharedLocalPlaneSnapshot", Exec) {
+	group = "verification"
+	description = "Independently verifies D121d shared snapshot planning."
+	dependsOn(
+		":fabric-mod:minecraftSharedLocalPlaneSnapshotReference",
+		"verifyMinecraftLocalPlaneWorkerHandoff"
+	)
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/verify_minecraft_shared_local_plane_snapshot.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-shared-local-plane-snapshot-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-shared-local-plane-snapshot-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-shared-local-plane-snapshot-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftFrozenBlockViewSnapshotProducer", Exec) {
+	group = "verification"
+	description = "Independently verifies D121e frozen-view production."
+	dependsOn(
+		":computational-acoustics-core:"
+			+ "frozenBlockViewSnapshotProducerReference",
+		"verifyMinecraftSharedLocalPlaneSnapshot"
+	)
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "verify_minecraft_frozen_block_view_snapshot_producer.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-frozen-block-view-snapshot-producer-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-frozen-block-view-snapshot-producer-"
+				+ "contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-frozen-block-view-snapshot-producer-"
+				+ "verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftCoverageAwareSnapshotCache", Exec) {
+	group = "verification"
+	description = "Independently verifies D121f coverage-aware caching."
+	dependsOn(
+		":computational-acoustics-core:"
+			+ "coverageAwareSnapshotCacheReference",
+		"verifyMinecraftFrozenBlockViewSnapshotProducer"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "verify_minecraft_coverage_aware_snapshot_cache.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-coverage-aware-snapshot-cache-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-coverage-aware-snapshot-cache-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-coverage-aware-snapshot-cache-"
+				+ "verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftEarlyClusterSlew", Exec) {
+	group = "verification"
+	description = "Independently verifies D121h early-cluster slew."
+	dependsOn(
+		":computational-acoustics-core:"
+			+ "earlyReflectionClusterSlewReference",
+		"verifyMinecraftCoverageAwareSnapshotCache"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_minecraft_early_cluster_slew.py",
+		"--report",
+		file(
+			"build/research/minecraft-early-cluster-slew-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-early-cluster-slew-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-early-cluster-slew-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftNullEarlyRenderer", Exec) {
+	group = "verification"
+	description = "Independently verifies D121i null early renderer."
+	dependsOn(
+		":computational-acoustics-core:"
+			+ "nullEarlyReflectionRendererReference",
+		"verifyMinecraftEarlyClusterSlew"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_minecraft_null_early_renderer.py",
+		"--report",
+		file(
+			"build/research/minecraft-null-early-renderer-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-null-early-renderer-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-null-early-renderer-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("analyzeMinecraftFractionalDelaySelection", Exec) {
+	group = "verification"
+	description = "Compares D121j fractional-delay algorithms offline."
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/analyze_minecraft_fractional_delay_selection.py",
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-fractional-delay-selection-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-fractional-delay-selection-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftFractionalDelaySelection", Exec) {
+	group = "verification"
+	description = "Independently verifies the D121j algorithm selection."
+	dependsOn(
+		"analyzeMinecraftFractionalDelaySelection",
+		":computational-acoustics-core:"
+			+ "fractionalDelayRendererBenchmark",
+		"verifyMinecraftNullEarlyRenderer"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_minecraft_fractional_delay_selection.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-fractional-delay-selection-v1.json"
+		).absolutePath,
+		"--benchmark",
+		file(
+			"build/research/"
+				+ "minecraft-fractional-delay-renderer-benchmark-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-fractional-delay-selection-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-fractional-delay-selection-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("analyzeMinecraftHighBandFractionalDelay", Exec) {
+	group = "verification"
+	description = "Compares D121k wideband fractional-delay candidates."
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/analyze_minecraft_high_band_fractional_delay.py",
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-high-band-fractional-delay-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-high-band-fractional-delay-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftHighBandFractionalDelay", Exec) {
+	group = "verification"
+	description = "Independently verifies the D121k high-band selection."
+	dependsOn(
+		"analyzeMinecraftHighBandFractionalDelay",
+		":computational-acoustics-core:"
+			+ "highBandFractionalDelayBenchmark",
+		"verifyMinecraftFractionalDelaySelection"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/verify_minecraft_high_band_fractional_delay.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-high-band-fractional-delay-v1.json"
+		).absolutePath,
+		"--benchmark",
+		file(
+			"build/research/"
+				+ "minecraft-high-band-fractional-delay-benchmark-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-high-band-fractional-delay-contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-high-band-fractional-delay-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftPairedHighBandRendererBudget", Exec) {
+	group = "verification"
+	description = "Independently verifies D121l paired renderer budgets."
+	dependsOn(
+		":computational-acoustics-core:"
+			+ "pairedHighBandRendererBudget",
+		"verifyMinecraftHighBandFractionalDelay"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "verify_minecraft_paired_high_band_renderer_budget.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-paired-high-band-renderer-budget-v1.json"
+		).absolutePath,
+		"--d121k-verification",
+		file(
+			"build/research/"
+				+ "minecraft-high-band-fractional-delay-"
+				+ "verification-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-paired-high-band-renderer-budget-"
+				+ "contract-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-paired-high-band-renderer-budget-"
+				+ "verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftEndpointDisabledAcousticReplay", Exec) {
+	group = "verification"
+	description = "Independently verifies the D121m no-endpoint replay."
+	dependsOn(
+		":computational-acoustics-core:endpointDisabledAcousticReplay",
+		"verifyMinecraftPairedHighBandRendererBudget"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "verify_minecraft_endpoint_disabled_acoustic_replay.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-endpoint-disabled-acoustic-replay-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-endpoint-disabled-acoustic-replay-"
+				+ "contract-v1.json"
+		).absolutePath,
+		"--d121k-verification",
+		file(
+			"build/research/"
+				+ "minecraft-high-band-fractional-delay-"
+				+ "verification-v1.json"
+		).absolutePath,
+		"--d121l-verification",
+		file(
+			"build/research/"
+				+ "minecraft-paired-high-band-renderer-budget-"
+				+ "verification-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-endpoint-disabled-acoustic-replay-"
+				+ "verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftCanonicalWorldEventReplay", Exec) {
+	group = "verification"
+	description = "Independently verifies D121n event ordering and adapter use."
+	dependsOn(
+		":computational-acoustics-core:canonicalWorldEventReplay"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "verify_minecraft_canonical_world_event_replay.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-canonical-world-event-replay-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-canonical-world-event-replay-"
+				+ "contract-v1.json"
+		).absolutePath,
+		"--adapter-source",
+		file(
+			"fabric-mod/src/client/java/com/tenicana/dronecraft/"
+				+ "client/sound/MinecraftAcousticWorldDirtyTracker.java"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-canonical-world-event-replay-"
+				+ "verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftNativeWorldEventTrace", Exec) {
+	group = "verification"
+	description = "Independently verifies D121o bounded native tracing."
+	dependsOn(
+		":computational-acoustics-core:nativeWorldEventTraceReplay"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "verify_minecraft_native_world_event_trace.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-native-world-event-trace-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-native-world-event-trace-contract-v1.json"
+		).absolutePath,
+		"--adapter-source",
+		file(
+			"fabric-mod/src/client/java/com/tenicana/dronecraft/"
+				+ "client/sound/MinecraftAcousticWorldDirtyTracker.java"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-native-world-event-trace-"
+				+ "verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftNativeTraceLaunchGate", Exec) {
+	group = "verification"
+	description = "Independently verifies D121p fail-closed trace launch."
+	dependsOn(
+		":computational-acoustics-core:nativeEventTraceDiagnosticGate"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "verify_minecraft_native_trace_launch_gate.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-native-trace-launch-gate-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-native-trace-launch-gate-contract-v1.json"
+		).absolutePath,
+		"--mode-source",
+		file(
+			"fabric-mod/src/client/java/com/tenicana/dronecraft/"
+				+ "client/sound/"
+				+ "MinecraftNativeEventTraceDiagnosticMode.java"
+		).absolutePath,
+		"--initializer-source",
+		file(
+			"fabric-mod/src/client/java/com/tenicana/dronecraft/"
+				+ "client/FpvDronecraftClient.java"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-native-trace-launch-gate-"
+				+ "verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyMinecraftNativeTraceAlcEvidence", Exec) {
+	group = "verification"
+	description = "Independently verifies D121q trace/ALC evidence export."
+	dependsOn(
+		":computational-acoustics-core:nativeTraceAlcEvidenceReference"
+	)
+	workingDir = rootDir
+	commandLine(
+		"python",
+		"docs/scripts/"
+			+ "verify_minecraft_native_trace_alc_evidence.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "minecraft-native-trace-alc-evidence-"
+				+ "reference-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/"
+				+ "minecraft-native-trace-alc-evidence-"
+				+ "contract-v1.json"
+		).absolutePath,
+		"--exporter-source",
+		file(
+			"computational-acoustics-core/src/main/java/com/tenicana/"
+				+ "dronecraft/acoustics/propagation/"
+				+ "NativeEventTraceEvidenceExporter.java"
+		).absolutePath,
+		"--minecraft-probe-source",
+		file(
+			"fabric-mod/src/client/java/com/tenicana/dronecraft/"
+				+ "client/sound/MinecraftNativeEventTraceEvidence.java"
+		).absolutePath,
+		"--command-source",
+		file(
+			"fabric-mod/src/client/java/com/tenicana/dronecraft/"
+				+ "client/command/"
+				+ "NativeEventTraceDiagnosticClientCommands.java"
+		).absolutePath,
+		"--initializer-source",
+		file(
+			"fabric-mod/src/client/java/com/tenicana/dronecraft/"
+				+ "client/FpvDronecraftClient.java"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "minecraft-native-trace-alc-evidence-"
+				+ "verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("analyzeBoundedFirstOrderGainDechorate", Exec) {
+	group = "verification"
+	description = "Exploratorily stresses D120 on all 330 source-4 RIRs."
+	dependsOn(
+		"ensureDechorateAnalysisDependencies",
+		"fetchDechorateConfirmatoryShards",
+		"verifyDechorateEchoWindowGeneralization",
+		"verifyBoundedFirstOrderGainReference"
+	)
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/analyze_bounded_first_order_gain_dechorate.py",
+		"--contract",
+		file(
+			"docs/acoustics/bounded-first-order-gain-contract-v1.json"
+		).absolutePath,
+		"--old-pins",
+		dechorateSofaPins.absolutePath,
+		"--old-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--new-pins",
+		dechorateConfirmatoryInventoryPins.absolutePath,
+		"--new-directory",
+		dechorateConfirmatoryDirectory.absolutePath,
+		"--annotation-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--d119-report",
+		file(
+			"build/research/"
+				+ "dechorate-echo-window-failure-diagnostic-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "bounded-first-order-gain-dechorate-exploratory-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("verifyBoundedFirstOrderGainDechorate", Exec) {
+	group = "verification"
+	description = "Recomputes and verifies the D120 330-RIR stress report."
+	dependsOn("analyzeBoundedFirstOrderGainDechorate")
+	workingDir = rootDir
+	environment(
+		"PYTHONPATH",
+		dechoratePythonDependencies.absolutePath
+			+ File.pathSeparator
+			+ file("docs/scripts").absolutePath
+	)
+	commandLine(
+		"python",
+		"docs/scripts/verify_bounded_first_order_gain_dechorate.py",
+		"--report",
+		file(
+			"build/research/"
+				+ "bounded-first-order-gain-dechorate-exploratory-v1.json"
+		).absolutePath,
+		"--contract",
+		file(
+			"docs/acoustics/bounded-first-order-gain-contract-v1.json"
+		).absolutePath,
+		"--old-pins",
+		dechorateSofaPins.absolutePath,
+		"--old-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--new-pins",
+		dechorateConfirmatoryInventoryPins.absolutePath,
+		"--new-directory",
+		dechorateConfirmatoryDirectory.absolutePath,
+		"--annotation-directory",
+		dechorateSofaDirectory.absolutePath,
+		"--d119-report",
+		file(
+			"build/research/"
+				+ "dechorate-echo-window-failure-diagnostic-v1.json"
+		).absolutePath,
+		"--output-json",
+		file(
+			"build/research/"
+				+ "bounded-first-order-gain-dechorate-"
+				+ "exploratory-verification-v1.json"
+		).absolutePath
+	)
+}
+
+tasks.register("acousticResearchCheck") {
+	group = "verification"
+	description = "Runs all available deterministic acoustic checks."
+	dependsOn(
+		"testAcousticResearchScripts",
+		"verifyPublicSourceDataRegistry",
+		"verifyAudioContinuityFixture",
+		"verifyAudioLabAlignmentFixture",
+		"verifyAudioLabSessionFixture",
+		"verifyAudioLabAbxStatisticsFixture",
+		"verifyDdaProductionBundleContract",
+		"verifyDdaProductionExpectedResultsContract",
+		"verifyCudaDdaResearch",
+		":computational-acoustics-core:reverbEnvironmentReference",
+		":computational-acoustics-core:airShoeboxVoxelReference",
+		":computational-acoustics-core:ptbMaterialMixtureReference",
+		":computational-acoustics-core:test",
+		":drone-sim-core:test",
+		":fabric-mod:test",
+		":two-edge-wave-reference:test"
+	)
+	if (promotedWaveGolden.isFile()) {
+		dependsOn("verifyPromotedWaveGolden")
+	}
+	if (airRirArchive.isFile()) {
+		dependsOn("verifyAirShoeboxVoxelReference")
+	}
+	if (ptbMaterialSelectionCsv.isFile()) {
+		dependsOn(
+			"verifyPtbMaterialMixtureConvergence",
+			"verifyPtbPathMixingTime",
+			"verifyDoorwayReverbContinuity",
+			"verifyTwoRoomPortalCoupling",
+			"verifyFdnDoorTransition",
+			"verifyPtbBroadbandProductScreen",
+			"verifyAirRoomConstructionEvidence",
+			"verifyDechorateFacetRirExperiment",
+			"verifyDechorateSofaSubset",
+			"verifyDechorateCpuDdaExperiment",
+			"verifyDechorateMultichannelGeneralization",
+			"verifyDechorateConfirmatoryHoldout",
+			"verifyDechorateEchoWindowGeneralization",
+			"verifyDdaFirstOrderBatchBenchmark",
+			"verifyBoundedFirstOrderGainReference",
+			"verifyMinecraftEarlyLateEnergyLedger",
+			"verifyLocalPlaneReflection",
+			"verifyMinecraftVoxelShapeLocalPlane",
+			"verifyMinecraftLocalPlaneScene",
+			"verifyMinecraftLocalPlaneWorkerHandoff",
+			"verifyMinecraftSharedLocalPlaneSnapshot",
+			"verifyMinecraftFrozenBlockViewSnapshotProducer",
+			"verifyMinecraftCoverageAwareSnapshotCache",
+			"verifyMinecraftEarlyClusterSlew",
+			"verifyMinecraftNullEarlyRenderer",
+			"verifyMinecraftFractionalDelaySelection",
+			"verifyMinecraftHighBandFractionalDelay",
+			"verifyMinecraftPairedHighBandRendererBudget",
+			"verifyMinecraftEndpointDisabledAcousticReplay",
+			"verifyMinecraftCanonicalWorldEventReplay",
+			"verifyMinecraftNativeWorldEventTrace",
+			"verifyMinecraftNativeTraceLaunchGate",
+			"verifyMinecraftNativeTraceAlcEvidence",
+			"verifyBoundedFirstOrderGainDechorate"
+		)
+	}
+}

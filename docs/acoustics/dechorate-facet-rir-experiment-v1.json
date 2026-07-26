@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "official_code": {
+    "repository": "https://github.com/Chutlhu/dEchorate",
+    "commit": "d3e664f1e7a7d46241d7f7b3b3761448686b9537",
+    "license": "MIT",
+    "files": [
+      {
+        "path": "dechorate/__init__.py",
+        "url": "https://raw.githubusercontent.com/Chutlhu/dEchorate/d3e664f1e7a7d46241d7f7b3b3761448686b9537/dechorate/__init__.py",
+        "bytes": 1391,
+        "sha256": "aa26defc926b23a9338b41602d865f64a27f9d453288e75af9fbe55c7c221be5"
+      },
+      {
+        "path": "dechorate/main_build_annotation_database.py",
+        "url": "https://raw.githubusercontent.com/Chutlhu/dEchorate/d3e664f1e7a7d46241d7f7b3b3761448686b9537/dechorate/main_build_annotation_database.py",
+        "bytes": 8571,
+        "sha256": "c267980c9df8df5853a6c15415f60a06cbca7bc8ace37ca461eb9b129c052051"
+      },
+      {
+        "path": "dechorate/main_build_sound_datasets.py",
+        "url": "https://raw.githubusercontent.com/Chutlhu/dEchorate/d3e664f1e7a7d46241d7f7b3b3761448686b9537/dechorate/main_build_sound_datasets.py",
+        "bytes": 8343,
+        "sha256": "9364df4133aec9489c33c076905590d4e73bf8a40cdebb90f57da99d1b256363"
+      },
+      {
+        "path": "dechorate/main_estimate_rirs.py",
+        "url": "https://raw.githubusercontent.com/Chutlhu/dEchorate/d3e664f1e7a7d46241d7f7b3b3761448686b9537/dechorate/main_estimate_rirs.py",
+        "bytes": 6122,
+        "sha256": "0b7855908ac2614dcdd63345b8d6cb55dc9fdde04d9a70ec565f9e244698d45a"
+      }
+    ]
+  },
+  "metadata": {
+    "filename": "dEchorate_database.csv",
+    "bytes": 2931172,
+    "sha256": "0851ff6c4d0a83248bc1f78cef9b8d2506ad9592b2b3069e430c56dea10850f2"
+  },
+  "rir_payload": {
+    "record": "https://zenodo.org/records/6576203",
+    "filename": "dEchorate_rirs_gzip7.hdf5",
+    "url": "https://zenodo.org/records/6576203/files/dEchorate_rirs_gzip7.hdf5?download=1",
+    "bytes": 4192401641,
+    "published_md5": "8b42a0e99766acce8a100130774bd5b3",
+    "advertised_size_gb": 4.2,
+    "sampling_rate_hz": 48000,
+    "samples_per_rir": 19556,
+    "dataset_path_template": "/rir/{room_code}/{source_id}",
+    "dataset_shape": [19556, 31],
+    "physical_microphone_columns": 30,
+    "loopback_column": 30
+  },
+  "room": {
+    "physical_dimensions_m": [5.705, 5.965, 2.355],
+    "voxelization": {
+      "meters_per_cell": 1.0,
+      "rounding": "nearest-integer-half-up",
+      "interior_cells_xyz": [6, 6, 2]
+    },
+    "facet_code_order": ["floor", "ceiling", "west", "south", "east", "north"],
+    "state_material": {
+      "0": "perforated-rock-wool-absorptive-panel",
+      "1": "formica-reflective-panel"
+    },
+    "room_codes": [
+      "000000",
+      "000001",
+      "000010",
+      "000100",
+      "001000",
+      "010000",
+      "011000",
+      "011100",
+      "011110",
+      "011111",
+      "020002"
+    ],
+    "special_conditions": {
+      "020002": {
+        "facet_code": "010001",
+        "furniture": true,
+        "furniture_geometry_known": false
+      }
+    }
+  },
+  "selection": {
+    "source_ids": [4, 6],
+    "source_roles": {
+      "4": "first-six-source echo-annotation-compatible inverse-directional source",
+      "6": "omnidirectional source"
+    },
+    "microphone_distance_ranks": [1, 15, 30],
+    "even_population_median_policy": "lower-median",
+    "expected_rir_count": 66
+  },
+  "comparison_protocol": {
+    "geometry_metrics": [
+      "physical-versus-voxel volume relative error",
+      "physical-versus-voxel total surface relative error",
+      "per-facet area relative error"
+    ],
+    "waveform_metrics_when_payload_is_present": [
+      "direct-arrival sample error versus distance/c",
+      "first-order echo timing error for source 4",
+      "EDT and T20/T30 by octave band",
+      "early-to-late energy ratio",
+      "measured-versus-image-source-versus-voxel-DDA timing residual"
+    ],
+    "acceptance_policy": "No production material parameter or release preset may be selected until the hash-pinned real RIR subset is materialized and waveform metrics are computed."
+  },
+  "claim_boundary": "This contract derives deterministic facet snapshots and a 66-RIR extraction manifest from hash-pinned official metadata and source code. In the absence of the 4.2 GB HDF5 payload it makes no measured-waveform, fitted-material, perceptual, endpoint-capture, or release-calibration claim."
+}

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121d-shared-snapshot-fixture",
+  "coverage": {
+    "cell_semantics": "a DDA cell is known only when it lies inside a complete captured inclusive block-cell cuboid",
+    "leaving_coverage": "complete=false, topology_visible=false, coverage_miss=true",
+    "unknown_cell_is_air": false,
+    "blocked_cell_inside_coverage": "complete=true, topology_visible=false",
+    "cell_budget_exhaustion": "complete=false, topology_visible=false"
+  },
+  "capture": {
+    "reflection_horizontal_radius_blocks": 2,
+    "reflection_vertical_radius_blocks": 1,
+    "chunk_and_union_halo_blocks": 1,
+    "maximum_snapshots_per_tick": 4,
+    "maximum_sources": 16,
+    "maximum_sampled_block_states_per_snapshot": 4096,
+    "maximum_horizontal_span_blocks": 32,
+    "maximum_vertical_span_blocks": 16,
+    "maximum_union_grid_cells": 2000000,
+    "surface_compaction": "repeated exact coplanar edge merge for equal material, axis, normal and coordinate; no gap or partial-edge merge",
+    "source_requirement": "inclusive cuboid spanning listener and source cells, expanded by reflection radius plus halo",
+    "sharing": "deterministic nearest-listener then source-index first-fit with minimum incremental captured volume",
+    "unassigned_source": "no explicit early events; retain direct and conservative late fallback"
+  },
+  "benchmark": {
+    "source_counts": [1, 4, 8, 16],
+    "layouts": ["coincident", "clustered", "corridor", "dispersed"],
+    "compare": ["independent_per_source", "shared_capture_plan"],
+    "native_minecraft_voxel_shape_required": true,
+    "p99_native_shape_planning_and_union_budget_ms": 10.0,
+    "p99_shared_scene_solve_batch_budget_ms": 5.0,
+    "minecraft_client_started": false,
+    "physical_endpoint_opened": false
+  },
+  "gates": {
+    "coverage_miss_fixture_required": true,
+    "blocked_vs_unknown_distinguished": true,
+    "all_sources_assigned_when_within_budget": true,
+    "far_sources_fallback_when_outside_span_or_snapshot_budget": true,
+    "shared_plan_never_samples_more_cells_than_assigned_independent_plan": true,
+    "shared_scene_solve_measured_for_every_assigned_source": true,
+    "independent_verifier_required": true,
+    "live_early_renderer_enabled": false
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "minecraft_client_started": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "snapshot_producer_measured": false,
+  "release_calibrated": false
+}

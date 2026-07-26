@@ -3,7 +3,8 @@
 		"sounds": [
 			{
 				"name": "fpvdrone:drone/motor_loop",
-				"attenuation_distance": 48
+				"attenuation_distance": 48,
+				"stream": true
 			}
 		]
 	},
@@ -11,7 +12,26 @@
 		"sounds": [
 			{
 				"name": "fpvdrone:drone/propeller_loop",
-				"attenuation_distance": 48
+				"attenuation_distance": 48,
+				"stream": true
+			}
+		]
+	},
+	"drone.listener_reverb_bus": {
+		"sounds": [
+			{
+				"name": "fpvdrone:drone/propeller_loop",
+				"attenuation_distance": 1,
+				"stream": true
+			}
+		]
+	},
+	"drone.audio_lab_marker": {
+		"sounds": [
+			{
+				"name": "fpvdrone:drone/motor_loop",
+				"attenuation_distance": 1,
+				"stream": true
 			}
 		]
 	},

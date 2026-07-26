@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "calibration": {
+    "wav": "raw/calibrator-94db-1khz.wav",
+    "channel": 0,
+    "level_db_spl": 94.0,
+    "frequency_hz": 1000.0,
+    "start_s": 1.0,
+    "duration_s": 10.0,
+    "tone_half_width_hz": 20.0
+  },
+  "analysis": {
+    "welch_resolution_hz": 5.0,
+    "overlap_fraction": 0.75,
+    "tonal_half_width_hz": 40.0,
+    "maximum_rpm_cv": 0.025,
+    "minimum_snr_db": 10.0,
+    "maximum_peak_normalized": 0.99,
+    "minimum_tone_prominence_db": 6.0
+  },
+  "recordings": [
+    {
+      "recording_id": "2207-1750kv-5x43x3-rpm12000-plane-take01",
+      "maneuver_id": "2207-1750kv-5x43x3-rpm12000-plane",
+      "split": "train",
+      "wav": "raw/rpm12000-plane-take01.wav",
+      "background_wav": "raw/background-take01.wav",
+      "rpm_csv": "raw/rpm12000-plane-take01-rpm.csv",
+      "channel": 0,
+      "start_s": 2.0,
+      "duration_s": 5.0,
+      "background_start_s": 2.0,
+      "background_duration_s": 5.0,
+      "elevation_deg": 0.0,
+      "microphone_distance_m": 1.0,
+      "reference_level_correction_db": 0.0,
+      "blade_count": 3,
+      "motor_pole_pairs": 7,
+      "blade_pass_harmonics": 12,
+      "airframe_id": "example:5inch-racing-quad-layout-a",
+      "source_configuration": "full_airframe_bench",
+      "motor_id": "example:2207-1750kv",
+      "propeller_id": "example:5x43x3",
+      "microphone_id": "example:measurement-mic-channel-0",
+      "signal_chain_id": "example:interface-gain-setting-a",
+      "thrust_n": 4.8,
+      "voltage_v": 16.0,
+      "current_a": 9.2,
+      "ambient_temperature_c": 20.0,
+      "relative_humidity_percent": 50.0,
+      "ambient_pressure_kpa": 101.325
+    }
+  ]
+}

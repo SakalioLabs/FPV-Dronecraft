@@ -1,0 +1,68 @@
+{
+  "candidate": {
+    "complex_phase_convention": "outgoing exp(+i*k*r)",
+    "domain": {
+      "maximum_x_m": 1.8125,
+      "maximum_z_m": 1.2125,
+      "minimum_x_m": 0.1875,
+      "minimum_z_m": 0.1875,
+      "pml_width_m": 0.0625
+    },
+    "frequency_hz": 4000.0,
+    "geometry": {
+      "receiver_x_m": 1.6125,
+      "receiver_z_m": 0.6,
+      "screen_back_x_m": 1.0125,
+      "screen_front_x_m": 0.9875,
+      "screen_thickness_m": 0.025,
+      "screen_top_z_m": 0.8,
+      "source_x_m": 0.3875,
+      "source_z_m": 0.6
+    },
+    "grid": {
+      "cell_size_m": 0.001388888888888889,
+      "points_per_wavelength": 61.74,
+      "thickness_cells": 18,
+      "unknowns_per_solve": 853633
+    },
+    "model": "2.5d-point-source-helmholtz-double-edge",
+    "pressure": {
+      "normalized_db": -16.283514443760147,
+      "raw_imaginary": 0.10598557701549025,
+      "raw_real": 0.053941168893470594
+    },
+    "quadrature": {
+      "coarse_intervals_per_branch": 96,
+      "magnitude_delta_db": 0.005007593245055347,
+      "phase_delta_degrees": -0.10035572183945013,
+      "refined_intervals_per_branch": 192
+    },
+    "schema_version": 1,
+    "speed_of_sound_m_per_s": 343.0,
+    "unique_helmholtz_solves": 384
+  },
+  "fixture_kind": "2.5d-double-edge-wave-golden",
+  "provenance": {
+    "generator": "docs/scripts/finalize_2p5d_spatial_gate.py",
+    "promotion_rule": "terminal quadrature plus 12/18-cell complex spatial gate"
+  },
+  "schema_version": 1,
+  "spatial_gate": {
+    "candidate_cell_size_m": 0.001388888888888889,
+    "candidate_raw_imaginary": 0.10598557701549025,
+    "candidate_raw_real": 0.053941168893470594,
+    "frequency_hz": 4000.0,
+    "gates": {
+      "maximum_magnitude_delta_db": 0.5,
+      "maximum_phase_delta_degrees": 5.0
+    },
+    "magnitude_delta_db": 0.0022475998435589175,
+    "passed": true,
+    "phase_delta_degrees": -2.8151149872835064,
+    "reference_cell_size_m": 0.0020833333333333333,
+    "reference_raw_imaginary": 0.10847882780722039,
+    "reference_raw_real": 0.04865818375798219,
+    "status": "complete"
+  },
+  "status": "complete"
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "decision": "D121p",
+  "purpose": "Fail closed before any authorized Minecraft native callback trace launch.",
+  "required_environment": {
+    "ALSOFT_DRIVERS": "null",
+    "exact_match": true,
+    "driver_fallback_allowed": false
+  },
+  "required_suppression": {
+    "local_plane_scheduler": true,
+    "drone_sound_manager": true,
+    "general_acoustic_commands": true
+  },
+  "runtime_proof_still_required": {
+    "alc_device_name": "No Output",
+    "capture_backend_available": false
+  },
+  "reference_matrix": {
+    "case_count": 10,
+    "normal_count": 1,
+    "armed_count": 1,
+    "rejected_count": 8
+  },
+  "primary_sources": [
+    {
+      "title": "OpenAL Soft configuration sample",
+      "url": "https://raw.githubusercontent.com/kcat/openal-soft/a81b7e61ba30c8330fd0c1990c8008ca364ab072/alsoftrc.sample",
+      "evidence": "A driver list without a trailing comma tries only the named backend."
+    },
+    {
+      "title": "OpenAL Soft null backend",
+      "url": "https://raw.githubusercontent.com/kcat/openal-soft/a81b7e61ba30c8330fd0c1990c8008ca364ab072/alc/backends/null.cpp",
+      "evidence": "The null device is named No Output and supports playback but not capture."
+    }
+  ],
+  "runtime_boundaries": {
+    "minecraft_client_started": false,
+    "alc_device_opened": false,
+    "physical_endpoint_opened": false,
+    "captures_audio": false,
+    "native_callback_delivery_measured": false,
+    "cuda_executed": false,
+    "release_calibrated": false
+  }
+}

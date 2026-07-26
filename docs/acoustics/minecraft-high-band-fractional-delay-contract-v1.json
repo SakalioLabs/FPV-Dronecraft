@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121k-high-band-selection",
+  "sample_rate_hz": 48000,
+  "problem": {
+    "d121j_selected": "third-order Lagrange FIR",
+    "d121j_maximum_20khz_magnitude_error_db": 8.414396426531676,
+    "scope": "reduce high-band fractional-delay error without changing low/mid energy ownership"
+  },
+  "candidates": [
+    "third-order Lagrange baseline",
+    "fifth-order Lagrange FIR",
+    "seventh-order Lagrange FIR",
+    "8-tap beta-2 Kaiser-windowed sinc",
+    "8-tap beta-2 Kaiser-windowed sinc with 1024 phase intervals",
+    "12-tap Lanczos-windowed sinc offline bound",
+    "ideal 2x plus third-order Lagrange static bound"
+  ],
+  "static_screen": {
+    "fractional_delays": [0.1, 0.25, 0.5, 0.75, 0.9],
+    "passbands_hz": [12000, 16000, 20000],
+    "frequency_points_per_passband": 400,
+    "metrics": [
+      "maximum absolute magnitude error dB",
+      "maximum wrapped phase error degrees"
+    ]
+  },
+  "time_varying_screen": {
+    "base_delay_samples": 100,
+    "fractional_range": [0.05, 0.95],
+    "reference": "32-tap normalized Lanczos-windowed sinc",
+    "signal": "same deterministic FPV-like harmonic plus broadband excitation as D121j",
+    "metrics": [
+      "RMSE versus reference",
+      "maximum absolute error",
+      "maximum adjacent output step",
+      "all outputs finite"
+    ]
+  },
+  "runtime_candidate": {
+    "name": "high-band 8-tap beta-2 Kaiser-windowed sinc with 1024 phase intervals",
+    "low_mid_interpolation": "third-order Lagrange",
+    "high_interpolation": "nearest 1-of-1025 precomputed coefficient rows",
+    "minimum_delay_samples_for_high_interpolation": 4,
+    "shorter_delay_fallback": "third-order Lagrange",
+    "shared_table_maximum_bytes": 70000
+  },
+  "selection_gates": {
+    "maximum_20khz_magnitude_error_db": 1.0,
+    "dynamic_rmse_below_d121j_lagrange3": true,
+    "actual_12_slot_p99_ns_per_output_frame": 750.0,
+    "steady_state_allocation_bytes": 0,
+    "outputs_finite": true,
+    "oversampling_not_selectable_without_resampler_cost_and_alias_screen": true
+  },
+  "research_basis": [
+    {
+      "title": "Adjustable Fractional-Delay FIR Filters Using the Farrow Structure and Multirate Techniques",
+      "doi": "10.1109/APCCAS.2006.342270",
+      "claim": "wideband complexity grows rapidly and multirate stages must be included"
+    },
+    {
+      "title": "Farrow structured variable fractional delay Lagrange filters with improved midpoint response",
+      "doi": "10.1109/TSP.2017.8076038",
+      "claim": "sinc-assisted Farrow structures can improve midpoint wideband response"
+    },
+    {
+      "title": "Sparsity-optimised Farrow structure variable fractional delay filter for wideband array",
+      "doi": "10.1049/sil2.12228",
+      "claim": "recent wideband Farrow work treats arithmetic complexity as an explicit constraint"
+    }
+  ],
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "minecraft_client_started": false,
+  "client_level_read": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "live_early_renderer_enabled": false,
+  "release_calibrated": false
+}

@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "decision": "D121q",
+  "purpose": "Freeze the read-only trace/ALC evidence bundle before an authorized Minecraft run.",
+  "required_launch_state": "ARMED",
+  "required_alc": {
+    "active_context": true,
+    "active_device": true,
+    "device_name": "No Output",
+    "capture_device_specifier": ""
+  },
+  "trace_export": {
+    "maximum_entries": 256,
+    "chronological": true,
+    "include_overwritten_count": true,
+    "allocate_from_capacity_to_avoid_size_race": true
+  },
+  "threading": {
+    "alc_snapshot": "minecraft-sound-engine-executor",
+    "json_write": "completable-future-worker",
+    "client_feedback": "minecraft-client-executor"
+  },
+  "reference": {
+    "retained": 4,
+    "overwritten": 2,
+    "ordinals": [1, 2, 3, 4],
+    "producer_thread_id": 41
+  },
+  "rejection_probes": [
+    "unarmed-launch",
+    "physical-device-name",
+    "capture-device-present",
+    "inactive-context",
+    "nonchronological-trace"
+  ],
+  "runtime_boundaries": {
+    "minecraft_client_started": false,
+    "alc_read_performed": false,
+    "physical_endpoint_opened": false,
+    "captures_audio": false,
+    "native_callback_delivery_measured": false,
+    "cuda_executed": false,
+    "release_calibrated": false
+  }
+}

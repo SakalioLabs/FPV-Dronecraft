@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "source": {
+    "publisher": "Physikalisch-Technische Bundesanstalt (PTB)",
+    "landing_page": "https://www.ptb.de/cms/en/ptb/fachabteilungen/abt1/fb-16/ag-163/absorption-coefficient-database.html",
+    "archive_url": "https://www.ptb.de/cms/fileadmin/internet/fachabteilungen/abteilung_1/1.6_schall/1.63/abstab_wf.zip",
+    "archive_bytes": 565539,
+    "archive_sha256": "d40814d54b90ed6cd22bb4a7584cef082b758ec01faa6cabf05493da06fe92fe",
+    "workbook_entry": "abstab_wf.xls",
+    "workbook_sha256": "1d6dab85024bfea8126cd2b0543ece6072c507004d8ac89a44fd82fa8dc75ff1",
+    "worksheet": "selection_table",
+    "header_row_1_based": 20,
+    "retrieved_utc_date": "2026-07-25",
+    "use_statement": "PTB landing page says the data can be downloaded and used as you like.",
+    "disclaimer": "The workbook says values were adopted from manufacturer records or the internet and PTB does not guarantee correctness.",
+    "conversion_note": "The pinned workbook hash is computed from the ZIP entry. Opening or converting the legacy XLS in Excel can rewrite workbook caches, so converted XLSX/CSV files are non-authoritative extraction caches."
+  },
+  "octave_centers_hz": [125, 250, 500, 1000, 2000, 4000],
+  "runtime_bands_hz": {
+    "low": [125, 700],
+    "mid": [700, 4000],
+    "high": [4000, 20000]
+  },
+  "selection_policy": {
+    "estimator": "per-octave training median",
+    "reduction": "source-energy-weighted mean within each runtime band",
+    "clamping": "forbidden",
+    "claim_boundary": "Research candidates only. Product construction, mounting, thickness, and practical-vs-random incidence prevent direct Minecraft release calibration."
+  },
+  "rows": [
+    {"row_id":5,"category":"stone_dense","split":"train","description":"Brick, unglazed","material_code":"6","absorption":[0.03,0.03,0.03,0.04,0.05,0.07]},
+    {"row_id":9,"category":"stone_dense","split":"train","description":"Floors, Concrete or terrazzo","material_code":"6","absorption":[0.01,0.01,0.02,0.02,0.02,0.02]},
+    {"row_id":29,"category":"stone_dense","split":"train","description":"Rough concrete","material_code":"6","absorption":[0.02,0.03,0.03,0.03,0.04,0.07]},
+    {"row_id":30,"category":"stone_dense","split":"train","description":"Smooth unpainted concrete","material_code":"6","absorption":[0.01,0.01,0.02,0.02,0.02,0.05]},
+    {"row_id":34,"category":"stone_dense","split":"train","description":"Smooth brickwork with flush pointing","material_code":"6","absorption":[0.02,0.03,0.03,0.04,0.05,0.07]},
+    {"row_id":6,"category":"stone_dense","split":"holdout","description":"Brick, unglazed, painted","material_code":"6","absorption":[0.01,0.01,0.02,0.02,0.02,0.03]},
+    {"row_id":31,"category":"stone_dense","split":"holdout","description":"Smooth concrete, painted or glazed","material_code":"6","absorption":[0.01,0.01,0.01,0.02,0.02,0.02]},
+    {"row_id":65,"category":"stone_dense","split":"holdout","description":"Floors, tiles on concrete","material_code":"6","absorption":[0.02,0.02,0.02,0.02,0.03,0.03]},
+    {"row_id":66,"category":"stone_dense","split":"holdout","description":"Floors: concrete or terrazzo","material_code":"6","absorption":[0.01,0.01,0.02,0.02,0.02,0.02]},
+
+    {"row_id":354,"category":"wood_solid_panel","split":"train","description":"Plywood paneling, 1 cm thick","material_code":"3","absorption":[0.28,0.22,0.17,0.09,0.10,0.11]},
+    {"row_id":393,"category":"wood_solid_panel","split":"train","description":"Wooden floor on joists","material_code":"3","absorption":[0.15,0.11,0.10,0.07,0.06,0.07]},
+    {"row_id":396,"category":"wood_solid_panel","split":"train","description":"Solid wooden door","material_code":"3","absorption":[0.14,0.10,0.06,0.08,0.10,0.10]},
+    {"row_id":438,"category":"wood_solid_panel","split":"holdout","description":"Wood, ceiling, 2 layers, 28 mm w/lighting & ventilation","material_code":"3","absorption":[0.18,0.14,0.10,0.08,0.07,0.06]},
+    {"row_id":439,"category":"wood_solid_panel","split":"holdout","description":"Wood, sidewalls, 1 layer, 20 mm w/doors & lighting","material_code":"3","absorption":[0.25,0.18,0.11,0.08,0.07,0.06]},
+    {"row_id":440,"category":"wood_solid_panel","split":"holdout","description":"Wood, sidewalls, 1 layer, 12 mm w/doors & lighting","material_code":"3","absorption":[0.28,0.22,0.19,0.13,0.08,0.06]},
+
+    {"row_id":192,"category":"glass_window","split":"train","description":"Glass, large panes of heavy plate glass","material_code":"4","absorption":[0.18,0.06,0.04,0.03,0.02,0.02]},
+    {"row_id":193,"category":"glass_window","split":"train","description":"Glass, ordinary window glass","material_code":"4","absorption":[0.35,0.25,0.18,0.12,0.07,0.04]},
+    {"row_id":207,"category":"glass_window","split":"holdout","description":"Single pane of glass, 3 mm","material_code":"4","absorption":[0.08,0.04,0.03,0.03,0.02,0.02]},
+    {"row_id":208,"category":"glass_window","split":"holdout","description":"Double glazing, 2-3 mm glass, 10 mm gap","material_code":"4","absorption":[0.10,0.07,0.05,0.03,0.02,0.02]},
+    {"row_id":209,"category":"glass_window","split":"holdout","description":"Double glazing, 2-3 mm glass, >30 mm gap","material_code":"4","absorption":[0.15,0.05,0.03,0.03,0.02,0.02]},
+
+    {"row_id":225,"category":"porous_wool","split":"train","description":"Mineral spray-on materials, 1.27 cm mineral fiber","material_code":"1","absorption":[0.05,0.15,0.45,0.70,0.80,0.80]},
+    {"row_id":226,"category":"porous_wool","split":"train","description":"Mineral spray-on materials, 1.9 cm mineral fiber","material_code":"1","absorption":[0.10,0.30,0.60,0.90,0.90,0.95]},
+    {"row_id":227,"category":"porous_wool","split":"train","description":"Mineral spray-on materials, 2.5 cm mineral fiber","material_code":"1","absorption":[0.16,0.45,0.70,0.90,0.90,0.85]},
+    {"row_id":256,"category":"porous_wool","split":"train","description":"50 mm mineral wool (40 kg/m3), glued to wall, untreated surface","material_code":"1","absorption":[0.15,0.70,0.60,0.60,0.85,0.90]},
+    {"row_id":257,"category":"porous_wool","split":"train","description":"50 mm mineral wool (40 kg/m3), glued to wall, surface sprayed with thin plastic solution","material_code":"1","absorption":[0.15,0.70,0.60,0.60,0.75,0.75]},
+    {"row_id":258,"category":"porous_wool","split":"holdout","description":"50 mm mineral wool (70 kg/m3) 300 mm in front of wall","material_code":"1","absorption":[0.70,0.45,0.65,0.60,0.75,0.65]},
+    {"row_id":259,"category":"porous_wool","split":"holdout","description":"Ceilings, 16 mm pressed mineral fiber board (fissured) 210 mm from ceiling","material_code":"1","absorption":[0.38,0.28,0.39,0.59,0.64,0.65]}
+  ]
+}

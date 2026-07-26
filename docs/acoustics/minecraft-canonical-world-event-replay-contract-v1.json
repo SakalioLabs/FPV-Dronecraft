@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "decision": "D121n",
+  "purpose": "Freeze canonical acoustic world-event ordering before live Minecraft integration.",
+  "world_epoch_policy": {
+    "minimum": 1,
+    "monotonic": true,
+    "resets_event_sequence": true,
+    "replaces_dirty_tracker_identity": true,
+    "clears_active_coverage": true
+  },
+  "event_sequence_policy": {
+    "minimum": 1,
+    "strictly_increasing_per_world_epoch": true,
+    "retained_dedupe_signatures": 1,
+    "exact_last_event_duplicate": "ignore",
+    "same_sequence_different_payload": "reject",
+    "older_sequence": "reject",
+    "world_epoch_mismatch": "reject",
+    "prediction_rollback": "accept_as_new_dirty_event"
+  },
+  "event_types": [
+    "BLOCK_APPLY",
+    "BLOCK_ROLLBACK",
+    "CHUNK_LOAD",
+    "CHUNK_REPLACE",
+    "CHUNK_UNLOAD"
+  ],
+  "active_coverage": {
+    "maximum_regions": 4,
+    "test_region_inclusive": [0, 0, 0, 31, 15, 31]
+  },
+  "expected": {
+    "world_replacements": 2,
+    "accepted_events": 7,
+    "dirty_events": 5,
+    "duplicate_events": 1,
+    "conflicting_sequence_events": 1,
+    "out_of_order_events": 1,
+    "world_mismatch_events": 1,
+    "marked_cells": 8195,
+    "world_epoch": 2,
+    "last_sequence": 1,
+    "final_tracker_revision": 1
+  },
+  "runtime_boundaries": {
+    "captures_audio": false,
+    "physical_endpoint_opened": false,
+    "minecraft_client_started": false,
+    "client_level_read": false,
+    "cuda_executed": false,
+    "release_calibrated": false
+  }
+}

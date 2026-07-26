@@ -1,0 +1,127 @@
+{
+  "captures_audio": false,
+  "channel_audit": {
+    "aggregate_file_sha256": "0a52e237710084428b84a07cbcadc706dcef174432e4a71fdeab256bde8157eb",
+    "channels_per_file": 5,
+    "direct_shift_max_samples": 2,
+    "direct_shift_median_samples": 0.0,
+    "measured_rirs": 165,
+    "metadata_coordinate_bindings": 165,
+    "microphone_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      25,
+      26,
+      27,
+      28,
+      29
+    ],
+    "sofa_files": 33,
+    "stale_room_descriptions": 33,
+    "total_bytes": 58056851,
+    "unique_waveform_hashes": 165,
+    "waveform_hash_overlap_with_d117": 0
+  },
+  "claim_boundary": "The frozen D117 geometry-interaction model is evaluated on 165 previously unseen, byte-pinned source-4 RIRs without refitting or threshold changes. Passing this dataset alone does not establish Minecraft integration, perceptual quality, CUDA execution or release calibration.",
+  "confirmatory_metrics": {
+    "groups": 165,
+    "mae_db": 18.72116453212951,
+    "maximum_abs_error_db": 155.8690275675119,
+    "mean_top4_overlap": 0.6909090909090909,
+    "random_expected_top4_overlap": 0.6666666666666666,
+    "rmse_db": 30.72178670712919,
+    "rows": 990,
+    "top1_capture_rate": 0.5696969696969697,
+    "top1_captured": 94
+  },
+  "cuda_executed": false,
+  "decision": {
+    "amplitude_model_admitted": false,
+    "confirmatory_result_eligible": true,
+    "next_action": "version-new-model-and-preregister-new-unseen-data",
+    "production_candidate_model_eligible": false,
+    "production_change_required": false,
+    "rank_model_admitted_for_further_integration": false
+  },
+  "diagnostic_per_array_metrics": {
+    "1": {
+      "groups": 55,
+      "mae_db": 27.814934998717646,
+      "maximum_abs_error_db": 155.8690275675119,
+      "mean_top4_overlap": 0.6590909090909091,
+      "random_expected_top4_overlap": 0.6666666666666666,
+      "rmse_db": 44.04900835996785,
+      "rows": 330,
+      "top1_capture_rate": 0.5454545454545454,
+      "top1_captured": 30
+    },
+    "2": {
+      "groups": 55,
+      "mae_db": 16.271710731196013,
+      "maximum_abs_error_db": 79.26813365513847,
+      "mean_top4_overlap": 0.7136363636363636,
+      "random_expected_top4_overlap": 0.6666666666666666,
+      "rmse_db": 23.23134894111522,
+      "rows": 330,
+      "top1_capture_rate": 0.4,
+      "top1_captured": 22
+    },
+    "6": {
+      "groups": 55,
+      "mae_db": 12.076847866474873,
+      "maximum_abs_error_db": 83.24959825140174,
+      "mean_top4_overlap": 0.7,
+      "random_expected_top4_overlap": 0.6666666666666666,
+      "rmse_db": 18.7476351659255,
+      "rows": 330,
+      "top1_capture_rate": 0.7636363636363637,
+      "top1_captured": 42
+    }
+  },
+  "frozen_model": {
+    "family": "geometry-interaction",
+    "feature_count": 420,
+    "frozen_model_sha256": "7ac69464c042fd054218e96f47aaa4d3456f89766e34d94398466731288ab97c",
+    "per_microphone_coefficients": false,
+    "refit_performed": false,
+    "regularization": 0.1
+  },
+  "gates": {
+    "amplitude_rmse_gate_passed": false,
+    "rank_gate_passed": false,
+    "top1_capture_rate_passed": false,
+    "top4_overlap_passed": false
+  },
+  "physical_endpoint_opened": false,
+  "release_calibrated": false,
+  "schema_version": 1,
+  "source_annotation_pins_sha256": "7e596333d69337ad46dbdcbea13882fc573cea6a56b2e053e55b56975ae7e453",
+  "source_annotation_sha256": "1c2810a2dc3870c75276a4b954c36b884e31b291483190634b2030040061317e",
+  "source_d117_report_sha256": "c79dcbd2ad0983eb20f7d4a2cd312f01214bc7532a4ffbd7d197a1dd5d39b824",
+  "source_drive_manifest_sha256": "0068fedcbc62fd1f39fce261afefa86a913df299f8661bee7701f724940689b4",
+  "source_inventory_pins_sha256": "ed9c53257a352b36d6a29aeaa47f5554fc5a334bb0ef7b10a10cae60c828d0cd",
+  "source_metadata_sha256": "0851ff6c4d0a83248bc1f78cef9b8d2506ad9592b2b3069e430c56dea10850f2",
+  "source_preregistration_sha256": "49a9527f4d23bf878ec2696d2b341598e08e4f068a95fb88aa2ad5a99fc84cea",
+  "status": "preserved-dechorate-confirmatory-result",
+  "thresholds": {
+    "amplitude_rmse_db_maximum": 3.0,
+    "top1_capture_rate_minimum": 0.9,
+    "top4_overlap_minimum": 0.8
+  },
+  "unblinding_contract": {
+    "byte_pins_fixed_before_sofa_payload_access": true,
+    "drive_ids_discovered_after_preregistration": true,
+    "frozen_model_loaded_without_refit": true,
+    "new_model_requires_new_version_and_unseen_data": true,
+    "result_must_be_preserved_on_failure": true,
+    "thresholds_loaded_without_change": true
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121f-cache-trajectory",
+  "dirty_tracker": {
+    "granularity": "exact block cell",
+    "storage_grouping": "16x16x16 sections",
+    "token": "maximum dirty revision among cells inside exact inclusive coverage",
+    "outside_rule": "a dirty cell outside exact coverage must not change its token, including when it shares a storage section",
+    "inside_rule": "every dirty cell inside coverage must advance its token",
+    "bulk_rule": "chunk unload or equivalent range invalidation marks every affected covered cell dirty",
+    "authoritative_rule": "the Minecraft adapter must report every block mutation and chunk load-state transition that can affect captured geometry"
+  },
+  "cache": {
+    "key": [
+      "exact inclusive coverage bounds",
+      "halo",
+      "coverage dirty token",
+      "world tracker identity"
+    ],
+    "hit_rule": "reuse the same immutable complete snapshot instance",
+    "rebuild_rule": "coverage, halo or dirty-token mismatch rebuilds synchronously",
+    "incomplete_rule": "incomplete snapshots are never cached",
+    "concurrent_dirty_rule": "dirty-token change between scan start and publication discards all geometry",
+    "generation_rule": "FrozenBlockView generation still protects mutation during a rebuild; coverage dirty token is authoritative for cache hits",
+    "world_change_rule": "replacing the tracker identity invalidates the cache even when bounds, halo and numeric token are unchanged"
+  },
+  "fixtures": [
+    "outside dirty in same storage section preserves hit",
+    "inside dirty rebuilds",
+    "dirty during capture publishes empty incomplete geometry",
+    "unloaded capture is not cached",
+    "coverage movement rebuilds",
+    "bulk chunk-unload invalidation changes overlapping tokens"
+  ],
+  "trajectory": {
+    "source_counts": [1, 4, 8, 16],
+    "frames": 256,
+    "maximum_groups": 4,
+    "complete_capture_p99_budget_ms": 10.0,
+    "required_metrics": [
+      "cache hits",
+      "rebuilds",
+      "fallbacks",
+      "outside dirty events",
+      "inside dirty events",
+      "bounds changes",
+      "allocation bytes per frame",
+      "raw frame elapsed samples"
+    ]
+  },
+  "gates": {
+    "independent_verifier_required": true,
+    "minecraft_client_started": false,
+    "actual_client_level_read_required": false,
+    "live_early_renderer_enabled": false
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "minecraft_client_started": false,
+  "client_level_read": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "trajectory_cache_measured": false,
+  "live_early_renderer_enabled": false,
+  "release_calibrated": false
+}

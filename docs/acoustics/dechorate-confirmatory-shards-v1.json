@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "status": "preregistered-before-drive-id-discovery-or-waveform-access",
+  "official_folder": "https://drive.google.com/drive/folders/1yGTh_BjnVNwDgBsn5mkuW3i4rJIgZwlS",
+  "source_id": 4,
+  "sofa_source_number": 5,
+  "room_codes": [
+    "000000",
+    "000001",
+    "000010",
+    "000100",
+    "001000",
+    "010000",
+    "011000",
+    "011100",
+    "011110",
+    "011111",
+    "020002"
+  ],
+  "arrays": [
+    {
+      "sofa_array_id": 1,
+      "microphone_ids": [0, 1, 2, 3, 4],
+      "filename_template": "dEchorate_room{room_code}_src5_arr1_mics1-5.sofa"
+    },
+    {
+      "sofa_array_id": 2,
+      "microphone_ids": [5, 6, 7, 8, 9],
+      "filename_template": "dEchorate_room{room_code}_src5_arr2_mics6-10.sofa"
+    },
+    {
+      "sofa_array_id": 6,
+      "microphone_ids": [25, 26, 27, 28, 29],
+      "filename_template": "dEchorate_room{room_code}_src5_arr6_mics26-30.sofa"
+    }
+  ],
+  "expected_files": 33,
+  "expected_rirs": 165,
+  "frozen_model_source": "build/research/dechorate-multichannel-generalization-v1.json",
+  "frozen_model_requirements": {
+    "family": "geometry-interaction",
+    "regularization": 0.1,
+    "feature_count": 420,
+    "refit_allowed": false,
+    "threshold_change_allowed": false
+  },
+  "confirmatory_metrics": {
+    "top4_overlap_minimum": 0.8,
+    "top1_capture_rate_minimum": 0.9,
+    "amplitude_rmse_db_maximum": 3.0
+  },
+  "decision_policy": {
+    "rank_gate": "both top4 and top1 thresholds must pass",
+    "amplitude_gate": "reported independently and must not be hidden by rank success",
+    "production_eligibility": "remains false until Minecraft integration and perceptual gates also pass",
+    "failure_policy": "preserve this result; any new feature family or threshold requires a new version and new unseen data"
+  },
+  "claim_boundary": "This contract fixes filenames, channels, model identity and thresholds before discovering Google Drive ids, downloading the 33 shards, or inspecting any of their 165 waveforms. It does not assert that the files are present or valid until a later hash-pinned inventory is produced."
+}

@@ -21,4 +21,9 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "fpv-dronecraft"
-include("drone-sim-core", "fabric-mod")
+include(
+		"drone-sim-core",
+		"computational-acoustics-core",
+		"two-edge-wave-reference",
+		"fabric-mod"
+)

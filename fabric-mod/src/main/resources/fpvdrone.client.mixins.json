@@ -3,12 +3,20 @@
 	"package": "com.tenicana.dronecraft.client.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
+		"ChannelHandleChannelAccessor",
+		"ChannelSourceAccessor",
+		"ChannelStreamingQueueMixin",
 		"CameraMixin",
+		"ClientLevelAcousticDirtyMixin",
 		"FramerateLimitTrackerAccessor",
 		"GameRendererMixin",
 		"MinecraftAttackSanitizerMixin",
 		"MinecraftCameraStateAccessor",
-		"MinecraftFramerateLimitTrackerAccessor"
+		"MinecraftFramerateLimitTrackerAccessor",
+		"SoundEngineExecutorAccessor",
+		"SoundEngineChannelsAccessor",
+		"SoundEngineReloadMixin",
+		"SoundManagerEngineAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121e-producer-fixture",
+  "input": {
+    "interface": "FrozenBlockView",
+    "methods": [
+      "generation()",
+      "isLoaded(x,y,z)",
+      "appendMaterialBoxes(x,y,z,output)"
+    ],
+    "thread_rule": "the adapter is sampled synchronously by one producer thread and exposes no audio objects",
+    "material_box_rule": "every appended AABB must be finite, positive-volume and contained inside the sampled unit block cell",
+    "generation_rule": "generation before and after the complete scan must match"
+  },
+  "output": {
+    "lists": "immutable material boxes and coplanar-compacted exposed patches",
+    "coverage": "the exact inclusive sampled block-cell bounds",
+    "complete_requires": [
+      "all cells loaded",
+      "generation stable",
+      "union coordinate grid within 2000000 cells"
+    ],
+    "incomplete_policy": "publish empty box and patch lists; no explicit early paths",
+    "halo": "patch owners are restricted to sampled bounds contracted by the configured halo"
+  },
+  "fixtures": [
+    "complete frozen procedural block view",
+    "one unloaded cell",
+    "generation changes during scan",
+    "union coordinate grid budget exceeded",
+    "material box escapes sampled cell and is rejected"
+  ],
+  "benchmark": {
+    "source_counts": [1, 4, 8, 16],
+    "shared_bounds_from": "D121d capture planner",
+    "p99_complete_producer_batch_budget_ms": 10.0,
+    "raw_samples_required": true,
+    "allocation_is_reported_not_zero_bounded": true
+  },
+  "gates": {
+    "independent_fixture_verifier_required": true,
+    "minecraft_adapter_compiles_against_named_1_21_11": true,
+    "actual_client_level_read_required": false,
+    "minecraft_client_started": false,
+    "live_early_renderer_enabled": false
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "minecraft_client_started": false,
+  "client_level_read": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "snapshot_producer_measured": false,
+  "release_calibrated": false
+}

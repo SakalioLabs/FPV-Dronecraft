@@ -1,0 +1,281 @@
+{
+  "schema_version": 1,
+  "reviewed_utc": "2026-07-25",
+  "purpose": "Prevent public drone/rotor recordings from being promoted to a release acoustic profile without the evidence required by decisions D057-D061.",
+  "hard_gates": [
+    "public_raw_time_history",
+    "absolute_pressure_calibration",
+    "synchronized_measured_rpm_trace",
+    "microphone_geometry",
+    "propulsion_metadata",
+    "background_or_noise_floor",
+    "independent_holdout_possible",
+    "commercial_redistribution_compatible",
+    "target_5inch_fpv_domain"
+  ],
+  "eligibility_rule": "release_profile_eligible is true if and only if every hard gate is true.",
+  "datasets": [
+    {
+      "id": "bristol-parameterized-isolated-propeller-2023",
+      "name": "Experimental noise characterisation of different blade numbers, diameters, and pitches of the propeller in forward flight",
+      "primary_url": "https://doi.org/10.5523/bris.29vtf33wbb4tu2vpxz3es8pilv",
+      "license": "Non-Commercial Government Licence for public sector information",
+      "gates": {
+        "public_raw_time_history": true,
+        "absolute_pressure_calibration": true,
+        "synchronized_measured_rpm_trace": false,
+        "microphone_geometry": true,
+        "propulsion_metadata": true,
+        "background_or_noise_floor": true,
+        "independent_holdout_possible": true,
+        "commercial_redistribution_compatible": false,
+        "target_5inch_fpv_domain": false
+      },
+      "release_profile_eligible": false,
+      "admissible_uses": [
+        "offline isolated-propeller spectral structure",
+        "blade-count, diameter, pitch, RPM and inflow sensitivity",
+        "non-commercial validation"
+      ],
+      "blocking_reasons": [
+        "The public operating-point hierarchy is not a synchronized tach trace accepted by the current recording analyzer.",
+        "The licence is non-commercial.",
+        "The tested isolated propellers and operating range do not identify the target 5-inch three-blade FPV airframe."
+      ]
+    },
+    {
+      "id": "neaptide-2024",
+      "name": "NEAPTIDE drone noise dataset",
+      "primary_url": "https://zenodo.org/records/10512044",
+      "license": "CC BY-NC 4.0",
+      "gates": {
+        "public_raw_time_history": true,
+        "absolute_pressure_calibration": true,
+        "synchronized_measured_rpm_trace": false,
+        "microphone_geometry": true,
+        "propulsion_metadata": false,
+        "background_or_noise_floor": true,
+        "independent_holdout_possible": true,
+        "commercial_redistribution_compatible": false,
+        "target_5inch_fpv_domain": false
+      },
+      "release_profile_eligible": false,
+      "admissible_uses": [
+        "research-only elevation directivity",
+        "maneuver spectral comparison",
+        "one-metre normalization checks"
+      ],
+      "blocking_reasons": [
+        "No synchronized measured rotor-speed trace is provided.",
+        "Motor and propeller identity is insufficient for a target profile.",
+        "The licence is non-commercial and the aircraft are not the target 5-inch FPV platform."
+      ]
+    },
+    {
+      "id": "drone-noise-database-v3",
+      "name": "DroneNoise Database v3",
+      "primary_url": "https://salford.figshare.com/articles/dataset/DroneNoise_Database/22133411",
+      "license": "CC BY 4.0",
+      "gates": {
+        "public_raw_time_history": true,
+        "absolute_pressure_calibration": true,
+        "synchronized_measured_rpm_trace": false,
+        "microphone_geometry": true,
+        "propulsion_metadata": false,
+        "background_or_noise_floor": true,
+        "independent_holdout_possible": true,
+        "commercial_redistribution_compatible": true,
+        "target_5inch_fpv_domain": false
+      },
+      "release_profile_eligible": false,
+      "admissible_uses": [
+        "flyover propagation validation",
+        "multi-microphone consistency",
+        "dynamic listening comparison"
+      ],
+      "blocking_reasons": [
+        "No synchronized measured rotor-speed trace is provided.",
+        "Propeller and motor metadata is insufficient for order-source fitting.",
+        "The flight vehicles do not identify the target 5-inch FPV configuration."
+      ]
+    },
+    {
+      "id": "nasa-small-uas-flyover-2016",
+      "name": "NASA Small UAS Flyover Acoustics Data",
+      "primary_url": "https://data.nasa.gov/dataset/small-uas-flyover-acoustics-data",
+      "license": "Not specified by the dataset catalog",
+      "gates": {
+        "public_raw_time_history": true,
+        "absolute_pressure_calibration": true,
+        "synchronized_measured_rpm_trace": false,
+        "microphone_geometry": true,
+        "propulsion_metadata": false,
+        "background_or_noise_floor": true,
+        "independent_holdout_possible": true,
+        "commercial_redistribution_compatible": false,
+        "target_5inch_fpv_domain": false
+      },
+      "release_profile_eligible": false,
+      "admissible_uses": [
+        "calibrated flyover propagation validation",
+        "position, attitude and microphone geometry replay",
+        "background and acquisition-noise-floor studies"
+      ],
+      "blocking_reasons": [
+        "Vehicle state contains position and attitude but no rotor-speed trace.",
+        "Propeller and motor identity is insufficient for a target source profile.",
+        "The catalog does not specify a reuse licence and the vehicles are not the target 5-inch FPV platform."
+      ]
+    },
+    {
+      "id": "glasgow-drone-authentication-2022",
+      "name": "Drone Authentication via Acoustic Fingerprint",
+      "primary_url": "https://doi.org/10.5525/gla.researchdata.1348",
+      "license": "CC BY 4.0",
+      "gates": {
+        "public_raw_time_history": true,
+        "absolute_pressure_calibration": false,
+        "synchronized_measured_rpm_trace": false,
+        "microphone_geometry": true,
+        "propulsion_metadata": false,
+        "background_or_noise_floor": false,
+        "independent_holdout_possible": true,
+        "commercial_redistribution_compatible": true,
+        "target_5inch_fpv_domain": false
+      },
+      "release_profile_eligible": false,
+      "admissible_uses": [
+        "model and operating-state classification comparison",
+        "uncalibrated listening corpus"
+      ],
+      "blocking_reasons": [
+        "The WAV recordings do not provide an absolute pressure calibration chain or synchronized rotor speed.",
+        "Model/state/distance labels are not complete propulsion metadata.",
+        "The corpus is not a calibrated target-domain bench campaign."
+      ]
+    },
+    {
+      "id": "ddl-2022",
+      "name": "Drone Detection and Localization dataset",
+      "primary_url": "https://zenodo.org/records/6459183",
+      "license": "CC BY 4.0",
+      "gates": {
+        "public_raw_time_history": true,
+        "absolute_pressure_calibration": false,
+        "synchronized_measured_rpm_trace": false,
+        "microphone_geometry": true,
+        "propulsion_metadata": false,
+        "background_or_noise_floor": true,
+        "independent_holdout_possible": true,
+        "commercial_redistribution_compatible": true,
+        "target_5inch_fpv_domain": false
+      },
+      "release_profile_eligible": false,
+      "admissible_uses": [
+        "range and bearing sanity checks",
+        "detection and localization comparison",
+        "uncalibrated outdoor listening corpus"
+      ],
+      "blocking_reasons": [
+        "The field recordings are not an absolute-pressure, synchronized-RPM source experiment.",
+        "Drone model labels do not provide complete propulsion metadata.",
+        "The DJI platforms are not the target 5-inch FPV configuration."
+      ]
+    },
+    {
+      "id": "droneaudioset-2025",
+      "name": "DroneAudioSet",
+      "primary_url": "https://proceedings.neurips.cc/paper_files/paper/2025/hash/adececbc73a58724db0f3c0d5c77f338-Abstract-Datasets_and_Benchmarks_Track.html",
+      "license": "MIT",
+      "gates": {
+        "public_raw_time_history": false,
+        "absolute_pressure_calibration": false,
+        "synchronized_measured_rpm_trace": false,
+        "microphone_geometry": true,
+        "propulsion_metadata": true,
+        "background_or_noise_floor": true,
+        "independent_holdout_possible": true,
+        "commercial_redistribution_compatible": true,
+        "target_5inch_fpv_domain": false
+      },
+      "release_profile_eligible": false,
+      "admissible_uses": [
+        "microphone-placement and ego-noise comparison",
+        "throttle-class spectral sanity checks",
+        "noise-suppression benchmark"
+      ],
+      "blocking_reasons": [
+        "The public audio is offset-corrected and resampled to 16 kHz; the 48 kHz raw recordings are available only by author request.",
+        "Throttle class and inferred spectral fundamentals are not synchronized measured rotor speed.",
+        "Reported dBA levels do not establish a recoverable per-recording pressure calibration chain for the released files.",
+        "The F330/F450 platforms are not the target 5-inch FPV configuration."
+      ]
+    },
+    {
+      "id": "cira-matim-rotor-directivity-2025",
+      "name": "Experimental Acoustic Investigation of Rotor Noise Directivity and Decay in Multiple Configurations",
+      "primary_url": "https://doi.org/10.3390/aerospace12070647",
+      "license": "Article CC BY 4.0; raw-data terms not stated",
+      "gates": {
+        "public_raw_time_history": false,
+        "absolute_pressure_calibration": true,
+        "synchronized_measured_rpm_trace": true,
+        "microphone_geometry": true,
+        "propulsion_metadata": true,
+        "background_or_noise_floor": true,
+        "independent_holdout_possible": true,
+        "commercial_redistribution_compatible": false,
+        "target_5inch_fpv_domain": false
+      },
+      "release_profile_eligible": false,
+      "admissible_uses": [
+        "published installation-effect parameters",
+        "isolated, plate-installed and four-rotor reduced-order validation",
+        "candidate author-request dataset"
+      ],
+      "blocking_reasons": [
+        "The article states that raw data are available from the authors on request, not in a public repository.",
+        "The raw-data reuse terms are not stated.",
+        "The Intel Aero-derived two-blade platform is not the target 5-inch three-blade FPV configuration."
+      ]
+    },
+    {
+      "id": "serration-manufacturing-effects-2025",
+      "name": "Serration Manufacturing Effects on Propeller Trailing Edge Noise Mechanisms dataset",
+      "primary_url": "https://doi.org/10.57745/L8MNF5",
+      "license": "Etalab Open Licence 2.0",
+      "gates": {
+        "public_raw_time_history": false,
+        "absolute_pressure_calibration": true,
+        "synchronized_measured_rpm_trace": false,
+        "microphone_geometry": true,
+        "propulsion_metadata": true,
+        "background_or_noise_floor": false,
+        "independent_holdout_possible": true,
+        "commercial_redistribution_compatible": true,
+        "target_5inch_fpv_domain": false
+      },
+      "release_profile_eligible": false,
+      "admissible_uses": [
+        "RPM-indexed spectral validation",
+        "13-angle directivity validation",
+        "thrust, torque and serration-effect studies"
+      ],
+      "blocking_reasons": [
+        "The release provides processed acoustic autopower in Pa^2 versus frequency, not the 16-second pressure time histories.",
+        "RPM-indexed spectra are not a synchronized tach trace accepted by the current recording analyzer.",
+        "No separate background/noise-floor product is documented.",
+        "The isolated serrated rotor is not the target 5-inch FPV airframe."
+      ],
+      "local_validation": {
+        "decision": "D066",
+        "pinned_manifest": "serration-spectral-reference-manifest-v1.json",
+        "real_hdf5_exercised": true,
+        "frequency_bins": 8193,
+        "angles": 13,
+        "rpm_points": 5,
+        "release_constraints_remain_closed": true
+      }
+    }
+  ]
+}

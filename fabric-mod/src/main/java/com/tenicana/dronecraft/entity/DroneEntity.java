@@ -116,6 +116,11 @@ public class DroneEntity extends Entity {
 	private static final EntityDataAccessor<Float> ROLL = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Integer> ROTOR_COUNT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<String> ROTOR_LAYOUT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.STRING);
+	private static final EntityDataAccessor<String> AIRFRAME_PRESET = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.STRING);
+	private static final EntityDataAccessor<Float> ROTOR_RADIUS_METERS = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Integer> ROTOR_BLADE_COUNT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.INT);
+	private static final EntityDataAccessor<Integer> MOTOR_POLE_PAIRS = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.INT);
+	private static final EntityDataAccessor<Float> ACOUSTIC_APERTURE_RADIUS_METERS = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> MOTOR_POWER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> MOTOR_0_POWER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> MOTOR_1_POWER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -494,6 +499,11 @@ public class DroneEntity extends Entity {
 		builder.define(ROLL, 0.0f);
 		builder.define(ROTOR_COUNT, 4);
 		builder.define(ROTOR_LAYOUT, RotorLayoutCodec.defaultLayout());
+		builder.define(AIRFRAME_PRESET, "racing_quad");
+		builder.define(ROTOR_RADIUS_METERS, 0.0635f);
+		builder.define(ROTOR_BLADE_COUNT, 3);
+		builder.define(MOTOR_POLE_PAIRS, 7);
+		builder.define(ACOUSTIC_APERTURE_RADIUS_METERS, 0.16f);
 		builder.define(MOTOR_POWER, 0.0f);
 		builder.define(MOTOR_0_POWER, 0.0f);
 		builder.define(MOTOR_1_POWER, 0.0f);
@@ -2358,6 +2368,21 @@ public class DroneEntity extends Entity {
 	private void syncAirframeLayout() {
 		entityData.set(ROTOR_COUNT, syncedRotorCount());
 		entityData.set(ROTOR_LAYOUT, simulationRuntime.rotorLayoutCode());
+		DroneConfig config = simulationRuntime.currentConfig();
+		if (!config.rotors().isEmpty()) {
+			RotorSpec rotor = config.rotors().get(0);
+			entityData.set(ROTOR_RADIUS_METERS, (float) rotor.radiusMeters());
+			entityData.set(ROTOR_BLADE_COUNT, rotor.bladeCount());
+			entityData.set(MOTOR_POLE_PAIRS, (int) Math.round(rotor.motorPolePairs()));
+			double apertureRadius = config.rotors().stream()
+					.mapToDouble(spec -> Math.hypot(
+							spec.positionBodyMeters().x(),
+							spec.positionBodyMeters().z()
+					) + spec.radiusMeters())
+					.max()
+					.orElse(rotor.radiusMeters());
+			entityData.set(ACOUSTIC_APERTURE_RADIUS_METERS, (float) apertureRadius);
+		}
 	}
 
 	private static double valueOrZero(double[] values, int index) {
@@ -3025,6 +3050,26 @@ public class DroneEntity extends Entity {
 
 	public String getRotorLayout() {
 		return entityData.get(ROTOR_LAYOUT);
+	}
+
+	public String getAirframePreset() {
+		return entityData.get(AIRFRAME_PRESET);
+	}
+
+	public float getRotorRadiusMeters() {
+		return entityData.get(ROTOR_RADIUS_METERS);
+	}
+
+	public int getRotorBladeCount() {
+		return entityData.get(ROTOR_BLADE_COUNT);
+	}
+
+	public int getMotorPolePairs() {
+		return entityData.get(MOTOR_POLE_PAIRS);
+	}
+
+	public float getAcousticApertureRadiusMeters() {
+		return entityData.get(ACOUSTIC_APERTURE_RADIUS_METERS);
 	}
 
 	public float getMotorPower(int index) {
@@ -3785,6 +3830,7 @@ public class DroneEntity extends Entity {
 
 	public void applyConfig(DroneConfig config, String presetName) {
 		airframePreset = normalizeAirframePreset(presetName);
+		entityData.set(AIRFRAME_PRESET, airframePreset);
 		boolean rotorCountChanged = simulationRuntime.hasDifferentRotorCount(config);
 		if (rotorCountChanged) {
 			replaceSimulationRuntime(config);

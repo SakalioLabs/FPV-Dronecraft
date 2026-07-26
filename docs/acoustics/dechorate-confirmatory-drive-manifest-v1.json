@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "status": "drive-ids-discovered-after-preregistration-before-waveform-access",
+  "source_preregistration_sha256": "49a9527f4d23bf878ec2696d2b341598e08e4f068a95fb88aa2ad5a99fc84cea",
+  "official_folder": "https://drive.google.com/drive/folders/1yGTh_BjnVNwDgBsn5mkuW3i4rJIgZwlS",
+  "public_folder_listing_count": 599,
+  "array_order": [1, 2, 6],
+  "google_drive_ids": {
+    "000000": ["1HHUQix-j2tUAyJh9eL-6k3H0_3v5xUX_", "1SINahIghKWYwegYryFHieWAoOU4D_JpI", "1zrtbz3k66caNNRhMXUpezhPKBpiAO-1U"],
+    "000001": ["1btBY71fOS8LV03a8Tg70p-rtrh8cNIDm", "1-r7o6MLiJCVZ8tuSOinArvZ-y1h6mPxq", "1xfUUzCnEgo7STyNivnA8s3fFYHhCkqgc"],
+    "000010": ["1RWNrEz86AxPW01_W65gvKh_dNlDv71pU", "1vZKsF7ywf4rSiu-tV-anzSyXa0DBrb_t", "1xJkneLWIWnfmWEOmZyyCyQ1UtzZMHYYF"],
+    "000100": ["1RWH4Jr7WO_3bnYtu0sb088jfV9RonJ9X", "1dJUXRqPW2cPluxbmZlSsNNttMy7zrZcQ", "1X0b8Jdjahg5PDoSyElb4Kv_b31ANWR4o"],
+    "001000": ["18S4idCAiKnCWjukvVTBOVj6UpETXFQVx", "1_XLAV52xnUZ9F0jaF5k_C_9iMzrVaU-4", "1IiRv1X5Owzwt9gHotLiCZjqhejaDISWR"],
+    "010000": ["1BkW4Hjt10mOwx0O63qtheEiGQZzoAZha", "1EX-IQlHpJcJrE6ktTMbVS82XUHerlTI7", "1PgiA1c0Vu0ybQzWPIsNdc2bnwnbdWPj6"],
+    "011000": ["1jPm51J5RjvV7-qCA2Qb9aAXIkDeLijk1", "14UClxlm4nUwGRXUAPVVjTDa--sgKJgaS", "1TxukRI5oFAX12IfNLYvpe_ax4YzxYaai"],
+    "011100": ["1gKOCaiOxm9SaDuL-iciWUZmTPOc_5yOg", "1RaaaTz9qGWNw2qSOwOGIe7ehH1jO4r0C", "1aesZrLpyXXTEo2UnyqL4FRulnhzbhIZ3"],
+    "011110": ["1b-Vdwx3iUfW9a0o4XLqgd5u6JMfHz4w4", "1K9s7XipjS6e13zDjTL3-1-2vsF_CYAeR", "1kKeY-ydOCmuHp9lQ0itSY7ufSZsjHsA0"],
+    "011111": ["1v4XdXozO-ByicxjPG5kvDfQ0vpWmXw_y", "1fSYeyYFK88jUfJQe6bCOluhXWByc3RIU", "1PByhFeD4Vkqs0-qXnzrjap4Sb5f7LoAK"],
+    "020002": ["1aZuk8ioU83E_AEGD_CjSHgFS0L11IGFl", "1ExKFbhBA5sbVv70eBIS1PquyRh6E57uk", "1rt0zZaHcy4VwD8AHZXNylVzq1sOJBxDc"]
+  },
+  "expected_files": 33,
+  "expected_rirs": 165,
+  "missing_filenames": [],
+  "duplicate_filenames": [],
+  "claim_boundary": "This manifest contains only public-folder identities discovered after the D118 preregistration hash was fixed. No SOFA file was downloaded and no waveform was opened while producing this manifest."
+}

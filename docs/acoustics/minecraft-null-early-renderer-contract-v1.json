@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121i-null-renderer-reference",
+  "format": {
+    "sample_rate_hz": 48000,
+    "input": "mono dry source samples",
+    "output": "stereo wet-only early reflection bus",
+    "maximum_slots": 12,
+    "default_maximum_delay_samples": 16384
+  },
+  "signal_path": {
+    "crossover": "two one-pole lowpasses at 500 Hz and 4000 Hz; low=lp500, mid=lp4000-lp500, high=input-lp4000",
+    "delay": "shared three-band power-of-two ring buffers with linear fractional-delay interpolation",
+    "ramp": "per-sample linear interpolation of delay, band amplitudes and direction over the D121h ramp length",
+    "stereo": "equal-power pan from clamped direction X",
+    "mix": "wet-only; dry ownership remains outside this renderer"
+  },
+  "safety": {
+    "finite_inputs_required": true,
+    "delay_range": "[0, maximum_delay_samples-2]",
+    "gain_range": "[0,1]",
+    "endpoint_energy_rule": "sum of squared slot amplitudes for each band must be <=1 at both ramp endpoints",
+    "duplicate_slot_rejected": true,
+    "incomplete_policy": "D121h supplies fade-to-zero slots; renderer never invents reflections",
+    "no_limiter_claim": true
+  },
+  "fixtures": [
+    "integer-delay impulse",
+    "fractional-delay impulse",
+    "three-band reconstruction",
+    "moving delay finite and continuous",
+    "hard topology replacement crossfade",
+    "zero-gain retirement",
+    "over-budget control frame rejected"
+  ],
+  "benchmark": {
+    "block_size": 256,
+    "active_slots": 12,
+    "zero_allocation_required": true,
+    "p99_budget_ns_per_output_frame": 500.0,
+    "raw_samples_required": true
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "minecraft_client_started": false,
+  "client_level_read": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "live_early_renderer_enabled": false,
+  "release_calibrated": false
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121-local-plane-fixture",
+  "patch": {
+    "geometry": "axis-aligned finite rectangle in continuous world metres",
+    "normal": "unit axis sign pointing from owning solid shape into the acoustically accessible air half-space",
+    "source_and_listener_rule": "both endpoints must be strictly on the normal-facing air half-space",
+    "union_boundary_required": true,
+    "raw_aabb_internal_faces_forbidden": true,
+    "zero_area_faces_forbidden": true
+  },
+  "image_source": {
+    "rule": "mirror source across the continuous patch plane, intersect image-to-listener segment with the plane, and admit only an intersection inside the finite rectangle",
+    "patch_inclusion_epsilon_m": 1e-09,
+    "air_side_endpoint_offset_m": 1e-07,
+    "one_meter_block_boundary_substitution_forbidden": true
+  },
+  "visibility": {
+    "rule": "trace source and listener independently to the air-side offset reflection point using the canonical Amanatides-Woo crossing and tie rules",
+    "blocked_cell_terminates_visible_false": true,
+    "maximum_cell_exhaustion_sets_complete_false": true,
+    "reflection_owner_cell_is_not_ignored": true,
+    "reason": "the offset endpoint must lie in air; if the owning shape still occupies it, the patch/normal extraction is invalid"
+  },
+  "outputs": [
+    "candidate_geometry",
+    "topology_visible",
+    "complete",
+    "reflection_xyz_m",
+    "path_length_m",
+    "incidence_cosine",
+    "visited_cells"
+  ],
+  "gates": {
+    "java_hot_path_zero_allocation_required": true,
+    "independent_python_geometry_and_visibility_parity_required": true,
+    "continuous_slab_stair_and_full_cube_fixtures_required": true,
+    "internal_union_faces_rejected": true,
+    "moving_source_generation_invalidation_required_before_live_integration": true
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "release_calibrated": false,
+  "claim_boundary": "D121 local-plane contract for offline Minecraft shape fixtures. It defines continuous first-order geometry and CPU visibility semantics but does not yet enable live early taps or claim arbitrary VoxelShape union extraction is implemented."
+}

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121l-paired-renderer-budget",
+  "sample_rate_hz": 48000,
+  "block_size": 256,
+  "measured_pairs_per_trial": 2000,
+  "thread_cpu_counter_aggregation_blocks_per_mode": 2000,
+  "wall_diagnostic_block_pairs_per_trial": 200,
+  "wall_diagnostic_aggregation_block_pairs": 20,
+  "trials": 3,
+  "source_counts": [1, 4, 6],
+  "active_render_slots_per_source": 12,
+  "baseline": "low/mid/high third-order Lagrange",
+  "candidate": "low/mid third-order Lagrange plus high-band 8-tap beta-2 Kaiser sinc with 1024 phase intervals",
+  "measurement": {
+    "same_thread": true,
+    "same_dry_blocks_and_control_frames": true,
+    "hot_path": "submit the same 12-slot frame and render one block",
+    "alternating_cpu_execution_order_per_trial": true,
+    "alternating_wall_execution_order_per_aggregate": true,
+    "thread_cpu_time": "primary algorithm-cost measurement",
+    "wall_time": "diagnostic scheduler-sensitive measurement",
+    "raw_samples_required": true,
+    "reported_trial": "worst candidate median CPU trial",
+    "d121k_failure_preserved": true
+  },
+  "d121k_required_verification_status": "verified-minecraft-high-band-fractional-delay-runtime-gate-failed",
+  "selection_gates": {
+    "candidate_to_baseline_median_cpu_ratio_maximum": 1.25,
+    "six_source_candidate_cpu_p95_ns_per_mixed_output_frame_maximum": 4166.666666666667,
+    "six_source_cpu_share_of_one_sample_period_maximum": 0.20,
+    "all_steady_state_allocation_windows_bytes": 0,
+    "all_checksums_finite": true,
+    "wall_time_not_used_to_overrule_cpu_failure": true
+  },
+  "interpretation": {
+    "selection_allows": "new offline renderer contract and endpoint-disabled replay research",
+    "selection_does_not_allow": [
+      "live Minecraft renderer enablement",
+      "physical audio endpoint creation",
+      "release calibration",
+      "deletion or replacement of D121k failed evidence"
+    ]
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "minecraft_client_started": false,
+  "client_level_read": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "live_early_renderer_enabled": false,
+  "release_calibrated": false
+}

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121h-cluster-slew-reference",
+  "input": {
+    "maximum_clusters": 6,
+    "arrival_unit": "samples at 48000 Hz",
+    "band_values": "energy",
+    "direction": "listener-to-reflection unit vector",
+    "incomplete_policy": "zero input clusters and fade every active slot to zero"
+  },
+  "matching": {
+    "maximum_render_slots": 12,
+    "arrival_window_samples": 96.0,
+    "selection": "nearest unmatched active slot with deterministic slot-index tie break",
+    "nearby_rule": "same slot ramps delay, amplitude and direction",
+    "topology_rule": "unmatched new cluster fades in while unmatched old slot fades out",
+    "retirement_rule": "a slot is retired after its zero-gain ramp completes"
+  },
+  "output": {
+    "ramp_samples": 2400,
+    "band_conversion": "amplitude=sqrt(clamp(energy,0,1))",
+    "direction_rule": "normalize; degenerate direction falls back to +Z",
+    "audio_rule": "control DTO only; no delay line, PCM, OpenAL or renderer mutation"
+  },
+  "gates": {
+    "worker_dto_carries_cluster_arrival_energy_direction_and_path_count": true,
+    "zero_allocation_update_required": true,
+    "p99_update_budget_us": 10.0,
+    "independent_verifier_required": true
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "minecraft_client_started": false,
+  "client_level_read": false,
+  "cuda_executed": false,
+  "minecraft_integration_enabled": false,
+  "live_early_renderer_enabled": false,
+  "release_calibrated": false
+}

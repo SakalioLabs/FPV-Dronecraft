@@ -1,30 +1,45 @@
 package com.tenicana.dronecraft.client.sound;
 
+import java.util.concurrent.CompletableFuture;
+
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.AudioStream;
+import net.minecraft.client.sounds.SoundBufferLibrary;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 
+import net.fabricmc.fabric.api.client.sound.v1.FabricSoundInstance;
+
+import com.tenicana.dronecraft.acoustics.PhaseContinuousSynthesizer;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.sound.DroneSoundEvents;
 import com.tenicana.dronecraft.sound.DroneSoundPhysics;
 
-final class DroneLoopSoundInstance extends AbstractTickableSoundInstance {
+final class DroneLoopSoundInstance extends AbstractTickableSoundInstance implements FabricSoundInstance {
 	private static final float VOLUME_ATTACK = 0.30f;
 	private static final float VOLUME_RELEASE = 0.16f;
 	private static final float PITCH_RESPONSE = 0.24f;
+	private static final String PROCEDURAL_AUDIO_PROPERTY = "fpvdrone.proceduralAudio";
 
 	private final DroneEntity drone;
 	private final Layer layer;
+	private final DroneAcousticRenderState acousticState;
 
-	DroneLoopSoundInstance(DroneEntity drone, Layer layer) {
+	DroneLoopSoundInstance(
+			DroneEntity drone,
+			Layer layer,
+			DroneAcousticRenderState acousticState
+	) {
 		super(layer.soundEvent(), SoundSource.NEUTRAL, SoundInstance.createUnseededRandom());
 		this.drone = drone;
 		this.layer = layer;
+		this.acousticState = acousticState;
 		this.looping = true;
 		this.delay = 0;
 		this.volume = 0.0f;
-		this.pitch = layer == Layer.MOTOR ? 0.62f : 0.70f;
+		this.pitch = proceduralAudioEnabled() ? 1.0f : fallbackPitch();
 		this.attenuation = SoundInstance.Attenuation.LINEAR;
 		this.relative = false;
 		updatePosition();
@@ -70,14 +85,44 @@ final class DroneLoopSoundInstance extends AbstractTickableSoundInstance {
 		return !drone.isSilent();
 	}
 
+	@Override
+	public CompletableFuture<AudioStream> getAudioStream(
+			SoundBufferLibrary soundBuffers,
+			Identifier identifier,
+			boolean repeatInstantly
+	) {
+		if (!Boolean.parseBoolean(System.getProperty(PROCEDURAL_AUDIO_PROPERTY, "true"))) {
+			return soundBuffers.getStream(identifier, repeatInstantly);
+		}
+		return CompletableFuture.completedFuture(new ProceduralDroneAudioStream(
+				acousticState,
+				layer.synthesisLayer(),
+				31 * drone.getId() + layer.ordinal()
+		));
+	}
+
 	void end() {
 		stop();
+	}
+
+	double internalDopplerFrequencyRatio() {
+		return acousticState.dopplerFrequencyRatio();
+	}
+
+	Layer layer() {
+		return layer;
 	}
 
 	private float targetVolume() {
 		double rpm = drone.getAverageMotorRpm();
 		if (!DroneSoundPhysics.isAudible(rpm)) {
 			return 0.0f;
+		}
+		if (acousticState.replacesLegacyRpmVolume()) {
+			double gain = layer == Layer.MOTOR
+					? acousticState.motorPlaybackAmplitude()
+					: acousticState.propellerPlaybackAmplitude();
+			return (float) Math.max(0.0, Math.min(4.0, gain));
 		}
 		return switch (layer) {
 			case MOTOR -> DroneSoundPhysics.motorVolume(rpm, drone.getMotorPower(), drone.getRotorCount());
@@ -93,6 +138,9 @@ final class DroneLoopSoundInstance extends AbstractTickableSoundInstance {
 	}
 
 	private float targetPitch() {
+		if (proceduralAudioEnabled()) {
+			return 1.0f;
+		}
 		double rpm = drone.getAverageMotorRpm();
 		return switch (layer) {
 			case MOTOR -> DroneSoundPhysics.motorPitch(rpm, drone.getMotorPower());
@@ -104,6 +152,14 @@ final class DroneLoopSoundInstance extends AbstractTickableSoundInstance {
 		};
 	}
 
+	private float fallbackPitch() {
+		return layer == Layer.MOTOR ? 0.62f : 0.70f;
+	}
+
+	private static boolean proceduralAudioEnabled() {
+		return Boolean.parseBoolean(System.getProperty(PROCEDURAL_AUDIO_PROPERTY, "true"));
+	}
+
 	private void updatePosition() {
 		x = drone.getX();
 		y = drone.getY() + drone.getBbHeight() * 0.5;
@@ -111,17 +167,23 @@ final class DroneLoopSoundInstance extends AbstractTickableSoundInstance {
 	}
 
 	enum Layer {
-		MOTOR(DroneSoundEvents.MOTOR_LOOP),
-		PROPELLER(DroneSoundEvents.PROPELLER_LOOP);
+		MOTOR(DroneSoundEvents.MOTOR_LOOP, PhaseContinuousSynthesizer.Layer.MOTOR),
+		PROPELLER(DroneSoundEvents.PROPELLER_LOOP, PhaseContinuousSynthesizer.Layer.PROPELLER);
 
 		private final SoundEvent soundEvent;
+		private final PhaseContinuousSynthesizer.Layer synthesisLayer;
 
-		Layer(SoundEvent soundEvent) {
+		Layer(SoundEvent soundEvent, PhaseContinuousSynthesizer.Layer synthesisLayer) {
 			this.soundEvent = soundEvent;
+			this.synthesisLayer = synthesisLayer;
 		}
 
 		SoundEvent soundEvent() {
 			return soundEvent;
+		}
+
+		PhaseContinuousSynthesizer.Layer synthesisLayer() {
+			return synthesisLayer;
 		}
 	}
 }

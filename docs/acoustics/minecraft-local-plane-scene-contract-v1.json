@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "status": "frozen-before-d121-scene-solver-fixture",
+  "snapshot": {
+    "horizontal_radius_blocks": 2,
+    "vertical_radius_blocks": 1,
+    "halo_blocks": 1,
+    "maximum_union_grid_cells": 2000000,
+    "incomplete_or_budget_exceeded_policy": "no explicit early events; retain direct and conservative late fallback"
+  },
+  "candidate_selection": {
+    "maximum_explicit_candidates": 6,
+    "score": "sum of bounded low/mid/high energy gains",
+    "tie_break": [
+      "shorter continuous path",
+      "lower canonical patch index"
+    ],
+    "visibility": "continuous local-plane intersection plus two-leg voxel DDA traversal/budget and exact optimized VoxelShape AABB segment occlusion",
+    "coarse_cell_rule": "a Minecraft block cell is not treated as fully solid merely because its collision shape is non-empty",
+    "exact_shape_rule": "each leg is rejected only when it enters the epsilon-shrunken interior of a captured optimized VoxelShape AABB; the air-side reflection endpoint must not self-occlude",
+    "calibration_correction_db": 0.0
+  },
+  "events": {
+    "sample_rate_hz": 48000,
+    "speed_of_sound_m_per_s": 343.0,
+    "cluster_adjacent_separation_samples": 16,
+    "direction": "listener-to-reflection-point unit vector",
+    "energy": "sum selected path energy per cluster"
+  },
+  "cache": {
+    "identity": "exact snapshot generation plus canonical source/listener IEEE-754 coordinates",
+    "any_source_or_listener_movement_invalidates": true,
+    "any_snapshot_generation_change_invalidates": true,
+    "approximate_reuse_enabled": false
+  },
+  "energy_ledger": {
+    "normalization_candidates": 6,
+    "early_and_late_conservation_required": true
+  },
+  "gates": {
+    "native_voxel_shape_fixture_required": true,
+    "zero_allocation_scene_solve_required": true,
+    "independent_scene_reference_required": true,
+    "worker_handoff_measured": false,
+    "live_audio_enabled": false
+  },
+  "captures_audio": false,
+  "physical_endpoint_opened": false,
+  "cuda_executed": false,
+  "minecraft_client_started": false,
+  "minecraft_integration_enabled": false,
+  "release_calibrated": false
+}
