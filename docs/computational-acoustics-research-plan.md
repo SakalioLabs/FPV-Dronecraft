@@ -3136,3 +3136,17 @@ mismatch、crash 和 hang 全部 fail closed 到 CPU，并在退避期 fail fast
 在其通过前，当前 direct rays 继续 Java CPU，worker client 也不得从
 render/tick/audio thread 同步调用。详见
 [`acoustics/decision-D121ad-out-of-process-cuda-worker-watchdog.md`](acoustics/decision-D121ad-out-of-process-cuda-worker-watchdog.md)。
+
+D121ae 已准备真实 CUDA worker IPC 矩阵的可执行 harness。默认合同为 Java 21
+下三轮独立 JVM、`256/512/1024/2048 rays`、`5 warmup + 30 measured`，
+CPU↔worker 交替；初始化与 warm submit 分别使用 10 s 和 50 ms 硬 deadline。
+每个 prefix 在计时前由当前 `DirectPathSolver`/`VoxelDda` 逐 ray 验证 counts、
+flags、first hit 与三频带 loss/gain；计时拆分 pack、framed-stdio round trip、
+H2D、kernel、D2H、native total、unpack 和完整 Java total。
+
+harness、Gradle task graph、per-request deadline API 与 Fabric contracts 已通过
+编译/回归，但本轮没有执行 GPU task，因此没有 CUDA、parity 或 performance
+claim。必须先确认 D121ac 的 driver hang 已被系统恢复事件清除，再运行三轮正式
+矩阵；通过后也只进入 Minecraft 外 shadow-mode adapter，而不是直接让音频消费
+GPU。详见
+[`acoustics/decision-D121ae-cuda-worker-ipc-benchmark-contract.md`](acoustics/decision-D121ae-cuda-worker-ipc-benchmark-contract.md)。

@@ -36,6 +36,8 @@ public final class CudaDdaWorkerClient implements AutoCloseable {
 	private static final long FNV_PRIME = 0x100000001b3L;
 	private static final long MAXIMUM_BACKOFF_NANOS =
 		Duration.ofSeconds(30).toNanos();
+	private static final Duration MAXIMUM_REQUEST_DEADLINE =
+		Duration.ofMillis(Integer.MAX_VALUE);
 
 	public enum Failure {
 		NONE,
@@ -64,7 +66,7 @@ public final class CudaDdaWorkerClient implements AutoCloseable {
 
 	private final Path executable;
 	private final List<String> arguments;
-	private final Duration deadline;
+	private final Duration defaultDeadline;
 	private Process process;
 	private ExecutorService reader;
 	private long nextRequestId = 1L;
@@ -83,14 +85,28 @@ public final class CudaDdaWorkerClient implements AutoCloseable {
 		this.executable = Objects.requireNonNull(executable)
 			.toAbsolutePath();
 		this.arguments = List.copyOf(arguments);
-		this.deadline = Objects.requireNonNull(deadline);
-		if (deadline.isZero() || deadline.isNegative()) {
-			throw new IllegalArgumentException("deadline must be positive");
+		this.defaultDeadline = Objects.requireNonNull(deadline);
+		if (!validDeadline(deadline)) {
+			throw new IllegalArgumentException(
+				"deadline must fit a positive protocol millisecond field"
+			);
 		}
 	}
 
-	public synchronized Attempt request(short opcode, byte[] payload) {
+	public Attempt request(short opcode, byte[] payload) {
+		return request(opcode, payload, defaultDeadline);
+	}
+
+	public synchronized Attempt request(
+			short opcode,
+			byte[] payload,
+			Duration requestDeadline
+		) {
 		Objects.requireNonNull(payload);
+		Objects.requireNonNull(requestDeadline);
+		if (!validDeadline(requestDeadline)) {
+			return fail(Failure.PROTOCOL);
+		}
 		if (closed) {
 			return Attempt.fallback(Failure.BACKOFF);
 		}
@@ -106,7 +122,7 @@ public final class CudaDdaWorkerClient implements AutoCloseable {
 			long requestId = nextRequestId++;
 			int deadlineMillis = (int) Math.min(
 				Integer.MAX_VALUE,
-				Math.max(1L, deadline.toMillis())
+				Math.max(1L, requestDeadline.toMillis())
 			);
 			writeFrame(
 				process.getOutputStream(),
@@ -122,7 +138,7 @@ public final class CudaDdaWorkerClient implements AutoCloseable {
 			Frame frame;
 			try {
 				frame = pending.get(
-					deadline.toNanos(),
+					requestDeadline.toNanos(),
 					TimeUnit.NANOSECONDS
 				);
 			} catch (TimeoutException error) {
@@ -294,6 +310,12 @@ public final class CudaDdaWorkerClient implements AutoCloseable {
 			result *= FNV_PRIME;
 		}
 		return result;
+	}
+
+	private static boolean validDeadline(Duration deadline) {
+		return !deadline.isZero()
+			&& !deadline.isNegative()
+			&& deadline.compareTo(MAXIMUM_REQUEST_DEADLINE) <= 0;
 	}
 
 	private static byte[] readExact(InputStream input, int bytes)

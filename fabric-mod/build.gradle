@@ -253,6 +253,63 @@ tasks.register("cudaDdaWorkerWatchdogProbe", JavaExec) {
 	)
 }
 
+tasks.register("cudaDdaWorkerBenchmark", JavaExec) {
+	group = "verification"
+	description = "Measures the watchdog-controlled CUDA DDA worker outside Minecraft."
+	dependsOn(
+		"clientClasses",
+		":buildCudaDdaBoundaryResearch",
+		":ensureCudaDdaNvrtcEnvironment",
+		":computational-acoustics-core:ddaProductionCorpus"
+	)
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.client.runtimeClasspath
+	if (project.hasProperty("workerJavaExecutable")) {
+		executable = rootProject.file(
+			project.property("workerJavaExecutable")
+		).absolutePath
+	}
+	mainClass.set(
+		"com.tenicana.dronecraft.client.sound."
+			+ "CudaDdaWorkerBenchmark"
+	)
+	def workerNvrtcLibrary = rootProject.file(
+		"build/cuda-python-env/Lib/site-packages/nvidia/"
+			+ "cu13/bin/x86_64/nvrtc64_130_0.dll"
+	)
+	environment(
+		"PATH",
+		workerNvrtcLibrary.parentFile.absolutePath
+			+ File.pathSeparator
+			+ System.getenv("PATH")
+	)
+	args(
+		rootProject.file(
+			"build/native/cuda-dda-boundary/Release/"
+				+ "mcfpv_cuda_worker.exe"
+		).absolutePath,
+		workerNvrtcLibrary.absolutePath,
+		rootProject.file(
+			"native/cuda-dda/src/dda_nvrtc_kernel.cu"
+		).absolutePath,
+		rootProject.file(
+			"build/research/dda-production-corpus-v1.bin"
+		).absolutePath,
+		project.findProperty("workerOutput")
+			?: rootProject.file(
+				"build/research/"
+					+ "cuda-dda-worker-ipc-v1.json"
+			).absolutePath,
+		project.findProperty("warmup") ?: "5",
+		project.findProperty("iterations") ?: "30",
+		project.findProperty("rayLimits")
+			?: "256,512,1024,2048",
+		project.findProperty("driverProbeTimeout") ?: "5",
+		project.findProperty("workerInitializeTimeoutMillis") ?: "10000",
+		project.findProperty("workerSubmitTimeoutMillis") ?: "50"
+	)
+}
+
 tasks.register("minecraftSharedLocalPlaneSnapshotReference", JavaExec) {
 	group = "verification"
 	description = "Executes D121d native-shape shared snapshot fixtures."

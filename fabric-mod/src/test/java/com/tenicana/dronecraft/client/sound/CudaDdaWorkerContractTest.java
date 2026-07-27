@@ -43,6 +43,7 @@ class CudaDdaWorkerContractTest {
 		);
 
 		assertTrue(client.contains("pending.get("));
+		assertTrue(client.contains("Duration requestDeadline"));
 		assertTrue(client.contains("Failure.TIMEOUT"));
 		assertTrue(client.contains("Failure.PROCESS_EXIT"));
 		assertTrue(client.contains("Failure.PROTOCOL"));
@@ -56,6 +57,35 @@ class CudaDdaWorkerContractTest {
 		));
 		assertFalse(client.contains("org.lwjgl"));
 		assertFalse(client.contains("nvcuda"));
+	}
+
+	@Test
+	void ipcBenchmarkIncludesParityAndCompleteBoundaryTiming()
+			throws IOException {
+		String benchmark = read(
+			"src/client/java/com/tenicana/dronecraft/client/sound/"
+				+ "CudaDdaWorkerBenchmark.java",
+			"fabric-mod/src/client/java/com/tenicana/dronecraft/client/"
+				+ "sound/CudaDdaWorkerBenchmark.java"
+		);
+
+		assertTrue(benchmark.contains("probeDriver("));
+		assertTrue(benchmark.contains("OPCODE_INITIALIZE"));
+		assertTrue(benchmark.contains("OPCODE_SUBMIT"));
+		assertTrue(benchmark.contains("verifyParity("));
+		assertTrue(benchmark.contains("DirectPathSolver.solve("));
+		assertTrue(benchmark.contains("index % 2 == 0"));
+		assertTrue(benchmark.contains("ipc_round_trip"));
+		assertTrue(benchmark.contains("\"h2d\""));
+		assertTrue(benchmark.contains("\"kernel\""));
+		assertTrue(benchmark.contains("\"d2h\""));
+		assertTrue(benchmark.contains("\\\"cuda_executed\\\": true"));
+		assertTrue(benchmark.contains(
+			"\\\"minecraft_started\\\": false"
+		));
+		assertTrue(benchmark.contains(
+			"\\\"physical_endpoint_opened\\\": false"
+		));
 	}
 
 	@Test
