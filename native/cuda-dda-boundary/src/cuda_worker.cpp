@@ -32,7 +32,9 @@ enum class TestMode {
 	protocol_only,
 	hang,
 	crash,
-	mismatch
+	mismatch,
+	request_checksum_mismatch,
+	response_checksum_mismatch
 };
 
 struct Options final {
@@ -162,6 +164,10 @@ Options parse_options(int count, char** values) {
 			options.mode = TestMode::crash;
 		} else if (argument == "--mode=mismatch") {
 			options.mode = TestMode::mismatch;
+		} else if (argument == "--mode=request-checksum-mismatch") {
+			options.mode = TestMode::request_checksum_mismatch;
+		} else if (argument == "--mode=response-checksum-mismatch") {
+			options.mode = TestMode::response_checksum_mismatch;
 		} else {
 			throw std::invalid_argument("invalid worker argument");
 		}
@@ -213,6 +219,9 @@ public:
 					&& !read_exact(payload.data(), payload.size())) {
 				return 3;
 			}
+			if (options_.mode == TestMode::request_checksum_mismatch) {
+				++header.payload_checksum;
+			}
 			if (header.payload_checksum
 					!= checksum(payload.data(), payload.size())) {
 				if (!error_response(
@@ -236,6 +245,29 @@ public:
 			}
 			if (options_.mode == TestMode::mismatch) {
 				++header.generation;
+			}
+			if (options_.mode == TestMode::response_checksum_mismatch) {
+				const unsigned char corrupt_payload = 0x41U;
+				const McfpvWorkerFrameHeader corrupt_header{
+					MCFPV_WORKER_MAGIC,
+					MCFPV_WORKER_PROTOCOL_VERSION,
+					header.opcode,
+					1U,
+					0,
+					header.deadline_millis,
+					0U,
+					header.generation,
+					header.request_id,
+					checksum(&corrupt_payload, 1U) ^ UINT64_C(1)
+				};
+				if (!write_exact(
+						&corrupt_header,
+						sizeof(corrupt_header)
+					)
+						|| !write_exact(&corrupt_payload, 1U)) {
+					return 9;
+				}
+				continue;
 			}
 			switch (static_cast<McfpvWorkerOpcode>(header.opcode)) {
 				case McfpvWorkerOpcode::ping:

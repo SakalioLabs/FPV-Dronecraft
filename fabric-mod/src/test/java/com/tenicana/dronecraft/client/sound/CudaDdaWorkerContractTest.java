@@ -100,6 +100,8 @@ class CudaDdaWorkerContractTest {
 		assertTrue(worker.contains("--mode=hang"));
 		assertTrue(worker.contains("--mode=crash"));
 		assertTrue(worker.contains("--mode=mismatch"));
+		assertTrue(worker.contains("--mode=request-checksum-mismatch"));
+		assertTrue(worker.contains("--mode=response-checksum-mismatch"));
 		assertTrue(worker.contains("mcfpv_cuda_bridge_create"));
 		assertTrue(worker.contains("mcfpv_cuda_bridge_submit"));
 		assertTrue(worker.contains("payload checksum mismatch"));

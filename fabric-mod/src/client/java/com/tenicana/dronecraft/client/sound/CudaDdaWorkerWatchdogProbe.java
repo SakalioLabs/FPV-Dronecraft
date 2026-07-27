@@ -51,6 +51,20 @@ public final class CudaDdaWorkerWatchdogProbe {
 			CudaDdaWorkerClient.OPCODE_PING,
 			CudaDdaWorkerClient.Failure.PROTOCOL
 		);
+		CaseResult requestChecksum = probe(
+			worker,
+			"--mode=request-checksum-mismatch",
+			deadline,
+			CudaDdaWorkerClient.OPCODE_PING,
+			CudaDdaWorkerClient.Failure.WORKER_ERROR
+		);
+		CaseResult responseChecksum = probe(
+			worker,
+			"--mode=response-checksum-mismatch",
+			deadline,
+			CudaDdaWorkerClient.OPCODE_PING,
+			CudaDdaWorkerClient.Failure.PROTOCOL
+		);
 		CaseResult crash = probe(
 			worker,
 			"--mode=crash",
@@ -73,6 +87,8 @@ public final class CudaDdaWorkerWatchdogProbe {
 				ping,
 				workerError,
 				mismatch,
+				requestChecksum,
+				responseChecksum,
 				crash,
 				hang
 			)

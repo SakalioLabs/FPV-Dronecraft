@@ -3150,3 +3150,15 @@ claim。必须先确认 D121ac 的 driver hang 已被系统恢复事件清除，
 矩阵；通过后也只进入 Minecraft 外 shadow-mode adapter，而不是直接让音频消费
 GPU。详见
 [`acoustics/decision-D121ae-cuda-worker-ipc-benchmark-contract.md`](acoustics/decision-D121ae-cuda-worker-ipc-benchmark-contract.md)。
+
+D121af 已动态补齐 framed protocol 的双向 checksum 负控。三次独立 JVM 的
+7-case CUDA-free matrix 中，请求 checksum 被破坏稳定归类为 `WORKER_ERROR`，
+响应 checksum 被破坏稳定归类为 `PROTOCOL`；两者都立即 CPU fallback、终止
+worker 并使重试进入 `BACKOFF`。原有 normal/worker-error/generation-mismatch/
+crash/hang cases 同时保持通过。
+
+Windows System event 6005 显示最近一次 EventLog service start 为
+`2026-07-17 08:57:11`，早于 2026-07-27 的 D121ac post-init driver hang，因此
+没有系统重启恢复证据。继续禁止运行真实 CUDA worker benchmark；进程消失、DLL
+解锁或单次 `nvidia-smi` 成功均不足以证明 driver state 已复位。详见
+[`acoustics/decision-D121af-worker-checksum-negative-controls.md`](acoustics/decision-D121af-worker-checksum-negative-controls.md)。
