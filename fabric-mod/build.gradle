@@ -138,7 +138,7 @@ tasks.register("cudaDdaNativeBoundaryBenchmark", JavaExec) {
 	def boundaryLibraryName
 	if (boundaryOs.contains("windows")) {
 		boundaryLibraryName = "build/native/cuda-dda-boundary/Release/"
-			+ "mcfpv_dda_boundary.dll"
+			+ "mcfpv_dda_boundary_v2.dll"
 	} else if (boundaryOs.contains("mac")) {
 		boundaryLibraryName = "build/native/cuda-dda-boundary/"
 			+ "libmcfpv_dda_boundary.dylib"
@@ -185,7 +185,7 @@ tasks.register("cudaDdaNativeBridgeBenchmark", JavaExec) {
 	def bridgeOs = System.getProperty("os.name").toLowerCase()
 	def bridgeLibrary = rootProject.file(
 		"build/native/cuda-dda-boundary/Release/"
-			+ "mcfpv_dda_boundary.dll"
+			+ "mcfpv_dda_boundary_v2.dll"
 	)
 	def nvrtcLibrary = rootProject.file(
 		"build/cuda-python-env/Lib/site-packages/nvidia/"
@@ -224,6 +224,33 @@ tasks.register("cudaDdaNativeBridgeBenchmark", JavaExec) {
 			)
 		}
 	}
+}
+
+tasks.register("cudaDdaWorkerWatchdogProbe", JavaExec) {
+	group = "verification"
+	description = "Validates CUDA worker framing, watchdog, and CPU fallback without using CUDA."
+	dependsOn(
+		"clientClasses",
+		":buildCudaDdaBoundaryResearch"
+	)
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.client.runtimeClasspath
+	mainClass.set(
+		"com.tenicana.dronecraft.client.sound."
+			+ "CudaDdaWorkerWatchdogProbe"
+	)
+	args(
+		rootProject.file(
+			"build/native/cuda-dda-boundary/Release/"
+				+ "mcfpv_cuda_worker.exe"
+		).absolutePath,
+		project.findProperty("workerWatchdogOutput")
+			?: rootProject.file(
+				"build/research/"
+					+ "cuda-dda-worker-watchdog-v1.json"
+			).absolutePath,
+		project.findProperty("workerDeadlineMillis") ?: "2000"
+	)
 }
 
 tasks.register("minecraftSharedLocalPlaneSnapshotReference", JavaExec) {

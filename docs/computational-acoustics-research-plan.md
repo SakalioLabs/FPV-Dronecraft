@@ -3122,3 +3122,17 @@ samples 对 50 ms 零 miss。初始化 median `408.366 ms`，必须异步、一�
 gate，但拒绝 DLL 直接进入 Minecraft JVM；D121ad 必须实现 watchdog 可终止的
 out-of-process CUDA worker。当前约 30 条 direct rays 继续 Java CPU。详见
 [`acoustics/decision-D121ac-persistent-native-cuda-bridge.md`](acoustics/decision-D121ac-persistent-native-cuda-bridge.md)。
+
+D121ad 已把 CUDA context 所有权移到独立 executable，并冻结 48-byte、
+versioned framed-stdio protocol。每个 frame 都携带 deadline、generation、
+request ID 与 payload checksum；Java watchdog 对 worker error、generation
+mismatch、crash 和 hang 全部 fail closed 到 CPU，并在退避期 fail fast。
+三次独立 JVM 的 CUDA-free 故障矩阵均通过；2 s 研究 timeout 后约 25–26 ms
+确认挂起 worker 已被回收。故障注入还发现并修复了 Windows 上“先关闭 pipe
+可能阻塞”的清理顺序，最终改为先 `destroyForcibly`、再异步回收 pipes。
+
+本轮没有执行 CUDA、没有启动 Minecraft、没有打开音频端点，也没有修改产品
+声音热路径。真实 256→2048 IPC/parity/performance matrix 因驱动状态延后；
+在其通过前，当前 direct rays 继续 Java CPU，worker client 也不得从
+render/tick/audio thread 同步调用。详见
+[`acoustics/decision-D121ad-out-of-process-cuda-worker-watchdog.md`](acoustics/decision-D121ad-out-of-process-cuda-worker-watchdog.md)。

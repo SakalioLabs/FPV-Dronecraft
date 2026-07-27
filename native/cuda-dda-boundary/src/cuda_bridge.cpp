@@ -9,13 +9,13 @@
 #include <string>
 #include <vector>
 
+#include "mcfpv_cuda_bridge.h"
+
 #if defined(_WIN32)
 #include <windows.h>
-#define MCFPV_EXPORT extern "C" __declspec(dllexport)
 #define MCFPV_CALL __stdcall
 #else
 #include <dlfcn.h>
-#define MCFPV_EXPORT extern "C" __attribute__((visibility("default")))
 #define MCFPV_CALL
 #endif
 
@@ -39,44 +39,10 @@ constexpr std::size_t RAY_BYTES = 64U;
 constexpr std::size_t RESULT_BYTES = 72U;
 constexpr std::size_t CELL_BYTES = 24U;
 
-struct BridgeConfig final {
-	std::uint32_t abi_version;
-	std::uint32_t device_ordinal;
-	const char* nvrtc_library_path;
-	const char* kernel_source;
-	const void* cells;
-	std::uint32_t cell_count;
-	std::uint32_t material_count;
-	const double* transmission;
-	std::uint32_t maximum_rays;
-	std::uint32_t reserved;
-};
-
-struct SubmitRequest final {
-	const void* rays;
-	void* results;
-	std::uint32_t ray_count;
-	std::uint32_t reserved;
-	void* metrics;
-};
-
-struct SubmitMetrics final {
-	double h2d_ms;
-	double kernel_ms;
-	double d2h_ms;
-	double total_ms;
-};
-
-struct BridgeInfo final {
-	std::int32_t driver_version;
-	std::int32_t nvrtc_major;
-	std::int32_t nvrtc_minor;
-	std::int32_t compute_major;
-	std::int32_t compute_minor;
-	std::uint32_t cell_count;
-	std::uint32_t maximum_rays;
-	std::uint32_t reserved;
-};
+using BridgeConfig = McfpvCudaBridgeConfig;
+using SubmitRequest = McfpvCudaSubmitRequest;
+using SubmitMetrics = McfpvCudaSubmitMetrics;
+using BridgeInfo = McfpvCudaBridgeInfo;
 
 static_assert(sizeof(BridgeConfig) == 56U);
 static_assert(offsetof(BridgeConfig, cells) == 24U);
@@ -708,15 +674,15 @@ int submit(Bridge& bridge, const SubmitRequest& request) {
 
 }  // namespace
 
-MCFPV_EXPORT std::uint32_t mcfpv_cuda_bridge_abi_version() noexcept {
+MCFPV_CUDA_API std::uint32_t mcfpv_cuda_bridge_abi_version() noexcept {
 	return ABI_VERSION;
 }
 
-MCFPV_EXPORT const char* mcfpv_cuda_bridge_last_error() noexcept {
+MCFPV_CUDA_API const char* mcfpv_cuda_bridge_last_error() noexcept {
 	return last_error.c_str();
 }
 
-MCFPV_EXPORT void* mcfpv_cuda_bridge_create(
+MCFPV_CUDA_API void* mcfpv_cuda_bridge_create(
 		const BridgeConfig* config
 	) noexcept {
 	last_error.clear();
@@ -747,7 +713,7 @@ MCFPV_EXPORT void* mcfpv_cuda_bridge_create(
 	}
 }
 
-MCFPV_EXPORT int mcfpv_cuda_bridge_submit(
+MCFPV_CUDA_API int mcfpv_cuda_bridge_submit(
 		void* handle,
 		const SubmitRequest* request
 	) noexcept {
@@ -768,7 +734,7 @@ MCFPV_EXPORT int mcfpv_cuda_bridge_submit(
 	}
 }
 
-MCFPV_EXPORT int mcfpv_cuda_bridge_info(
+MCFPV_CUDA_API int mcfpv_cuda_bridge_info(
 		void* handle,
 		BridgeInfo* info
 	) noexcept {
@@ -791,7 +757,7 @@ MCFPV_EXPORT int mcfpv_cuda_bridge_info(
 	return 0;
 }
 
-MCFPV_EXPORT int mcfpv_cuda_bridge_destroy(void* handle) noexcept {
+MCFPV_CUDA_API int mcfpv_cuda_bridge_destroy(void* handle) noexcept {
 	last_error.clear();
 	try {
 		delete static_cast<Bridge*>(handle);
