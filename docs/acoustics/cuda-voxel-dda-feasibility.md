@@ -618,6 +618,18 @@ Minecraft scheduling，所以不得与 D121aa 相加后直接批准 shadow mode�
 Gradle 当前运行在 JDK 25.0.1，LWJGL 3.3.3 给出 unsupported JNI version 警告；
 正式 CUDA bridge 必须在实际支持的 Java 21 runtime 复测。详见
 [`decision-D121ab-lwjgl-native-boundary-floor.md`](decision-D121ab-lwjgl-native-boundary-floor.md)。
+
+D121ac 已把 CUDA-free floor 替换为真实常驻 Driver API/NVRTC aggregate bridge。
+Minecraft Java 21.0.7 上，256→2048 的完整 Java boundary P95 median 为
+`1.44–1.95 ms`，同 JVM Java CPU 为 `6.39–22.37 ms`；四档 parity、P95/P99 与
+50 ms gate 全部通过，resident snapshot 创建 median 约 408 ms。
+
+性能可行不等于可安全进程内集成。后续小矩阵在 preflight 成功后发生 driver hang，
+native Java 与 `nvidia-smi` 同时失去响应，且无报告写出。JNI thread 无法可靠取消
+driver call，因此正式产品方案转为 watchdog 可终止的 out-of-process worker；
+Minecraft JVM 永远保留 CPU fallback。最小已证明 batch 仍为 256，32/64/128
+未解析。详见
+[`decision-D121ac-persistent-native-cuda-bridge.md`](decision-D121ac-persistent-native-cuda-bridge.md)。
 旧
 `dda-parity-100k-v1.bin` 的 magic 不属于当前 production bundle，仍不能作为
 CUDA executor 证据。FP32/SoA 性能 kernel 只能在 FP64 correctness gate 关闭后

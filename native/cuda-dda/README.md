@@ -27,6 +27,12 @@ linked into Fabric, Minecraft, or the audio hot path.
   for the 64-byte ray / 72-byte aggregate-result C ABI. The Fabric client
   research CLI measures direct-buffer packing, LWJGL function-pointer call,
   and result unpacking. It is a boundary cost floor, not a CUDA bridge.
+- The same boundary library now also exports the D121ac research-only
+  persistent CUDA aggregate bridge. It dynamically loads the NVIDIA Driver
+  API and NVRTC, keeps the snapshot/module/device buffers resident, and
+  returns H2D/kernel/D2H metrics. A reproduced post-init driver hang rejects
+  loading this bridge into the Minecraft JVM; the next product candidate must
+  be a watchdog-controlled out-of-process worker.
 
 Run the repository fixture gate:
 

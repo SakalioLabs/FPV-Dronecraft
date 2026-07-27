@@ -56,6 +56,40 @@ class CudaDdaNativeBoundaryBenchmarkContractTest {
 		assertFalse(source.contains("cuLaunchKernel"));
 	}
 
+	@Test
+	void cudaBridgeIsPersistentPairedAndFailClosed() throws IOException {
+		String javaSource = Files.readString(
+			locate(
+				"src/client/java/com/tenicana/dronecraft/client/sound/"
+					+ "CudaDdaNativeBridgeBenchmark.java",
+				"fabric-mod/src/client/java/com/tenicana/dronecraft/"
+					+ "client/sound/CudaDdaNativeBridgeBenchmark.java"
+			),
+			StandardCharsets.UTF_8
+		);
+		String nativeSource = Files.readString(
+			locate(
+				"../native/cuda-dda-boundary/src/cuda_bridge.cpp",
+				"native/cuda-dda-boundary/src/cuda_bridge.cpp"
+			),
+			StandardCharsets.UTF_8
+		);
+
+		assertTrue(javaSource.contains("probeDriver(Duration.ofSeconds("));
+		assertTrue(javaSource.contains("verifyParity("));
+		assertTrue(javaSource.contains("cpuBatchChecksum("));
+		assertTrue(javaSource.contains("index % 2 == 0"));
+		assertTrue(javaSource.contains("\\\"resident_cells\\\": true"));
+		assertTrue(javaSource.contains("\\\"cuda_executed\\\": true"));
+		assertTrue(nativeSource.contains("LoadLibraryW(L\"nvcuda.dll\")"));
+		assertTrue(nativeSource.contains("trace_aggregate_kernel"));
+		assertTrue(nativeSource.contains("cuCtxSetCurrent"));
+		assertTrue(nativeSource.contains("cuMemcpyHtoD_v2"));
+		assertTrue(nativeSource.contains("cuLaunchKernel"));
+		assertTrue(nativeSource.contains("cuMemcpyDtoH_v2"));
+		assertFalse(nativeSource.contains("#include <cuda.h>"));
+	}
+
 	private static Path locate(String local, String root) {
 		Path localPath = Path.of(local);
 		return Files.isRegularFile(localPath) ? localPath : Path.of(root);

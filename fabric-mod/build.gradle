@@ -161,6 +161,71 @@ tasks.register("cudaDdaNativeBoundaryBenchmark", JavaExec) {
 	)
 }
 
+tasks.register("cudaDdaNativeBridgeBenchmark", JavaExec) {
+	group = "verification"
+	description = "Measures the offline persistent native CUDA aggregate bridge."
+	dependsOn(
+		"clientClasses",
+		":buildCudaDdaBoundaryResearch",
+		":ensureCudaDdaNvrtcEnvironment",
+		":computational-acoustics-core:ddaProductionCorpus"
+	)
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.client.runtimeClasspath
+	jvmArgs("--enable-native-access=ALL-UNNAMED")
+	if (project.hasProperty("bridgeJavaExecutable")) {
+		executable = rootProject.file(
+			project.property("bridgeJavaExecutable")
+		).absolutePath
+	}
+	mainClass.set(
+		"com.tenicana.dronecraft.client.sound."
+			+ "CudaDdaNativeBridgeBenchmark"
+	)
+	def bridgeOs = System.getProperty("os.name").toLowerCase()
+	def bridgeLibrary = rootProject.file(
+		"build/native/cuda-dda-boundary/Release/"
+			+ "mcfpv_dda_boundary.dll"
+	)
+	def nvrtcLibrary = rootProject.file(
+		"build/cuda-python-env/Lib/site-packages/nvidia/"
+			+ "cu13/bin/x86_64/nvrtc64_130_0.dll"
+	)
+	environment(
+		"PATH",
+		nvrtcLibrary.parentFile.absolutePath
+			+ File.pathSeparator
+			+ System.getenv("PATH")
+	)
+	args(
+		bridgeLibrary.absolutePath,
+		nvrtcLibrary.absolutePath,
+		rootProject.file(
+			"native/cuda-dda/src/dda_nvrtc_kernel.cu"
+		).absolutePath,
+		rootProject.file(
+			"build/research/dda-production-corpus-v1.bin"
+		).absolutePath,
+		project.findProperty("bridgeOutput")
+			?: rootProject.file(
+				"build/research/"
+					+ "cuda-dda-native-bridge-v1.json"
+			).absolutePath,
+		project.findProperty("warmup") ?: "5",
+		project.findProperty("iterations") ?: "30",
+		project.findProperty("rayLimits")
+			?: "256,512,1024,2048",
+		project.findProperty("driverProbeTimeout") ?: "5"
+	)
+	doFirst {
+		if (!bridgeOs.contains("windows")) {
+			throw new GradleException(
+				"D121ac native CUDA bridge task is currently Windows-only"
+			)
+		}
+	}
+}
+
 tasks.register("minecraftSharedLocalPlaneSnapshotReference", JavaExec) {
 	group = "verification"
 	description = "Executes D121d native-shape shared snapshot fixtures."

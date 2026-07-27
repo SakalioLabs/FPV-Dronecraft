@@ -3103,3 +3103,22 @@ JDK 25.0.1；LWJGL 3.3.3 报 `Unsupported JNI version`，虽三轮成功也不�
 安全。D121ac 必须在实际 Java 21 runtime 内实现真实的常驻 CUDA aggregate C ABI
 并重跑完整边界。详见
 [`acoustics/decision-D121ab-lwjgl-native-boundary-floor.md`](acoustics/decision-D121ab-lwjgl-native-boundary-floor.md)。
+
+D121ac 已实现并验证真实的常驻 Java/native CUDA aggregate bridge。DLL 动态加载
+Driver API 与 NVRTC，不依赖 `cuda.h`；context/module、49,494 cells、transmission
+table 与最大 ray/result buffers 常驻。Java 读取 production bundle，通过 direct
+buffers 提交，并用 `DirectPathSolver` 对 count、flags、first-hit 与三频带逐档
+parity。
+
+Minecraft 自带 Java 21.0.7 上，256/512/1024/2048 的完整
+pack→JNI→H2D→kernel→D2H→unpack P95 median 为
+`1.463/1.439/1.950/1.440 ms`；相邻交替执行的 Java CPU P95 为
+`6.385/6.551/10.674/22.372 ms`，P95 比值 `4.36×–15.53×`，全部 360 个 GPU
+samples 对 50 ms 零 miss。初始化 median `408.366 ms`，必须异步、一次性。
+
+但后续 32/64/128 小矩阵在健康 preflight 后遭遇驱动挂起，180 秒无报告，
+`nvidia-smi` 同时超过 30 秒；只清理了本任务 Java/Gradle PID。这证明进程内 JNI
+无法对 post-init driver hang fail safe。因此接受 256-ray correctness/performance
+gate，但拒绝 DLL 直接进入 Minecraft JVM；D121ad 必须实现 watchdog 可终止的
+out-of-process CUDA worker。当前约 30 条 direct rays 继续 Java CPU。详见
+[`acoustics/decision-D121ac-persistent-native-cuda-bridge.md`](acoustics/decision-D121ac-persistent-native-cuda-bridge.md)。
