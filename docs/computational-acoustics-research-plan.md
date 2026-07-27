@@ -3088,3 +3088,18 @@ GPU 或 Minecraft native bridge 结果。下一步 D121ab 必须把 Java direct-
 pack、native submit、resident snapshot update 与 result unpack 全部计入
 256→2048 boundary microbenchmark；当前 direct rays 仍使用 Java CPU。详见
 [`acoustics/decision-D121aa-same-context-paired-cuda-dda-crossover.md`](acoustics/decision-D121aa-same-context-paired-cuda-dda-crossover.md)。
+
+D121ab 已验证 Java/native plumbing 不会单独吃掉小批量 crossover margin。项目
+现有 Minecraft client runtime 自带 LWJGL 3.3.3，因此 research harness 在
+`fabric-mod` 内用 direct ByteBuffer + `Library/SharedLibrary/JNI.invokePPI`
+调用窄 C ABI DLL；core 继续禁止 LWJGL，不新增 JNA，也不启用 Java 21 preview
+FFM。C++ 与 Java 同时冻结 64-byte ray / 72-byte aggregate result ABI。
+
+3 个独立 JVM、每档 `100 warmup + 1000 measured` 的 total P95 median 在
+256/512/1024/2048 rays 分别为 `0.0231/0.0123/0.0251/0.0483 ms`。它们约占
+D121aa aggregate submit P95 的 `0.9%–2.5%`，但 probe 没有 CUDA、DDA、resident
+snapshot update 或 Minecraft scheduling，因此只是成本下限。当前 Gradle 使用
+JDK 25.0.1；LWJGL 3.3.3 报 `Unsupported JNI version`，虽三轮成功也不得推断产品
+安全。D121ac 必须在实际 Java 21 runtime 内实现真实的常驻 CUDA aggregate C ABI
+并重跑完整边界。详见
+[`acoustics/decision-D121ab-lwjgl-native-boundary-floor.md`](acoustics/decision-D121ab-lwjgl-native-boundary-floor.md)。

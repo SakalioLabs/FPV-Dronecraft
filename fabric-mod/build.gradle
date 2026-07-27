@@ -120,6 +120,47 @@ tasks.register("minecraftVoxelShapeLocalPlaneReference", JavaExec) {
 	)
 }
 
+tasks.register("cudaDdaNativeBoundaryBenchmark", JavaExec) {
+	group = "verification"
+	description = "Measures offline direct-buffer/LWJGL/C-ABI boundary cost."
+	dependsOn(
+		"clientClasses",
+		":buildCudaDdaBoundaryResearch"
+	)
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.client.runtimeClasspath
+	jvmArgs("--enable-native-access=ALL-UNNAMED")
+	mainClass.set(
+		"com.tenicana.dronecraft.client.sound."
+			+ "CudaDdaNativeBoundaryBenchmark"
+	)
+	def boundaryOs = System.getProperty("os.name").toLowerCase()
+	def boundaryLibraryName
+	if (boundaryOs.contains("windows")) {
+		boundaryLibraryName = "build/native/cuda-dda-boundary/Release/"
+			+ "mcfpv_dda_boundary.dll"
+	} else if (boundaryOs.contains("mac")) {
+		boundaryLibraryName = "build/native/cuda-dda-boundary/"
+			+ "libmcfpv_dda_boundary.dylib"
+	} else {
+		boundaryLibraryName = "build/native/cuda-dda-boundary/"
+			+ "libmcfpv_dda_boundary.so"
+	}
+	def boundaryLibrary = rootProject.file(boundaryLibraryName)
+	args(
+		boundaryLibrary.absolutePath,
+		project.findProperty("output")
+			?: rootProject.file(
+				"build/research/"
+					+ "cuda-dda-native-boundary-v1.json"
+			).absolutePath,
+		project.findProperty("warmup") ?: "20",
+		project.findProperty("iterations") ?: "100",
+		project.findProperty("rayLimits")
+			?: "256,512,1024,2048"
+	)
+}
+
 tasks.register("minecraftSharedLocalPlaneSnapshotReference", JavaExec) {
 	group = "verification"
 	description = "Executes D121d native-shape shared snapshot fixtures."

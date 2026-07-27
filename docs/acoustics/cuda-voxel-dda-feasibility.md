@@ -607,6 +607,17 @@ Java/native 边界：实验后段共享 GPU 利用率最高 90%，且尚未计�
 packing、JNI/JNA/Driver API 调用、resident cell updates 或 Minecraft scheduling。
 详见
 [`decision-D121aa-same-context-paired-cuda-dda-crossover.md`](decision-D121aa-same-context-paired-cuda-dda-crossover.md)。
+
+D121ab 用项目已有 LWJGL 3.3.3 建立了独立 direct-buffer/C-ABI boundary floor。
+64-byte rays 与 72-byte aggregate results 在 Java/C++ 两端均由 offsets/size
+合同冻结；3×(100 warmup + 1000 measured) 的 256→2048 total P95 median 仅
+`0.012–0.048 ms`。这说明 plumbing 下限没有单独耗尽 256-ray margin，但 probe
+不链接 CUDA、不遍历体素，也不测 resident snapshot、driver lifecycle 或
+Minecraft scheduling，所以不得与 D121aa 相加后直接批准 shadow mode。
+
+Gradle 当前运行在 JDK 25.0.1，LWJGL 3.3.3 给出 unsupported JNI version 警告；
+正式 CUDA bridge 必须在实际支持的 Java 21 runtime 复测。详见
+[`decision-D121ab-lwjgl-native-boundary-floor.md`](decision-D121ab-lwjgl-native-boundary-floor.md)。
 旧
 `dda-parity-100k-v1.bin` 的 magic 不属于当前 production bundle，仍不能作为
 CUDA executor 证据。FP32/SoA 性能 kernel 只能在 FP64 correctness gate 关闭后

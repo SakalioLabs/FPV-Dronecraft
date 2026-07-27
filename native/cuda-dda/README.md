@@ -23,6 +23,10 @@ linked into Fabric, Minecraft, or the audio hot path.
   `docs/scripts/benchmark_cuda_dda_nvrtc_paired_matrix.py` for the adjacent
   compiled-CPU/full/aggregate prefix gate; its timing is still outside the
   Minecraft native boundary.
+- `../cuda-dda-boundary` is an intentionally CUDA-free shared-library probe
+  for the 64-byte ray / 72-byte aggregate-result C ABI. The Fabric client
+  research CLI measures direct-buffer packing, LWJGL function-pointer call,
+  and result unpacking. It is a boundary cost floor, not a CUDA bridge.
 
 Run the repository fixture gate:
 

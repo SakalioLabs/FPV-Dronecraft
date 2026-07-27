@@ -1367,6 +1367,12 @@ def cudaDdaCpuPrefixReport = layout.projectDirectory.file(
 def cudaDdaCpuSmallPrefixReport = layout.projectDirectory.file(
 	"build/research/cuda-dda-cpu-small-prefix-matrix-v1.json"
 ).asFile
+def cudaDdaBoundarySource = layout.projectDirectory.dir(
+	"native/cuda-dda-boundary"
+).asFile
+def cudaDdaBoundaryBuild = layout.buildDirectory.dir(
+	"native/cuda-dda-boundary"
+).get().asFile
 
 tasks.register("verifyCudaDdaSourceContract", Exec) {
 	group = "verification"
@@ -1375,6 +1381,35 @@ tasks.register("verifyCudaDdaSourceContract", Exec) {
 	commandLine(
 		"python",
 		"docs/scripts/verify_cuda_dda_source_contract.py"
+	)
+}
+
+tasks.register("configureCudaDdaBoundaryResearch", Exec) {
+	group = "verification"
+	description = "Configures the standalone LWJGL/C-ABI DDA boundary probe."
+	workingDir = rootDir
+	commandLine(
+		"cmake",
+		"-S",
+		cudaDdaBoundarySource.absolutePath,
+		"-B",
+		cudaDdaBoundaryBuild.absolutePath
+	)
+}
+
+tasks.register("buildCudaDdaBoundaryResearch", Exec) {
+	group = "verification"
+	description = "Builds the standalone LWJGL/C-ABI DDA boundary probe."
+	dependsOn("configureCudaDdaBoundaryResearch")
+	workingDir = rootDir
+	commandLine(
+		"cmake",
+		"--build",
+		cudaDdaBoundaryBuild.absolutePath,
+		"--config",
+		"Release",
+		"--parallel",
+		"1"
 	)
 }
 
