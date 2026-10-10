@@ -2,6 +2,7 @@ package com.tenicana.dronecraft.integration;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 import net.minecraft.server.level.ServerLevel;
 import net.neoforged.fml.ModList;
@@ -19,6 +20,7 @@ public final class Aerodynamics4McAtmosphereBridge {
 	private static final String MOD_ID = "aerodynamics4mc";
 	private static final String API_CLASS = "com.aerodynamics4mc.api.minecraft.AeroMinecraftWindApi";
 	private static final String POLICY_CLASS = "com.aerodynamics4mc.api.SamplePolicy";
+	private static final String RUNTIME_CLASS = "com.aerodynamics4mc.runtime.AeroServerRuntime";
 	private static volatile Sampler sampler;
 
 	private Aerodynamics4McAtmosphereBridge() {
@@ -48,7 +50,7 @@ public final class Aerodynamics4McAtmosphereBridge {
 				|| !Double.isFinite(positionZ)) {
 			return AtmosphereSample.unavailable();
 		}
-		return sampler().sample(level, positionX, positionY, positionZ, level.getGameTime());
+		return sampler().sample(level, positionX, positionY, positionZ, -1L);
 	}
 
 	private static Sampler sampler() {
@@ -71,13 +73,23 @@ public final class Aerodynamics4McAtmosphereBridge {
 		try {
 			Class<?> apiClass = Class.forName(API_CLASS);
 			Class<?> policyClass = Class.forName(POLICY_CLASS);
-			return bindIfAvailable(true, apiClass, policyClass);
+			EpochClock clock = UnknownEpochClock.INSTANCE;
+			try {
+				clock = bindRuntimeClock(Class.forName(RUNTIME_CLASS, false, apiClass.getClassLoader()));
+			} catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
+				// An optional clock failure leaves native trusted flow available with unknown freshness.
+			}
+			return bindIfAvailable(true, apiClass, policyClass, clock);
 		} catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
 			return UnavailableSampler.INSTANCE;
 		}
 	}
 
 	static Sampler bindIfAvailable(boolean modLoaded, Class<?> apiClass, Class<?> policyClass) {
+		return bindIfAvailable(modLoaded, apiClass, policyClass, UnknownEpochClock.INSTANCE);
+	}
+
+	static Sampler bindIfAvailable(boolean modLoaded, Class<?> apiClass, Class<?> policyClass, EpochClock clock) {
 		if (!modLoaded) {
 			return UnavailableSampler.INSTANCE;
 		}
@@ -93,6 +105,7 @@ public final class Aerodynamics4McAtmosphereBridge {
 			Method meanVelocityVector = methodOrNull(sampleClass, "meanVelocityVector");
 			Method gustVelocityVector = methodOrNull(sampleClass, "gustVelocityVector");
 			return new ReflectionSampler(
+					clock == null ? UnknownEpochClock.INSTANCE : clock,
 					sampleGameplay,
 					gameplayServerOnlyPolicy,
 					sampleClass.getMethod("hasFlow"),
@@ -124,6 +137,56 @@ public final class Aerodynamics4McAtmosphereBridge {
 			);
 		} catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
 			return UnavailableSampler.INSTANCE;
+		}
+	}
+
+	/** A4MC 0.2.1 stamps L1/L2 epochs with its restart-local tickCounter, not Minecraft world time. */
+	static EpochClock bindRuntimeClock(Class<?> runtimeClass) {
+		if (runtimeClass == null) return UnknownEpochClock.INSTANCE;
+		try {
+			Method instance = runtimeClass.getMethod("getInstance");
+			Method tick = runtimeClass.getMethod("getTickCounter");
+			if (!Modifier.isStatic(instance.getModifiers()) || Modifier.isStatic(tick.getModifiers())
+					|| !runtimeClass.isAssignableFrom(instance.getReturnType()) || tick.getReturnType() != int.class) {
+				return UnknownEpochClock.INSTANCE;
+			}
+			return new ReflectionEpochClock(instance, tick);
+		} catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
+			return UnknownEpochClock.INSTANCE;
+		}
+	}
+
+	@FunctionalInterface
+	interface EpochClock {
+		long currentEpoch();
+	}
+
+	private enum UnknownEpochClock implements EpochClock {
+		INSTANCE;
+		@Override public long currentEpoch() { return -1L; }
+	}
+
+	private static final class ReflectionEpochClock implements EpochClock {
+		private final Method instance;
+		private final Method tick;
+		private volatile boolean disabled;
+
+		private ReflectionEpochClock(Method instance, Method tick) {
+			this.instance = instance;
+			this.tick = tick;
+		}
+
+		@Override public long currentEpoch() {
+			if (disabled) return -1L;
+			try {
+				Object runtime = instance.invoke(null);
+				if (runtime == null) return -1L;
+				Object epoch = tick.invoke(runtime);
+				return epoch instanceof Number number ? Math.max(-1L, number.longValue()) : -1L;
+			} catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
+				disabled = true;
+				return -1L;
+			}
 		}
 	}
 
@@ -180,6 +243,7 @@ public final class Aerodynamics4McAtmosphereBridge {
 	}
 
 	private static final class ReflectionSampler implements Sampler {
+		private final EpochClock clock;
 		private final Method sampleGameplay;
 		private final Object gameplayServerOnlyPolicy;
 		private final Method hasFlow;
@@ -211,6 +275,7 @@ public final class Aerodynamics4McAtmosphereBridge {
 		private volatile boolean disabled;
 
 		private ReflectionSampler(
+				EpochClock clock,
 				Method sampleGameplay,
 				Object gameplayServerOnlyPolicy,
 				Method hasFlow,
@@ -240,6 +305,7 @@ public final class Aerodynamics4McAtmosphereBridge {
 				Method worldDeltaEpoch,
 				Method l2Epoch
 		) {
+			this.clock = clock;
 			this.sampleGameplay = sampleGameplay;
 			this.gameplayServerOnlyPolicy = gameplayServerOnlyPolicy;
 			this.hasFlow = hasFlow;
@@ -338,7 +404,7 @@ public final class Aerodynamics4McAtmosphereBridge {
 					gustZ = clamp(gustZ, -30.0, 30.0);
 				}
 				long freshnessAgeTicks = freshnessAgeTicks(
-						currentTick,
+						clock.currentEpoch(),
 						optionalLong(l1Epoch, sample),
 						optionalLong(worldDeltaEpoch, sample),
 						optionalLong(l2Epoch, sample)

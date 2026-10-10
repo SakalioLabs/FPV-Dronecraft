@@ -16,10 +16,7 @@ class DroneNetworkingCameraSafetyTest {
 		Path sourcePath = droneNetworkingSource();
 		String source = Files.readString(sourcePath, StandardCharsets.UTF_8);
 		String modSource = Files.readString(sourcePath.getParent().getParent().resolve("FpvDronecraftMod.java"), StandardCharsets.UTF_8);
-		String registration = source.substring(
-				source.indexOf("public static void registerPayloadHandlers"),
-				source.indexOf("public static void initialize")
-		);
+		String registration = methodBody(source, "public static void registerPayloadHandlers(RegisterPayloadHandlersEvent event)");
 
 		assertTrue(
 				source.contains("import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;"),
@@ -107,10 +104,7 @@ class DroneNetworkingCameraSafetyTest {
 	@Test
 	void fpvViewPacketsAlwaysRestorePlayerWhenFpvIsDisabledOrNoDroneIsValid() throws IOException {
 		String source = Files.readString(droneNetworkingSource(), StandardCharsets.UTF_8);
-		String updateFpvCamera = source.substring(
-				source.indexOf("private static void updateFpvCamera"),
-				source.indexOf("private static DroneEntity fpvCameraDrone")
-		);
+		String updateFpvCamera = methodBody(source, "private static void updateFpvCamera(ServerPlayer player, boolean fpvView)");
 
 		assertTrue(updateFpvCamera.contains("if (!fpvView)"), "FPV-off packets must have an explicit restore branch");
 		assertTrue(updateFpvCamera.contains("restorePlayerCamera(player);"), "FPV-off packets must restore the player camera");
@@ -139,10 +133,7 @@ class DroneNetworkingCameraSafetyTest {
 				"the post-tick handler must validate every connected player's camera"
 		);
 
-		String restoreInvalidDroneCamera = source.substring(
-				source.indexOf("private static void restoreInvalidDroneCamera"),
-				source.indexOf("private static boolean isValidFpvCameraDrone")
-		);
+		String restoreInvalidDroneCamera = methodBody(source, "private static void restoreInvalidDroneCamera(ServerPlayer player)");
 		assertTrue(
 				restoreInvalidDroneCamera.contains("camera instanceof DroneEntity drone && !isValidFpvCameraDrone(player, drone)"),
 				"invalid-camera sweep must only target DroneEntity cameras that fail the FPV validity check"
@@ -156,10 +147,7 @@ class DroneNetworkingCameraSafetyTest {
 	@Test
 	void fpvCameraValidityRejectsStaleRemovedCrossWorldOrUnownedDrones() throws IOException {
 		String source = Files.readString(droneNetworkingSource(), StandardCharsets.UTF_8);
-		String validity = source.substring(
-				source.indexOf("private static boolean isValidFpvCameraDrone"),
-				source.indexOf("private static boolean bindNearestDroneIfNeeded")
-		);
+		String validity = methodBody(source, "private static boolean isValidFpvCameraDrone(ServerPlayer player, DroneEntity drone)");
 
 		assertTrue(validity.contains("drone.isAlive()"), "dead drones must not remain FPV camera targets");
 		assertTrue(validity.contains("!drone.isRemoved()"), "removed drones must not remain FPV camera targets");
@@ -182,5 +170,23 @@ class DroneNetworkingCameraSafetyTest {
 		}
 		fail("Cannot locate DroneNetworking.java");
 		return Path.of("DroneNetworking.java");
+	}
+
+	private static String methodBody(String source, String signature) {
+		int methodStart = source.indexOf(signature);
+		assertTrue(methodStart >= 0, "missing method " + signature);
+		int bodyStart = source.indexOf('{', methodStart + signature.length());
+		assertTrue(bodyStart >= 0, "missing method body for " + signature);
+		int depth = 0;
+		for (int index = bodyStart; index < source.length(); index++) {
+			char current = source.charAt(index);
+			if (current == '{') {
+				depth++;
+			} else if (current == '}' && --depth == 0) {
+				return source.substring(methodStart, index + 1);
+			}
+		}
+		fail("unterminated method body for " + signature);
+		return "";
 	}
 }

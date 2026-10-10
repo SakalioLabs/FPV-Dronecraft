@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "PMP",
+    "ECF",
+    "PMP"
+  ],
+  "key": {
+    "P": "fpvdrone:propeller",
+    "M": "fpvdrone:brushless_motor",
+    "E": "fpvdrone:esc",
+    "C": "fpvdrone:flight_controller",
+    "F": "fpvdrone:carbon_frame"
+  },
+  "result": {
+    "id": "fpvdrone:drone_airframe",
+    "count": 1
+  },
+  "neoforge:conditions": [
+    {
+      "modid": "mekanism",
+      "type": "neoforge:mod_loaded"
+    }
+  ]
+}

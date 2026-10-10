@@ -16,6 +16,40 @@ import com.tenicana.dronecraft.sim.Vec3;
 
 class DroneControlManagerTest {
 	@Test
+	void boundInputOnlyReachesTheSelectedDroneAndStillExpires() {
+		UUID player = UUID.randomUUID();
+		UUID selected = UUID.randomUUID();
+		UUID other = UUID.randomUUID();
+		DroneControlManager.update(player, selected, new DroneInput(0.02, 0, 0, 0, true, true, FlightMode.ACRO), 10);
+		assertTrue(DroneControlManager.get(player, selected, 10, null, null).armed());
+		assertFalse(DroneControlManager.get(player, other, 10, null, null).linkActive());
+		assertFalse(DroneControlManager.get(player, selected, 19, null, null).linkActive());
+	}
+
+	@Test
+	void switchingTargetCannotInheritThePreviousDronesArmedState() {
+		UUID player = UUID.randomUUID();
+		UUID first = UUID.randomUUID();
+		UUID second = UUID.randomUUID();
+		DroneControlManager.update(player, first, new DroneInput(0.02, 0, 0, 0, true, true, FlightMode.ACRO), 20);
+		DroneControlManager.update(player, first, new DroneInput(0.8, 0, 0, 0, true, true, FlightMode.ACRO), 21);
+		assertTrue(DroneControlManager.get(player, first, 21, null, null).armed());
+		DroneControlManager.update(player, second, new DroneInput(0.8, 0, 0, 0, true, true, FlightMode.ACRO), 22);
+		assertFalse(DroneControlManager.get(player, second, 22, null, null).armed());
+		assertFalse(DroneControlManager.get(player, first, 22, null, null).linkActive());
+	}
+
+	@Test
+	void diagnosticScriptRunsOnlyOnItsExplicitTarget() {
+		UUID player = UUID.randomUUID();
+		UUID selected = UUID.randomUUID();
+		DroneControlManager.startDiagnostic(player, selected, 0, 320, false, FlightMode.ACRO);
+		assertTrue(DroneControlManager.get(player, selected, 1, null, null).armed());
+		assertFalse(DroneControlManager.get(player, UUID.randomUUID(), 1, null, null).linkActive());
+		DroneControlManager.stopDiagnostic(player);
+	}
+
+	@Test
 	void unsafeServerSideArmTransitionIsRejectedUntilControlsAreSafe() {
 		UUID playerId = UUID.randomUUID();
 

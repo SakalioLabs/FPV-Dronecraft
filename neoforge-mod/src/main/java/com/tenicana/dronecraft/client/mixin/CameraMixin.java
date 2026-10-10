@@ -5,6 +5,7 @@ import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -13,11 +14,15 @@ import net.minecraft.client.Camera;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.Vec3;
 
 import com.tenicana.dronecraft.camera.FpvCameraMount;
 import com.tenicana.dronecraft.camera.FpvCameraOrientation;
+import com.tenicana.dronecraft.camera.DroneThirdPersonCamera;
 import com.tenicana.dronecraft.client.camera.ClientCameraSafety;
+import com.tenicana.dronecraft.client.camera.CameraShake;
+import com.tenicana.dronecraft.client.camera.CameraAcousticOwnerAccess;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.client.control.DroneClientControls;
@@ -27,7 +32,22 @@ import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.sim.RotorSpec;
 
 @Mixin(Camera.class)
-public abstract class CameraMixin {
+public abstract class CameraMixin implements CameraAcousticOwnerAccess {
+	@Unique
+	private Entity fpvdrone$acousticVelocityOwner;
+	@Unique
+	private int fpvdrone$acousticViewMode;
+
+	@Override
+	public Entity fpvdrone$acousticVelocityOwner() {
+		return fpvdrone$acousticVelocityOwner;
+	}
+
+	@Override
+	public int fpvdrone$acousticViewMode() {
+		return fpvdrone$acousticViewMode;
+	}
+
 	private static final float RPM_TO_RADIANS_PER_TICK = (float) (Math.PI * 2.0 / 1200.0);
 	private static final FpvCameraPoseDelay FPV_POSE_DELAY = new FpvCameraPoseDelay();
 	private static int delayedDroneId = -1;
@@ -35,6 +55,17 @@ public abstract class CameraMixin {
 
 	@Shadow
 	protected abstract void setPosition(Vec3 position);
+
+	@Shadow
+	protected abstract void setRotation(float yawDegrees, float pitchDegrees);
+
+	@Shadow
+	private float getMaxZoom(float distanceMeters) {
+		throw new AssertionError("Shadow method");
+	}
+
+	@Shadow
+	private boolean detached;
 
 	@Shadow
 	@Final
@@ -59,10 +90,13 @@ public abstract class CameraMixin {
 	private float yRot;
 
 	@Inject(method = "setup", at = @At("RETURN"))
-	private void fpvdrone$setupFpvCamera(Level level, Entity entity, boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo ci) {
+	private void fpvdrone$setupFpvCamera(BlockGetter level, Entity entity, boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo ci) {
+		fpvdrone$acousticVelocityOwner = entity;
+		fpvdrone$acousticViewMode = (detached ? 1 : 0) | (thirdPersonReverse ? 2 : 0);
 		DroneEntity drone = DroneClientState.controlledDrone();
+		Level world = level instanceof Level ? (Level) level : null;
 		if (!ClientCameraSafety.isUsableFpvDroneReference(
-				DroneClientState.isFpvActive(level),
+				DroneClientState.isDroneCameraActive(world),
 				drone != null,
 				drone != null && drone.level() == level,
 				drone != null && drone.isRemoved(),
@@ -72,11 +106,21 @@ public abstract class CameraMixin {
 			return;
 		}
 
+		if (DroneClientState.isThirdPersonActive(world)) {
+			resetCameraDelay();
+			fpvdrone$setupThirdPersonCamera(drone, partialTick);
+			return;
+		}
+		if (!DroneClientState.isFpvActive(world)) {
+			resetCameraDelay();
+			return;
+		}
+
 		DroneClientConfig config = DroneClientControls.config();
 		if (ClientCameraSafety.shouldResetFpvPoseDelay(drone.getId(), delayedDroneId, level, delayedLevel)) {
 			FPV_POSE_DELAY.reset();
 			delayedDroneId = drone.getId();
-			delayedLevel = level;
+			delayedLevel = drone.level();
 		}
 
 		Vec3 rawPosition = drone.getPosition(partialTick).add(0.0, drone.getPhysicsCenterYOffsetMeters(), 0.0);
@@ -119,12 +163,35 @@ public abstract class CameraMixin {
 		Vec3 desiredPosition = cameraOrigin.add(cameraOffset.x(), cameraOffset.y(), cameraOffset.z());
 
 		setPosition(desiredPosition);
+		this.detached = false;
+		fpvdrone$acousticVelocityOwner = drone;
+		fpvdrone$acousticViewMode = 4;
 		xRot = Mth.wrapDegrees(cameraOrientation.pitchDegrees());
 		yRot = Mth.wrapDegrees(cameraOrientation.yawDegrees());
 		rotation.set(cameraOrientation.rotation());
 		forwards.set(cameraOrientation.forwards());
 		up.set(cameraOrientation.up());
 		left.set(cameraOrientation.left());
+	}
+
+	@Unique
+	private void fpvdrone$setupThirdPersonCamera(DroneEntity drone, float partialTick) {
+		Vec3 center = drone.getPosition(partialTick).add(0.0, drone.getPhysicsCenterYOffsetMeters(), 0.0);
+		float yawRadians = drone.getInterpolatedRenderYawRadians(partialTick);
+		DroneThirdPersonCamera.Pose pose = DroneThirdPersonCamera.fromDroneCenter(
+				center.x(), center.y(), center.z(), yawRadians, DroneThirdPersonCamera.MAX_BOOM_LENGTH_METERS);
+		setRotation(pose.yawDegrees(), pose.pitchDegrees());
+		setPosition(center);
+		// Native zoom checks eight 0.1 m corner rays against local visual block shapes.
+		double clearDistance = DroneThirdPersonCamera.clearBoomLength(
+				getMaxZoom((float) DroneThirdPersonCamera.MAX_BOOM_LENGTH_METERS));
+		if (clearDistance < DroneThirdPersonCamera.MAX_BOOM_LENGTH_METERS) {
+			pose = DroneThirdPersonCamera.fromDroneCenter(center.x(), center.y(), center.z(), yawRadians, clearDistance);
+		}
+		setPosition(new Vec3(pose.xMeters(), pose.yMeters(), pose.zMeters()));
+		this.detached = true;
+		fpvdrone$acousticVelocityOwner = drone;
+		fpvdrone$acousticViewMode = 8 | 1;
 	}
 
 	private static void resetCameraDelay() {
@@ -185,14 +252,4 @@ public abstract class CameraMixin {
 		return FpvCameraVibration.sanitizedBladeCount((int) Math.round(sum / drone.config().rotors().size()));
 	}
 
-	private record CameraShake(
-			float lateralMeters,
-			float verticalMeters,
-			float forwardMeters,
-			float pitchDegrees,
-			float yawDegrees,
-			float rollRadians
-	) {
-		private static final CameraShake NONE = new CameraShake(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-	}
 }

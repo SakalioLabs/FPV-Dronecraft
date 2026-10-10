@@ -1,0 +1,6 @@
+{
+  "model": {
+    "model": "fpvdrone:item/flight_controller",
+    "type": "minecraft:model"
+  }
+}

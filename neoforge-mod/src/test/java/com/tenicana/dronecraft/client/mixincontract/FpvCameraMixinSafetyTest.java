@@ -29,7 +29,7 @@ class FpvCameraMixinSafetyTest {
 		);
 		assertTrue(
 				setup.contains("ClientCameraSafety.isUsableFpvDroneReference(")
-						&& setup.contains("DroneClientState.isFpvActive(level)")
+						&& setup.contains("DroneClientState.isDroneCameraActive(world)")
 						&& setup.contains("drone != null && drone.level() == level")
 						&& setup.contains("drone != null && drone.isRemoved()")
 						&& setup.contains("drone != null && drone.isAlive()"),
@@ -40,7 +40,7 @@ class FpvCameraMixinSafetyTest {
 				"entity ids can be reused in a new world, so the camera delay cache must reset on level changes"
 		);
 		assertTrue(
-				setup.contains("delayedLevel = level;"),
+				setup.contains("delayedLevel = drone.level();"),
 				"the active FPV level must be recorded after resetting the pose cache"
 		);
 		assertTrue(

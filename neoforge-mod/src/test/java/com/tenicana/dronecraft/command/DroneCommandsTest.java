@@ -20,11 +20,13 @@ import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.sim.DroneConfig;
 
 import net.minecraft.SharedConstants;
+import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.Bootstrap;
-import net.minecraft.server.permissions.LevelBasedPermissionSet;
-import net.minecraft.server.permissions.PermissionSet;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.Vec2;
+import net.minecraft.world.phys.Vec3;
 
 class DroneCommandsTest {
 	@BeforeAll
@@ -36,9 +38,9 @@ class DroneCommandsTest {
 	@Test
 	void commandTreeEnforcesGamemasterMutationBoundaries() throws Exception {
 		CommandDispatcher<CommandSourceStack> dispatcher = registeredDispatcher();
-		CommandSourceStack unprivileged = Commands.createCompilationContext(PermissionSet.NO_PERMISSIONS);
-		CommandSourceStack moderator = Commands.createCompilationContext(LevelBasedPermissionSet.MODERATOR);
-		CommandSourceStack gamemaster = Commands.createCompilationContext(LevelBasedPermissionSet.GAMEMASTER);
+		CommandSourceStack unprivileged = commandSource(Commands.LEVEL_ALL);
+		CommandSourceStack moderator = commandSource(Commands.LEVEL_MODERATORS);
+		CommandSourceStack gamemaster = commandSource(Commands.LEVEL_GAMEMASTERS);
 
 		String[] readOnlyPaths = {
 				"fpvdrone status",
@@ -184,6 +186,20 @@ class DroneCommandsTest {
 		register.setAccessible(true);
 		register.invoke(null, dispatcher);
 		return dispatcher;
+	}
+
+	private static CommandSourceStack commandSource(int permissionLevel) {
+		return new CommandSourceStack(
+				CommandSource.NULL,
+				Vec3.ZERO,
+				Vec2.ZERO,
+				null,
+				permissionLevel,
+				"test",
+				Component.literal("test"),
+				null,
+				null
+		);
 	}
 
 	private static void assertAvailableToAll(

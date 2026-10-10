@@ -92,6 +92,7 @@ class DroneServerSelfTestTest {
 		String json = reportJson(selfTest, tempDir.resolve("server-selftest.csv"));
 
 		assertTrue(json.contains("\"flight_model\": \"simulation\""));
+		assertTrue(json.contains("\"entity_removal_reason\": \"missing\""));
 		assertTrue(json.contains("\"flight_mode\": \"unknown\""));
 		assertTrue(json.contains("\"self_test_control_mode\": \"angle\""));
 		assertTrue(json.contains("\"min_playable_low_altitude_authority\": 0.62000"));
@@ -218,7 +219,7 @@ class DroneServerSelfTestTest {
 	}
 
 	@Test
-	void playableAcroTelemetryAllowsHeldAttitudeButRequiresStableYaw() throws ReflectiveOperationException {
+	void playableAcroTelemetryAllowsWeathercockingButRequiresStableInitialNeutral() throws ReflectiveOperationException {
 		DroneServerSelfTest selfTest = playableTelemetrySelfTest(FlightMode.ACRO);
 		setDouble(selfTest, "maxPlayableVisualPitchDegrees", 11.0);
 		setDouble(selfTest, "maxPlayableVisualRollDegrees", 14.0);
@@ -248,7 +249,15 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "maxPlayableVisualPitchDegrees", 11.0);
 		setDouble(selfTest, "maxPlayableVisualRollDegrees", 14.0);
 		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 24.0);
-		setDouble(selfTest, "maxPlayableNeutralVisualYawRateDegreesPerSecond", 0.36);
+		setDouble(selfTest, "maxPlayableNeutralVisualYawRateDegreesPerSecond", 5.66);
+		assertTrue(playableTelemetryExercised(selfTest));
+		setDouble(selfTest, "maxInitialNeutralYawRateDegreesPerSecond", 0.36);
+		assertFalse(playableTelemetryExercised(selfTest));
+		setDouble(selfTest, "maxInitialNeutralYawRateDegreesPerSecond", 0.35);
+		setDouble(selfTest, "maxInitialNeutralAttitudeDegrees", 1.51);
+		assertFalse(playableTelemetryExercised(selfTest));
+		setDouble(selfTest, "maxInitialNeutralAttitudeDegrees", 1.5);
+		setInt(selfTest, "initialNeutralSampleCount", 19);
 		assertFalse(playableTelemetryExercised(selfTest));
 
 		selfTest = playableTelemetrySelfTest(FlightMode.ACRO);
@@ -339,6 +348,9 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "maxHorizontalDistance", 0.06);
 		setDouble(selfTest, "maxAverageMotorTelemetryRpm", 8700.0);
 		setInt(selfTest, "playableNeutralSampleCount", 20);
+		setInt(selfTest, "initialNeutralSampleCount", 20);
+		setDouble(selfTest, "maxInitialNeutralYawRateDegreesPerSecond", 0.35);
+		setDouble(selfTest, "maxInitialNeutralAttitudeDegrees", 1.5);
 		setDouble(selfTest, "maxPlayableNeutralVisualPitchDegrees", 1.5);
 		setDouble(selfTest, "maxPlayableNeutralVisualRollDegrees", 1.5);
 		setDouble(selfTest, "maxPlayableNeutralVisualYawRateDegreesPerSecond", 0.35);

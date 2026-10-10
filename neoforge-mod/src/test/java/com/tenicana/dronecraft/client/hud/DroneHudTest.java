@@ -113,13 +113,15 @@ class DroneHudTest {
 				.replace("\r\n", "\n");
 
 		assertTrue(
-				hudSource.contains("public static void registerGuiLayers(RegisterGuiLayersEvent event)")
-						&& hudSource.contains("event.registerAbove(VanillaGuiLayers.CROSSHAIR, HUD_ID, DroneHud::render);"),
+				hudSource.contains("public static void registerGuiLayers(net.neoforged.neoforge.client.event.RegisterGuiLayersEvent event)")
+						&& hudSource.contains("event.registerAbove(net.neoforged.neoforge.client.gui.VanillaGuiLayers.CROSSHAIR, HUD_ID, DroneHud::render);"),
 				"DroneHud must expose one narrow RegisterGuiLayersEvent boundary while keeping rendering internal"
 		);
+		String normalizedClientSource = clientSource.replaceAll("\\s+", " ");
 		assertTrue(
-				clientSource.contains("@SubscribeEvent\n\tpublic static void onRegisterGuiLayers(RegisterGuiLayersEvent event)")
-						&& clientSource.contains("DroneHud.registerGuiLayers(event);"),
+				normalizedClientSource.contains("@SubscribeEvent public static void hud(RegisterGuiLayersEvent event)")
+						&& normalizedClientSource.contains("DroneHud.registerGuiLayers(event);")
+						&& normalizedClientSource.contains("RuntimePerformanceMonitor.registerGuiLayers(event);"),
 				"the client-only NeoForge event subscriber must delegate GUI layer registration to DroneHud"
 		);
 	}

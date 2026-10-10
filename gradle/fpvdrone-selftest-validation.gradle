@@ -219,7 +219,7 @@ def fpvDroneRequiredSelfTestColumns = [
 		"tune_esc_command_resolution_steps"
 ]
 
-def fpvDroneSelfTestReportDirectory = { file("run/fpvdrone-selftest") }
+def fpvDroneSelfTestReportDirectory = { layout.buildDirectory.dir("run/fpvdrone-selftest").get().asFile }
 
 def fpvDroneSelfTestReports = {
 	def directory = fpvDroneSelfTestReportDirectory()
@@ -232,7 +232,7 @@ def fpvDroneSelfTestReports = {
 }
 
 def fpvDroneWriteSelfTestMarker = { Task task, String expectedFlightModel, String expectedControlMode ->
-	def eulaFile = file("run/eula.txt")
+	def eulaFile = layout.buildDirectory.file("run/eula.txt").get().asFile
 	def eulaAccepted = eulaFile.isFile() && eulaFile.readLines("UTF-8").any {
 		it.trim().equalsIgnoreCase("eula=true")
 	}
@@ -457,8 +457,10 @@ def fpvDroneValidateSelfTestReport = { File reportFile, String expectedFlightMod
 			if (maxAcroVisualAttitude < 8.0 || ((report.max_playable_visual_yaw_rate_dps ?: 0.0) as double) < 8.0) {
 				throw new GradleException("FPV Dronecraft playable Acro self-test did not exercise attitude/yaw authority enough: attitude=${maxAcroVisualAttitude} yaw=${report.max_playable_visual_yaw_rate_dps}")
 			}
-			if (((report.max_playable_neutral_visual_yaw_rate_dps ?: 0.0) as double) > 0.35) {
-				throw new GradleException("FPV Dronecraft playable Acro self-test did not settle yaw rate after centered sticks: yaw=${report.max_playable_neutral_visual_yaw_rate_dps}")
+			if (!(report.initial_neutral_sample_count instanceof Number) || report.initial_neutral_sample_count < 20 ||
+					!(report.max_initial_neutral_yaw_rate_dps instanceof Number) || report.max_initial_neutral_yaw_rate_dps > 0.35 ||
+					!(report.max_initial_neutral_attitude_deg instanceof Number) || report.max_initial_neutral_attitude_deg > 1.5) {
+				throw new GradleException("FPV Dronecraft playable Acro self-test drifted during initial centered-stick takeoff: count=${report.initial_neutral_sample_count}, yaw=${report.max_initial_neutral_yaw_rate_dps}, attitude=${report.max_initial_neutral_attitude_deg}")
 			}
 		} else if ((report.max_playable_neutral_visual_pitch_deg ?: 0.0) > 1.5
 				|| (report.max_playable_neutral_visual_roll_deg ?: 0.0) > 1.5

@@ -1,0 +1,6 @@
+{
+  "model": {
+    "model": "fpvdrone:item/brushless_motor",
+    "type": "minecraft:model"
+  }
+}

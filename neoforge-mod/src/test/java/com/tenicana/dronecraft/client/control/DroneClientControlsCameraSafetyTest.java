@@ -37,24 +37,22 @@ class DroneClientControlsCameraSafetyTest {
 				"NeoForge entity unload events must delegate controlled-drone cleanup"
 		);
 		assertTrue(
-				clientSource.contains("ClientStoppingEvent")
+				clientSource.contains("GameShuttingDownEvent")
 						&& clientSource.contains("DroneClientControls.onClientStopping("),
 				"NeoForge client stopping events must provide a last-chance camera reset boundary"
 		);
 		assertTrue(
-				countOccurrences(clientSource, "event.getLevel() == client.level") == 2,
+				countOccurrences(clientSource.replaceAll("\\s+", ""), "event.getLevel()==client.level") == 2,
 				"level and entity unload handlers must ignore events from levels other than the active client level"
 		);
 		assertTrue(
-				source.contains("if (client.player == null || client.level == null)"),
+				source.contains("client.player == null || client.level == null || !client.player.isAlive()")
+						&& source.contains("resetClientRuntimeState(client);"),
 				"client tick must reset and stop before dereferencing an absent client player or level"
 		);
 		assertTrue(
-				source.contains("if (client == null || entity == null)"),
-				"entity unload delegation must tolerate unavailable client or entity state"
-		);
-		assertTrue(
-				source.contains("entity == DroneClientState.controlledDrone() || client.getCameraEntity() == entity"),
+				clientSource.contains("DroneClientControls.onEntityLeaveLevel(client,event.getEntity())")
+						&& source.contains("entity == DroneClientState.controlledDrone() || client.getCameraEntity() == entity"),
 				"controlled-drone unload or direct camera-entity unload must trigger the reset"
 		);
 		assertTrue(
@@ -77,13 +75,13 @@ class DroneClientControlsCameraSafetyTest {
 		);
 
 		assertTrue(
-				sendControlInput.contains("ClientPacketListener connection = Minecraft.getInstance().getConnection();")
-						&& sendControlInput.contains("connection.hasChannel(DroneControlPayload.TYPE)"),
+					sendControlInput.contains("Minecraft.getInstance().getConnection() == null")
+						&& sendControlInput.contains("hasChannel(DroneControlPayload.TYPE)"),
 				"control payload sends must require an active NeoForge connection with the negotiated payload channel"
 		);
 		assertTrue(
-				sendFpvViewState.contains("ClientPacketListener connection = Minecraft.getInstance().getConnection();")
-						&& sendFpvViewState.contains("connection.hasChannel(DroneViewPayload.TYPE)"),
+					sendFpvViewState.contains("Minecraft.getInstance().getConnection() == null")
+						&& sendFpvViewState.contains("hasChannel(DroneViewPayload.TYPE)"),
 				"FPV recovery packets must require an active NeoForge connection with the negotiated payload channel"
 		);
 		assertTrue(
@@ -91,11 +89,11 @@ class DroneClientControlsCameraSafetyTest {
 				"missing connections or channels must skip packets while allowing local recovery to complete"
 		);
 		assertTrue(
-				sendControlInput.contains("ClientPacketDistributor.sendToServer("),
+			sendControlInput.contains("PacketDistributor.sendToServer("),
 				"control input must use NeoForge's client packet distributor"
 		);
 		assertTrue(
-				sendFpvViewState.contains("ClientPacketDistributor.sendToServer(new DroneViewPayload(fpvView));"),
+			sendFpvViewState.contains("PacketDistributor.sendToServer(new DroneViewPayload(fpvView));"),
 				"sendable play connections must receive the explicit FPV state through NeoForge"
 		);
 	}
@@ -147,7 +145,7 @@ class DroneClientControlsCameraSafetyTest {
 				"client tick must sweep stale DroneEntity camera targets"
 		);
 		assertTrue(
-				restoreInvalidDroneCamera.contains("client.getCameraEntity() instanceof DroneEntity && !DroneClientState.isFpvActive(client.level)"),
+			restoreInvalidDroneCamera.contains("client.getCameraEntity() instanceof DroneEntity && !DroneClientState.isDroneCameraActive(client.level)"),
 				"client camera sweep must only restore DroneEntity camera targets when FPV is no longer active"
 		);
 		assertTrue(

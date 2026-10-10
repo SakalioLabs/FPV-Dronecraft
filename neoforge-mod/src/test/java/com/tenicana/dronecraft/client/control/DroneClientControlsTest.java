@@ -33,7 +33,7 @@ class DroneClientControlsTest {
 	}
 
 	@Test
-	void neoForgeKeyMappingEventRegistersOneCategoryAndAllSeventeenMappings() throws IOException {
+	void neoForgeKeyMappingEventRegistersSeventeenMappingsInTheModCategory() throws IOException {
 		String source = Files.readString(droneClientControlsSource(), StandardCharsets.UTF_8);
 		String clientSource = Files.readString(fpvDronecraftClientSource(), StandardCharsets.UTF_8);
 		String registration = source.substring(
@@ -45,8 +45,11 @@ class DroneClientControlsTest {
 				source.contains("import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;"),
 				"key mappings must be exposed through NeoForge's registration event"
 		);
-		assertEquals(1, countOccurrences(registration, "event.registerCategory("), "the controls category must be registered exactly once");
-		assertEquals(17, countOccurrences(registration, "event.register("), "all 17 control mappings must be registered exactly once");
+		assertEquals(1, countOccurrences(registration, "event.register(key)"), "the registration event must register each key from the complete mapping array");
+		assertEquals(17, countOccurrences(source, "private static final KeyMapping "), "all 17 control mappings must be declared exactly once");
+		assertTrue(source.contains("private static final String CATEGORY = \"key.categories.fpvdrone\";"));
+		assertTrue(source.contains("new KeyMapping(translationKey, InputConstants.Type.KEYSYM, key, CATEGORY)"),
+				"all controls must share the translated FPV Dronecraft category on the 1.21.1 KeyMapping API");
 
 		String[] expectedMappings = {
 				"ARM",
@@ -68,7 +71,7 @@ class DroneClientControlsTest {
 				"THROTTLE_CALIBRATE"
 		};
 		for (String mapping : expectedMappings) {
-			assertTrue(registration.contains("event.register(" + mapping + ");"), mapping + " must be registered through RegisterKeyMappingsEvent");
+			assertTrue(registration.contains(mapping), mapping + " must be included in the RegisterKeyMappingsEvent mapping array");
 		}
 
 		assertTrue(

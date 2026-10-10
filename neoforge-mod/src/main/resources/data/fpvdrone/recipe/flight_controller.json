@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "GQG",
+    "QAC",
+    "GQG"
+  ],
+  "key": {
+    "G": {
+      "item": "minecraft:gold_ingot"
+    },
+    "Q": {
+      "item": "minecraft:quartz"
+    },
+    "A": {
+      "item": "mekanism:advanced_control_circuit"
+    },
+    "C": {
+      "item": "minecraft:compass"
+    }
+  },
+  "result": {
+    "id": "fpvdrone:flight_controller",
+    "count": 1
+  },
+  "neoforge:conditions": [
+    {
+      "modid": "mekanism",
+      "type": "neoforge:mod_loaded"
+    }
+  ]
+}

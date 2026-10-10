@@ -2,13 +2,15 @@ package com.tenicana.dronecraft.client;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 
 import com.tenicana.dronecraft.entity.DroneEntity;
-import com.tenicana.dronecraft.registry.DroneItems;
+import com.tenicana.dronecraft.camera.DroneViewMode;
+import com.tenicana.dronecraft.item.DroneControllerItem;
 import com.tenicana.dronecraft.client.control.ControllerInputDiagnostics;
 import com.tenicana.dronecraft.sim.FlightMode;
 
@@ -24,7 +26,7 @@ public final class DroneClientState {
 	private static boolean controlActive;
 	private static boolean physicalControllerPresent;
 	private static boolean virtualControllerEnabled;
-	private static boolean fpvViewEnabled;
+	private static DroneViewMode viewMode = DroneViewMode.LINE_OF_SIGHT;
 	private static HudMode hudMode = HudMode.MINIMAL;
 	private static boolean throttleCalibrated = true;
 	private static boolean throttleCalibrationActive;
@@ -69,25 +71,37 @@ public final class DroneClientState {
 			return;
 		}
 
-		physicalControllerPresent = client.player.getMainHandItem().is(DroneItems.droneController())
-				|| client.player.getOffhandItem().is(DroneItems.droneController());
+		physicalControllerPresent = DroneControllerItem.hasControllerItem(client.player);
 
 		if (isControlledDroneValid(client)) {
 			return;
 		}
 
 		controlledDrone = null;
-		AABB search = client.player.getBoundingBox().inflate(256.0);
-		List<DroneEntity> ownedDrones = client.level.getEntitiesOfClass(
-				DroneEntity.class,
-				search,
-				drone -> isDroneUsableInLevel(drone, client.level) && drone.isOwnedBy(client.player.getUUID())
-		);
-		controlledDrone = ownedDrones.stream()
-				.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(client.player)))
-				.orElse(null);
+		if (physicalControllerPresent) {
+			UUID boundId = DroneControllerItem.boundDroneId(client.player);
+			if (boundId != null) {
+				for (net.minecraft.world.entity.Entity entity : client.level.entitiesForRendering()) {
+					if (entity instanceof DroneEntity drone && boundId.equals(drone.getUUID())
+							&& isDroneUsableInLevel(drone, client.level) && drone.isOwnedBy(client.player.getUUID())) {
+						controlledDrone = drone;
+						break;
+					}
+				}
+			}
+		} else {
+			AABB search = client.player.getBoundingBox().inflate(256.0);
+			List<DroneEntity> ownedDrones = client.level.getEntitiesOfClass(
+					DroneEntity.class,
+					search,
+					drone -> isDroneUsableInLevel(drone, client.level) && drone.isOwnedBy(client.player.getUUID())
+			);
+			controlledDrone = ownedDrones.stream()
+					.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(client.player)))
+					.orElse(null);
+		}
 		if (controlledDrone == null) {
-			fpvViewEnabled = false;
+			viewMode = DroneViewMode.LINE_OF_SIGHT;
 		}
 	}
 
@@ -103,7 +117,9 @@ public final class DroneClientState {
 		return client != null
 				&& client.player != null
 				&& isDroneUsableInLevel(controlledDrone, client.level)
-				&& controlledDrone.isOwnedBy(client.player.getUUID());
+				&& controlledDrone.isOwnedBy(client.player.getUUID())
+				&& (!DroneControllerItem.hasControllerItem(client.player)
+						|| controlledDrone.getUUID().equals(DroneControllerItem.boundDroneId(client.player)));
 	}
 
 	public static boolean isControlledDroneValid(Level level) {
@@ -120,7 +136,7 @@ public final class DroneClientState {
 		controlActive = false;
 		physicalControllerPresent = false;
 		virtualControllerEnabled = false;
-		fpvViewEnabled = false;
+		viewMode = DroneViewMode.LINE_OF_SIGHT;
 		throttleCalibrationActive = false;
 		flightMode = DEFAULT_FLIGHT_MODE;
 		inputSource = InputSource.KEYBOARD;
@@ -140,11 +156,31 @@ public final class DroneClientState {
 	}
 
 	public static boolean isFpvViewEnabled() {
-		return fpvViewEnabled;
+		return viewMode == DroneViewMode.FPV;
 	}
 
 	public static void setFpvViewEnabled(boolean enabled) {
-		fpvViewEnabled = enabled;
+		setViewMode(enabled ? DroneViewMode.FPV : DroneViewMode.LINE_OF_SIGHT);
+	}
+
+	public static DroneViewMode viewMode() {
+		return viewMode;
+	}
+
+	public static void setViewMode(DroneViewMode mode) {
+		viewMode = mode == null ? DroneViewMode.LINE_OF_SIGHT : mode;
+	}
+
+	public static boolean isDroneViewEnabled() {
+		return viewMode.isDroneCamera();
+	}
+
+	public static boolean isDroneCameraActive(Level level) {
+		return isDroneViewEnabled() && isControlledDroneValid(level);
+	}
+
+	public static boolean isThirdPersonActive(Level level) {
+		return viewMode == DroneViewMode.THIRD_PERSON && isControlledDroneValid(level);
 	}
 
 	public static boolean isHudEnabled() {
@@ -182,7 +218,7 @@ public final class DroneClientState {
 	}
 
 	public static boolean isFpvActive(Level level) {
-		return fpvViewEnabled && isControlledDroneValid(level);
+		return isFpvViewEnabled() && isControlledDroneValid(level);
 	}
 
 	public static float throttle() {

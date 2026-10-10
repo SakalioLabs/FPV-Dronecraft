@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [
+    "fpvdrone:advanced_power_module",
+    "mekanism:elite_energy_cube",
+    "mekanism:upgrade_energy"
+  ],
+  "result": {
+    "id": "fpvdrone:elite_power_module",
+    "count": 1
+  },
+  "neoforge:conditions": [
+    {
+      "modid": "mekanism",
+      "type": "neoforge:mod_loaded"
+    }
+  ]
+}

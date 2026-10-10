@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.entity;
 
 import com.tenicana.dronecraft.sim.FlightMode;
+import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.UiucDa4002FiveInchRuntimeLookup;
 
 final class PlayableFlightModel {
@@ -48,24 +49,6 @@ final class PlayableFlightModel {
 	private static final float INVERTED_THRUST_VERTICAL_PROJECTION_MIN = -0.45f;
 	private static final float PLAYABLE_TICK_SECONDS = 0.05f;
 	private static final float FULL_ROTATION_RADIANS = (float) (Math.PI * 2.0);
-	private static final float ACRO_COMPLETED_ROTATION_MIN_RADIANS = (float) Math.toRadians(300.0f);
-	private static final float ACRO_COMPLETED_ROTATION_SNAP_RADIANS = (float) Math.toRadians(40.0f);
-	private static final float ACRO_COMPLETED_ROTATION_SNAP_MARGIN_RADIANS = (float) Math.toRadians(4.0f);
-	private static final float ACRO_COMPLETED_ROTATION_RELEASE_COMMAND = 0.180f;
-	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_COMMAND = 0.360f;
-	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_MIN_RADIANS = (float) Math.toRadians(250.0f);
-	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_RATE_DELTA_RADIANS = (float) Math.toRadians(0.80f);
-	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_LOOKAHEAD_TICKS = 2.0f;
-	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.PI;
-	private static final float ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND = 2.75f;
-	private static final float ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND = 0.28f;
-	private static final int ACRO_COMPLETED_ROLL_RECOVERY_TICKS = 28;
-	private static final float ACRO_COMPLETED_ROLL_RECOVERY_TAIL_COMMAND = 0.42f;
-	private static final float ACRO_COMPLETED_ROLL_RECOVERY_SMOOTHING = 0.58f;
-	private static final float ACRO_COMPLETED_ROLL_RECOVERY_SIDE_SLIP_MAX_METERS_PER_SECOND = 0.075f;
-	private static final float ACRO_COMPLETED_ROLL_RECOVERY_ATTITUDE_RADIANS = (float) Math.toRadians(24.0f);
-	private static final float ACRO_COMPLETED_ROLL_AERO_LAG_KEEP = 0.45f;
-	private static final float ACRO_COMPLETED_ROLL_SIDEWASH_MEMORY_KEEP = 0.35f;
 	private static final float ACRO_GRAVITY_METERS_PER_SECOND_SQUARED = 9.80665f;
 	private static final float ACRO_REFERENCE_MASS_KILOGRAMS = 1.10f;
 	private static final float ACRO_AIR_DENSITY_KILOGRAMS_PER_CUBIC_METER = 1.225f;
@@ -166,14 +149,6 @@ final class PlayableFlightModel {
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_STRAIGHT_FLOW_WEIGHT = 0.24f;
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_GAIN = 0.095f;
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_MAX_ACCELERATION = 0.90f;
-	private static final float ACRO_BODY_RATE_YAW_COUPLING_SCALE = 0.47f;
-	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_YAW_WEIGHT = 1.15f;
-	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS = (float) Math.toRadians(35.0f);
-	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_FULL_RADIANS = (float) Math.toRadians(78.0f);
-	private static final float ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK = 2.35f;
-	private static final float ACRO_BODY_RATE_YAW_COMMAND_SUPPRESS = 0.42f;
-	private static final float ACRO_BODY_RATE_VERTICAL_TWIST_YAW_START_RADIANS = (float) Math.toRadians(60.0f);
-	private static final float ACRO_BODY_RATE_VERTICAL_TWIST_YAW_FULL_RADIANS = (float) Math.toRadians(88.0f);
 	private static final float ACRO_AERO_RATE_DAMPING_START_METERS_PER_SECOND = 9.0f;
 	private static final float ACRO_AERO_RATE_DAMPING_FULL_METERS_PER_SECOND = 28.0f;
 	private static final float ACRO_PITCH_AERO_RATE_DAMPING_MAX = 0.135f;
@@ -372,70 +347,40 @@ final class PlayableFlightModel {
 		);
 		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, yawCommand, safeThrottle, safeHover, acroRateCrossflowLag, acroRateSidewashMemory, profile);
 		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious, acroRate);
-		float pitchRadians = completedAcroRotationAttitude(
-				safeMode,
-				attitudePitch,
-				attitude.pitchRadians(),
-				profile.maxPitchRadians(),
-				profile.pitchRateRadiansPerTick(),
-				safePrevious.acroPitchRateRadiansPerTick()
+		// ACRO releases brake angular rate, not attitude. A completed turn has no
+		// special leveling or velocity correction; the pilot keeps its residual bank.
+		float pitchRadians = attitude.pitchRadians();
+		float rollRadians = attitude.rollRadians();
+		float acroPitchRateRadiansPerTick = acroRate.bodyPitchRateRadiansPerTick();
+		float acroRollRateRadiansPerTick = acroRate.bodyRollRateRadiansPerTick();
+		float acroHeadingCouplingDegreesPerTick = acroRate.eulerYawDegreesPerTick();
+		Velocity attitudeFrameVelocity = localVelocityForYaw(
+				safePrevious.velocityX(), safePrevious.velocityY(), safePrevious.velocityZ(), acroHeadingCouplingDegreesPerTick
 		);
-		float rollRadians = completedAcroRotationAttitude(
-				safeMode,
-				attitudeRoll,
-				attitude.rollRadians(),
-				profile.maxRollRadians(),
-				profile.rollRateRadiansPerTick(),
-				safePrevious.acroRollRateRadiansPerTick()
-		);
-		boolean acroPitchCaptured = completedAcroAttitudeWasCaptured(safeMode, attitude.pitchRadians(), pitchRadians);
-		boolean acroRollCaptured = completedAcroAttitudeWasCaptured(safeMode, attitude.rollRadians(), rollRadians);
-		float acroPitchRateRadiansPerTick = acroPitchCaptured
-				? 0.0f
-				: acroRate.bodyPitchRateRadiansPerTick();
-		float acroRollRateRadiansPerTick = acroRollCaptured
-				? 0.0f
-				: acroRate.bodyRollRateRadiansPerTick();
 		pitchRadians = settledAttitude(safeMode, attitudePitch, pitchRadians);
 		rollRadians = settledAttitude(safeMode, attitudeRoll, rollRadians);
-		int acroRollRecoveryTicksRemaining = nextAcroRollRecoveryTicksRemaining(
-				safeMode,
-				attitudeRoll,
-				rollRadians,
-				acroRollCaptured,
-				safePrevious.acroRollRecoveryTicksRemaining()
-		);
-		boolean acroRollRecoveryActive = shouldApplyCompletedAcroRollRecovery(
-				safeMode,
-				attitudeRoll,
-				rollRadians,
-				acroRollCaptured,
-				acroRollRecoveryTicksRemaining
-		);
-		if (acroRollRecoveryActive) {
-			rollRadians = 0.0f;
-			acroRollRateRadiansPerTick = 0.0f;
-		}
+		int acroRollRecoveryTicksRemaining = 0;
 		float acroAeroCrossflowLag = acroAeroCrossflowLag(
 				safeMode,
 				safePrevious.acroAeroCrossflowLag(),
-				safePrevious.velocityX(),
-				safePrevious.velocityY(),
-				safePrevious.velocityZ(),
+				attitudeFrameVelocity.x(),
+				attitudeFrameVelocity.y(),
+				attitudeFrameVelocity.z(),
 				pitchRadians,
 				rollRadians
 		);
 		float acroSidewashMemory = acroSidewashMemory(
 				safeMode,
 				safePrevious.acroSidewashMemory(),
-				safePrevious.velocityX(),
-				safePrevious.velocityY(),
-				safePrevious.velocityZ(),
+				attitudeFrameVelocity.x(),
+				attitudeFrameVelocity.y(),
+				attitudeFrameVelocity.z(),
 				pitchRadians,
 				rollRadians
 		);
 		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
 		Velocity horizontalTarget = horizontalTargetVelocity(safeMode, pitchRadians, rollRadians, throttleAuthority, profile);
+		horizontalTarget = worldVelocityForYaw(horizontalTarget.x(), horizontalTarget.y(), horizontalTarget.z(), acroHeadingCouplingDegreesPerTick);
 		float targetVelocityX = horizontalTarget.x();
 		float targetVelocityZ = horizontalTarget.z();
 		Velocity limitedHorizontalTarget = limitHorizontalVector(
@@ -476,9 +421,9 @@ final class PlayableFlightModel {
 				safeYaw,
 				yawCommand,
 				targetYawDegreesPerTick,
-				safePrevious.velocityX(),
-				safePrevious.velocityY(),
-				safePrevious.velocityZ(),
+				attitudeFrameVelocity.x(),
+				attitudeFrameVelocity.y(),
+				attitudeFrameVelocity.z(),
 				pitchRadians,
 				rollRadians,
 				safeThrottle,
@@ -489,12 +434,10 @@ final class PlayableFlightModel {
 				acroRollRateRadiansPerTick,
 				profile
 		);
-		float acroEulerPitchRateRadiansPerTick = safeMode == FlightMode.ACRO
-				? pitchRadians - safePrevious.pitchRadians()
-				: 0.0f;
-		float acroEulerRollRateRadiansPerTick = safeMode == FlightMode.ACRO
-				? rollRadians - safePrevious.rollRadians()
-				: 0.0f;
+		AcroBodyRateAttitudeDelta midpoint = safeMode == FlightMode.ACRO
+				? acroBodyRateAttitudeDelta(safePrevious.pitchRadians(), safePrevious.rollRadians(),
+						acroPitchRateRadiansPerTick * 0.5f, acroRollRateRadiansPerTick * 0.5f)
+				: AcroBodyRateAttitudeDelta.ZERO;
 
 		Velocity velocity = velocityStep(
 				safeMode,
@@ -507,11 +450,10 @@ final class PlayableFlightModel {
 				safeThrottle,
 				safeHover,
 				collectiveThrustToWeight,
-				pitchRadians,
-				rollRadians,
+				safePrevious.pitchRadians() + midpoint.pitchRateRadiansPerTick(),
+				safePrevious.rollRadians() + midpoint.rollRateRadiansPerTick(),
 				predictedYawDegreesPerTick,
-				acroEulerPitchRateRadiansPerTick,
-				acroEulerRollRateRadiansPerTick,
+				midpoint.yawDegreesPerTick(),
 				acroPitchRateRadiansPerTick,
 				acroRollRateRadiansPerTick,
 				acroAeroCrossflowLag,
@@ -522,46 +464,6 @@ final class PlayableFlightModel {
 		float velocityX = velocity.x();
 		float velocityY = velocity.y();
 		float velocityZ = velocity.z();
-		if (safeMode == FlightMode.ACRO && (acroPitchCaptured || acroRollCaptured || acroRollRecoveryActive)) {
-			Velocity trimmed = completedAcroRotationVelocityTrim(
-					velocityX,
-					velocityY,
-					velocityZ,
-					pitchRadians,
-					rollRadians,
-					acroPitchCaptured,
-					acroRollCaptured,
-					acroRollRecoveryActive
-			);
-			velocityX = trimmed.x();
-			velocityY = trimmed.y();
-			velocityZ = trimmed.z();
-			boolean rollRecoveryAeroRefresh = acroRollCaptured || acroRollRecoveryActive;
-			float previousRollRecoveryLag = rollRecoveryAeroRefresh
-					? safePrevious.acroAeroCrossflowLag() * ACRO_COMPLETED_ROLL_AERO_LAG_KEEP
-					: safePrevious.acroAeroCrossflowLag();
-			float previousRollRecoveryMemory = rollRecoveryAeroRefresh
-					? safePrevious.acroSidewashMemory() * ACRO_COMPLETED_ROLL_SIDEWASH_MEMORY_KEEP
-					: safePrevious.acroSidewashMemory();
-			acroAeroCrossflowLag = acroAeroCrossflowLag(
-					safeMode,
-					previousRollRecoveryLag,
-					velocityX,
-					velocityY,
-					velocityZ,
-					pitchRadians,
-					rollRadians
-			);
-			acroSidewashMemory = acroSidewashMemory(
-					safeMode,
-					previousRollRecoveryMemory,
-					velocityX,
-					velocityY,
-					velocityZ,
-					pitchRadians,
-					rollRadians
-			);
-		}
 		Velocity limitedHorizontalVelocity = limitHorizontalVector(
 				velocityX,
 				0.0f,
@@ -597,15 +499,16 @@ final class PlayableFlightModel {
 		velocityY = settledVelocity(velocityY, targetVelocityY);
 		velocityZ = settledVelocity(velocityZ, targetVelocityZ);
 
+		Velocity finalAttitudeFrameVelocity = localVelocityForYaw(velocityX, velocityY, velocityZ, acroHeadingCouplingDegreesPerTick);
 		float yawDegreesPerTick = yawRateStep(
 				safeMode,
 				safePrevious,
 				safeYaw,
 				yawCommand,
 				targetYawDegreesPerTick,
-				velocityX,
-				velocityY,
-				velocityZ,
+				finalAttitudeFrameVelocity.x(),
+				finalAttitudeFrameVelocity.y(),
+				finalAttitudeFrameVelocity.z(),
 				pitchRadians,
 				rollRadians,
 				safeThrottle,
@@ -615,7 +518,7 @@ final class PlayableFlightModel {
 				acroPitchRateRadiansPerTick,
 				acroRollRateRadiansPerTick,
 				profile
-		);
+		) + acroHeadingCouplingDegreesPerTick;
 		float motorPower = safeThrottle <= THRUST_DEADZONE ? 0.14f : clamp(0.14f + safeThrottle * 0.86f, 0.0f, 1.0f);
 		float averageRpm = averageRpm(safeThrottle, safeHover);
 		return new Step(
@@ -637,7 +540,8 @@ final class PlayableFlightModel {
 				nextModeSwitchTicksRemaining(safePrevious),
 				acroRollRecoveryTicksRemaining,
 				acroAeroCrossflowLag,
-				acroSidewashMemory
+				acroSidewashMemory,
+				acroHeadingCouplingDegreesPerTick
 		);
 	}
 
@@ -693,7 +597,7 @@ final class PlayableFlightModel {
 				previous.velocityZ() * modeSwitchHorizontalKeep(mode),
 				modeSwitchCapturedAttitude(mode, previous.pitchRadians() * modeSwitchAttitudeKeep(mode), profile.maxPitchRadians()),
 				modeSwitchCapturedAttitude(mode, previous.rollRadians() * modeSwitchAttitudeKeep(mode), profile.maxRollRadians()),
-				previous.yawDegreesPerTick() * modeSwitchYawKeep(mode),
+				(previous.yawDegreesPerTick() - previous.acroHeadingCouplingDegreesPerTick()) * modeSwitchYawKeep(mode),
 				mode,
 				MODE_SWITCH_SOFT_CAPTURE_TICKS,
 				previous.mode() == FlightMode.ACRO ? previous.acroCollectiveThrustToWeight() : 0.0f,
@@ -738,50 +642,6 @@ final class PlayableFlightModel {
 
 	private static int nextModeSwitchTicksRemaining(State previous) {
 		return Math.max(0, previous.modeSwitchTicksRemaining() - 1);
-	}
-
-	private static int nextAcroRollRecoveryTicksRemaining(
-			FlightMode mode,
-			float rollCommand,
-			float rollRadians,
-			boolean rollCaptured,
-			int previousTicksRemaining
-	) {
-		if (safeMode(mode) != FlightMode.ACRO) {
-			return 0;
-		}
-		if (rollCaptured) {
-			return ACRO_COMPLETED_ROLL_RECOVERY_TICKS;
-		}
-		if (previousTicksRemaining <= 0
-				|| Math.abs(rollCommand) > completedRollRecoveryCommandLimit(previousTicksRemaining)
-				|| Math.abs(signedRotationResidualRadians(rollRadians)) > ACRO_COMPLETED_ROLL_RECOVERY_ATTITUDE_RADIANS) {
-			return 0;
-		}
-		return previousTicksRemaining - 1;
-	}
-
-	private static boolean shouldApplyCompletedAcroRollRecovery(
-			FlightMode mode,
-			float rollCommand,
-			float rollRadians,
-			boolean rollCaptured,
-			int ticksRemaining
-	) {
-		return safeMode(mode) == FlightMode.ACRO
-				&& !rollCaptured
-				&& ticksRemaining > 0
-				&& Math.abs(rollCommand) <= completedRollRecoveryCommandLimit(ticksRemaining)
-				&& Math.abs(signedRotationResidualRadians(rollRadians)) <= ACRO_COMPLETED_ROLL_RECOVERY_ATTITUDE_RADIANS;
-	}
-
-	private static float completedRollRecoveryCommandLimit(int ticksRemaining) {
-		float recoveryProgress = clamp(ticksRemaining / (float) ACRO_COMPLETED_ROLL_RECOVERY_TICKS, 0.0f, 1.0f);
-		return lerp(
-				ACRO_COMPLETED_ROTATION_RELEASE_COMMAND,
-				ACRO_COMPLETED_ROLL_RECOVERY_TAIL_COMMAND,
-				recoveryProgress
-		);
 	}
 
 	private static boolean shouldModeSwitchBrakeHorizontal(State previous, float pitch, float roll) {
@@ -894,7 +754,6 @@ final class PlayableFlightModel {
 		if (safeMode(mode) != FlightMode.ACRO) {
 			return AcroRateResponse.ZERO;
 		}
-		boolean completedRollRecoveryTail = isCompletedAcroRollRecoveryTail(mode, previous, roll);
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(
 				previous.velocityX(),
 				previous.velocityY(),
@@ -917,17 +776,13 @@ final class PlayableFlightModel {
 				acroAeroCrossflowLag,
 				acroSidewashMemory
 		);
-		if (completedRollRecoveryTail) {
-			bodyRollRate = 0.0f;
-		} else {
-			float transverseRollMoment = acroTransverseFlowRollMomentRate(bodyVelocity, pitch, roll, yawCommand, throttle, hoverThrottle)
-					* acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory);
-			bodyRollRate += acroPassiveRateHoldLimitedTransverseRollMoment(
-					transverseRollMoment,
-					previous.acroRollRateRadiansPerTick(),
-					roll
-			);
-		}
+		float transverseRollMoment = acroTransverseFlowRollMomentRate(bodyVelocity, pitch, roll, yawCommand, throttle, hoverThrottle)
+				* acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory);
+		bodyRollRate += acroPassiveRateHoldLimitedTransverseRollMoment(
+				transverseRollMoment,
+				previous.acroRollRateRadiansPerTick(),
+				roll
+		);
 		bodyPitchRate += acroAngleOfAttackPitchMomentRate(bodyVelocity, pitch)
 				* acroAngleOfAttackPitchMomentScale(
 						bodyVelocity,
@@ -954,7 +809,8 @@ final class PlayableFlightModel {
 				bodyPitchRate,
 				bodyRollRate,
 				attitudeDelta.pitchRateRadiansPerTick(),
-				attitudeDelta.rollRateRadiansPerTick()
+				attitudeDelta.rollRateRadiansPerTick(),
+				attitudeDelta.yawDegreesPerTick()
 		);
 	}
 
@@ -1127,67 +983,27 @@ final class PlayableFlightModel {
 	) {
 		float bodyPitchRate = finiteOrZero(pitchRateRadiansPerTick);
 		float bodyRollRate = finiteOrZero(rollRateRadiansPerTick);
-		if (Math.abs(bodyPitchRate) <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK
-				&& Math.abs(bodyRollRate) <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK) {
-			return AcroBodyRateAttitudeDelta.ZERO;
-		}
-		float previousPitch = Float.isFinite(pitchRadians) ? pitchRadians : 0.0f;
-		float previousRoll = Float.isFinite(rollRadians) ? rollRadians : 0.0f;
-		AcroBodyFrame frame = acroBodyFrame(previousPitch, previousRoll);
-		Velocity angularAxis = new Velocity(
-				frame.right().x() * bodyPitchRate + frame.forward().x() * bodyRollRate,
-				frame.right().y() * bodyPitchRate + frame.forward().y() * bodyRollRate,
-				frame.right().z() * bodyPitchRate + frame.forward().z() * bodyRollRate
-		);
-		float angularStep = (float) Math.sqrt(angularAxis.x() * angularAxis.x()
-				+ angularAxis.y() * angularAxis.y()
-				+ angularAxis.z() * angularAxis.z());
+		double angularStep = Math.hypot(bodyPitchRate, bodyRollRate);
 		if (angularStep <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK) {
 			return AcroBodyRateAttitudeDelta.ZERO;
 		}
-		Velocity unitAxis = scaleVelocity(angularAxis, 1.0f / angularStep);
-		Velocity rotatedRight = rotateAroundAxis(frame.right(), unitAxis, angularStep);
-		Velocity rotatedUp = rotateAroundAxis(frame.up(), unitAxis, angularStep);
-		Velocity rotatedForward = rotateAroundAxis(frame.forward(), unitAxis, angularStep);
-		float forwardYawRadians = (float) Math.atan2(-rotatedForward.x(), rotatedForward.z());
-		float twistYawRadians = bodyTwistYawRadians(rotatedRight, previousPitch, previousRoll);
-		float verticalExposure = smoothStep((Math.abs(signedRotationResidualRadians(previousPitch)) - ACRO_BODY_RATE_VERTICAL_TWIST_YAW_START_RADIANS)
-				/ Math.max(0.001f, ACRO_BODY_RATE_VERTICAL_TWIST_YAW_FULL_RADIANS - ACRO_BODY_RATE_VERTICAL_TWIST_YAW_START_RADIANS));
-		float yawRadians = forwardYawRadians + signedRotationResidualRadians(twistYawRadians - forwardYawRadians) * verticalExposure;
-		float yawDegrees = (float) Math.toDegrees(yawRadians);
-		Velocity localRight = localVelocityForYaw(rotatedRight.x(), rotatedRight.y(), rotatedRight.z(), yawDegrees);
-		Velocity localUp = localVelocityForYaw(rotatedUp.x(), rotatedUp.y(), rotatedUp.z(), yawDegrees);
-		Velocity localForward = localVelocityForYaw(rotatedForward.x(), rotatedForward.y(), rotatedForward.z(), yawDegrees);
-		float pitchResidual = (float) Math.atan2(-localForward.y(), localForward.z());
-		float rollResidual = (float) Math.atan2(-localUp.x(), localRight.x());
-		float nextPitch = continuousAttitudeFromResidual(previousPitch, pitchResidual);
-		float nextRoll = continuousAttitudeFromResidual(previousRoll, rollResidual);
-		return new AcroBodyRateAttitudeDelta(
-				nextPitch - previousPitch,
-				nextRoll - previousRoll
+		float previousPitch = finiteOrZero(pitchRadians);
+		float previousRoll = finiteOrZero(rollRadians);
+		double sineOverAngle = Math.sin(angularStep * 0.5) / angularStep;
+		Quaternion bodyIncrement = new Quaternion(
+				Math.cos(angularStep * 0.5), bodyPitchRate * sineOverAngle,
+				0.0, bodyRollRate * sineOverAngle
 		);
-	}
-
-	private static float bodyTwistYawRadians(Velocity rotatedRight, float previousPitchRadians, float previousRollRadians) {
-		float previousPitch = Float.isFinite(previousPitchRadians) ? previousPitchRadians : 0.0f;
-		float previousRoll = Float.isFinite(previousRollRadians) ? previousRollRadians : 0.0f;
-		float expectedRightX = (float) Math.cos(previousRoll);
-		float expectedRightZ = (float) Math.sin(previousPitch) * (float) Math.sin(previousRoll);
-		float actualRightX = rotatedRight.x();
-		float actualRightZ = rotatedRight.z();
-		float cross = actualRightZ * expectedRightX - actualRightX * expectedRightZ;
-		float dot = actualRightX * expectedRightX + actualRightZ * expectedRightZ;
-		if (Math.abs(cross) <= 1.0e-6f && Math.abs(dot) <= 1.0e-6f) {
-			return 0.0f;
-		}
-		return (float) Math.atan2(cross, dot);
-	}
-
-	private static boolean isCompletedAcroRollRecoveryTail(FlightMode mode, State previous, float rollCommand) {
-		return safeMode(mode) == FlightMode.ACRO
-				&& previous.acroRollRecoveryTicksRemaining() > 0
-				&& Math.abs(rollCommand) <= completedRollRecoveryCommandLimit(previous.acroRollRecoveryTicksRemaining())
-				&& Math.abs(signedRotationResidualRadians(previous.rollRadians())) <= ACRO_COMPLETED_ROLL_RECOVERY_ATTITUDE_RADIANS;
+		Quaternion rotated = PlayableAttitude.quaternion(0.0, previousPitch, previousRoll)
+				.multiply(bodyIncrement).normalized();
+		PlayableAttitude.Angles angles = PlayableAttitude.project(rotated, 0.0, previousPitch, previousRoll);
+		// All three Euler changes belong to this same body rotation. Dropping its
+		// heading change corrupts the reconstructed frame near vertical/inverted flight.
+		return new AcroBodyRateAttitudeDelta(
+				(float) (angles.pitchRadians() - previousPitch),
+				(float) (angles.rollRadians() - previousRoll),
+				(float) angles.yawDegrees()
+		);
 	}
 
 	static float acroAerodynamicRateDamped(float rateRadiansPerTick, Velocity bodyVelocity, boolean pitchAxis) {
@@ -1868,58 +1684,6 @@ final class PlayableFlightModel {
 		return acroBodyFrame(pitchRadians, rollRadians).up();
 	}
 
-	private static float completedAcroRotationAttitude(
-			FlightMode mode,
-			float command,
-			float attitudeRadians,
-			float completedRotationCaptureRadians,
-			float maxRateRadiansPerTick,
-			float previousRateRadiansPerTick
-	) {
-		boolean filteredReleaseTail = isFilteredCompletedAcroRotationReleaseTail(command, maxRateRadiansPerTick, previousRateRadiansPerTick);
-		float filteredReleaseAttitude = filteredReleaseTail
-				? attitudeRadians + previousRateRadiansPerTick * ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_LOOKAHEAD_TICKS
-				: attitudeRadians;
-		float minimumCompletedRotation = filteredReleaseTail
-				? ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_MIN_RADIANS
-				: ACRO_COMPLETED_ROTATION_MIN_RADIANS;
-		if (!Float.isFinite(attitudeRadians)
-				|| safeMode(mode) != FlightMode.ACRO
-				|| Math.max(Math.abs(attitudeRadians), Math.abs(filteredReleaseAttitude)) < minimumCompletedRotation) {
-			return attitudeRadians;
-		}
-		float rotationResidual = signedRotationResidualRadians(attitudeRadians);
-		float snapRadians = Math.max(
-				ACRO_COMPLETED_ROTATION_SNAP_RADIANS,
-				Math.max(0.0f, completedRotationCaptureRadians) + ACRO_COMPLETED_ROTATION_SNAP_MARGIN_RADIANS
-		);
-		float releasedSnapRadians = Math.max(snapRadians, ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS);
-		if (Math.abs(command) <= PLAYABLE_AXIS_NOISE_EPSILON) {
-			return Math.abs(rotationResidual) <= releasedSnapRadians ? 0.0f : attitudeRadians;
-		}
-		boolean releaseTail = Math.abs(command) <= ACRO_COMPLETED_ROTATION_RELEASE_COMMAND || filteredReleaseTail;
-		if (!releaseTail || Math.abs(rotationResidual) > releasedSnapRadians) {
-			return attitudeRadians;
-		}
-		return 0.0f;
-	}
-
-	private static boolean isFilteredCompletedAcroRotationReleaseTail(
-			float command,
-			float maxRateRadiansPerTick,
-			float previousRateRadiansPerTick
-	) {
-		if (!Float.isFinite(command)
-				|| !Float.isFinite(maxRateRadiansPerTick)
-				|| !Float.isFinite(previousRateRadiansPerTick)
-				|| Math.abs(command) > ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_COMMAND) {
-			return false;
-		}
-		float targetRateMagnitude = Math.abs(command * maxRateRadiansPerTick);
-		float previousRateMagnitude = Math.abs(previousRateRadiansPerTick);
-		return previousRateMagnitude > targetRateMagnitude + ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_RATE_DELTA_RADIANS;
-	}
-
 	private static float signedRotationResidualRadians(float attitudeRadians) {
 		if (!Float.isFinite(attitudeRadians)) {
 			return 0.0f;
@@ -1932,20 +1696,6 @@ final class PlayableFlightModel {
 			return wrapped - FULL_ROTATION_RADIANS;
 		}
 		return wrapped;
-	}
-
-	private static float continuousAttitudeFromResidual(float previousRadians, float nextResidualRadians) {
-		float previous = Float.isFinite(previousRadians) ? previousRadians : 0.0f;
-		float previousResidual = signedRotationResidualRadians(previous);
-		float delta = signedRotationResidualRadians(nextResidualRadians - previousResidual);
-		return previous + delta;
-	}
-
-	private static boolean completedAcroAttitudeWasCaptured(FlightMode mode, float unsnappedRadians, float snappedRadians) {
-		return safeMode(mode) == FlightMode.ACRO
-				&& Float.isFinite(unsnappedRadians)
-				&& Float.isFinite(snappedRadians)
-				&& Math.abs(unsnappedRadians - snappedRadians) > 1.0e-6f;
 	}
 
 	private static float horizontalTargetSpeedLimit(Profile profile, float throttleAuthority) {
@@ -1967,8 +1717,7 @@ final class PlayableFlightModel {
 			float pitchRadians,
 			float rollRadians,
 			float yawDegreesPerTick,
-			float eulerPitchRateRadiansPerTick,
-			float eulerRollRateRadiansPerTick,
+			float integrationHeadingDegrees,
 			float pitchRateRadiansPerTick,
 			float rollRateRadiansPerTick,
 			float acroAeroCrossflowLag,
@@ -1977,7 +1726,7 @@ final class PlayableFlightModel {
 			Profile profile
 	) {
 		if (safeMode(mode) == FlightMode.ACRO) {
-			return acroPhysicalVelocity(previousVelocityX, previousVelocityY, previousVelocityZ, throttle, hoverThrottle, collectiveThrustToWeight, pitchRadians, rollRadians, yawDegreesPerTick, eulerPitchRateRadiansPerTick, eulerRollRateRadiansPerTick, pitchRateRadiansPerTick, rollRateRadiansPerTick, acroAeroCrossflowLag, acroSidewashMemory, preset, profile);
+			return acroPhysicalVelocity(previousVelocityX, previousVelocityY, previousVelocityZ, throttle, hoverThrottle, collectiveThrustToWeight, pitchRadians, rollRadians, yawDegreesPerTick, integrationHeadingDegrees, pitchRateRadiansPerTick, rollRateRadiansPerTick, acroAeroCrossflowLag, acroSidewashMemory, preset, profile);
 		}
 		Velocity horizontalVelocity = horizontalVelocityStep(
 				previousVelocityX,
@@ -2035,8 +1784,7 @@ final class PlayableFlightModel {
 			float pitchRadians,
 			float rollRadians,
 			float yawDegreesPerTick,
-			float eulerPitchRateRadiansPerTick,
-			float eulerRollRateRadiansPerTick,
+			float integrationHeadingDegrees,
 			float pitchRateRadiansPerTick,
 			float rollRateRadiansPerTick,
 			float acroAeroCrossflowLag,
@@ -2044,8 +1792,14 @@ final class PlayableFlightModel {
 			PlayableFlightPreset preset,
 			Profile profile
 	) {
-		float integrationPitchRadians = acroMidpointIntegrationAttitudeRadians(pitchRadians, eulerPitchRateRadiansPerTick);
-		float integrationRollRadians = acroMidpointIntegrationAttitudeRadians(rollRadians, eulerRollRateRadiansPerTick);
+		float integrationPitchRadians = pitchRadians;
+		float integrationRollRadians = rollRadians;
+		// The geometric heading is a change of coordinates, not yaw torque. Work
+		// in its midpoint frame, then return velocity in the original heading frame.
+		Velocity integrationVelocity = localVelocityForYaw(previousVelocityX, previousVelocityY, previousVelocityZ, integrationHeadingDegrees);
+		previousVelocityX = integrationVelocity.x();
+		previousVelocityY = integrationVelocity.y();
+		previousVelocityZ = integrationVelocity.z();
 		Velocity thrustAxis = acroThrustAxis(integrationPitchRadians, integrationRollRadians);
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(previousVelocityX, previousVelocityY, previousVelocityZ, integrationPitchRadians, integrationRollRadians);
 		Velocity bodyDragAcceleration = acroBodyAerodynamicAcceleration(bodyVelocity, acroAeroCrossflowLag, acroSidewashMemory);
@@ -2110,12 +1864,13 @@ final class PlayableFlightModel {
 		);
 		accelerationX += overspeedAcceleration.x();
 		accelerationZ += overspeedAcceleration.z();
-		return limitHorizontalVector(
+		Velocity next = limitHorizontalVector(
 				previousVelocityX + accelerationX * PLAYABLE_TICK_SECONDS,
 				previousVelocityY + accelerationY * PLAYABLE_TICK_SECONDS,
 				previousVelocityZ + accelerationZ * PLAYABLE_TICK_SECONDS,
 				acroHorizontalHardLimit(profile)
 		);
+		return worldVelocityForYaw(next.x(), next.y(), next.z(), integrationHeadingDegrees);
 	}
 
 	static float acroMidpointIntegrationAttitudeRadians(float currentRadians, float rateRadiansPerTick) {
@@ -2143,63 +1898,6 @@ final class PlayableFlightModel {
 				0.0f,
 				-velocityZ / horizontalSpeed * accelerationMagnitude
 		);
-	}
-
-	private static Velocity completedAcroRotationVelocityTrim(
-			float velocityX,
-			float velocityY,
-			float velocityZ,
-			float pitchRadians,
-			float rollRadians,
-			boolean pitchCaptured,
-			boolean rollCaptured,
-			boolean rollRecoveryActive
-	) {
-		Velocity bodyVelocity = acroBodyVelocityForYawLocal(velocityX, velocityY, velocityZ, pitchRadians, rollRadians);
-		Velocity trimmedBodyVelocity = new Velocity(
-				completedAcroRollSideVelocity(bodyVelocity.x(), rollCaptured, rollRecoveryActive),
-				bodyVelocity.y(),
-				pitchCaptured ? completedAcroRotationAxisVelocityTrim(bodyVelocity.z()) : bodyVelocity.z()
-		);
-		return yawLocalVelocityForAcroBody(trimmedBodyVelocity.x(), trimmedBodyVelocity.y(), trimmedBodyVelocity.z(), pitchRadians, rollRadians);
-	}
-
-	private static float completedAcroRollSideVelocity(float velocity, boolean rollCaptured, boolean rollRecoveryActive) {
-		if (rollCaptured) {
-			return completedAcroRollSideVelocityTrim(velocity);
-		}
-		if (rollRecoveryActive) {
-			return completedAcroRollSideVelocityRecovery(velocity);
-		}
-		return velocity;
-	}
-
-	private static float completedAcroRotationAxisVelocityTrim(float velocity) {
-		return Math.abs(velocity) <= ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND ? 0.0f : velocity;
-	}
-
-	private static float completedAcroRollSideVelocityTrim(float velocity) {
-		float magnitude = Math.abs(velocity);
-		if (magnitude <= ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND) {
-			return 0.0f;
-		}
-		float residualMagnitude = Math.min(
-				magnitude - ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND,
-				ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND
-		);
-		return Math.copySign(
-				residualMagnitude,
-				velocity
-		);
-	}
-
-	private static float completedAcroRollSideVelocityRecovery(float velocity) {
-		float recovered = smooth(velocity, 0.0f, ACRO_COMPLETED_ROLL_RECOVERY_SMOOTHING);
-		float magnitude = Math.abs(recovered);
-		if (magnitude <= ACRO_COMPLETED_ROLL_RECOVERY_SIDE_SLIP_MAX_METERS_PER_SECOND) {
-			return recovered;
-		}
-		return Math.copySign(ACRO_COMPLETED_ROLL_RECOVERY_SIDE_SLIP_MAX_METERS_PER_SECOND, recovered);
 	}
 
 	static float acroDa4002AxialThrustScale(
@@ -3283,64 +2981,6 @@ final class PlayableFlightModel {
 		return clamp(strength * ACRO_SIDESLIP_YAW_DAMPING_GAIN, 0.0f, ACRO_SIDESLIP_YAW_DAMPING_MAX);
 	}
 
-	private static float acroBodyRateYawRate(
-			FlightMode mode,
-			float yawDegreesPerTick,
-			float yawCommand,
-			float pitchRadians,
-			float rollRadians,
-			float pitchRateRadiansPerTick,
-			float rollRateRadiansPerTick
-	) {
-		if (safeMode(mode) != FlightMode.ACRO) {
-			return yawDegreesPerTick;
-		}
-		float yawCoupling = acroBodyRateYawCouplingDegreesPerTick(
-				pitchRadians,
-				rollRadians,
-				pitchRateRadiansPerTick,
-				rollRateRadiansPerTick
-		);
-		if (Math.abs(yawCoupling) <= YAW_SETTLE_EPSILON_DEGREES_PER_TICK) {
-			return yawDegreesPerTick;
-		}
-		float commandSuppression = 1.0f - smoothStep(Math.abs(yawCommand) / ACRO_BODY_RATE_YAW_COMMAND_SUPPRESS);
-		if (commandSuppression <= 1.0e-6f) {
-			return yawDegreesPerTick;
-		}
-		yawCoupling *= commandSuppression;
-		return settledYawRate(yawDegreesPerTick + yawCoupling, 0.0f);
-	}
-
-	static float acroBodyRateYawCouplingDegreesPerTick(
-			float pitchRadians,
-			float rollRadians,
-			float pitchRateRadiansPerTick,
-			float rollRateRadiansPerTick
-	) {
-		if (!Float.isFinite(pitchRateRadiansPerTick) || !Float.isFinite(rollRateRadiansPerTick)) {
-			return 0.0f;
-		}
-		float pitch = signedRotationResidualRadians(pitchRadians);
-		float roll = signedRotationResidualRadians(rollRadians);
-		float bodyPitchRateRadiansPerTick = pitchRateRadiansPerTick;
-		float bodyRollRateRadiansPerTick = rollRateRadiansPerTick;
-		float bankedPitchCoupling = bodyPitchRateRadiansPerTick
-				* (float) Math.sin(roll)
-				* (0.35f + 0.65f * Math.abs((float) Math.cos(pitch)));
-		float verticalRollExposure = smoothStep((Math.abs(pitch) - ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS)
-				/ Math.max(0.001f, ACRO_BODY_RATE_VERTICAL_ROLL_FULL_RADIANS - ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS));
-		float verticalRollCoupling = bodyRollRateRadiansPerTick
-				* (float) Math.sin(pitch)
-				* verticalRollExposure
-				* ACRO_BODY_RATE_VERTICAL_ROLL_YAW_WEIGHT;
-		return clamp(
-				(float) Math.toDegrees((bankedPitchCoupling + verticalRollCoupling) * ACRO_BODY_RATE_YAW_COUPLING_SCALE),
-				-ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK,
-				ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK
-		);
-	}
-
 	private static float acroAerodynamicYawRate(
 			FlightMode mode,
 			float yawDegreesPerTick,
@@ -3658,11 +3298,11 @@ final class PlayableFlightModel {
 			Profile profile
 	) {
 		float yawDegreesPerTick = smooth(
-				previous.yawDegreesPerTick(),
+				previous.yawDegreesPerTick() - previous.acroHeadingCouplingDegreesPerTick(),
 				targetYawDegreesPerTick,
 				yawSmoothing(
 						mode,
-						previous.yawDegreesPerTick(),
+						previous.yawDegreesPerTick() - previous.acroHeadingCouplingDegreesPerTick(),
 						targetYawDegreesPerTick,
 						profile,
 						velocityX,
@@ -3680,15 +3320,6 @@ final class PlayableFlightModel {
 			yawDegreesPerTick = smooth(yawDegreesPerTick, 0.0f, modeSwitchYawBrake(mode));
 		}
 		yawDegreesPerTick = settledYawRate(yawDegreesPerTick, targetYawDegreesPerTick);
-		yawDegreesPerTick = acroBodyRateYawRate(
-				mode,
-				yawDegreesPerTick,
-				yawCommand,
-				pitchRadians,
-				rollRadians,
-				acroPitchRateRadiansPerTick,
-				acroRollRateRadiansPerTick
-		);
 		float commandedYawDegreesPerTick = yawDegreesPerTick;
 		float aerodynamicYawDegreesPerTick = acroAerodynamicYawRate(
 				mode,
@@ -3811,14 +3442,17 @@ final class PlayableFlightModel {
 			float acroRollRateRadiansPerTick,
 			int acroRollRecoveryTicksRemaining,
 			float acroAeroCrossflowLag,
-			float acroSidewashMemory
+			float acroSidewashMemory,
+			float acroHeadingCouplingDegreesPerTick
 	) {
 		static final State ZERO = zero(DEFAULT_PLAYABLE_MODE);
 
 		State {
 			mode = safeMode(mode);
 			modeSwitchTicksRemaining = Math.max(0, modeSwitchTicksRemaining);
-			acroRollRecoveryTicksRemaining = Math.max(0, acroRollRecoveryTicksRemaining);
+			// Retained for state/diagnostic compatibility; the old turn-recovery lock
+			// must never suppress new commands, including after restoring old state.
+			acroRollRecoveryTicksRemaining = 0;
 			acroCollectiveThrustToWeight = Float.isFinite(acroCollectiveThrustToWeight)
 					? clamp(acroCollectiveThrustToWeight, 0.0f, ACRO_STATE_COLLECTIVE_THRUST_TO_WEIGHT_MAX)
 					: Float.NaN;
@@ -3826,6 +3460,7 @@ final class PlayableFlightModel {
 			acroRollRateRadiansPerTick = Float.isFinite(acroRollRateRadiansPerTick) ? acroRollRateRadiansPerTick : Float.NaN;
 			acroAeroCrossflowLag = Float.isFinite(acroAeroCrossflowLag) ? clamp(acroAeroCrossflowLag, 0.0f, 1.0f) : 0.0f;
 			acroSidewashMemory = Float.isFinite(acroSidewashMemory) ? clamp(acroSidewashMemory, 0.0f, 1.0f) : 0.0f;
+			acroHeadingCouplingDegreesPerTick = mode == FlightMode.ACRO ? finiteOrZero(acroHeadingCouplingDegreesPerTick) : 0.0f;
 		}
 
 		State(float velocityX, float velocityY, float velocityZ) {
@@ -3913,6 +3548,19 @@ final class PlayableFlightModel {
 			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, modeSwitchTicksRemaining, acroCollectiveThrustToWeight, acroPitchRateRadiansPerTick, acroRollRateRadiansPerTick, acroRollRecoveryTicksRemaining, acroAeroCrossflowLag, acroAeroCrossflowLag);
 		}
 
+		State(
+				float velocityX, float velocityY, float velocityZ,
+				float pitchRadians, float rollRadians, float yawDegreesPerTick,
+				FlightMode mode, int modeSwitchTicksRemaining,
+				float acroCollectiveThrustToWeight, float acroPitchRateRadiansPerTick,
+				float acroRollRateRadiansPerTick, int acroRollRecoveryTicksRemaining,
+				float acroAeroCrossflowLag, float acroSidewashMemory
+		) {
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick,
+					mode, modeSwitchTicksRemaining, acroCollectiveThrustToWeight, acroPitchRateRadiansPerTick,
+					acroRollRateRadiansPerTick, acroRollRecoveryTicksRemaining, acroAeroCrossflowLag, acroSidewashMemory, 0.0f);
+		}
+
 		static State zero(FlightMode mode) {
 			return new State(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, safeMode(mode), 0, 0.0f, 0.0f, 0.0f, 0);
 		}
@@ -3937,7 +3585,8 @@ final class PlayableFlightModel {
 			int modeSwitchTicksRemaining,
 			int acroRollRecoveryTicksRemaining,
 			float acroAeroCrossflowLag,
-			float acroSidewashMemory
+			float acroSidewashMemory,
+			float acroHeadingCouplingDegreesPerTick
 	) {
 	}
 
@@ -3951,16 +3600,18 @@ final class PlayableFlightModel {
 			float bodyPitchRateRadiansPerTick,
 			float bodyRollRateRadiansPerTick,
 			float eulerPitchRateRadiansPerTick,
-			float eulerRollRateRadiansPerTick
+			float eulerRollRateRadiansPerTick,
+			float eulerYawDegreesPerTick
 	) {
-		private static final AcroRateResponse ZERO = new AcroRateResponse(0.0f, 0.0f, 0.0f, 0.0f);
+		private static final AcroRateResponse ZERO = new AcroRateResponse(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
 	record AcroBodyRateAttitudeDelta(
 			float pitchRateRadiansPerTick,
-			float rollRateRadiansPerTick
+			float rollRateRadiansPerTick,
+			float yawDegreesPerTick
 	) {
-		private static final AcroBodyRateAttitudeDelta ZERO = new AcroBodyRateAttitudeDelta(0.0f, 0.0f);
+		private static final AcroBodyRateAttitudeDelta ZERO = new AcroBodyRateAttitudeDelta(0.0f, 0.0f, 0.0f);
 	}
 
 	record AcroAuthorityDiagnostics(

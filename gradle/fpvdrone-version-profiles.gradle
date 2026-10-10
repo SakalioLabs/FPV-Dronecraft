@@ -1,0 +1,201 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import org.gradle.api.tasks.PathSensitivity
+
+// Apply in :neoforge-mod after its plugins, before tasks read versions or output paths.
+def fpvProfilesFile = rootProject.file("gradle/minecraft-targets.json")
+if (!fpvProfilesFile.isFile()) {
+	throw new GradleException("Missing Minecraft target inventory: ${fpvProfilesFile}")
+}
+def fpvInventory = new JsonSlurper().parse(fpvProfilesFile)
+if (fpvInventory.schemaVersion != 1) {
+	throw new GradleException("Unsupported Minecraft target inventory schema; expected schemaVersion 1.")
+}
+def fpvTargets = fpvInventory.targets
+if (!(fpvTargets instanceof List) || fpvTargets.isEmpty()) {
+	throw new GradleException("minecraft-targets.json must contain a nonempty targets array.")
+}
+def fpvField = { Map row, String name, String alternative -> row[name] ?: row[alternative] }
+def fpvMinecraftOf = { Map row -> fpvField(row, "minecraft", "minecraft_version")?.toString() }
+def fpvTargetMinecraft = providers.gradleProperty("targetMinecraft")
+		.orElse((fpvInventory.defaultTarget ?: "1.21.1").toString()).get()
+def fpvMatches = fpvTargets.findAll { fpvMinecraftOf(it) == fpvTargetMinecraft }
+if (fpvMatches.size() != 1) {
+	throw new GradleException("Expected one inventory row for targetMinecraft=${fpvTargetMinecraft}; found ${fpvMatches.size()}.")
+}
+Map fpvProfile = new LinkedHashMap(fpvMatches.first())
+def fpvStatus = fpvProfile.status?.toString()
+if (!(fpvStatus in ["planned", "adapting", "verified"])) {
+	throw new GradleException("Target ${fpvTargetMinecraft} needs status planned, adapting, or verified.")
+}
+// Status records evidence; implementation eligibility is a separate, explicit gate.
+if (fpvProfile.implemented != true || fpvStatus == "planned") {
+	throw new GradleException("Minecraft ${fpvTargetMinecraft} is ${fpvStatus ?: 'unimplemented'} and cannot be built yet. See docs/development/neoforge-multiversion.md.")
+}
+if (!(fpvTargetMinecraft ==~ /(?:1\.21\.[1-9][0-9]*|26\.[1-9][0-9]*(?:\.[1-9][0-9]*)?)/)) {
+	throw new GradleException("Invalid Minecraft release key: ${fpvTargetMinecraft}")
+}
+def fpvPinnedNeoForge = fpvField(fpvProfile, "neoforge", "neoforge_version")?.toString()
+def fpvJavaText = (fpvProfile.java ?: fpvProfile.javaVersion ?: fpvProfile.javaMajor)?.toString()
+if (!(fpvJavaText in ["21", "25"]) || !fpvPinnedNeoForge) {
+	throw new GradleException("Target ${fpvTargetMinecraft} needs a pinned NeoForge version and Java 21 or 25.")
+}
+def fpvJavaRelease = Integer.parseInt(fpvJavaText)
+def fpvRequiredJava = fpvTargetMinecraft.startsWith("26.") ? 25 : 21
+if (fpvJavaRelease != fpvRequiredJava) {
+	throw new GradleException("Minecraft ${fpvTargetMinecraft} requires Java ${fpvRequiredJava}, inventory declares ${fpvJavaRelease}.")
+}
+def fpvNeoFamily = fpvProfile.neoforgeFamily?.toString()
+if (!fpvNeoFamily) {
+	def parts = fpvTargetMinecraft.tokenize(".")
+	fpvNeoFamily = parts[0] == "1" ? "21.${parts[2]}." : "26.${parts[1]}.${parts.size() == 3 ? parts[2] : '0'}."
+}
+if (!(fpvNeoFamily ==~ /(?:21\.[0-9]+|26\.[0-9]+\.[0-9]+)\./)) {
+	throw new GradleException("Invalid NeoForge family prefix for ${fpvTargetMinecraft}: ${fpvNeoFamily}")
+}
+def fpvSelectedNeoForge = providers.gradleProperty("targetNeoForge").orElse(fpvPinnedNeoForge).get()
+if (!(fpvSelectedNeoForge ==~ /[0-9]+(?:\.[0-9]+)+(?:-[A-Za-z0-9.+-]+)?/) ||
+		!fpvSelectedNeoForge.startsWith(fpvNeoFamily)) {
+	throw new GradleException("NeoForge ${fpvSelectedNeoForge} does not belong to ${fpvNeoFamily} for Minecraft ${fpvTargetMinecraft}.")
+}
+if (fpvSelectedNeoForge != fpvPinnedNeoForge) {
+	fpvStatus = "adapting"
+	fpvProfile.status = fpvStatus
+	fpvProfile.neoforge = fpvSelectedNeoForge
+	fpvProfile.verification = [:]
+	fpvProfile.verificationNote = "NeoForge override has not inherited the pinned version's verification."
+}
+
+ext.minecraft_version = fpvTargetMinecraft
+ext.neoforge_version = fpvSelectedNeoForge
+ext.fpvDroneTargetProfile = Collections.unmodifiableMap(fpvProfile)
+ext.fpvDroneTargetJava = fpvJavaRelease
+ext.fpvDroneTargetNeoForgeRange = "[${fpvSelectedNeoForge}]"
+layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("targets/${fpvTargetMinecraft}/neoforge-mod"))
+java.toolchain.languageVersion = JavaLanguageVersion.of(fpvJavaRelease)
+java.sourceCompatibility = JavaVersion.toVersion(fpvJavaRelease)
+java.targetCompatibility = JavaVersion.toVersion(fpvJavaRelease)
+tasks.withType(JavaCompile).configureEach { options.release = fpvJavaRelease }
+
+def fpvProjectRoot = project.projectDir.canonicalFile.toPath()
+def fpvBoundedFile = { String relative ->
+	def selected = project.file(relative).canonicalFile
+	if (!selected.toPath().startsWith(fpvProjectRoot)) {
+		throw new GradleException("Compatibility source escapes this project: ${relative}")
+	}
+	selected
+}
+def fpvAdapterFamily = fpvProfile.adapterFamily?.toString()
+if (!fpvAdapterFamily || !(fpvAdapterFamily ==~ /[A-Za-z0-9][A-Za-z0-9._-]*/)) {
+	throw new GradleException("Target ${fpvTargetMinecraft} needs a safe adapterFamily name.")
+}
+def fpvOverlayNames = fpvProfile.sourceOverlays ?: [fpvAdapterFamily]
+if (!(fpvOverlayNames instanceof List) || fpvOverlayNames.any {
+	!(it instanceof String) || !(it ==~ /[A-Za-z0-9][A-Za-z0-9._-]*/)
+} || fpvOverlayNames.unique(false).size() != fpvOverlayNames.size()) {
+	throw new GradleException("sourceOverlays must be an ordered list of distinct compatibility directory names.")
+}
+def fpvLayers = [[name: "main", java: fpvBoundedFile("src/main/java"), resources: fpvBoundedFile("src/main/resources")]]
+fpvOverlayNames.each { name ->
+	fpvLayers.add([name: "compat/${name}", java: fpvBoundedFile("src/compat/${name}/java"), resources: fpvBoundedFile("src/compat/${name}/resources")])
+}
+// ModDev's automatic discovery only follows src/main/resources. Select the actual
+// overlay transformer before artifact creation, without a generated-source cycle.
+def fpvAccessTransformer = fpvLayers.collect {
+	new File(it.resources, "META-INF/accesstransformer.cfg")
+}.findAll { it.isFile() }.last()
+neoForge.accessTransformers.from(fpvAccessTransformer)
+ext.fpvDroneAccessTransformerFile = fpvAccessTransformer
+def fpvRenameIdentifier = fpvProfile.identifierTransform == true
+if (fpvRenameIdentifier && !(fpvTargetMinecraft == "1.21.11" || fpvTargetMinecraft.startsWith("26."))) {
+	throw new GradleException("ResourceLocation-to-Identifier transformation is only valid for 1.21.11 and 26.x.")
+}
+// Rename Java type tokens only. String literals, text blocks, chars, and comments remain unchanged.
+// Mixin descriptor strings and other API changes must be supplied by a real compatibility overlay.
+def fpvProtectedJavaTokens = java.util.regex.Pattern.compile(
+		'(?s)/\\*.*?\\*/|//[^\\r\\n]*|""".*?"""|"(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\'')
+def fpvIdentifierTokens = java.util.regex.Pattern.compile(fpvProtectedJavaTokens.pattern() + '|\\bResourceLocation\\b')
+def fpvTransformJava = { String text ->
+	def code = fpvProtectedJavaTokens.matcher(text).replaceAll(" ")
+	if (!fpvRenameIdentifier || !(code =~ /\bnet\.minecraft\.resources\.ResourceLocation\b/).find()) {
+		return text
+	}
+	def matcher = fpvIdentifierTokens.matcher(text)
+	def result = new StringBuffer()
+	while (matcher.find()) {
+		matcher.appendReplacement(result, java.util.regex.Matcher.quoteReplacement(
+				matcher.group() == "ResourceLocation" ? "Identifier" : matcher.group()))
+	}
+	matcher.appendTail(result)
+	result.toString()
+}
+def fpvEffectiveRoot = layout.buildDirectory.dir("generated/effective/main")
+def fpvEffectiveJava = fpvEffectiveRoot.map { it.dir("java") }
+def fpvEffectiveResources = fpvEffectiveRoot.map { it.dir("resources") }
+def fpvSourceInputs = fpvLayers.collectMany { layer ->
+	[fileTree(layer.java) { include "**/*.java" }, fileTree(layer.resources)]
+}
+def fpvGenerateSources = tasks.register("generateEffectiveMinecraftSources") {
+	group = "build setup"
+	description = "Creates the deterministic source overlay for Minecraft ${fpvTargetMinecraft}."
+	inputs.file(fpvProfilesFile).withPathSensitivity(PathSensitivity.RELATIVE)
+	inputs.files(fpvSourceInputs).withPathSensitivity(PathSensitivity.RELATIVE)
+	inputs.property("minecraft", fpvTargetMinecraft)
+	inputs.property("neoforge", fpvSelectedNeoForge)
+	inputs.property("adapterFamily", fpvAdapterFamily)
+	inputs.property("overlays", fpvOverlayNames)
+	inputs.property("identifierTransform", fpvRenameIdentifier)
+	outputs.dir(fpvEffectiveRoot)
+	doLast {
+		def destination = fpvEffectiveRoot.get().asFile.canonicalFile
+		if (!destination.toPath().startsWith(layout.buildDirectory.get().asFile.canonicalFile.toPath())) {
+			throw new GradleException("Effective source output escapes target build directory.")
+		}
+		delete(destination)
+		def manifest = []
+		["java", "resources"].each { kind ->
+			def selectedFiles = new TreeMap<String, Map>()
+			fpvLayers.each { layer ->
+				File sourceRoot = layer[kind]
+				if (sourceRoot.isDirectory()) {
+					def tree = fileTree(sourceRoot)
+					if (kind == "java") tree.include("**/*.java")
+					tree.files.each { source ->
+						if (!source.canonicalFile.toPath().startsWith(fpvProjectRoot)) {
+							throw new GradleException("Source symlink escapes this project: ${source}")
+						}
+						def relative = sourceRoot.toPath().relativize(source.toPath()).toString().replace('\\', '/')
+						selectedFiles[relative] = [file: source, layer: layer.name]
+					}
+				}
+			}
+			selectedFiles.each { relative, entry ->
+				def output = new File(destination, "${kind}/${relative}")
+				if (!output.canonicalFile.toPath().startsWith(destination.toPath())) {
+					throw new GradleException("Invalid generated source path: ${relative}")
+				}
+				output.parentFile.mkdirs()
+				if (kind == "java" && fpvRenameIdentifier) {
+					output.setText(fpvTransformJava(entry.file.getText("UTF-8")), "UTF-8")
+				} else {
+					output.bytes = entry.file.bytes
+				}
+				manifest.add([kind: kind, path: relative, layer: entry.layer])
+			}
+		}
+		new File(destination, "sources-manifest.json").setText(JsonOutput.prettyPrint(JsonOutput.toJson([
+				minecraft: fpvTargetMinecraft, neoforge: fpvSelectedNeoForge, java: fpvJavaRelease,
+				status: fpvStatus, adapterFamily: fpvAdapterFamily, identifierTransform: fpvRenameIdentifier,
+				files: manifest
+		])), "UTF-8")
+	}
+}
+sourceSets.main.java.setSrcDirs([fpvEffectiveJava])
+sourceSets.main.resources.setSrcDirs([fpvEffectiveResources])
+tasks.named("compileJava") { dependsOn(fpvGenerateSources) }
+tasks.named("processResources") { dependsOn(fpvGenerateSources) }
+tasks.matching { it.name == "createMinecraftArtifacts" }.configureEach { dependsOn(fpvGenerateSources) }
+tasks.matching { it.name == "sourcesJar" }.configureEach { dependsOn(fpvGenerateSources) }
+neoForge.ideSyncTask(fpvGenerateSources)
+logger.lifecycle("FPV Dronecraft target: Minecraft {}, NeoForge {}, Java {}, {} ({})",
+		fpvTargetMinecraft, fpvSelectedNeoForge, fpvJavaRelease, fpvAdapterFamily, fpvStatus)

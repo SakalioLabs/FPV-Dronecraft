@@ -1,4 +1,5 @@
 import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -11,16 +12,21 @@ import java.util.zip.ZipOutputStream
 
 def fpvPkgBaseJarTask = tasks.named("jar", Jar)
 def fpvPkgExpectedVersion = project.version.toString()
-def fpvPkgExpectedBaseJarName = "${rootProject.archives_base_name}-neoforge-${fpvPkgExpectedVersion}.jar"
-def fpvPkgCoreJar = rootProject.layout.projectDirectory.file("drone-sim-core/build/libs/drone-sim-core-${fpvPkgExpectedVersion}.jar")
+def fpvPkgExpectedBaseJarName = "${rootProject.archives_base_name}-neoforge-mc${project.minecraft_version}-${fpvPkgExpectedVersion}.jar"
+def fpvPkgCoreJar = rootProject.project(":drone-sim-core").tasks.named("jar", Jar).flatMap { it.archiveFile }
+def fpvPkgAcousticsJar = rootProject.project(":computational-acoustics-core").tasks.named("jar", Jar).flatMap { it.archiveFile }
+def fpvPkgMixinExtrasJar = providers.provider { configurations.fpvDroneBundledMixinExtras.singleFile }
 def fpvPkgLegacyJar = layout.buildDirectory.file("fpvdrone-distributions/legacy-heavy-racing-quad.jar")
 def fpvPkgCandidateJar = layout.buildDirectory.file("fpvdrone-distributions/5inch-agile-candidate.jar")
 def fpvPkgPresetEntry = "assets/fpvdrone/default_playable_preset.txt"
+def fpvPkgBasePreset = "5inch_agile_candidate\n"
 def fpvPkgLegacyPreset = "legacy_heavy_racing_quad\n"
 def fpvPkgCandidatePreset = "5inch_agile_candidate\n"
 def fpvPkgExpectedMinecraftVersion = project.minecraft_version.toString()
 def fpvPkgExpectedNeoForgeVersion = project.neoforge_version.toString()
 def fpvPkgExpectedToml = [
+		'modLoader="javafml"',
+		"loaderVersion=\"${project.minecraft_version == '26.3' ? '[12,)' : '[4,)'}\"",
 		'license="MIT"',
 		'issueTrackerURL="https://github.com/SakalioLabs/FPV-Dronecraft/issues"',
 		'',
@@ -37,10 +43,13 @@ def fpvPkgExpectedToml = [
 		'[[mixins]]',
 		'config="fpvdrone.client.mixins.json"',
 		'',
+		'[[mixins]]',
+		'config="fpvdrone.server.mixins.json"',
+		'',
 		'[[dependencies.fpvdrone]]',
 		'modId="neoforge"',
 		'type="required"',
-		"versionRange=\"[${fpvPkgExpectedNeoForgeVersion},)\"",
+		"versionRange=\"[${fpvPkgExpectedNeoForgeVersion}]\"",
 		'ordering="NONE"',
 		'side="BOTH"',
 		'',
@@ -57,22 +66,78 @@ def fpvPkgExpectedToml = [
 		'versionRange="[0,)"',
 		'ordering="AFTER"',
 		'side="SERVER"',
+		'',
+		'[[dependencies.fpvdrone]]',
+		'modId="mekanism"',
+		'type="optional"',
+		'versionRange="[10.7,)"',
+		'ordering="AFTER"',
+		'side="BOTH"',
 		''
 ].join("\n")
 def fpvPkgExpectedMixinClasses = [
+		"ChannelDistanceOwnershipMixin",
+		"ChannelCallbackBufferMixin",
+		"ChannelDroneStreamingBufferMixin",
+		"ChannelHandleChannelAccessor",
+		"ChannelSourceAccessor",
+		"ChannelStreamingBufferAccessor",
+		"ChannelStreamingQueueMixin",
 		"CameraMixin",
-		"FramerateLimitTrackerAccessor",
+		"RemoteClientChunkCacheMixin",
+		"RemoteLocalPlayerBodyMixin",
+		"RemotePilotBodyRenderMixin",
+		"RemoteControlledDroneTickMixin",
+		"ClientLevelAcousticDirtyMixin",
 		"GameRendererMixin",
+		"LibraryStreamingBudgetMixin",
+		"ListenerCallbackControlMixin",
 		"MinecraftAttackSanitizerMixin",
 		"MinecraftCameraStateAccessor",
-		"MinecraftFramerateLimitTrackerAccessor"
+		"RuntimePerformanceMinecraftMixin",
+		"RuntimePerformanceGameRendererMixin",
+		"RuntimePerformanceRenderSystemMixin",
+		"RuntimePerformanceWindowMixin",
+		"RuntimeIntegratedServerTimingMixin",
+		"RuntimeMinecraftServerSaveTimingMixin",
+		"RuntimeDroneTimingMixin",
+		"RuntimeDronePoseDeliveryMixin",
+		"SoundEngineExecutorAccessor",
+		"SoundEngineChannelsAccessor",
+		"SoundEngineControlInvoker",
+		"SoundEngineCallbackControlMixin",
+		"SoundEngineReloadMixin",
+		"SoundManagerEngineAccessor"
 ]
+def fpvPkgExpectedServerMixinClasses = [
+		"RemoteChunkMapMixin",
+		"RemoteTrackedEntityMixin",
+		"RemotePlayerChunkSenderMixin"
+]
+if (project.minecraft_version != "1.21.1") {
+	fpvPkgExpectedMixinClasses += ["FramerateLimitTrackerAccessor", "MinecraftFramerateLimitTrackerAccessor"]
+}
+if (project.minecraft_version.toString().startsWith("26.")) {
+	fpvPkgExpectedMixinClasses += ["CuboidItemModelAccessor"]
+}
+def fpvPkgExpectedCoreClasses = [
+		"com/tenicana/dronecraft/sim/DronePhysics.class",
+		"com/tenicana/dronecraft/sim/flight/FlightModel.class",
+		"com/tenicana/dronecraft/sim/flight/FlightModelRouter.class"
+] as Set
+def fpvPkgExpectedAcousticsClasses = [
+		"com/tenicana/dronecraft/acoustics/AcousticPropagation.class",
+		"com/tenicana/dronecraft/acoustics/AcousticProfileCatalog.class",
+		"com/tenicana/dronecraft/acoustics/AcousticVector.class"
+] as Set
 def fpvPkgRequiredEntries = [
 		"META-INF/MANIFEST.MF",
 		"META-INF/neoforge.mods.toml",
 		"META-INF/jarjar/metadata.json",
+		"META-INF/accesstransformer.cfg",
 		"META-INF/LICENSE",
 		"fpvdrone.client.mixins.json",
+		"fpvdrone.server.mixins.json",
 		"com/tenicana/dronecraft/FpvDronecraftMod.class",
 		"com/tenicana/dronecraft/client/FpvDronecraftClient.class",
 		"com/tenicana/dronecraft/entity/DroneEntity.class",
@@ -266,6 +331,10 @@ def fpvPkgForbiddenEntryReason = { String entryName, boolean nestedCore ->
 			lowerName.contains("/tests/") || lowerName.contains("gametest")) {
 		return "test or GameTest artifact"
 	}
+	if (lowerName.startsWith("helper/") || lowerName.startsWith("helpers/") || lowerName.contains("/helper/") ||
+			lowerName.contains("/helpers/") || lowerName ==~ /.*(?:helper|helpers)(?:\$[^\/]+)?\.class/) {
+		return "helper artifact"
+	}
 	String productionSelfTest = "com/tenicana/dronecraft/diagnostic/droneserverselftest"
 	boolean allowedProductionSelfTest = lowerName == "${productionSelfTest}.class" || lowerName.startsWith("${productionSelfTest}\$")
 	if (!allowedProductionSelfTest && lowerName ==~ /.*(?:test|tests)(?:\$[^\/]*)?\.class/) {
@@ -321,10 +390,11 @@ def fpvPkgValidateToml = { byte[] bytes, String archiveLabel ->
 def fpvPkgValidateMixin = { byte[] bytes, Set<String> fileNames, String archiveLabel ->
 	def mixin = fpvPkgParseJson(bytes, "fpvdrone.client.mixins.json", archiveLabel)
 	fpvPkgRequire(mixin instanceof Map, "MIXIN", "${archiveLabel} mixin config must be a JSON object.")
-	fpvPkgRequire(mixin.keySet() == (["required", "package", "compatibilityLevel", "client", "injectors"] as Set), "MIXIN", "${archiveLabel} mixin config fields are not canonical.")
+	fpvPkgRequire(mixin.keySet() == (["required", "package", "compatibilityLevel", "mixinextras", "client", "injectors"] as Set), "MIXIN", "${archiveLabel} mixin config fields are not canonical.")
 	fpvPkgRequire(mixin.required == true, "MIXIN", "${archiveLabel} mixin config must be required.")
 	fpvPkgRequire(mixin.package == "com.tenicana.dronecraft.client.mixin", "MIXIN", "${archiveLabel} mixin package is incorrect.")
-	fpvPkgRequire(mixin.compatibilityLevel == "JAVA_21", "MIXIN", "${archiveLabel} mixin compatibility level must be JAVA_21.")
+	fpvPkgRequire(mixin.compatibilityLevel == "JAVA_${project.fpvDroneTargetJava}", "MIXIN", "${archiveLabel} mixin compatibility level must be JAVA_${project.fpvDroneTargetJava}.")
+	fpvPkgRequire(mixin.mixinextras instanceof Map && mixin.mixinextras.keySet() == (["minVersion"] as Set) && mixin.mixinextras.minVersion == "0.5.4", "MIXIN", "${archiveLabel} mixinextras minimum version must be 0.5.4.")
 	fpvPkgRequire(mixin.client instanceof List, "MIXIN", "${archiveLabel} mixin client list is missing.")
 	def actualClientMixins = mixin.client.collect { value -> value.toString() }
 	fpvPkgRequire(actualClientMixins == fpvPkgExpectedMixinClasses, "MIXIN", "${archiveLabel} client mixins must be exactly ${fpvPkgExpectedMixinClasses}, but were ${actualClientMixins}.")
@@ -335,44 +405,66 @@ def fpvPkgValidateMixin = { byte[] bytes, Set<String> fileNames, String archiveL
 	}
 }
 
+def fpvPkgValidateServerMixin = { byte[] bytes, Set<String> fileNames, String archiveLabel ->
+	def mixin = fpvPkgParseJson(bytes, "fpvdrone.server.mixins.json", archiveLabel)
+	fpvPkgRequire(mixin instanceof Map, "MIXIN", "${archiveLabel} server mixin config must be a JSON object.")
+	fpvPkgRequire(mixin.keySet() == (["required", "package", "compatibilityLevel", "mixins", "injectors"] as Set), "MIXIN", "${archiveLabel} server mixin config fields are not canonical.")
+	fpvPkgRequire(mixin.required == true, "MIXIN", "${archiveLabel} server mixin config must be required.")
+	fpvPkgRequire(mixin.package == "com.tenicana.dronecraft.server.mixin", "MIXIN", "${archiveLabel} server mixin package is incorrect.")
+	fpvPkgRequire(mixin.compatibilityLevel == "JAVA_${project.fpvDroneTargetJava}", "MIXIN", "${archiveLabel} server mixin compatibility level must be JAVA_${project.fpvDroneTargetJava}.")
+	fpvPkgRequire(mixin.mixins instanceof List, "MIXIN", "${archiveLabel} server mixin list is missing.")
+	def actualServerMixins = mixin.mixins.collect { value -> value.toString() }
+	fpvPkgRequire(actualServerMixins == fpvPkgExpectedServerMixinClasses, "MIXIN", "${archiveLabel} server mixins must be exactly ${fpvPkgExpectedServerMixinClasses}, but were ${actualServerMixins}.")
+	fpvPkgRequire(mixin.injectors instanceof Map && mixin.injectors.keySet() == (["defaultRequire"] as Set) && mixin.injectors.defaultRequire == 1, "MIXIN", "${archiveLabel} server mixin injectors must set only defaultRequire=1.")
+	fpvPkgExpectedServerMixinClasses.each { mixinClass ->
+		String classEntry = "com/tenicana/dronecraft/server/mixin/${mixinClass}.class"
+		fpvPkgRequire(fileNames.contains(classEntry), "MIXIN", "${archiveLabel} is missing server mixin class '${classEntry}'.")
+	}
+}
+
 def fpvPkgValidateJarJarMetadata = { byte[] bytes, Set<String> fileNames, String archiveLabel ->
 	def metadata = fpvPkgParseJson(bytes, "META-INF/jarjar/metadata.json", archiveLabel)
 	fpvPkgRequire(metadata instanceof Map && metadata.keySet() == (["jars"] as Set), "JARJAR", "${archiveLabel} jarjar metadata must contain only the jars array.")
-	fpvPkgRequire(metadata.jars instanceof List && metadata.jars.size() == 1, "JARJAR", "${archiveLabel} must embed exactly one jarjar dependency.")
-	def nested = metadata.jars[0]
-	fpvPkgRequire(nested instanceof Map && nested.keySet() == (["identifier", "version", "path", "isObfuscated"] as Set), "JARJAR", "${archiveLabel} jarjar dependency fields are not canonical.")
-	fpvPkgRequire(nested.identifier instanceof Map && nested.identifier.keySet() == (["group", "artifact"] as Set), "JARJAR", "${archiveLabel} jarjar identifier is malformed.")
-	fpvPkgRequire(nested.version instanceof Map && nested.version.keySet() == (["range", "artifactVersion"] as Set), "JARJAR", "${archiveLabel} jarjar version is malformed.")
-	fpvPkgRequire(nested.identifier.group == "com.tenicana.dronecraft" && nested.identifier.artifact == "drone-sim-core", "JARJAR", "${archiveLabel} jarjar coordinate must be com.tenicana.dronecraft:drone-sim-core.")
-	fpvPkgRequire(nested.version.artifactVersion == fpvPkgExpectedVersion && nested.version.range == "[${fpvPkgExpectedVersion},)", "JARJAR", "${archiveLabel} jarjar version must be ${fpvPkgExpectedVersion} with range [${fpvPkgExpectedVersion},).")
-	String expectedPath = "META-INF/jarjar/com.tenicana.dronecraft.drone-sim-core-${fpvPkgExpectedVersion}.jar"
-	fpvPkgRequire(nested.path == expectedPath, "JARJAR", "${archiveLabel} nested core path must be '${expectedPath}', but was '${nested.path}'.")
-	fpvPkgRequire(nested.isObfuscated == false, "JARJAR", "${archiveLabel} nested core must declare isObfuscated=false.")
-	fpvPkgRequire(fileNames.contains(expectedPath), "MISSING", "${archiveLabel} is missing nested core '${expectedPath}'.")
+	fpvPkgRequire(metadata.jars instanceof List && metadata.jars.size() == 3, "JARJAR", "${archiveLabel} must embed exactly the two project cores and MixinExtras 0.5.5.")
+	def expectedArtifacts = ["drone-sim-core", "computational-acoustics-core", "mixinextras-neoforge"] as Set
+	def pathsByArtifact = [:]
+	metadata.jars.each { nested ->
+		fpvPkgRequire(nested instanceof Map && nested.keySet() == (["identifier", "version", "path", "isObfuscated"] as Set), "JARJAR", "${archiveLabel} jarjar dependency fields are not canonical.")
+		fpvPkgRequire(nested.identifier instanceof Map && nested.identifier.keySet() == (["group", "artifact"] as Set), "JARJAR", "${archiveLabel} jarjar identifier is malformed.")
+		fpvPkgRequire(nested.version instanceof Map && nested.version.keySet() == (["range", "artifactVersion"] as Set), "JARJAR", "${archiveLabel} jarjar version is malformed.")
+		String artifact = nested.identifier.artifact?.toString()
+		boolean mixinExtras = artifact == "mixinextras-neoforge"
+		String expectedGroup = mixinExtras ? "io.github.llamalad7" : "com.tenicana.dronecraft"
+		String expectedVersion = mixinExtras ? "0.5.5" : fpvPkgExpectedVersion
+		fpvPkgRequire(nested.identifier.group == expectedGroup && expectedArtifacts.contains(artifact), "JARJAR", "${archiveLabel} unexpected jarjar coordinate: ${nested.identifier}.")
+		fpvPkgRequire(!pathsByArtifact.containsKey(artifact), "JARJAR", "${archiveLabel} repeats jarjar artifact '${artifact}'.")
+		fpvPkgRequire(nested.version.artifactVersion == expectedVersion && nested.version.range == "[${expectedVersion},)", "JARJAR", "${archiveLabel} jarjar version for ${artifact} must be ${expectedVersion} with range [${expectedVersion},).")
+		String expectedPath = mixinExtras ? "META-INF/jarjar/${artifact}-${expectedVersion}.jar" : "META-INF/jarjar/${expectedGroup}.${artifact}-${expectedVersion}.jar"
+		fpvPkgRequire(nested.path == expectedPath, "JARJAR", "${archiveLabel} nested ${artifact} path must be '${expectedPath}', but was '${nested.path}'.")
+		fpvPkgRequire(nested.isObfuscated == false, "JARJAR", "${archiveLabel} nested ${artifact} must declare isObfuscated=false.")
+		fpvPkgRequire(fileNames.contains(expectedPath), "MISSING", "${archiveLabel} is missing nested ${artifact} '${expectedPath}'.")
+		pathsByArtifact[artifact] = expectedPath
+	}
+	fpvPkgRequire(pathsByArtifact.keySet() == expectedArtifacts, "JARJAR", "${archiveLabel} must include exactly ${expectedArtifacts}, but contained ${pathsByArtifact.keySet()}.")
 	def nestedJars = fileNames.findAll { entryName -> entryName.toLowerCase(Locale.ROOT).endsWith(".jar") }
-	fpvPkgRequire(nestedJars == ([expectedPath] as Set), "JARJAR", "${archiveLabel} must contain only nested core '${expectedPath}', but contained ${nestedJars}.")
-	expectedPath
+	fpvPkgRequire(nestedJars == (pathsByArtifact.values() as Set), "JARJAR", "${archiveLabel} must contain only the three declared nested dependencies, but contained ${nestedJars}.")
+	pathsByArtifact
 }
 
-def fpvPkgValidateNestedCore = { byte[] nestedBytes, File coreJar, String archiveLabel ->
-	fpvPkgRequire(fpvPkgSha256Bytes(nestedBytes) == fpvPkgSha256File(coreJar), "CORE_SHA", "${archiveLabel} nested drone-sim-core bytes do not match ${coreJar}.")
-	def nestedScan = fpvPkgScanZipInput(new ByteArrayInputStream(nestedBytes), "${archiveLabel} nested drone-sim-core", true)
-	def requiredCoreClasses = [
-			"com/tenicana/dronecraft/sim/DronePhysics.class",
-			"com/tenicana/dronecraft/sim/flight/FlightModel.class",
-			"com/tenicana/dronecraft/sim/flight/FlightModelRouter.class"
-	] as Set
+def fpvPkgValidateNestedCore = { byte[] nestedBytes, File coreJar, String artifact, Set<String> requiredCoreClasses, String archiveLabel ->
+	fpvPkgRequire(fpvPkgSha256Bytes(nestedBytes) == fpvPkgSha256File(coreJar), "CORE_SHA", "${archiveLabel} nested ${artifact} bytes do not match ${coreJar}.")
+	def nestedScan = fpvPkgScanZipInput(new ByteArrayInputStream(nestedBytes), "${archiveLabel} nested ${artifact}", true)
 	requiredCoreClasses.each { classEntry ->
-		fpvPkgRequire(nestedScan.fileNames.contains(classEntry), "CORE_CLASS", "${archiveLabel} nested core is missing '${classEntry}'.")
+		fpvPkgRequire(nestedScan.fileNames.contains(classEntry), "CORE_CLASS", "${archiveLabel} nested ${artifact} is missing '${classEntry}'.")
 	}
 	nestedScan.fileNames.each { entryName ->
 		String reason = fpvPkgForbiddenEntryReason(entryName, true)
-		fpvPkgRequire(reason == null, "FORBIDDEN", "${archiveLabel} nested core contains ${reason}: ${entryName}")
-		fpvPkgCheckForbiddenContent(entryName, nestedScan.contents[entryName], "${archiveLabel} nested core")
+		fpvPkgRequire(reason == null, "FORBIDDEN", "${archiveLabel} nested ${artifact} contains ${reason}: ${entryName}")
+		fpvPkgCheckForbiddenContent(entryName, nestedScan.contents[entryName], "${archiveLabel} nested ${artifact}")
 	}
 }
 
-def fpvPkgValidateArchive = { File archive, File coreJar, String expectedPreset, String archiveLabel ->
+def fpvPkgValidateArchive = { File archive, File coreJar, File acousticsJar, String expectedPreset, String archiveLabel ->
 	def scan = fpvPkgScanZipFile(archive, archiveLabel)
 	scan.allNames.each { entryName ->
 		String reason = fpvPkgForbiddenEntryReason(entryName, false)
@@ -418,11 +510,21 @@ def fpvPkgValidateArchive = { File archive, File coreJar, String expectedPreset,
 		fpvPkgRequire(manifest.mainAttributes.getValue("Manifest-Version") != null, "MANIFEST", "${archiveLabel} manifest has no Manifest-Version.")
 		fpvPkgValidateToml(readEntry("META-INF/neoforge.mods.toml"), archiveLabel)
 		fpvPkgValidateMixin(readEntry("fpvdrone.client.mixins.json"), zipFileNames, archiveLabel)
-		String nestedPath = fpvPkgValidateJarJarMetadata(readEntry("META-INF/jarjar/metadata.json"), zipFileNames, archiveLabel)
-		fpvPkgValidateNestedCore(readEntry(nestedPath), coreJar, archiveLabel)
+		fpvPkgValidateServerMixin(readEntry("fpvdrone.server.mixins.json"), zipFileNames, archiveLabel)
+		Map<String, String> nestedPaths = fpvPkgValidateJarJarMetadata(readEntry("META-INF/jarjar/metadata.json"), zipFileNames, archiveLabel)
+		fpvPkgValidateNestedCore(readEntry(nestedPaths["drone-sim-core"]), coreJar, "drone-sim-core", fpvPkgExpectedCoreClasses, archiveLabel)
+		fpvPkgValidateNestedCore(readEntry(nestedPaths["computational-acoustics-core"]), acousticsJar, "computational-acoustics-core", fpvPkgExpectedAcousticsClasses, archiveLabel)
+		byte[] mixinExtrasBytes = readEntry(nestedPaths["mixinextras-neoforge"])
+		fpvPkgRequire(fpvPkgSha256Bytes(mixinExtrasBytes) == fpvPkgSha256File(fpvPkgMixinExtrasJar.get()), "LIBRARY_SHA", "${archiveLabel} bundled MixinExtras differs from the resolved pinned dependency.")
+		def mixinExtrasScan = fpvPkgScanZipInput(new ByteArrayInputStream(mixinExtrasBytes), "${archiveLabel} nested MixinExtras", true)
+		["com/llamalad7/mixinextras/expression/Definition.class", "com/llamalad7/mixinextras/expression/Expression.class"].each {
+			fpvPkgRequire(mixinExtrasScan.fileNames.contains(it), "LIBRARY_CLASS", "${archiveLabel} MixinExtras expression class missing: ${it}")
+		}
 
 		byte[] expectedLicense = Files.readAllBytes(rootProject.file("LICENSE").toPath())
 		fpvPkgRequire(Arrays.equals(readEntry("META-INF/LICENSE"), expectedLicense), "LICENSE", "${archiveLabel} META-INF/LICENSE does not exactly match the repository LICENSE.")
+		byte[] expectedAccessTransformer = Files.readAllBytes(project.fpvDroneAccessTransformerFile.toPath())
+		fpvPkgRequire(Arrays.equals(readEntry("META-INF/accesstransformer.cfg"), expectedAccessTransformer), "ACCESS_TRANSFORMER", "${archiveLabel} access transformer does not exactly match the repository configuration.")
 		byte[] expectedPresetBytes = expectedPreset.getBytes(StandardCharsets.UTF_8)
 		fpvPkgRequire(Arrays.equals(readEntry(fpvPkgPresetEntry), expectedPresetBytes), "PRESET", "${archiveLabel} preset must be exactly '${expectedPreset.replace("\n", "\\n")}'.")
 
@@ -529,14 +631,15 @@ def fpvPkgPatchLastAsciiOccurrence = { File archive, String from, String to ->
 def verifyNeoForgeJar = tasks.register("verifyNeoForgeJar") {
 	group = "verification"
 	description = "Verifies the production NeoForge jar packaging contract."
-	dependsOn(fpvPkgBaseJarTask, ":drone-sim-core:jar")
-	inputs.files(fpvPkgBaseJarTask.flatMap { it.archiveFile }, fpvPkgCoreJar)
+	dependsOn(fpvPkgBaseJarTask, ":drone-sim-core:jar", ":computational-acoustics-core:jar")
+	inputs.files(fpvPkgBaseJarTask.flatMap { it.archiveFile }, fpvPkgCoreJar, fpvPkgAcousticsJar, fpvPkgMixinExtrasJar)
 
 	doLast {
 		File archive = fpvPkgBaseJarTask.get().archiveFile.get().asFile
-		File coreJar = fpvPkgCoreJar.asFile
+		File coreJar = fpvPkgCoreJar.get().asFile
+		File acousticsJar = fpvPkgAcousticsJar.get().asFile
 		fpvPkgRequire(archive.name == fpvPkgExpectedBaseJarName, "FILENAME", "NeoForge production jar must be named '${fpvPkgExpectedBaseJarName}', but was '${archive.name}'.")
-		fpvPkgValidateArchive(archive, coreJar, fpvPkgLegacyPreset, "NeoForge production jar")
+		fpvPkgValidateArchive(archive, coreJar, acousticsJar, fpvPkgBasePreset, "NeoForge production jar")
 		logger.lifecycle("NeoForge production packaging verified: {}", archive)
 	}
 }
@@ -545,19 +648,20 @@ def verifyNeoForgePresetJars = tasks.register("verifyNeoForgePresetJars") {
 	group = "verification"
 	description = "Verifies the NeoForge legacy and candidate preset distribution jars."
 	dependsOn(verifyNeoForgeJar, "playablePresetJars")
-	inputs.files(fpvPkgBaseJarTask.flatMap { it.archiveFile }, fpvPkgLegacyJar, fpvPkgCandidateJar, fpvPkgCoreJar)
+	inputs.files(fpvPkgBaseJarTask.flatMap { it.archiveFile }, fpvPkgLegacyJar, fpvPkgCandidateJar, fpvPkgCoreJar, fpvPkgAcousticsJar, fpvPkgMixinExtrasJar)
 
 	doLast {
 		File baseJar = fpvPkgBaseJarTask.get().archiveFile.get().asFile
 		File legacyJar = fpvPkgLegacyJar.get().asFile
 		File candidateJar = fpvPkgCandidateJar.get().asFile
-		File coreJar = fpvPkgCoreJar.asFile
-		def base = fpvPkgValidateArchive(baseJar, coreJar, fpvPkgLegacyPreset, "NeoForge production jar")
-		def legacy = fpvPkgValidateArchive(legacyJar, coreJar, fpvPkgLegacyPreset, "NeoForge legacy preset jar")
-		def candidate = fpvPkgValidateArchive(candidateJar, coreJar, fpvPkgCandidatePreset, "NeoForge candidate preset jar")
+		File coreJar = fpvPkgCoreJar.get().asFile
+		File acousticsJar = fpvPkgAcousticsJar.get().asFile
+		def base = fpvPkgValidateArchive(baseJar, coreJar, acousticsJar, fpvPkgBasePreset, "NeoForge production jar")
+		def legacy = fpvPkgValidateArchive(legacyJar, coreJar, acousticsJar, fpvPkgLegacyPreset, "NeoForge legacy preset jar")
+		def candidate = fpvPkgValidateArchive(candidateJar, coreJar, acousticsJar, fpvPkgCandidatePreset, "NeoForge candidate preset jar")
 
-		fpvPkgRequire(fpvPkgSha256File(baseJar) == fpvPkgSha256File(legacyJar), "LEGACY_SHA", "Legacy preset jar must be a byte-for-byte copy of the production jar.")
-		fpvPkgRequire(base.allNames == legacy.allNames, "LEGACY_SHA", "Legacy preset jar entry set differs from the production jar.")
+		fpvPkgRequire(fpvPkgSha256File(baseJar) == fpvPkgSha256File(candidateJar), "CANDIDATE_SHA", "Agile preset jar must be a byte-for-byte copy of the production jar.")
+		fpvPkgCompareCandidate(base, legacy, "Legacy preset jar")
 		fpvPkgCompareCandidate(base, candidate, "Candidate preset jar")
 		logger.lifecycle("NeoForge preset packaging verified: {}, {}", legacyJar, candidateJar)
 	}
@@ -567,13 +671,14 @@ def testNeoForgePackagingVerifier = tasks.register("testNeoForgePackagingVerifie
 	group = "verification"
 	description = "Exercises the NeoForge packaging verifier against isolated negative fixtures."
 	dependsOn(verifyNeoForgePresetJars)
-	inputs.files(fpvPkgBaseJarTask.flatMap { it.archiveFile }, fpvPkgLegacyJar, fpvPkgCandidateJar, fpvPkgCoreJar)
+	inputs.files(fpvPkgBaseJarTask.flatMap { it.archiveFile }, fpvPkgLegacyJar, fpvPkgCandidateJar, fpvPkgCoreJar, fpvPkgAcousticsJar, fpvPkgMixinExtrasJar)
 
 	doLast {
 		File baseJar = fpvPkgBaseJarTask.get().archiveFile.get().asFile
 		File legacyJar = fpvPkgLegacyJar.get().asFile
 		File candidateJar = fpvPkgCandidateJar.get().asFile
-		File coreJar = fpvPkgCoreJar.asFile
+		File coreJar = fpvPkgCoreJar.get().asFile
+		File acousticsJar = fpvPkgAcousticsJar.get().asFile
 		def productionJars = [baseJar, legacyJar, candidateJar]
 		def beforeHashes = productionJars.collectEntries { archive -> [(archive.canonicalPath): fpvPkgSha256File(archive)] }
 		File fixtureDirectory = new File(temporaryDir, "negative-fixtures")
@@ -624,7 +729,7 @@ def testNeoForgePackagingVerifier = tasks.register("testNeoForgePackagingVerifie
 					["fabric.mod.json": "{}\n".getBytes(StandardCharsets.UTF_8)]
 			)
 			expectCode("FORBIDDEN") {
-				fpvPkgValidateArchive(fabricMetadata, coreJar, fpvPkgLegacyPreset, "forbidden Fabric fixture")
+				fpvPkgValidateArchive(fabricMetadata, coreJar, acousticsJar, fpvPkgBasePreset, "forbidden Fabric fixture")
 			}
 
 			File missingJarJarMetadata = fixture(
@@ -634,7 +739,16 @@ def testNeoForgePackagingVerifier = tasks.register("testNeoForgePackagingVerifie
 					["META-INF/jarjar/metadata.json"] as Set
 			)
 			expectCode("MISSING") {
-				fpvPkgValidateArchive(missingJarJarMetadata, coreJar, fpvPkgLegacyPreset, "missing jarjar metadata fixture")
+				fpvPkgValidateArchive(missingJarJarMetadata, coreJar, acousticsJar, fpvPkgBasePreset, "missing jarjar metadata fixture")
+			}
+
+			File incompleteJarJarMetadata = fixture(
+					"incomplete-jarjar-metadata.jar",
+					baseJar,
+					["META-INF/jarjar/metadata.json": (JsonOutput.toJson([jars: []]) + "\n").getBytes(StandardCharsets.UTF_8)]
+			)
+			expectCode("JARJAR") {
+				fpvPkgValidateArchive(incompleteJarJarMetadata, coreJar, acousticsJar, fpvPkgBasePreset, "incomplete jarjar metadata fixture")
 			}
 
 			File invalidToml = fixture(
@@ -643,7 +757,7 @@ def testNeoForgePackagingVerifier = tasks.register("testNeoForgePackagingVerifie
 					["META-INF/neoforge.mods.toml": (fpvPkgExpectedToml + "this is not valid TOML\n").getBytes(StandardCharsets.UTF_8)]
 			)
 			expectCode("TOML") {
-				fpvPkgValidateArchive(invalidToml, coreJar, fpvPkgLegacyPreset, "invalid TOML fixture")
+				fpvPkgValidateArchive(invalidToml, coreJar, acousticsJar, fpvPkgBasePreset, "invalid TOML fixture")
 			}
 
 			File invalidResourceJson = fixture(
@@ -652,7 +766,7 @@ def testNeoForgePackagingVerifier = tasks.register("testNeoForgePackagingVerifie
 					["assets/fpvdrone/sounds.json": "{\n".getBytes(StandardCharsets.UTF_8)]
 			)
 			expectCode("JSON") {
-				fpvPkgValidateArchive(invalidResourceJson, coreJar, fpvPkgLegacyPreset, "invalid ordinary JSON fixture")
+				fpvPkgValidateArchive(invalidResourceJson, coreJar, acousticsJar, fpvPkgBasePreset, "invalid ordinary JSON fixture")
 			}
 
 			File badPreset = fixture(
@@ -661,7 +775,7 @@ def testNeoForgePackagingVerifier = tasks.register("testNeoForgePackagingVerifie
 					[(fpvPkgPresetEntry): "not_a_real_preset\n".getBytes(StandardCharsets.UTF_8)]
 			)
 			expectCode("PRESET") {
-				fpvPkgValidateArchive(badPreset, coreJar, fpvPkgLegacyPreset, "bad preset fixture")
+				fpvPkgValidateArchive(badPreset, coreJar, acousticsJar, fpvPkgBasePreset, "bad preset fixture")
 			}
 
 			File tamperedCandidate = fixture(
@@ -670,8 +784,8 @@ def testNeoForgePackagingVerifier = tasks.register("testNeoForgePackagingVerifie
 					["assets/fpvdrone/sounds.json": "{}\n".getBytes(StandardCharsets.UTF_8)]
 			)
 			expectCode("VARIANT") {
-				def base = fpvPkgValidateArchive(baseJar, coreJar, fpvPkgLegacyPreset, "NeoForge production jar")
-				def tampered = fpvPkgValidateArchive(tamperedCandidate, coreJar, fpvPkgCandidatePreset, "tampered candidate fixture")
+				def base = fpvPkgValidateArchive(baseJar, coreJar, acousticsJar, fpvPkgBasePreset, "NeoForge production jar")
+				def tampered = fpvPkgValidateArchive(tamperedCandidate, coreJar, acousticsJar, fpvPkgCandidatePreset, "tampered candidate fixture")
 				fpvPkgCompareCandidate(base, tampered, "Tampered candidate fixture")
 			}
 
@@ -686,7 +800,7 @@ def testNeoForgePackagingVerifier = tasks.register("testNeoForgePackagingVerifie
 			)
 			fpvPkgPatchLastAsciiOccurrence(duplicateCentralDirectory, centralB, centralA)
 			def duplicateFailure = expectCode("DUPLICATE") {
-				fpvPkgValidateArchive(duplicateCentralDirectory, coreJar, fpvPkgLegacyPreset, "duplicate central-directory fixture")
+				fpvPkgValidateArchive(duplicateCentralDirectory, coreJar, acousticsJar, fpvPkgBasePreset, "duplicate central-directory fixture")
 			}
 			fpvPkgRequire(duplicateFailure.message.contains("central directory repeats entry"), "SELFTEST", "Duplicate fixture did not reach the central-directory uniqueness gate: ${duplicateFailure.message}")
 		} catch (Throwable failure) {

@@ -38,8 +38,8 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.nbt.CompoundTag;
+import com.tenicana.dronecraft.entity.storage.DroneSaveData;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -53,6 +53,8 @@ import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.integration.Aerodynamics4McAtmosphereBridge;
 import com.tenicana.dronecraft.integration.AerodynamicsAtmosphereCoupling;
+import com.tenicana.dronecraft.mekanism.DroneLoadout;
+import com.tenicana.dronecraft.mekanism.MekanismFlightSystem;
 import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -82,6 +84,12 @@ import com.tenicana.dronecraft.sound.DroneSoundEvents;
 import com.tenicana.dronecraft.sound.DroneSoundPhysics;
 
 public class DroneEntity extends Entity {
+	private final MekanismFlightSystem mekanismFlightSystem = new MekanismFlightSystem();
+	private static final EntityDataAccessor<Boolean> MEK_CONFIGURED = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.BOOLEAN);
+	private static final EntityDataAccessor<Boolean> MEK_QUANTUM_ACTIVE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.BOOLEAN);
+	private static final EntityDataAccessor<Float> MEK_CHARGE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> MEK_DISTANCE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> MEK_RANGE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final int COLLISION_SOUND_COOLDOWN_TICKS = 4;
 	private static final double PHYSICS_DT = 0.005;
 	private static final int PHYSICS_STEPS_PER_TICK = 10;
@@ -116,6 +124,11 @@ public class DroneEntity extends Entity {
 	private static final EntityDataAccessor<Float> ROLL = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Integer> ROTOR_COUNT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<String> ROTOR_LAYOUT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.STRING);
+	private static final EntityDataAccessor<String> AIRFRAME_PRESET = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.STRING);
+	private static final EntityDataAccessor<Float> ROTOR_RADIUS_METERS = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Integer> ROTOR_BLADE_COUNT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.INT);
+	private static final EntityDataAccessor<Integer> MOTOR_POLE_PAIRS = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.INT);
+	private static final EntityDataAccessor<Float> ACOUSTIC_APERTURE_RADIUS_METERS = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> MOTOR_POWER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> MOTOR_0_POWER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> MOTOR_1_POWER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -309,13 +322,10 @@ public class DroneEntity extends Entity {
 	private float debugLowAltitudeHorizontalAuthority = 1.0f;
 	private ActuatorOutput playableActuatorOutput = ActuatorOutput.empty();
 	private int debugModeSwitchTicksRemaining;
-	private float previousRenderPitchRadians;
-	private float currentRenderPitchRadians;
-	private float previousRenderYawRadians;
-	private float currentRenderYawRadians;
-	private float previousRenderRollRadians;
-	private float currentRenderRollRadians;
-	private boolean renderAttitudeInitialized;
+	// Use one tick of interpolation for FPV instead of the default three-tick interval.
+	private final DronePositionInterpolation clientInterpolation = new DronePositionInterpolation(this, 1);
+	private final DroneRenderAttitudeHistory clientRenderAttitude = new DroneRenderAttitudeHistory();
+	private boolean applyingClientInterpolation;
 	private float debugCommandThrottle;
 	private float debugCommandPitch;
 	private float debugCommandRoll;
@@ -336,10 +346,9 @@ public class DroneEntity extends Entity {
 	private int lastCollisionSoundContactTick = Integer.MIN_VALUE;
 	private int lastCollisionSoundEventTick = Integer.MIN_VALUE;
 	private double collisionSoundContactPeakImpact;
+	private final SimulationFlightRuntime.A4mcSharedStencilCache a4mcSharedStencil = new SimulationFlightRuntime.A4mcSharedStencilCache();
 	private DroneEnvironment lastEnvironment = DroneEnvironment.calm();
 	private DroneEnvironmentOverride environmentOverride = DroneEnvironmentOverride.natural();
-	private final SimulationFlightRuntime.A4mcSharedStencilCache a4mcSharedStencil =
-			new SimulationFlightRuntime.A4mcSharedStencilCache();
 	private final DroneBlackboxRecorder blackbox = new DroneBlackboxRecorder();
 
 	private record ObstacleAirflow(Vec3 windVelocityWorldMetersPerSecond, double obstacleProximity, double turbulenceBoost) {
@@ -421,6 +430,10 @@ public class DroneEntity extends Entity {
 		return flightModels.snapshot().positionWorldMeters();
 	}
 
+	public Quaternion activeFlightModelAttitudeForDiagnostics() {
+		return flightModels.snapshot().attitude();
+	}
+
 	public String fixedFlightModelIdForDiagnostics() {
 		return fixedFlightModelId;
 	}
@@ -489,6 +502,11 @@ public class DroneEntity extends Entity {
 
 	@Override
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
+		builder.define(MEK_CONFIGURED, false);
+		builder.define(MEK_QUANTUM_ACTIVE, false);
+		builder.define(MEK_CHARGE, 1.0f);
+		builder.define(MEK_DISTANCE, 0.0f);
+		builder.define(MEK_RANGE, 0.0f);
 		builder.define(ARMED, false);
 		builder.define(FLIGHT_MODE, DEFAULT_ENTITY_FLIGHT_MODE.id());
 		builder.define(PITCH, 0.0f);
@@ -496,6 +514,11 @@ public class DroneEntity extends Entity {
 		builder.define(ROLL, 0.0f);
 		builder.define(ROTOR_COUNT, 4);
 		builder.define(ROTOR_LAYOUT, RotorLayoutCodec.defaultLayout());
+		builder.define(AIRFRAME_PRESET, "racing_quad");
+		builder.define(ROTOR_RADIUS_METERS, 0.0635f);
+		builder.define(ROTOR_BLADE_COUNT, 3);
+		builder.define(MOTOR_POLE_PAIRS, 7);
+		builder.define(ACOUSTIC_APERTURE_RADIUS_METERS, 0.16f);
 		builder.define(MOTOR_POWER, 0.0f);
 		builder.define(MOTOR_0_POWER, 0.0f);
 		builder.define(MOTOR_1_POWER, 0.0f);
@@ -666,7 +689,13 @@ public class DroneEntity extends Entity {
 		super.tick();
 		setNoGravity(true);
 		if (level().isClientSide()) {
-			updateClientRenderAttitudeHistory();
+			applyingClientInterpolation = true;
+			try {
+				clientInterpolation.interpolate();
+			} finally {
+				applyingClientInterpolation = false;
+			}
+			clientRenderAttitude.tick();
 		}
 
 		if (!level().isClientSide()) {
@@ -681,7 +710,7 @@ public class DroneEntity extends Entity {
 			decrementRotorStrikeCooldowns();
 
 			UUID activeOwner = getOwner();
-			DroneInput rawInput = activeOwner == null ? stableIdleInput() : simulationRuntime.controlInput(activeOwner, tickCount);
+			DroneInput rawInput = activeOwner == null ? stableIdleInput() : simulationRuntime.controlInput(activeOwner, getUUID(), tickCount);
 			DroneControlManager.ActiveInput sample = DroneDebugSettings.ownerlessControlEnabled()
 					? DroneControlManager.latestActiveInput(tickCount)
 					: null;
@@ -699,6 +728,18 @@ public class DroneEntity extends Entity {
 			}
 			if (rawInput == null) {
 				rawInput = stableIdleInput();
+			}
+			MekanismFlightSystem.FlightStatus powerStatus = mekanismFlightSystem.update(level(), position(), rawInput);
+			if (mekanismFlightSystem.configured()) {
+				syncMekanismTelemetry();
+				simulationRuntime.setBatteryAmpSecondsConsumed((1.0 - powerStatus.chargeFraction())
+						* simulationRuntime.flightModelConfig().batteryCapacityAmpHours() * 3600.0);
+				if (!powerStatus.hasPower()) {
+					debugFlightActiveLastTick = false;
+				}
+				rawInput = new DroneInput(powerStatus.hasPower() ? rawInput.throttle() : 0.0,
+						rawInput.pitch(), rawInput.roll(), rawInput.yaw(),
+						rawInput.armed() && powerStatus.hasPower(), rawInput.linkActive() && powerStatus.inRange(), rawInput.flightMode());
 			}
 			DroneInput input = rawInput;
 			boolean airworthy = isAirworthy();
@@ -826,8 +867,8 @@ public class DroneEntity extends Entity {
 	}
 
 	@Override
-	public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
-		if (isRemoved() || amount <= 0.0f) {
+	public boolean hurt(DamageSource source, float amount) {
+		if (level().isClientSide() || isRemoved() || amount <= 0.0f) {
 			return false;
 		}
 		markHurt();
@@ -867,7 +908,9 @@ public class DroneEntity extends Entity {
 				stateCorrection(correctionReason, correctionReason.name(), Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
 		);
 		if (!hasCorrection(result, StateCorrectionReason.GROUND_STABILIZATION)) {
-			setYRot((float) yawDegrees(result.nextState().attitude()));
+			// A projected forward heading flips by 180 degrees during a pitch loop.
+			// Rendering needs the model's yaw together with its continuous pitch/roll.
+			setYRot(diagnosticFloat(result, "yaw_degrees", getYRot()));
 			setXRot((float) Math.toDegrees(debugVisualPitchRadians));
 		}
 	}
@@ -935,17 +978,16 @@ public class DroneEntity extends Entity {
 	private FlightStateSnapshot playableEntitySnapshot(DroneInput input) {
 		return simulationRuntime.flightStateSnapshot(
 				entityPhysicsPosition(),
-				attitudeQuaternion(getYRot(), debugVisualPitchRadians, debugVisualRollRadians),
+				PlayableAttitude.quaternion(getYRot(), debugVisualPitchRadians, debugVisualRollRadians),
 				input == null ? debugFlightMode : input.flightMode(),
 				input != null && input.armed()
 		);
 	}
 
 	private FlightStateSnapshot playableResolvedSnapshot(FlightStateSnapshot modelState, DroneInput input) {
-		double resolvedYawDegrees = yawDegrees(modelState.attitude());
 		return simulationRuntime.flightStateSnapshot(
 				entityPhysicsPosition(),
-				attitudeQuaternion(resolvedYawDegrees, debugVisualPitchRadians, debugVisualRollRadians),
+				modelState.attitude(),
 				modelState.angularVelocityBodyRadiansPerSecond(),
 				debugFlightMode,
 				input != null && input.armed()
@@ -1030,27 +1072,6 @@ public class DroneEntity extends Entity {
 		}
 	}
 
-	private static Quaternion attitudeQuaternion(double yawDegrees, double pitchRadians, double rollRadians) {
-		Quaternion yaw = axisAngle(0.0, 1.0, 0.0, Math.toRadians(yawDegrees));
-		Quaternion pitch = axisAngle(1.0, 0.0, 0.0, pitchRadians);
-		Quaternion roll = axisAngle(0.0, 0.0, 1.0, rollRadians);
-		return yaw.multiply(pitch).multiply(roll).normalized();
-	}
-
-	private static Quaternion yawQuaternion(double yawDegrees) {
-		return axisAngle(0.0, 1.0, 0.0, Math.toRadians(yawDegrees));
-	}
-
-	private static Quaternion axisAngle(double x, double y, double z, double radians) {
-		double half = radians * 0.5;
-		double sin = Math.sin(half);
-		return new Quaternion(Math.cos(half), x * sin, y * sin, z * sin).normalized();
-	}
-
-	private static double yawDegrees(Quaternion attitude) {
-		return FlightAttitudeProjection.headingYawDegrees(attitude, 0.0);
-	}
-
 	private void stepSimulationFlightModel(DroneInput input, double dtSeconds, DroneEnvironment environment) {
 		flightModels.select(SimulationFlightModelAdapter.ID);
 		flightModels.stepStateOnly(
@@ -1106,7 +1127,8 @@ public class DroneEntity extends Entity {
 			actualWorldVelocityY = worldVelocityY;
 		}
 
-		Vec3 localVelocity = yawQuaternion(yawDegrees).conjugate().rotate(new Vec3(actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ));
+		Vec3 localVelocity = LegacyPlayableFlightModelAdapter.yawLocalVelocity(
+				actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ, yawDegrees);
 		debugVelocityX = (float) localVelocity.x();
 		debugVelocityY = (float) localVelocity.y();
 		debugVelocityZ = (float) localVelocity.z();
@@ -2548,6 +2570,21 @@ public class DroneEntity extends Entity {
 	private void syncAirframeLayout() {
 		entityData.set(ROTOR_COUNT, syncedRotorCount());
 		entityData.set(ROTOR_LAYOUT, simulationRuntime.rotorLayoutCode());
+		DroneConfig config = simulationRuntime.currentConfig();
+		if (!config.rotors().isEmpty()) {
+			RotorSpec rotor = config.rotors().get(0);
+			entityData.set(ROTOR_RADIUS_METERS, (float) rotor.radiusMeters());
+			entityData.set(ROTOR_BLADE_COUNT, rotor.bladeCount());
+			entityData.set(MOTOR_POLE_PAIRS, (int) Math.round(rotor.motorPolePairs()));
+			double apertureRadius = config.rotors().stream()
+					.mapToDouble(spec -> Math.hypot(
+							spec.positionBodyMeters().x(),
+							spec.positionBodyMeters().z()
+					) + spec.radiusMeters())
+					.max()
+					.orElse(rotor.radiusMeters());
+			entityData.set(ACOUSTIC_APERTURE_RADIUS_METERS, (float) apertureRadius);
+		}
 	}
 
 	private static double valueOrZero(double[] values, int index) {
@@ -2809,31 +2846,16 @@ public class DroneEntity extends Entity {
 	}
 
 	private static boolean isWoodSurface(BlockState state) {
-		return state.is(Blocks.OAK_PLANKS)
-				|| state.is(Blocks.SPRUCE_PLANKS)
-				|| state.is(Blocks.BIRCH_PLANKS)
-				|| state.is(Blocks.JUNGLE_PLANKS)
-				|| state.is(Blocks.ACACIA_PLANKS)
-				|| state.is(Blocks.DARK_OAK_PLANKS)
-				|| state.is(Blocks.MANGROVE_PLANKS)
-				|| state.is(Blocks.CHERRY_PLANKS)
-				|| state.is(Blocks.PALE_OAK_PLANKS)
-				|| state.is(Blocks.BAMBOO_PLANKS)
-				|| state.is(Blocks.CRIMSON_PLANKS)
-				|| state.is(Blocks.WARPED_PLANKS)
-				|| state.is(Blocks.OAK_LOG)
-				|| state.is(Blocks.SPRUCE_LOG)
-				|| state.is(Blocks.BIRCH_LOG)
-				|| state.is(Blocks.JUNGLE_LOG)
-				|| state.is(Blocks.ACACIA_LOG)
-				|| state.is(Blocks.DARK_OAK_LOG)
-				|| state.is(Blocks.MANGROVE_LOG)
-				|| state.is(Blocks.CHERRY_LOG)
-				|| state.is(Blocks.PALE_OAK_LOG)
-				|| state.is(Blocks.BAMBOO_BLOCK)
-				|| state.is(Blocks.CRIMSON_STEM)
-				|| state.is(Blocks.WARPED_STEM);
-	}
+        net.minecraft.world.level.block.SoundType sound = state.getSoundType();
+        return sound == net.minecraft.world.level.block.SoundType.WOOD
+                || sound == net.minecraft.world.level.block.SoundType.BAMBOO_WOOD
+                || sound == net.minecraft.world.level.block.SoundType.CHERRY_WOOD
+                || sound == net.minecraft.world.level.block.SoundType.NETHER_WOOD
+                || sound == net.minecraft.world.level.block.SoundType.STEM
+                || state.is(net.minecraft.tags.BlockTags.PLANKS)
+                || state.is(net.minecraft.tags.BlockTags.LOGS)
+                || state.is(Blocks.BAMBOO_BLOCK);
+    }
 
 	private static boolean isMetalSurface(BlockState state) {
 		return state.is(Blocks.IRON_BLOCK)
@@ -3126,83 +3148,51 @@ public class DroneEntity extends Entity {
 	}
 
 	public float getInterpolatedRenderPitchRadians(float partialTick) {
-		ensureClientRenderAttitudeInitialized();
-		return interpolateRadians(previousRenderPitchRadians, currentRenderPitchRadians, partialTick);
+		return level().isClientSide() ? clientRenderAttitude.pitchRadians(partialTick) : getRenderPitchRadians();
 	}
 
 	public float getInterpolatedRenderYawRadians(float partialTick) {
-		ensureClientRenderAttitudeInitialized();
-		return interpolateRadians(previousRenderYawRadians, currentRenderYawRadians, partialTick);
+		return level().isClientSide() ? clientRenderAttitude.yawRadians(partialTick) : getRenderYawRadians();
 	}
 
 	public float getInterpolatedRenderRollRadians(float partialTick) {
-		ensureClientRenderAttitudeInitialized();
-		return interpolateRadians(previousRenderRollRadians, currentRenderRollRadians, partialTick);
+		return level().isClientSide() ? clientRenderAttitude.rollRadians(partialTick) : getRenderRollRadians();
 	}
 
-	private void updateClientRenderAttitudeHistory() {
-		float pitch = getRenderPitchRadians();
-		float yaw = getRenderYawRadians();
-		float roll = getRenderRollRadians();
-		if (!renderAttitudeInitialized) {
-			previousRenderPitchRadians = pitch;
-			currentRenderPitchRadians = pitch;
-			previousRenderYawRadians = yaw;
-			currentRenderYawRadians = yaw;
-			previousRenderRollRadians = roll;
-			currentRenderRollRadians = roll;
-			renderAttitudeInitialized = true;
-			return;
-		}
-		previousRenderPitchRadians = currentRenderPitchRadians;
-		currentRenderPitchRadians = pitch;
-		previousRenderYawRadians = currentRenderYawRadians;
-		currentRenderYawRadians = yaw;
-		previousRenderRollRadians = currentRenderRollRadians;
-		currentRenderRollRadians = roll;
+	@Override
+	public void lerpTo(double x, double y, double z, float yaw, float pitch, int steps) {
+		clientInterpolation.target(x, y, z, yaw, pitch);
 	}
 
-	private void ensureClientRenderAttitudeInitialized() {
-		if (!renderAttitudeInitialized) {
-			updateClientRenderAttitudeHistory();
-			return;
-		}
+	@Override
+	public void onSyncedDataUpdated(List<SynchedEntityData.DataValue<?>> values) {
+		super.onSyncedDataUpdated(values);
 		if (level().isClientSide()) {
-			syncClientRenderAttitudeTarget();
+			// assignValues has finished the whole packet, so all three angles share one target.
+			clientRenderAttitude.receive(getRenderPitchRadians(), getRenderYawRadians(), getRenderRollRadians());
 		}
 	}
 
-	private void syncClientRenderAttitudeTarget() {
-		float pitch = getRenderPitchRadians();
-		float yaw = getRenderYawRadians();
-		float roll = getRenderRollRadians();
-		if (pitch == currentRenderPitchRadians && yaw == currentRenderYawRadians && roll == currentRenderRollRadians) {
-			return;
+	@Override
+	public void setPos(double x, double y, double z) {
+		super.setPos(x, y, z);
+		if (!applyingClientInterpolation) {
+			resetClientRenderPose();
 		}
-		previousRenderPitchRadians = currentRenderPitchRadians;
-		currentRenderPitchRadians = pitch;
-		previousRenderYawRadians = currentRenderYawRadians;
-		currentRenderYawRadians = yaw;
-		previousRenderRollRadians = currentRenderRollRadians;
-		currentRenderRollRadians = roll;
 	}
 
-	private static float interpolateLinear(float start, float end, float partialTick) {
-		float t = clampPartialTick(partialTick);
-		return start + (end - start) * t;
+	@Override
+	public void moveTo(double x, double y, double z, float yaw, float pitch) {
+		super.moveTo(x, y, z, yaw, pitch);
+		resetClientRenderPose();
 	}
 
-	private static float interpolateRadians(float start, float end, float partialTick) {
-		float t = clampPartialTick(partialTick);
-		float delta = (float) Math.atan2(Math.sin(end - start), Math.cos(end - start));
-		return start + delta * t;
-	}
-
-	private static float clampPartialTick(float partialTick) {
-		if (!Float.isFinite(partialTick)) {
-			return 0.0f;
+	private void resetClientRenderPose() {
+		// Entity construction can call setPos before these fields have been initialized.
+		if (clientInterpolation != null && clientRenderAttitude != null && level().isClientSide()) {
+			clientInterpolation.cancel();
+			clientRenderAttitude.reset(getRenderPitchRadians(), getRenderYawRadians(), getRenderRollRadians());
 		}
-		return Math.max(0.0f, Math.min(1.0f, partialTick));
 	}
 
 	public float getMotorPower() {
@@ -3215,6 +3205,26 @@ public class DroneEntity extends Entity {
 
 	public String getRotorLayout() {
 		return entityData.get(ROTOR_LAYOUT);
+	}
+
+	public String getAirframePreset() {
+		return entityData.get(AIRFRAME_PRESET);
+	}
+
+	public float getRotorRadiusMeters() {
+		return entityData.get(ROTOR_RADIUS_METERS);
+	}
+
+	public int getRotorBladeCount() {
+		return entityData.get(ROTOR_BLADE_COUNT);
+	}
+
+	public int getMotorPolePairs() {
+		return entityData.get(MOTOR_POLE_PAIRS);
+	}
+
+	public float getAcousticApertureRadiusMeters() {
+		return entityData.get(ACOUSTIC_APERTURE_RADIUS_METERS);
 	}
 
 	public float getMotorPower(int index) {
@@ -3967,7 +3977,6 @@ public class DroneEntity extends Entity {
 
 	public void applyEnvironmentOverride(DroneEnvironmentOverride override) {
 		environmentOverride = override == null ? DroneEnvironmentOverride.natural() : override;
-		a4mcSharedStencil.clear();
 	}
 
 	public void applyConfig(DroneConfig config) {
@@ -3976,6 +3985,7 @@ public class DroneEntity extends Entity {
 
 	public void applyConfig(DroneConfig config, String presetName) {
 		airframePreset = normalizeAirframePreset(presetName);
+		entityData.set(AIRFRAME_PRESET, airframePreset);
 		boolean rotorCountChanged = simulationRuntime.hasDifferentRotorCount(config);
 		if (rotorCountChanged) {
 			replaceSimulationRuntime(config);
@@ -4020,26 +4030,30 @@ public class DroneEntity extends Entity {
 	}
 
 	@Override
+	public boolean isPickable() {
+		return isAlive() && !isRemoved();
+	}
+
+	@Override
 	public InteractionResult interact(Player player, InteractionHand hand) {
 		if (!player.getItemInHand(hand).is(DroneItems.droneController())) {
 			return super.interact(player, hand);
 		}
 
-		if (!level().isClientSide()) {
-			setOwner(player.getUUID());
-			if (player.isShiftKeyDown()) {
-				repair();
-				player.displayClientMessage(Component.translatable("message.fpvdrone.repaired"), true);
-			} else {
-				player.displayClientMessage(Component.translatable("message.fpvdrone.bound"), true);
+		if (!player.isShiftKeyDown()) {
+			if (!level().isClientSide()) {
+				player.displayClientMessage(Component.translatable("message.fpvdrone.binding_hint"), true);
 			}
+			return InteractionResult.SUCCESS;
 		}
-
-		return InteractionResult.SUCCESS;
+		return com.tenicana.dronecraft.item.DroneControllerItem.bindToDrone(player, hand, this)
+				? InteractionResult.SUCCESS : InteractionResult.FAIL;
 	}
 
 	@Override
-	protected void addAdditionalSaveData(ValueOutput output) {
+	protected void addAdditionalSaveData(CompoundTag tag) {
+		mekanismFlightSystem.save(tag);
+		DroneSaveData output = new DroneSaveData(tag);
 		if (owner != null) {
 			output.putString("owner", owner.toString());
 		}
@@ -4073,7 +4087,10 @@ public class DroneEntity extends Entity {
 	}
 
 	@Override
-	protected void readAdditionalSaveData(ValueInput input) {
+	protected void readAdditionalSaveData(CompoundTag tag) {
+		mekanismFlightSystem.load(tag);
+		syncMekanismTelemetry();
+		DroneSaveData input = new DroneSaveData(tag);
 		input.getString("owner").ifPresent(ownerId -> {
 			try {
 				setOwner(UUID.fromString(ownerId));
@@ -4101,7 +4118,7 @@ public class DroneEntity extends Entity {
 		updateDamageSyncedState();
 	}
 
-	private void loadBatteryTransientState(ValueInput input) {
+	private void loadBatteryTransientState(DroneSaveData input) {
 		double slowPolarization = input.getDoubleOr("battery_slow_polarization_v", Double.NaN);
 		double temperatureCelsius = input.getDoubleOr("battery_temp_c", Double.NaN);
 		double coolingFactor = input.getDoubleOr("battery_cooling_factor", Double.NaN);
@@ -4122,7 +4139,7 @@ public class DroneEntity extends Entity {
 		);
 	}
 
-	private void saveRotorDynamicState(ValueOutput output) {
+	private void saveRotorDynamicState(DroneSaveData output) {
 		SimulationFlightRuntime.RotorDynamicState dynamicState = simulationRuntime.rotorDynamicStateSnapshot();
 		double[] motorOmega = dynamicState.motorOmegaRadiansPerSecond();
 		double[] escOutput = dynamicState.escOutputCommand();
@@ -4155,7 +4172,7 @@ public class DroneEntity extends Entity {
 		output.putDouble("vrs_max_thrust_buffet_amplitude", dynamicState.vortexRingMaxThrustBuffetAmplitude());
 	}
 
-	private void loadPowertrainThermalState(ValueInput input) {
+	private void loadPowertrainThermalState(DroneSaveData input) {
 		int count = simulationRuntime.rotorCount();
 		double[] motorTemperaturesCelsius = new double[count];
 		double[] escTemperaturesCelsius = new double[count];
@@ -4189,7 +4206,7 @@ public class DroneEntity extends Entity {
 		}
 	}
 
-	private void loadRotorDynamicState(ValueInput input) {
+	private void loadRotorDynamicState(DroneSaveData input) {
 		int count = simulationRuntime.rotorCount();
 		double[] motorOmega = new double[count];
 		double[] escOutput = new double[count];
@@ -4275,7 +4292,7 @@ public class DroneEntity extends Entity {
 		}
 	}
 
-	private void saveAerodynamicTransientState(ValueOutput output) {
+	private void saveAerodynamicTransientState(DroneSaveData output) {
 		SimulationFlightRuntime.AerodynamicTransientState state = simulationRuntime.aerodynamicTransientStateSnapshot();
 		saveVec(output, "aero_mean_wind", state.meanWindVelocityWorldMetersPerSecond());
 		saveVec(output, "aero_wind_burble", state.windBurbleVelocityWorldMetersPerSecond());
@@ -4306,7 +4323,7 @@ public class DroneEntity extends Entity {
 		saveVec(output, "aero_ground_effect_leveling_torque", state.groundEffectLevelingTorqueBody());
 	}
 
-	private void loadAerodynamicTransientState(ValueInput input) {
+	private void loadAerodynamicTransientState(DroneSaveData input) {
 		boolean hasState = hasVec(input, "aero_mean_wind")
 				|| hasVec(input, "aero_wind_burble")
 				|| hasVec(input, "aero_dryden_first")
@@ -4357,14 +4374,14 @@ public class DroneEntity extends Entity {
 		));
 	}
 
-	private static void saveVec(ValueOutput output, String prefix, Vec3 value) {
+	private static void saveVec(DroneSaveData output, String prefix, Vec3 value) {
 		Vec3 safeValue = value == null || !value.isFinite() ? Vec3.ZERO : value;
 		output.putDouble(prefix + "_x", safeValue.x());
 		output.putDouble(prefix + "_y", safeValue.y());
 		output.putDouble(prefix + "_z", safeValue.z());
 	}
 
-	private static Vec3 loadVec(ValueInput input, String prefix, Vec3 fallback) {
+	private static Vec3 loadVec(DroneSaveData input, String prefix, Vec3 fallback) {
 		Vec3 safeFallback = fallback == null ? Vec3.ZERO : fallback;
 		double x = input.getDoubleOr(prefix + "_x", safeFallback.x());
 		double y = input.getDoubleOr(prefix + "_y", safeFallback.y());
@@ -4373,13 +4390,13 @@ public class DroneEntity extends Entity {
 		return value.isFinite() ? value : safeFallback;
 	}
 
-	private static boolean hasVec(ValueInput input, String prefix) {
+	private static boolean hasVec(DroneSaveData input, String prefix) {
 		return Double.isFinite(input.getDoubleOr(prefix + "_x", Double.NaN))
 				|| Double.isFinite(input.getDoubleOr(prefix + "_y", Double.NaN))
 				|| Double.isFinite(input.getDoubleOr(prefix + "_z", Double.NaN));
 	}
 
-	private static long loadLong(ValueInput input, String key, long fallback) {
+	private static long loadLong(DroneSaveData input, String key, long fallback) {
 		return input.getString(key).map(value -> {
 			try {
 				return Long.parseLong(value);
@@ -4389,11 +4406,11 @@ public class DroneEntity extends Entity {
 		}).orElse(fallback);
 	}
 
-	private static boolean loadBoolean(ValueInput input, String key, boolean fallback) {
+	private static boolean loadBoolean(DroneSaveData input, String key, boolean fallback) {
 		return input.getString(key).map(Boolean::parseBoolean).orElse(fallback);
 	}
 
-	private void saveEnvironmentOverride(ValueOutput output) {
+	private void saveEnvironmentOverride(DroneSaveData output) {
 		output.putString("env_wind_enabled", Boolean.toString(environmentOverride.windEnabled()));
 		output.putDouble("env_wind_x", environmentOverride.windVelocityWorldMetersPerSecond().x());
 		output.putDouble("env_wind_y", environmentOverride.windVelocityWorldMetersPerSecond().y());
@@ -4404,7 +4421,7 @@ public class DroneEntity extends Entity {
 		output.putDouble("env_density", environmentOverride.airDensityRatio());
 	}
 
-	private void loadEnvironmentOverride(ValueInput input) {
+	private void loadEnvironmentOverride(DroneSaveData input) {
 		boolean windEnabled = input.getString("env_wind_enabled").map(Boolean::parseBoolean).orElse(false);
 		boolean turbulenceEnabled = input.getString("env_turbulence_enabled").map(Boolean::parseBoolean).orElse(false);
 		boolean densityEnabled = input.getString("env_density_enabled").map(Boolean::parseBoolean).orElse(false);
@@ -4420,10 +4437,9 @@ public class DroneEntity extends Entity {
 				densityEnabled,
 				input.getDoubleOr("env_density", 1.0)
 		);
-		a4mcSharedStencil.clear();
 	}
 
-	private void saveConfig(ValueOutput output) {
+	private void saveConfig(DroneSaveData output) {
 		DroneConfig config = simulationRuntime.currentConfig();
 		RotorSpec rotor = config.rotors().get(0);
 		output.putString("airframe_preset", airframePreset);
@@ -4519,7 +4535,7 @@ public class DroneEntity extends Entity {
 		saveGains(output, "roll", config.rollGains());
 	}
 
-	private static void saveGains(ValueOutput output, String axis, PidGains gains) {
+	private static void saveGains(DroneSaveData output, String axis, PidGains gains) {
 		output.putDouble("tune_" + axis + "_p", gains.p());
 		output.putDouble("tune_" + axis + "_i", gains.i());
 		output.putDouble("tune_" + axis + "_d", gains.d());
@@ -4531,7 +4547,7 @@ public class DroneEntity extends Entity {
 		output.putDouble("tune_" + axis + "_tpa_strength", gains.tpaStrength());
 	}
 
-	private void loadConfig(ValueInput input) {
+	private void loadConfig(DroneSaveData input) {
 		String preset = normalizeAirframePreset(input.getString("airframe_preset").orElse("racing_quad"));
 		DroneConfig defaults = configForPreset(preset);
 		RotorSpec defaultRotor = defaults.rotors().get(0);
@@ -4676,7 +4692,28 @@ public class DroneEntity extends Entity {
 		applyConfig(config, preset);
 	}
 
-	private static PidGains loadGains(ValueInput input, String axis, PidGains defaults) {
+	public void configureMekanismLoadout(DroneLoadout loadout) {
+		if (!level().isClientSide() && !mekanismFlightSystem.configured()) {
+			mekanismFlightSystem.configure(loadout, level(), position());
+			syncMekanismTelemetry();
+		}
+	}
+
+	private void syncMekanismTelemetry() {
+		entityData.set(MEK_CONFIGURED, mekanismFlightSystem.configured());
+		entityData.set(MEK_QUANTUM_ACTIVE, mekanismFlightSystem.quantumActive());
+		entityData.set(MEK_CHARGE, (float) mekanismFlightSystem.chargeFraction());
+		entityData.set(MEK_DISTANCE, (float) mekanismFlightSystem.distanceFromLaunchMeters());
+		entityData.set(MEK_RANGE, mekanismFlightSystem.configured() ? (float) mekanismFlightSystem.maxRangeMeters() : 0.0f);
+	}
+
+	public boolean hasMekanismLoadout() { return entityData.get(MEK_CONFIGURED); }
+	public boolean isMekanismQuantumActive() { return entityData.get(MEK_QUANTUM_ACTIVE); }
+	public float getMekanismChargeFraction() { return entityData.get(MEK_CHARGE); }
+	public float getMekanismDistanceFromLaunchMeters() { return entityData.get(MEK_DISTANCE); }
+	public float getMekanismMaxRangeMeters() { return entityData.get(MEK_RANGE); }
+
+	private static PidGains loadGains(DroneSaveData input, String axis, PidGains defaults) {
 		return new PidGains(
 				input.getDoubleOr("tune_" + axis + "_p", defaults.p()),
 				input.getDoubleOr("tune_" + axis + "_i", defaults.i()),

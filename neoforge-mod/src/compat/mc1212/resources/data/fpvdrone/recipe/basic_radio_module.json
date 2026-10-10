@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " A ",
+    "CRC",
+    " A "
+  ],
+  "key": {
+    "A": "mekanism:alloy_infused",
+    "C": "mekanism:basic_control_circuit",
+    "R": "minecraft:redstone"
+  },
+  "result": {
+    "id": "fpvdrone:basic_radio_module",
+    "count": 1
+  },
+  "neoforge:conditions": [
+    {
+      "modid": "mekanism",
+      "type": "neoforge:mod_loaded"
+    }
+  ]
+}

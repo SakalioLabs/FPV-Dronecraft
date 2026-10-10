@@ -1,0 +1,48 @@
+{
+	"required": true,
+	"package": "com.tenicana.dronecraft.client.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"mixinextras": {
+		"minVersion": "0.5.4"
+	},
+	"client": [
+		"ChannelDistanceOwnershipMixin",
+		"ChannelCallbackBufferMixin",
+		"ChannelDroneStreamingBufferMixin",
+		"ChannelHandleChannelAccessor",
+		"ChannelSourceAccessor",
+		"ChannelStreamingBufferAccessor",
+		"ChannelStreamingQueueMixin",
+		"CameraMixin",
+		"RemoteClientChunkCacheMixin",
+		"RemoteLocalPlayerBodyMixin",
+		"RemotePilotBodyRenderMixin",
+		"RemoteControlledDroneTickMixin",
+		"ClientLevelAcousticDirtyMixin",
+		"GameRendererMixin",
+		"LibraryStreamingBudgetMixin",
+		"ListenerCallbackControlMixin",
+		"MinecraftAttackSanitizerMixin",
+		"MinecraftCameraStateAccessor",
+		"RuntimePerformanceMinecraftMixin",
+		"RuntimePerformanceGameRendererMixin",
+		"RuntimePerformanceRenderSystemMixin",
+		"RuntimePerformanceWindowMixin",
+		"RuntimeIntegratedServerTimingMixin",
+		"RuntimeMinecraftServerSaveTimingMixin",
+		"RuntimeDroneTimingMixin",
+		"RuntimeDronePoseDeliveryMixin",
+		"SoundEngineExecutorAccessor",
+		"SoundEngineChannelsAccessor",
+		"SoundEngineControlInvoker",
+		"SoundEngineCallbackControlMixin",
+		"SoundEngineReloadMixin",
+		"SoundManagerEngineAccessor",
+		"FramerateLimitTrackerAccessor",
+		"MinecraftFramerateLimitTrackerAccessor",
+		"CuboidItemModelAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

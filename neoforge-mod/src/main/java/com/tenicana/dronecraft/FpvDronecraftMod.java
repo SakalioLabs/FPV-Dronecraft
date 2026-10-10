@@ -11,6 +11,8 @@ import com.tenicana.dronecraft.diagnostic.DroneServerSelfTest;
 import com.tenicana.dronecraft.network.DroneNetworking;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 import com.tenicana.dronecraft.registry.DroneItems;
+import com.tenicana.dronecraft.registry.DroneDataComponents;
+import com.tenicana.dronecraft.registry.DroneRecipeSerializers;
 import com.tenicana.dronecraft.sound.DroneSoundEvents;
 
 @Mod(FpvDronecraftMod.MOD_ID)
@@ -20,6 +22,8 @@ public final class FpvDronecraftMod {
 
 	public FpvDronecraftMod(IEventBus modEventBus) {
 		DroneEntityTypes.register(modEventBus);
+		DroneDataComponents.register(modEventBus);
+		DroneRecipeSerializers.register(modEventBus);
 		DroneItems.register(modEventBus);
 		DroneSoundEvents.register(modEventBus);
 		modEventBus.addListener(DroneNetworking::registerPayloadHandlers);

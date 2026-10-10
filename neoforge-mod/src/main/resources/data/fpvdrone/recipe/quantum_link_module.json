@@ -1,0 +1,33 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "ATA",
+    "TQT",
+    "APA"
+  ],
+  "key": {
+    "A": {
+      "item": "mekanism:alloy_atomic"
+    },
+    "T": {
+      "item": "mekanism:teleportation_core"
+    },
+    "Q": {
+      "item": "mekanism:quantum_entangloporter"
+    },
+    "P": {
+      "item": "mekanism:pellet_antimatter"
+    }
+  },
+  "result": {
+    "id": "fpvdrone:quantum_link_module",
+    "count": 1
+  },
+  "neoforge:conditions": [
+    {
+      "modid": "mekanism",
+      "type": "neoforge:mod_loaded"
+    }
+  ]
+}

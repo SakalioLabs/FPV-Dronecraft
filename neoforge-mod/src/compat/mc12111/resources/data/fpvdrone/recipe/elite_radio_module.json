@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [
+    "fpvdrone:advanced_radio_module",
+    "mekanism:elite_control_circuit",
+    "mekanism:alloy_atomic",
+    "mekanism:teleportation_core"
+  ],
+  "result": {
+    "id": "fpvdrone:elite_radio_module",
+    "count": 1
+  },
+  "neoforge:conditions": [
+    {
+      "modid": "mekanism",
+      "type": "neoforge:mod_loaded"
+    }
+  ]
+}

@@ -48,25 +48,25 @@ class DroneEntityModelTest {
 				"DroneModelLayers must expose a narrow NeoForge layer-definition registration boundary"
 		);
 
-		String layersHandler = eventHandler(clientSource, "public static void onRegisterLayerDefinitions");
+		String layersHandler = eventHandler(clientSource, "public static void layers(EntityRenderersEvent.RegisterLayerDefinitions event)");
 		assertTrue(layersHandler.contains("EntityRenderersEvent.RegisterLayerDefinitions event"));
 		assertTrue(layersHandler.contains("DroneModelLayers.registerLayerDefinitions(event);"));
 
-		String renderersHandler = eventHandler(clientSource, "public static void onRegisterRenderers");
+		String renderersHandler = eventHandler(clientSource, "public static void renderers(EntityRenderersEvent.RegisterRenderers event)");
 		assertTrue(renderersHandler.contains("EntityRenderersEvent.RegisterRenderers event"));
 		assertTrue(
-				renderersHandler.contains("event.registerEntityRenderer(DroneEntityTypes.drone(), DroneEntityRenderer::new);"),
+				renderersHandler.replaceAll("\\s+", "").contains("event.registerEntityRenderer(DroneEntityTypes.drone(),DroneEntityRenderer::new);"),
 				"the NeoForge renderer event must bind the drone type to its renderer"
 		);
 
 		assertTrue(soundSource.contains("public static void onClientTick(Minecraft client)"));
 		assertTrue(soundSource.contains("public static void onClientStopping(Minecraft client)"));
-		String tickHandler = eventHandler(clientSource, "public static void onClientTick");
+		String tickHandler = eventHandler(clientSource, "public static void tick(ClientTickEvent.Post event)");
 		assertTrue(tickHandler.contains("DroneClientControls.onClientTick(client);"));
 		assertTrue(tickHandler.contains("DroneSoundManager.onClientTick(client);"));
-		String stoppingHandler = eventHandler(clientSource, "public static void onClientStopping");
-		assertTrue(stoppingHandler.contains("DroneClientControls.onClientStopping(event.getClient());"));
-		assertTrue(stoppingHandler.contains("DroneSoundManager.onClientStopping(event.getClient());"));
+		String stoppingHandler = eventHandler(clientSource, "public static void stop(GameShuttingDownEvent event)");
+		assertTrue(stoppingHandler.contains("DroneClientControls.onClientStopping(Minecraft.getInstance());"));
+		assertTrue(stoppingHandler.contains("DroneSoundManager.onClientStopping(Minecraft.getInstance());"));
 	}
 
 	private static String eventHandler(String source, String methodSignature) {

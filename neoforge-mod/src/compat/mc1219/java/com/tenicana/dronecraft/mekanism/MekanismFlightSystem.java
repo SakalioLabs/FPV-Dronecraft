@@ -1,0 +1,293 @@
+package com.tenicana.dronecraft.mekanism;
+
+import com.tenicana.dronecraft.sim.DroneInput;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.transfer.energy.EnergyHandler;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+
+/** Optional loadout state. Only the entity's server tick may update its energy. */
+public final class MekanismFlightSystem {
+	public static final int QUANTUM_SEARCH_RADIUS_BLOCKS = 8;
+	public static final int IDLE_DRAIN_FE_PER_TICK = 200;
+	public static final int THROTTLE_DRAIN_FE_PER_TICK = 800;
+	private static final String QUANTUM_ENTANGLOPORTER_ID = "mekanism:quantum_entangloporter";
+
+	private boolean configured;
+	private DroneLoadout loadout = DroneLoadout.BASIC;
+	private long storedEnergyFe;
+	private Vec3 launchPosition = Vec3.ZERO;
+	private String launchDimension = "";
+	private BlockPos quantumSource;
+	private boolean quantumActive;
+	private double distanceFromLaunchMeters;
+
+	/** Call once when placing a drone item with a loadout component, never when binding a controller. */
+	public void configure(DroneLoadout newLoadout, Level level, Vec3 position) {
+		DroneLoadout selected = newLoadout == null ? DroneLoadout.BASIC : newLoadout;
+		configure(selected, level.dimension().location().toString(), position,
+				selected.quantumLink() ? findQuantumSource(level, BlockPos.containing(position)) : null);
+	}
+
+	void configure(DroneLoadout newLoadout, String dimension, Vec3 position, BlockPos source) {
+		configured = true;
+		loadout = newLoadout == null ? DroneLoadout.BASIC : newLoadout;
+		storedEnergyFe = loadout.powerTier().capacityFe();
+		launchPosition = position;
+		launchDimension = dimension;
+		quantumSource = loadout.quantumLink() && source != null ? source.immutable() : null;
+		quantumActive = false;
+		distanceFromLaunchMeters = 0.0;
+	}
+
+	/** Call once per server tick after retrieving control input and before running flight physics. */
+	public FlightStatus update(Level level, Vec3 position, DroneInput input) {
+		if (!configured) {
+			return FlightStatus.unrestricted();
+		}
+		if (level.isClientSide()) {
+			return status(storedEnergyFe > 0L, quantumActive
+					|| distanceFromLaunchMeters <= loadout.radioTier().rangeMeters());
+		}
+		int requestedEnergy = energyUsePerTick(input);
+		return updateFromSupply(level.dimension().location().toString(), position, input,
+				drawQuantumEnergy(level, requestedEnergy));
+	}
+
+	FlightStatus updateFromSupply(String dimension, Vec3 position, DroneInput input, QuantumSupply supply) {
+		if (!configured) {
+			return FlightStatus.unrestricted();
+		}
+		distanceFromLaunchMeters = Math.hypot(position.x - launchPosition.x, position.z - launchPosition.z);
+		boolean sameDimension = launchDimension.equals(dimension);
+		int requestedEnergy = energyUsePerTick(input);
+		boolean usableSource = sameDimension && loadout.quantumLink();
+		int suppliedEnergy = usableSource ? Math.max(0, Math.min(requestedEnergy, supply.extractedFe())) : 0;
+		quantumActive = usableSource && supply.active()
+				&& (requestedEnergy == 0 || suppliedEnergy == requestedEnergy);
+		int batteryDemand = requestedEnergy - suppliedEnergy;
+		boolean hasPower = quantumActive || (batteryDemand == 0 ? storedEnergyFe > 0L : storedEnergyFe >= batteryDemand);
+		storedEnergyFe = Math.max(0L, storedEnergyFe - batteryDemand);
+		boolean inRange = sameDimension && (quantumActive || distanceFromLaunchMeters <= loadout.radioTier().rangeMeters());
+		return status(hasPower, inRange);
+	}
+
+	private FlightStatus status(boolean hasPower, boolean inRange) {
+		return new FlightStatus(hasPower, inRange, quantumActive, chargeFraction(),
+				distanceFromLaunchMeters, loadout.radioTier().rangeMeters());
+	}
+
+	public boolean configured() {
+		return configured;
+	}
+
+	public DroneLoadout loadout() {
+		return loadout;
+	}
+
+	public long storedEnergyFe() {
+		return storedEnergyFe;
+	}
+
+	public float chargeFraction() {
+		return configured ? (float) Math.max(0.0, Math.min(1.0,
+				storedEnergyFe / (double) loadout.powerTier().capacityFe())) : 1.0f;
+	}
+
+	public boolean quantumActive() {
+		return configured && quantumActive;
+	}
+
+	public double distanceFromLaunchMeters() {
+		return distanceFromLaunchMeters;
+	}
+
+	public double maxRangeMeters() {
+		return configured ? loadout.radioTier().rangeMeters() : Double.POSITIVE_INFINITY;
+	}
+
+	public BlockPos quantumSource() {
+		return quantumSource;
+	}
+
+	public void save(CompoundTag output) {
+		output.putBoolean("mek_configured", configured);
+		if (!configured) {
+			return;
+		}
+		output.putString("mek_power_tier", loadout.powerTier().getSerializedName());
+		output.putString("mek_radio_tier", loadout.radioTier().getSerializedName());
+		output.putBoolean("mek_quantum_link", loadout.quantumLink());
+		output.putLong("mek_energy_fe", storedEnergyFe);
+		output.putDouble("mek_launch_x", launchPosition.x);
+		output.putDouble("mek_launch_y", launchPosition.y);
+		output.putDouble("mek_launch_z", launchPosition.z);
+		output.putString("mek_launch_dimension", launchDimension);
+		if (quantumSource != null) {
+			output.putLong("mek_quantum_source", quantumSource.asLong());
+		} else {
+			output.remove("mek_quantum_source");
+		}
+	}
+
+	/** Entity persistence uses the same flat keys as the CompoundTag representation. */
+	public void save(ValueOutput output) {
+		output.putBoolean("mek_configured", configured);
+		if (!configured) {
+			return;
+		}
+		output.putString("mek_power_tier", loadout.powerTier().getSerializedName());
+		output.putString("mek_radio_tier", loadout.radioTier().getSerializedName());
+		output.putBoolean("mek_quantum_link", loadout.quantumLink());
+		output.putLong("mek_energy_fe", storedEnergyFe);
+		output.putDouble("mek_launch_x", launchPosition.x);
+		output.putDouble("mek_launch_y", launchPosition.y);
+		output.putDouble("mek_launch_z", launchPosition.z);
+		output.putString("mek_launch_dimension", launchDimension);
+		if (quantumSource != null) {
+			output.putLong("mek_quantum_source", quantumSource.asLong());
+		} else {
+			output.discard("mek_quantum_source");
+		}
+	}
+
+	/** Loading never refills the battery or searches for a replacement quantum source. */
+	public void load(CompoundTag input) {
+		configured = input.getBooleanOr("mek_configured", false);
+		loadout = DroneLoadout.BASIC;
+		storedEnergyFe = 0L;
+		launchPosition = Vec3.ZERO;
+		launchDimension = "";
+		quantumSource = null;
+		quantumActive = false;
+		distanceFromLaunchMeters = 0.0;
+		if (!configured) {
+			return;
+		}
+		loadout = new DroneLoadout(DronePowerTier.byName(input.getStringOr("mek_power_tier", "")),
+				DroneRadioTier.byName(input.getStringOr("mek_radio_tier", "")), input.getBooleanOr("mek_quantum_link", false));
+		storedEnergyFe = Math.max(0L, Math.min(loadout.powerTier().capacityFe(), input.getLongOr("mek_energy_fe", 0L)));
+		launchPosition = new Vec3(finiteOrZero(input.getDoubleOr("mek_launch_x", 0.0)),
+				finiteOrZero(input.getDoubleOr("mek_launch_y", 0.0)), finiteOrZero(input.getDoubleOr("mek_launch_z", 0.0)));
+		launchDimension = input.getStringOr("mek_launch_dimension", "");
+		if (loadout.quantumLink() && input.contains("mek_quantum_source")) {
+			quantumSource = BlockPos.of(input.getLongOr("mek_quantum_source", 0L));
+		}
+	}
+
+	/** Loading never refills the battery or rebinds a quantum source. */
+	public void load(ValueInput input) {
+		configured = input.getBooleanOr("mek_configured", false);
+		loadout = DroneLoadout.BASIC;
+		storedEnergyFe = 0L;
+		launchPosition = Vec3.ZERO;
+		launchDimension = "";
+		quantumSource = null;
+		quantumActive = false;
+		distanceFromLaunchMeters = 0.0;
+		if (!configured) {
+			return;
+		}
+		loadout = new DroneLoadout(DronePowerTier.byName(input.getStringOr("mek_power_tier", "")),
+				DroneRadioTier.byName(input.getStringOr("mek_radio_tier", "")), input.getBooleanOr("mek_quantum_link", false));
+		storedEnergyFe = Math.max(0L, Math.min(loadout.powerTier().capacityFe(), input.getLongOr("mek_energy_fe", 0L)));
+		launchPosition = new Vec3(finiteOrZero(input.getDoubleOr("mek_launch_x", 0.0)),
+				finiteOrZero(input.getDoubleOr("mek_launch_y", 0.0)), finiteOrZero(input.getDoubleOr("mek_launch_z", 0.0)));
+		launchDimension = input.getStringOr("mek_launch_dimension", "");
+		if (loadout.quantumLink()) {
+			input.getLong("mek_quantum_source").ifPresent(source -> quantumSource = BlockPos.of(source));
+		}
+	}
+
+	static int energyUsePerTick(DroneInput input) {
+		if (input == null || !input.armed()) {
+			return 0;
+		}
+		double throttle = Double.isFinite(input.throttle()) ? Math.max(0.0, Math.min(1.0, input.throttle())) : 0.0;
+		return IDLE_DRAIN_FE_PER_TICK + (int) Math.round(THROTTLE_DRAIN_FE_PER_TICK * throttle);
+	}
+
+	private QuantumSupply drawQuantumEnergy(Level level, int requestedEnergy) {
+		if (!loadout.quantumLink() || quantumSource == null
+				|| !launchDimension.equals(level.dimension().location().toString())
+				|| !level.isLoaded(quantumSource) || !isQuantumEntangloporter(level, quantumSource)) {
+			return QuantumSupply.NONE;
+		}
+		// Sided queries honor the Entangloporter's energy-output configuration.
+		for (Direction side : Direction.values()) {
+			EnergyHandler storage = level.getCapability(Capabilities.Energy.BLOCK, quantumSource, side);
+			QuantumSupply supply = drawFromStorage(storage, requestedEnergy);
+			if (supply.active() || supply.extractedFe() > 0) {
+				return supply;
+			}
+		}
+		return QuantumSupply.NONE;
+	}
+
+	static QuantumSupply drawFromStorage(EnergyHandler storage, int requestedEnergy) {
+		if (storage == null) {
+			return QuantumSupply.NONE;
+		}
+		int demand = Math.max(1, requestedEnergy);
+		try (Transaction transaction = Transaction.open(null)) {
+			int extracted = Math.max(0, Math.min(demand, storage.extract(demand, transaction)));
+			if (extracted < demand) {
+				// The public transaction rolls back a partial draw; the battery covers this tick.
+				return QuantumSupply.NONE;
+			}
+			if (requestedEnergy <= 0) {
+				// Probe an output-capable source while disarmed without consuming energy.
+				return new QuantumSupply(0, true);
+			}
+			transaction.commit();
+			return new QuantumSupply(extracted, true);
+		}
+	}
+
+	private static BlockPos findQuantumSource(Level level, BlockPos center) {
+		BlockPos best = null;
+		double bestDistance = Double.POSITIVE_INFINITY;
+		int radius = QUANTUM_SEARCH_RADIUS_BLOCKS;
+		for (int y = -radius; y <= radius; y++) {
+			for (int x = -radius; x <= radius; x++) {
+				for (int z = -radius; z <= radius; z++) {
+					BlockPos candidate = center.offset(x, y, z);
+					double distance = candidate.distSqr(center);
+					if (distance <= radius * radius && distance < bestDistance
+							&& level.isLoaded(candidate) && isQuantumEntangloporter(level, candidate)) {
+						best = candidate.immutable();
+						bestDistance = distance;
+					}
+				}
+			}
+		}
+		return best;
+	}
+
+	private static boolean isQuantumEntangloporter(Level level, BlockPos pos) {
+		return QUANTUM_ENTANGLOPORTER_ID.equals(BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock()).toString());
+	}
+
+	private static double finiteOrZero(double value) {
+		return Double.isFinite(value) ? value : 0.0;
+	}
+
+	record QuantumSupply(int extractedFe, boolean active) {
+		static final QuantumSupply NONE = new QuantumSupply(0, false);
+	}
+
+	public record FlightStatus(boolean hasPower, boolean inRange, boolean quantumActive, float chargeFraction,
+			double distanceFromLaunchMeters, double maxRangeMeters) {
+		private static FlightStatus unrestricted() {
+			return new FlightStatus(true, true, false, 1.0f, 0.0, Double.POSITIVE_INFINITY);
+		}
+	}
+}

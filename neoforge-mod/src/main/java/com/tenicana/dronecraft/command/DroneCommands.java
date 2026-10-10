@@ -6,14 +6,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.function.Predicate;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
@@ -25,11 +25,8 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.entity.EntityTypeTest;
-import net.minecraft.world.phys.AABB;
 
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSummary;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder.RecordingSource;
@@ -39,6 +36,7 @@ import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.entity.PlayableFlightPreset;
+import com.tenicana.dronecraft.network.DroneNetworking;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
@@ -51,7 +49,7 @@ public final class DroneCommands {
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 	private static final double SPAWN_FORWARD_METERS = 1.65;
 	private static final double SPAWN_GROUND_OFFSET_METERS = 0.04;
-	private static final Predicate<CommandSourceStack> GAMEMASTER_ONLY = Commands.hasPermission(Commands.LEVEL_GAMEMASTERS);
+	private static final Predicate<CommandSourceStack> GAMEMASTER_ONLY = DroneCommandPermissions.gamemasterOnly();
 	private static final Map<UUID, FpvDiagSession> FPVDIAG_SESSIONS = new ConcurrentHashMap<>();
 
 	private record FpvDiagSession(int startTick, LocalDateTime startedAt, String commitSha) {
@@ -82,26 +80,22 @@ public final class DroneCommands {
 				.then(Commands.literal("status").executes(context -> flightStatus(context.getSource())))
 				.then(Commands.literal("repair").executes(context -> repair(context.getSource())))
 				.then(Commands.literal("debug")
-						.then(Commands.literal("trace")
-								.requires(GAMEMASTER_ONLY)
+						.then(Commands.literal("trace").requires(GAMEMASTER_ONLY)
 								.then(Commands.argument("enabled", BoolArgumentType.bool())
 										.executes(context -> setDebugTrace(context.getSource(), BoolArgumentType.getBool(context, "enabled")))
 								)
 						)
-						.then(Commands.literal("ticklog")
-								.requires(GAMEMASTER_ONLY)
+						.then(Commands.literal("ticklog").requires(GAMEMASTER_ONLY)
 								.then(Commands.argument("enabled", BoolArgumentType.bool())
 										.executes(context -> setDebugTickLog(context.getSource(), BoolArgumentType.getBool(context, "enabled")))
 								)
 						)
-						.then(Commands.literal("physics")
-								.requires(GAMEMASTER_ONLY)
+						.then(Commands.literal("physics").requires(GAMEMASTER_ONLY)
 								.then(Commands.argument("enabled", BoolArgumentType.bool())
 										.executes(context -> setDebugPhysics(context.getSource(), BoolArgumentType.getBool(context, "enabled")))
 								)
 						)
-						.then(Commands.literal("mode")
-								.requires(GAMEMASTER_ONLY)
+						.then(Commands.literal("mode").requires(GAMEMASTER_ONLY)
 								.then(Commands.literal("playable")
 										.executes(context -> setDebugFlightModel(context.getSource(), FlightModelMode.PLAYABLE)))
 								.then(Commands.literal("direct")
@@ -111,8 +105,7 @@ public final class DroneCommands {
 								.then(Commands.literal("simulation")
 										.executes(context -> setDebugFlightModel(context.getSource(), FlightModelMode.SIMULATION)))
 						)
-						.then(Commands.literal("playablepreset")
-								.requires(GAMEMASTER_ONLY)
+						.then(Commands.literal("playablepreset").requires(GAMEMASTER_ONLY)
 								.then(Commands.literal("legacy_heavy_racing_quad")
 										.executes(context -> setPlayablePreset(context.getSource(), PlayableFlightPreset.LEGACY_HEAVY_RACING_QUAD)))
 								.then(Commands.literal("5inch_agile_candidate")
@@ -120,8 +113,7 @@ public final class DroneCommands {
 						)
 						.then(Commands.literal("status").executes(context -> debugStatus(context.getSource())))
 				)
-				.then(Commands.literal("fault")
-						.requires(GAMEMASTER_ONLY)
+				.then(Commands.literal("fault").requires(GAMEMASTER_ONLY)
 						.then(Commands.literal("rotor")
 								.then(Commands.argument("index", IntegerArgumentType.integer(0, 7))
 										.then(Commands.argument("damage", DoubleArgumentType.doubleArg(0.0, 1.0))
@@ -176,11 +168,8 @@ public final class DroneCommands {
 						.then(preset("coaxial_x8", DroneConfig::coaxialX8)))
 				.then(Commands.literal("environment")
 						.then(Commands.literal("status").executes(context -> environmentStatus(context.getSource())))
-						.then(Commands.literal("clear")
-								.requires(GAMEMASTER_ONLY)
-								.executes(context -> environmentClear(context.getSource())))
-						.then(Commands.literal("wind")
-								.requires(GAMEMASTER_ONLY)
+						.then(Commands.literal("clear").requires(GAMEMASTER_ONLY).executes(context -> environmentClear(context.getSource())))
+						.then(Commands.literal("wind").requires(GAMEMASTER_ONLY)
 								.then(Commands.literal("clear").executes(context -> environmentWindClear(context.getSource())))
 								.then(Commands.argument("x", DoubleArgumentType.doubleArg(-40.0, 40.0))
 										.then(Commands.argument("y", DoubleArgumentType.doubleArg(-20.0, 20.0))
@@ -191,16 +180,14 @@ public final class DroneCommands {
 																DoubleArgumentType.getDouble(context, "y"),
 																DoubleArgumentType.getDouble(context, "z")
 														))))))
-						.then(Commands.literal("turbulence")
-								.requires(GAMEMASTER_ONLY)
+						.then(Commands.literal("turbulence").requires(GAMEMASTER_ONLY)
 								.then(Commands.literal("clear").executes(context -> environmentTurbulenceClear(context.getSource())))
 								.then(Commands.argument("intensity", DoubleArgumentType.doubleArg(0.0, 1.5))
 										.executes(context -> environmentTurbulence(
 												context.getSource(),
 												DoubleArgumentType.getDouble(context, "intensity")
 										))))
-						.then(Commands.literal("density")
-								.requires(GAMEMASTER_ONLY)
+						.then(Commands.literal("density").requires(GAMEMASTER_ONLY)
 								.then(Commands.literal("clear").executes(context -> environmentDensityClear(context.getSource())))
 								.then(Commands.argument("ratio", DoubleArgumentType.doubleArg(0.35, 1.35))
 										.executes(context -> environmentDensity(
@@ -209,11 +196,8 @@ public final class DroneCommands {
 										)))))
 				.then(Commands.literal("tune")
 						.then(Commands.literal("status").executes(context -> tuneStatus(context.getSource())))
-						.then(Commands.literal("reset")
-								.requires(GAMEMASTER_ONLY)
-								.executes(context -> tuneReset(context.getSource())))
-						.then(Commands.literal("set")
-								.requires(GAMEMASTER_ONLY)
+						.then(Commands.literal("reset").requires(GAMEMASTER_ONLY).executes(context -> tuneReset(context.getSource())))
+						.then(Commands.literal("set").requires(GAMEMASTER_ONLY)
 								.then(tuneParameter("pitch_p", (config, value) -> config.withPitchGains(withP(config.pitchGains(), value))))
 								.then(tuneParameter("pitch_i", (config, value) -> config.withPitchGains(withI(config.pitchGains(), value))))
 								.then(tuneParameter("pitch_d", (config, value) -> config.withPitchGains(withD(config.pitchGains(), value))))
@@ -422,7 +406,7 @@ public final class DroneCommands {
 	private static int flightStatus(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
 		DroneEntity drone = findOwnedDrone(source);
 		if (drone == null) {
-			source.sendFailure(Component.literal("No linked drone found nearby. Use /fpvdrone spawn or right-click a drone with a controller."));
+			source.sendFailure(Component.literal("No linked drone found. Place a drone item, then Shift + right-click it with a controller."));
 			return 0;
 		}
 
@@ -804,7 +788,7 @@ public final class DroneCommands {
 		}
 
 		ServerPlayer player = source.getPlayerOrException();
-		int durationTicks = DroneControlManager.startDiagnostic(player.getUUID(), drone.tickCount, seconds * 20, autoSaveBlackbox);
+		int durationTicks = DroneControlManager.startDiagnostic(player.getUUID(), drone.getUUID(), drone.tickCount, seconds * 20, autoSaveBlackbox, com.tenicana.dronecraft.sim.FlightMode.DEFAULT_FIRST_FLIGHT);
 		drone.blackbox().startRecording(RecordingSource.SCRIPTED_DIAGNOSTIC, true);
 		source.sendSuccess(
 				() -> Component.literal(String.format(
@@ -1065,20 +1049,7 @@ public final class DroneCommands {
 
 	private static DroneEntity findOwnedDrone(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
 		ServerPlayer player = source.getPlayerOrException();
-		AABB search = player.getBoundingBox().inflate(512.0);
-		List<DroneEntity> drones = player.level().getEntities(
-				EntityTypeTest.forClass(DroneEntity.class),
-				search,
-				drone -> drone.isAlive() && drone.isOwnedBy(player.getUUID())
-		);
-
-		if (drones.isEmpty()) {
-			return null;
-		}
-
-		return drones.stream()
-				.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(player)))
-				.orElse(null);
+		return DroneNetworking.selectedDrone(player);
 	}
 
 	private static String formatEnvironmentStatus(DroneEntity drone) {

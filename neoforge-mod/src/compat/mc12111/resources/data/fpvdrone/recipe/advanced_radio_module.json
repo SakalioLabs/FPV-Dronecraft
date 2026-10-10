@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [
+    "fpvdrone:basic_radio_module",
+    "mekanism:advanced_control_circuit",
+    "mekanism:alloy_reinforced",
+    "minecraft:ender_pearl"
+  ],
+  "result": {
+    "id": "fpvdrone:advanced_radio_module",
+    "count": 1
+  },
+  "neoforge:conditions": [
+    {
+      "modid": "mekanism",
+      "type": "neoforge:mod_loaded"
+    }
+  ]
+}

@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.tenicana.dronecraft.sim.DroneEnvironment;
+
 import net.minecraft.server.level.ServerLevel;
 
 class Aerodynamics4McAtmosphereBridgeTest {
@@ -130,6 +132,7 @@ class Aerodynamics4McAtmosphereBridgeTest {
 
 	@Test
 	void samplesServerOnlyPolicyConvertsKelvinAndSanitizesCompactFields() {
+		CurrentRuntime.epoch = 100;
 		CurrentApi.lastPosition = null;
 		CurrentApi.lastPolicy = null;
 		CurrentApi.next = new CurrentSample(
@@ -147,7 +150,8 @@ class Aerodynamics4McAtmosphereBridgeTest {
 		Aerodynamics4McAtmosphereBridge.Sampler sampler = Aerodynamics4McAtmosphereBridge.bindIfAvailable(
 				true,
 				CurrentApi.class,
-				StubPolicy.class
+				StubPolicy.class,
+				Aerodynamics4McAtmosphereBridge.bindRuntimeClock(CurrentRuntime.class)
 		);
 
 		Aerodynamics4McAtmosphereBridge.AtmosphereSample sample = sampler.sample(
@@ -224,6 +228,7 @@ class Aerodynamics4McAtmosphereBridgeTest {
 
 	@Test
 	void richFlowApiSamplesAndSanitizesEveryCompactPrimitive() {
+		CurrentRuntime.epoch = 100;
 		RichFlowApi.next = new RichFlowSample(
 				true,
 				true,
@@ -250,7 +255,8 @@ class Aerodynamics4McAtmosphereBridgeTest {
 		Aerodynamics4McAtmosphereBridge.Sampler sampler = Aerodynamics4McAtmosphereBridge.bindIfAvailable(
 				true,
 				RichFlowApi.class,
-				StubPolicy.class
+				StubPolicy.class,
+				Aerodynamics4McAtmosphereBridge.bindRuntimeClock(CurrentRuntime.class)
 		);
 
 		Aerodynamics4McAtmosphereBridge.AtmosphereSample sample = sampler.sample(
@@ -383,6 +389,39 @@ class Aerodynamics4McAtmosphereBridgeTest {
 		assertEquals(0L, Aerodynamics4McAtmosphereBridge.freshnessAgeTicks(100L, 101L, 80L, 70L));
 	}
 
+	@Test
+	void reopenedWorldTimeDoesNotAgeFreshNativeFlow() {
+		CurrentRuntime.epoch = 490;
+		CurrentApi.next = new CurrentSample(true, true, 1.0, false, 0.0, false, 0.0, 490L, -1L, -1L);
+		var sampler = Aerodynamics4McAtmosphereBridge.bindIfAvailable(true, CurrentApi.class, StubPolicy.class,
+				Aerodynamics4McAtmosphereBridge.bindRuntimeClock(CurrentRuntime.class));
+		var reopened = sampler.sample(null, 0.0, 0.0, 0.0, 3_095L);
+		assertEquals(0L, reopened.freshnessAgeTicks(), "persistent world time must not be subtracted from restart-local epochs");
+		assertEquals(1.0, DroneEnvironment.windSourceQualityFactor(reopened.trustedForGameplay(), reopened.confidence(),
+				reopened.freshnessAgeTicks()), 0.0, "a fresh trusted native sample must retain its physics influence");
+		CurrentRuntime.epoch = 500;
+		assertEquals(10L, sampler.sample(null, 0.0, 0.0, 0.0, 99_000L).freshnessAgeTicks(),
+				"only progression in the native runtime epoch domain may age the same sample");
+	}
+
+	@Test
+	void unavailableOrFailingRuntimeClockPreservesTrustedFlowWithUnknownFreshness() {
+		CurrentApi.next = new CurrentSample(true, true, 0.6, false, 0.0, false, 0.0, 490L, -1L, -1L);
+		FailingRuntime.invocations = 0;
+		for (Class<?> runtime : new Class<?>[]{null, Object.class, FailingRuntime.class}) {
+			var sampler = Aerodynamics4McAtmosphereBridge.bindIfAvailable(true, CurrentApi.class, StubPolicy.class,
+					Aerodynamics4McAtmosphereBridge.bindRuntimeClock(runtime));
+			for (int call = 0; call < 2; call++) {
+				var sample = sampler.sample(null, 0.0, 0.0, 0.0, 99_000L);
+				assertTrue(sample.hasFlow());
+				assertTrue(sample.trustedForGameplay());
+				assertEquals(0.6, sample.confidence(), 0.0);
+				assertEquals(-1L, sample.freshnessAgeTicks());
+			}
+		}
+		assertEquals(1, FailingRuntime.invocations, "a broken optional clock must be disabled without disabling flow");
+	}
+
 	private static void assertNeutralOptionalFlow(
 			Aerodynamics4McAtmosphereBridge.AtmosphereSample sample
 	) {
@@ -406,6 +445,22 @@ class Aerodynamics4McAtmosphereBridgeTest {
 
 	public enum StubPolicy {
 		GAMEPLAY_SERVER_ONLY
+	}
+
+	public static final class CurrentRuntime {
+		private static final CurrentRuntime INSTANCE = new CurrentRuntime();
+		private static int epoch;
+		public static CurrentRuntime getInstance() { return INSTANCE; }
+		public int getTickCounter() { return epoch; }
+	}
+
+	public static final class FailingRuntime {
+		private static int invocations;
+		public static FailingRuntime getInstance() {
+			invocations++;
+			throw new NoClassDefFoundError("Optional native runtime clock failed");
+		}
+		public int getTickCounter() { return 0; }
 	}
 
 	public static final class OldApi {

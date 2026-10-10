@@ -1,28 +1,16 @@
 pluginManagement {
 	repositories {
-		maven {
-			name = "Fabric"
-			url = "https://maven.fabricmc.net/"
-		}
 		gradlePluginPortal()
 		mavenCentral()
 	}
-}
-
-plugins {
-	id "org.gradle.toolchains.foojay-resolver-convention" version "1.0.0"
 }
 
 dependencyResolutionManagement {
 	repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
 	repositories {
 		mavenCentral()
-		maven {
-			name = "Fabric"
-			url = "https://maven.fabricmc.net/"
-		}
 	}
 }
 
 rootProject.name = "fpv-dronecraft"
-include("drone-sim-core", "fabric-mod", "neoforge-mod")
+include("drone-sim-core", "computational-acoustics-core", "neoforge-mod")

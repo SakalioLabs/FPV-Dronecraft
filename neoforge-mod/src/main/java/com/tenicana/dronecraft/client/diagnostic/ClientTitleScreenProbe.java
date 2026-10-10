@@ -12,7 +12,7 @@ import com.google.gson.JsonObject;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
 
@@ -22,14 +22,15 @@ public final class ClientTitleScreenProbe {
 	static final String REPORT_DIRECTORY = "fpvdrone-client-smoke";
 	static final String REPORT_FILE = "report.json";
 	private static final int REQUIRED_STABLE_TICKS = 20;
-	private static final Identifier CONTROLLER_MODEL =
-			Identifier.fromNamespaceAndPath(FpvDronecraftMod.MOD_ID, "models/item/drone_controller.json");
+	private static final ResourceLocation CONTROLLER_MODEL =
+			ResourceLocation.fromNamespaceAndPath(FpvDronecraftMod.MOD_ID, "models/item/drone_controller.json");
 
 	private static boolean initialized;
 	private static boolean enabled;
 	private static String runId;
 	private static int stableTicks;
 	private static boolean finished;
+	private static long startedAt;
 
 	private ClientTitleScreenProbe() {
 	}
@@ -40,10 +41,17 @@ public final class ClientTitleScreenProbe {
 			return;
 		}
 
+		// Fresh, isolated development runs have no accessibility preference yet.
+		// The explicit smoke-test launch may dismiss that initial prompt after loading.
+		if (client.getOverlay() == null && client.screen != null
+				&& client.screen.getClass().getSimpleName().equals("AccessibilityOnboardingScreen")) {
+			client.setScreen(new TitleScreen());
+		}
 		boolean titleScreenReady = client.screen instanceof TitleScreen && client.getOverlay() == null;
-		boolean resourceReady = client.getResourceManager().getResource(CONTROLLER_MODEL).isPresent();
+		boolean resourceReady = client.getResourceManager().getResource(CONTROLLER_MODEL).isPresent()
+				&& ClientModelReadiness.controllerModelReady(client);
 		stableTicks = titleScreenReady && resourceReady ? stableTicks + 1 : 0;
-		if (stableTicks < REQUIRED_STABLE_TICKS) {
+		if (stableTicks < REQUIRED_STABLE_TICKS && System.nanoTime() - startedAt < 180_000_000_000L) {
 			return;
 		}
 
@@ -51,7 +59,8 @@ public final class ClientTitleScreenProbe {
 		Path report = client.gameDirectory.toPath().resolve(REPORT_DIRECTORY).resolve(REPORT_FILE);
 		try {
 			writeReport(report, runId, stableTicks, titleScreenReady, resourceReady);
-			FpvDronecraftMod.LOGGER.info("FPV Dronecraft production client smoke passed: {}", report);
+			FpvDronecraftMod.LOGGER.info("FPV Dronecraft client startup evidence: {} (title={}, bakedController={}, stableTicks={})",
+					report, titleScreenReady, resourceReady, stableTicks);
 			client.stop();
 		} catch (IOException exception) {
 			FpvDronecraftMod.LOGGER.error("Could not write FPV Dronecraft production client smoke report", exception);
@@ -85,6 +94,7 @@ public final class ClientTitleScreenProbe {
 		}
 		initialized = true;
 		enabled = Boolean.parseBoolean(System.getProperty(ENABLED_PROPERTY, "false"));
+		startedAt = System.nanoTime();
 		if (!enabled) {
 			return;
 		}

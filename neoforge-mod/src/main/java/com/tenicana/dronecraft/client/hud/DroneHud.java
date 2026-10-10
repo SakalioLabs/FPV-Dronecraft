@@ -6,12 +6,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
+import com.tenicana.dronecraft.camera.DroneViewMode;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.DroneClientState.HudMode;
 import com.tenicana.dronecraft.client.DroneClientState.InputSource;
@@ -22,7 +22,7 @@ import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.sim.FlightMode;
 
 public final class DroneHud {
-	private static final Identifier HUD_ID = Identifier.fromNamespaceAndPath(FpvDronecraftMod.MOD_ID, "flight_hud");
+	private static final ResourceLocation HUD_ID = ResourceLocation.fromNamespaceAndPath(FpvDronecraftMod.MOD_ID, "flight_hud");
 	private static final int TEXT = 0xFFF1F7F7;
 	private static final int MUTED = 0xFF9FB3B8;
 	private static final int PRIMARY = 0xFF00E6A8;
@@ -38,8 +38,8 @@ public final class DroneHud {
 	private DroneHud() {
 	}
 
-	public static void registerGuiLayers(RegisterGuiLayersEvent event) {
-		event.registerAbove(VanillaGuiLayers.CROSSHAIR, HUD_ID, DroneHud::render);
+	public static void registerGuiLayers(net.neoforged.neoforge.client.event.RegisterGuiLayersEvent event) {
+		event.registerAbove(net.neoforged.neoforge.client.gui.VanillaGuiLayers.CROSSHAIR, HUD_ID, DroneHud::render);
 	}
 
 	private static void render(GuiGraphics graphics, net.minecraft.client.DeltaTracker deltaTracker) {
@@ -59,6 +59,7 @@ public final class DroneHud {
 		int screenHeight = client.getWindow().getGuiScaledHeight();
 
 		Telemetry telemetry = Telemetry.from(client, drone);
+		drawMekanismTelemetry(graphics, font, screenWidth, drone);
 		if (hudMode == HudMode.MINIMAL) {
 			drawMinimalOsd(graphics, font, screenWidth, screenHeight, telemetry);
 			return;
@@ -73,9 +74,22 @@ public final class DroneHud {
 		drawCompactTelemetry(graphics, font, screenWidth, screenHeight, telemetry);
 	}
 
+	private static void drawMekanismTelemetry(GuiGraphics graphics, Font font, int screenWidth, DroneEntity drone) {
+		if (drone == null || !drone.hasMekanismLoadout()) return;
+		Component charge = Component.translatable("hud.fpvdrone.fe_charge_value", percent(drone.getMekanismChargeFraction()));
+		Component range = drone.isMekanismQuantumActive()
+				? Component.translatable("hud.fpvdrone.quantum_link")
+				: Component.translatable("hud.fpvdrone.range_value", integer(drone.getMekanismDistanceFromLaunchMeters()), integer(drone.getMekanismMaxRangeMeters()));
+		int width = Math.max(font.width(charge), font.width(range));
+		int x = Math.max(MARGIN, screenWidth - MARGIN - width);
+		graphics.fill(x - 3, 19, screenWidth - MARGIN + 3, 44, PANEL);
+		drawString(graphics, font, charge, x, 22, drone.getMekanismChargeFraction() < 0.15f ? WARNING : PRIMARY);
+		drawString(graphics, font, range, x, 33, drone.isMekanismQuantumActive() ? PRIMARY : MUTED);
+	}
+
 	private static void drawMinimalOsd(GuiGraphics graphics, Font font, int screenWidth, int screenHeight, Telemetry telemetry) {
 		Component mode = Component.translatable("hud.fpvdrone.mode_value", telemetry.mode().name());
-		Component view = Component.translatable(telemetry.fpvView() ? "hud.fpvdrone.view_fpv" : "hud.fpvdrone.view_los");
+		Component view = Component.translatable(telemetry.viewMode().hudKey());
 		Component source = Component.translatable(inputSourceKey(telemetry.inputSource()));
 		Component armed = Component.translatable(telemetry.armed() ? "hud.fpvdrone.armed" : "hud.fpvdrone.disarmed");
 		Component link = Component.translatable(telemetry.linkOk() ? "hud.fpvdrone.link_ok" : "hud.fpvdrone.link_lost");
@@ -93,7 +107,7 @@ public final class DroneHud {
 		int y = MARGIN;
 		int leftX = MARGIN;
 		leftX = drawInline(graphics, font, mode, leftX, y, TEXT);
-		leftX = drawInline(graphics, font, view, leftX, y, telemetry.fpvView() ? PRIMARY : MUTED);
+		leftX = drawInline(graphics, font, view, leftX, y, telemetry.viewMode().isDroneCamera() ? PRIMARY : MUTED);
 		leftX = drawInline(graphics, font, source, leftX, y, inputSourceColor(telemetry));
 		drawString(graphics, font, armed, leftX, y, telemetry.armed() ? PRIMARY : WARNING);
 		if (!telemetry.linkOk() || telemetry.failsafe()) {
@@ -116,7 +130,7 @@ public final class DroneHud {
 	private static void drawCompactStatus(GuiGraphics graphics, Font font, int screenWidth, Telemetry telemetry) {
 		int y = MARGIN;
 		Component mode = Component.translatable("hud.fpvdrone.mode_value", telemetry.mode().name());
-		Component view = Component.translatable(telemetry.fpvView() ? "hud.fpvdrone.view_fpv" : "hud.fpvdrone.view_los");
+		Component view = Component.translatable(telemetry.viewMode().hudKey());
 		Component source = Component.translatable(inputSourceKey(telemetry.inputSource()));
 		Component feel = shouldShowControlFeelStatus(telemetry.inputSource())
 				? Component.translatable("hud.fpvdrone.feel_value", Component.translatable(controlFeelKey(telemetry.controlFeelPreset())))
@@ -149,7 +163,7 @@ public final class DroneHud {
 		int x = MARGIN;
 		drawString(graphics, font, mode, x, y, TEXT);
 		x += font.width(mode) + 8;
-		drawString(graphics, font, view, x, y, telemetry.fpvView() ? PRIMARY : MUTED);
+		drawString(graphics, font, view, x, y, telemetry.viewMode().isDroneCamera() ? PRIMARY : MUTED);
 		x += font.width(view) + 8;
 		drawString(graphics, font, source, x, y, inputSourceColor(telemetry));
 		x += font.width(source) + 8;
@@ -472,7 +486,7 @@ public final class DroneHud {
 			boolean armed,
 			boolean linkOk,
 			boolean failsafe,
-			boolean fpvView,
+			DroneViewMode viewMode,
 			FlightMode mode,
 			InputSource inputSource,
 			DroneClientConfig.ControlFeelPreset controlFeelPreset,
@@ -497,13 +511,17 @@ public final class DroneHud {
 			float propwash,
 			float vrs
 	) {
+		private boolean fpvView() {
+			return viewMode == DroneViewMode.FPV;
+		}
+
 		private static Telemetry from(Minecraft client, DroneEntity drone) {
 			if (drone == null) {
 				return new Telemetry(
 						DroneClientState.armed(),
 						false,
 						false,
-						DroneClientState.isFpvViewEnabled(),
+						DroneClientState.viewMode(),
 						DroneClientState.flightMode(),
 						DroneClientState.inputSource(),
 						DroneClientControls.config().gamepadFeelPreset(),
@@ -533,7 +551,7 @@ public final class DroneHud {
 					drone.isArmed(),
 					drone.isRawControlLinkActive(),
 					drone.isControlFailsafeActive(),
-					DroneClientState.isFpvViewEnabled(),
+					DroneClientState.viewMode(),
 					drone.getFlightMode(),
 					DroneClientState.inputSource(),
 					DroneClientControls.config().gamepadFeelPreset(),

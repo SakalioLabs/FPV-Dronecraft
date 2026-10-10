@@ -389,8 +389,8 @@ final class SimulationFlightRuntime {
 		return rotorIndex >= 0 && rotorIndex < rotorCount();
 	}
 
-	DroneInput controlInput(UUID owner, int tickCount) {
-		return DroneControlManager.get(owner, tickCount, physics.state(), physics.config());
+	DroneInput controlInput(UUID owner, UUID droneId, int tickCount) {
+		return DroneControlManager.get(owner, droneId, tickCount, physics.state(), physics.config());
 	}
 
 	DroneConfig flightModelConfig() {

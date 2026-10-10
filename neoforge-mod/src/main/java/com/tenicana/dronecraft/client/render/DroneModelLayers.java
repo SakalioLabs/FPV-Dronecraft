@@ -1,14 +1,15 @@
 package com.tenicana.dronecraft.client.render;
 
 import net.minecraft.client.model.geom.ModelLayerLocation;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
+
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
 
 public final class DroneModelLayers {
 	public static final ModelLayerLocation DRONE = new ModelLayerLocation(
-			Identifier.fromNamespaceAndPath(FpvDronecraftMod.MOD_ID, "drone"),
+			ResourceLocation.fromNamespaceAndPath(FpvDronecraftMod.MOD_ID, "drone"),
 			"main"
 	);
 

@@ -1,0 +1,6 @@
+{
+  "model": {
+    "model": "fpvdrone:item/lipo_battery",
+    "type": "minecraft:model"
+  }
+}

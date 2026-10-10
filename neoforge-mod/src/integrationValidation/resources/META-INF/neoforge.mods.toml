@@ -1,0 +1,37 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+
+[[mods]]
+modId="fpvdrone_integration_validation"
+version="1.0.0"
+displayName="FPV Dronecraft Third-Party Integration Validation"
+description='''Test-only functional validation in an explicitly enabled disposable Minecraft 1.21.1 dedicated server.'''
+
+[[dependencies.fpvdrone_integration_validation]]
+modId="fpvdrone"
+type="required"
+versionRange="[0.1.0,)"
+ordering="AFTER"
+side="SERVER"
+
+[[dependencies.fpvdrone_integration_validation]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1]"
+ordering="NONE"
+side="SERVER"
+
+[[dependencies.fpvdrone_integration_validation]]
+modId="mekanism"
+type="optional"
+versionRange="[10.7,)"
+ordering="AFTER"
+side="SERVER"
+
+[[dependencies.fpvdrone_integration_validation]]
+modId="aerodynamics4mc"
+type="optional"
+versionRange="[0.2.1,)"
+ordering="AFTER"
+side="SERVER"

@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "equipment",
+  "ingredients": [
+    {
+      "item": "fpvdrone:lipo_battery"
+    },
+    {
+      "item": "mekanism:energy_tablet"
+    },
+    {
+      "item": "mekanism:module_energy_unit"
+    }
+  ],
+  "result": {
+    "id": "fpvdrone:basic_power_module",
+    "count": 1
+  },
+  "neoforge:conditions": [
+    {
+      "modid": "mekanism",
+      "type": "neoforge:mod_loaded"
+    }
+  ]
+}

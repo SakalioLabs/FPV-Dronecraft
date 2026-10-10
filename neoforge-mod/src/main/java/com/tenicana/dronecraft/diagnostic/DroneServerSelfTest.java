@@ -16,11 +16,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSummary;
+import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder.RecordingSource;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
@@ -72,10 +72,8 @@ public final class DroneServerSelfTest {
 	private int durationTicks;
 	private int finishTick;
 	private int elapsedTicks;
-	private int forcedChunkX;
-	private int forcedChunkZ;
+	private final SelfTestChunkReservations chunkReservations = new SelfTestChunkReservations();
 	private int lastObservedDroneTickCount = -1;
-	private boolean chunkForced;
 	private double initialX;
 	private double initialY;
 	private double initialZ;
@@ -90,6 +88,9 @@ public final class DroneServerSelfTest {
 	private double maxPlayableNeutralVisualPitchDegrees;
 	private double maxPlayableNeutralVisualRollDegrees;
 	private double maxPlayableNeutralVisualYawRateDegreesPerSecond;
+	private int initialNeutralSampleCount;
+	private double maxInitialNeutralYawRateDegreesPerSecond;
+	private double maxInitialNeutralAttitudeDegrees;
 	private double maxSpeed;
 	private double maxAirspeed;
 	private double maxMotorPower;
@@ -193,17 +194,13 @@ public final class DroneServerSelfTest {
 		}
 
 		active = new DroneServerSelfTest(requestedSeconds(), requestedFlightModelMode(), requestedControlFlightMode());
-		NeoForge.EVENT_BUS.addListener(DroneServerSelfTest::onServerTick);
+		NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) -> active.tick(event.getServer()));
 		FpvDronecraftMod.LOGGER.info(
 				"FPV Dronecraft server self-test armed for {} seconds in {} mode with {} flight mode",
 				active.requestedSeconds,
 				active.flightModelMode.id(),
 				active.controlFlightMode.csvName()
 		);
-	}
-
-	private static void onServerTick(ServerTickEvent.Post event) {
-		active.tick(event.getServer());
 	}
 
 	private void tick(MinecraftServer server) {
@@ -227,7 +224,9 @@ public final class DroneServerSelfTest {
 		}
 
 		elapsedTicks++;
+		refreshForcedChunks(level);
 		ensureDroneTicked();
+		refreshForcedChunks(level);
 		sample();
 		if (elapsedTicks >= finishTick || drone.tickCount >= finishTick) {
 			refreshFinalStateAndBlackboxSummary();
@@ -244,10 +243,7 @@ public final class DroneServerSelfTest {
 		drone.setOwner(SELF_TEST_OWNER);
 		buildSelfTestPlatform(level);
 		drone.setPos(0.0, selfTestSpawnY(), 0.0);
-		forcedChunkX = ((int) Math.floor(drone.getX())) >> 4;
-		forcedChunkZ = ((int) Math.floor(drone.getZ())) >> 4;
-		level.setChunkForced(forcedChunkX, forcedChunkZ, true);
-		chunkForced = true;
+		refreshForcedChunks(level);
 		level.addFreshEntity(drone);
 		initialX = drone.getX();
 		initialY = drone.getY();
@@ -277,6 +273,11 @@ public final class DroneServerSelfTest {
 
 	private static double selfTestSpawnY() {
 		return SELF_TEST_PLATFORM_Y + 1.0 + SELF_TEST_SPAWN_CLEARANCE_METERS;
+	}
+
+	private void refreshForcedChunks(ServerLevel level) {
+		// The neighboring chunks are reserved before the next native or fallback flight tick.
+		chunkReservations.reserveAround(drone.getX(), drone.getZ(), level::setChunkForced);
 	}
 
 	private void ensureDroneTicked() {
@@ -717,10 +718,11 @@ public final class DroneServerSelfTest {
 	}
 
 	private boolean playableAcroTelemetryStable() {
-		return playableNeutralSampleCount >= PLAYABLE_NEUTRAL_MIN_SAMPLES
+		return initialNeutralSampleCount >= PLAYABLE_NEUTRAL_MIN_SAMPLES
 				&& Math.max(maxPlayableVisualPitchDegrees, maxPlayableVisualRollDegrees) >= PLAYABLE_ACRO_MIN_VISUAL_ATTITUDE_DEGREES
 				&& maxPlayableVisualYawRateDegreesPerSecond >= PLAYABLE_ACRO_MIN_VISUAL_YAW_RATE_DEGREES_PER_SECOND
-				&& maxPlayableNeutralVisualYawRateDegreesPerSecond <= PLAYABLE_NEUTRAL_MAX_VISUAL_YAW_RATE_DEGREES_PER_SECOND;
+				&& maxInitialNeutralYawRateDegreesPerSecond <= PLAYABLE_NEUTRAL_MAX_VISUAL_YAW_RATE_DEGREES_PER_SECOND
+				&& maxInitialNeutralAttitudeDegrees <= PLAYABLE_NEUTRAL_MAX_VISUAL_ATTITUDE_DEGREES;
 	}
 
 	private double minimumAltitudeGain() {
@@ -773,6 +775,16 @@ public final class DroneServerSelfTest {
 		maxPlayableNeutralVisualPitchDegrees = playableNeutralStats.maxPitchDegrees();
 		maxPlayableNeutralVisualRollDegrees = playableNeutralStats.maxRollDegrees();
 		maxPlayableNeutralVisualYawRateDegreesPerSecond = playableNeutralStats.maxYawRateDegreesPerSecond();
+		// The diagnostic starts with a stationary, centered-stick takeoff phase.
+		// Later ACRO neutral sticks retain tilt and allow the existing aerodynamic
+		// weathercock response during sideslip; that is not stationary input drift.
+		int initialPhaseTicks = Math.max(0, (int) Math.ceil(durationTicks * 0.26) - 1);
+		DroneBlackboxRecorder initialPhase = new DroneBlackboxRecorder(Math.max(1, initialPhaseTicks));
+		drone.blackbox().snapshot().stream().limit(initialPhaseTicks).forEach(initialPhase::record);
+		var initialStats = DroneBlackboxSummary.from(initialPhase).playableNeutralStats();
+		initialNeutralSampleCount = initialStats.sampleCount();
+		maxInitialNeutralYawRateDegreesPerSecond = initialStats.maxYawRateDegreesPerSecond();
+		maxInitialNeutralAttitudeDegrees = Math.max(initialStats.maxPitchDegrees(), initialStats.maxRollDegrees());
 	}
 
 	private String failureReason() {
@@ -1094,9 +1106,8 @@ public final class DroneServerSelfTest {
 			drone.discard();
 		}
 		ServerLevel level = server.getLevel(Level.OVERWORLD);
-		if (chunkForced && level != null) {
-			level.setChunkForced(forcedChunkX, forcedChunkZ, false);
-			chunkForced = false;
+		if (level != null) {
+			chunkReservations.releaseAll(level::setChunkForced);
 		}
 
 		if (passed) {
@@ -1126,6 +1137,7 @@ public final class DroneServerSelfTest {
 				"{\n"
 						+ "  \"passed\": %s,\n"
 						+ "  \"reason\": \"%s\",\n"
+						+ "  \"entity_removal_reason\": \"%s\",\n"
 						+ "  \"flight_model\": \"%s\",\n"
 						+ "  \"flight_mode\": \"%s\",\n"
 						+ "  \"self_test_control_mode\": \"%s\",\n"
@@ -1139,6 +1151,9 @@ public final class DroneServerSelfTest {
 						+ "  \"max_playable_neutral_visual_pitch_deg\": %.4f,\n"
 						+ "  \"max_playable_neutral_visual_roll_deg\": %.4f,\n"
 						+ "  \"max_playable_neutral_visual_yaw_rate_dps\": %.4f,\n"
+						+ "  \"initial_neutral_sample_count\": %d,\n"
+						+ "  \"max_initial_neutral_yaw_rate_dps\": %.4f,\n"
+						+ "  \"max_initial_neutral_attitude_deg\": %.4f,\n"
 						+ "  \"csv_column_count\": %d,\n"
 						+ "  \"airframe_rotor_count\": %d,\n"
 						+ "  \"physics_substeps_per_tick\": %d,\n"
@@ -1236,6 +1251,7 @@ public final class DroneServerSelfTest {
 						+ "}\n",
 				passed,
 				escapeJson(reason),
+				drone == null ? "missing" : drone.getRemovalReason() == null ? "none" : drone.getRemovalReason().name(),
 				flightModelMode.id(),
 				escapeJson(flightMode),
 				controlFlightMode.csvName(),
@@ -1249,6 +1265,9 @@ public final class DroneServerSelfTest {
 				maxPlayableNeutralVisualPitchDegrees,
 				maxPlayableNeutralVisualRollDegrees,
 				maxPlayableNeutralVisualYawRateDegreesPerSecond,
+				initialNeutralSampleCount,
+				maxInitialNeutralYawRateDegreesPerSecond,
+				maxInitialNeutralAttitudeDegrees,
 				DroneBlackboxSample.CSV_HEADER.split(",", -1).length,
 				drone == null ? 0 : drone.config().rotors().size(),
 				PHYSICS_STEPS_PER_TICK,

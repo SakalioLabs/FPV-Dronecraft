@@ -1,75 +1,17 @@
 package com.tenicana.dronecraft.client.control;
-
-import com.mojang.blaze3d.platform.FramerateLimitTracker;
-
-import net.minecraft.client.InactivityFpsLimit;
 import net.minecraft.client.Minecraft;
-
-import com.tenicana.dronecraft.client.mixin.FramerateLimitTrackerAccessor;
-import com.tenicana.dronecraft.client.mixin.MinecraftFramerateLimitTrackerAccessor;
-
+import org.lwjgl.glfw.GLFW;
+/** 1.21.1 has no native inactivity FPS limiter; retain controller activity diagnostics. */
 public final class MinecraftUserActivityNotifier implements UserActivityNotifier {
-	public static final MinecraftUserActivityNotifier INSTANCE = new MinecraftUserActivityNotifier();
-
-	private int lastReportTick = Integer.MIN_VALUE;
-
-	private MinecraftUserActivityNotifier() {
-	}
-
-	@Override
-	public void notifyUserActivity(int tick) {
-		if (!canNotifyUserActivity()) {
-			return;
-		}
-		FramerateLimitTracker tracker = tracker();
-		if (tracker == null) {
-			return;
-		}
-		tracker.onInputReceived();
-		lastReportTick = tick;
-	}
-
-	@Override
-	public boolean canNotifyUserActivity() {
-		Minecraft client = Minecraft.getInstance();
-		return client != null
-				&& client.player != null
-				&& client.level != null
-				&& !client.isPaused()
-				&& client.getWindow() != null
-				&& !client.getWindow().isIconified()
-				&& !client.getWindow().isMinimized();
-	}
-
-	@Override
-	public Status status() {
-		Minecraft client = Minecraft.getInstance();
-		FramerateLimitTracker tracker = tracker(client);
-		if (client == null || tracker == null) {
-			return Status.unavailable(lastReportTick);
-		}
-
-		long latestInputTime = ((FramerateLimitTrackerAccessor) tracker).fpvdrone$getLatestInputTime();
-		long elapsedMillis = latestInputTime <= 0L ? -1L : Math.max(0L, System.currentTimeMillis() - latestInputTime);
-		InactivityFpsLimit setting = client.options.inactivityFpsLimit().get();
-		FramerateLimitTracker.FramerateThrottleReason reason = tracker.getThrottleReason();
-		return new Status(
-				elapsedMillis,
-				setting == null ? "unknown" : setting.name(),
-				reason == null ? "unknown" : reason.name(),
-				client.getFps(),
-				lastReportTick
-		);
-	}
-
-	private static FramerateLimitTracker tracker() {
-		return tracker(Minecraft.getInstance());
-	}
-
-	private static FramerateLimitTracker tracker(Minecraft client) {
-		if (client == null) {
-			return null;
-		}
-		return ((MinecraftFramerateLimitTrackerAccessor) client).fpvdrone$getFramerateLimitTracker();
-	}
+ public static final MinecraftUserActivityNotifier INSTANCE=new MinecraftUserActivityNotifier();
+ private int lastReportTick=Integer.MIN_VALUE;
+ private long latestInputTime;
+ private MinecraftUserActivityNotifier() { }
+ @Override public void notifyUserActivity(int tick) { if(canNotifyUserActivity()) { latestInputTime=System.currentTimeMillis();lastReportTick=tick; } }
+ @Override public boolean canNotifyUserActivity() {
+  Minecraft client=Minecraft.getInstance();return client!=null&&client.player!=null&&client.level!=null&&!client.isPaused()&&client.getWindow()!=null&&GLFW.glfwGetWindowAttrib(client.getWindow().getWindow(),GLFW.GLFW_ICONIFIED)==GLFW.GLFW_FALSE;
+ }
+ @Override public Status status() {
+  Minecraft client=Minecraft.getInstance();return client==null?Status.unavailable(lastReportTick):new Status(latestInputTime==0?-1:Math.max(0,System.currentTimeMillis()-latestInputTime),"NOT_PRESENT_1_21_1","NONE",client.getFps(),lastReportTick);
+ }
 }

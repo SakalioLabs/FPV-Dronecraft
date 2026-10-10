@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.tenicana.dronecraft.clientvalidation.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": ["DroneRouteTickFixtureMixin"],
+  "client": ["FirstPersonHandsProbeMixin"],
+  "injectors": {"defaultRequire": 1}
+}

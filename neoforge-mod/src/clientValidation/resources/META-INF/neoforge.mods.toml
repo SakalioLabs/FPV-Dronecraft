@@ -1,0 +1,26 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+
+[[mods]]
+modId="fpvdrone_client_validation"
+version="1.0.0"
+displayName="FPV Dronecraft Native Client Validation"
+description='''Opt-in disposable-world validation. Never included in the production mod.'''
+
+[[dependencies.fpvdrone_client_validation]]
+modId="fpvdrone"
+type="required"
+versionRange="[0.1.0,)"
+ordering="AFTER"
+side="CLIENT"
+
+[[dependencies.fpvdrone_client_validation]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1]"
+ordering="NONE"
+side="CLIENT"
+
+[[mixins]]
+config="fpvdrone.clientvalidation.mixins.json"

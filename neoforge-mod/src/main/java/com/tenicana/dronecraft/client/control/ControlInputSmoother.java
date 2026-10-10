@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.client.control;
 
 import net.minecraft.util.Mth;
+import com.tenicana.dronecraft.sim.FlightMode;
 
 final class ControlInputSmoother {
 	private static final float AXIS_ZERO_SNAP = 0.075f;
@@ -10,6 +11,17 @@ final class ControlInputSmoother {
 	private float pitch;
 	private float roll;
 	private float yaw;
+
+	float sampleGamepadThrottle(float targetThrottle, FlightMode mode) {
+		float safeTarget = Float.isFinite(targetThrottle) ? Mth.clamp(targetThrottle, 0.0f, 1.0f) : 0.0f;
+		if (mode == FlightMode.ACRO) {
+			// ACRO needs the calibrated stick command now; the flight model already
+			// simulates motor spool-up. A second ramp consumes pullout altitude.
+			throttle = safeTarget;
+			return throttle;
+		}
+		return sampleThrottle(safeTarget, 0.08f, 0.14f);
+	}
 
 	Axes sample(float targetPitch, float targetRoll, float targetYaw, float risePerTick, float fallPerTick) {
 		float safeRise = sanitizeStep(risePerTick, 0.075f);

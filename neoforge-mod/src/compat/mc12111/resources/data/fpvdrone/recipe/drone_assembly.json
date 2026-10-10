@@ -1,0 +1,10 @@
+{
+  "type": "fpvdrone:drone_assembly",
+  "category": "equipment",
+  "neoforge:conditions": [
+    {
+      "modid": "mekanism",
+      "type": "neoforge:mod_loaded"
+    }
+  ]
+}

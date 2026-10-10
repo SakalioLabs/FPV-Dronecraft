@@ -1,8 +1,10 @@
 # NeoForge Migration Ledger
 
-This document is the release gate for the `NeoForge` branch. A migration unit is
-complete only after its focused checks pass, the resulting commit is pushed, and
-the branch remains usable as the base for the next unit.
+This ledger records the earlier `NeoForge` branch migration. Current development
+uses `codex/neoforge-main-migration`, with Minecraft 1.21.1 as the default and
+version adapters through 26.3. See the [current installation and verification
+guide](neoforge-installation.md) and [multi-version development
+notes](development/neoforge-multiversion.md) for the active build and evidence.
 
 ## Architecture Rules
 

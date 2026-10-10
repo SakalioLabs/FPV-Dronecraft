@@ -149,7 +149,7 @@ class DroneEntityFlightModelRoutingTest {
 		assertFalse(dimensionsMethod.contains("simulationRuntime.config()"), "airframe dimensions should be projected by SimulationFlightRuntime");
 		assertFalse(layoutMethod.contains("simulationRuntime.config()"), "airframe layout should be projected by SimulationFlightRuntime");
 		assertFalse(applyConfigMethod.contains("simulationRuntime.config()"), "config comparison should be projected by SimulationFlightRuntime");
-		assertTrue(tickMethod.contains("simulationRuntime.controlInput(activeOwner, tickCount)"), "owner control input should be projected by SimulationFlightRuntime");
+		assertTrue(tickMethod.contains("simulationRuntime.controlInput(activeOwner, getUUID(), tickCount)"), "owner and drone-scoped control input should be projected by SimulationFlightRuntime");
 		assertFalse(tickMethod.contains("DroneControlManager.get(activeOwner"), "DroneEntity should not pass DroneState/DroneConfig into control input directly");
 		assertTrue(playableStepMethods.contains("simulationRuntime.flightModelConfig()"), "flight model context config should cross the runtime boundary");
 		assertTrue(playableStepMethods.contains("simulationRuntime.flightStateSnapshot("), "playable snapshots should be projected by SimulationFlightRuntime");

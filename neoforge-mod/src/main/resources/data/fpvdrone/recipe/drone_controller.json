@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [" C ", "RIR", " Q "],
+  "key": {
+    "C": {"item": "minecraft:compass"},
+    "R": {"item": "minecraft:redstone"},
+    "I": {"item": "minecraft:iron_ingot"},
+    "Q": {"item": "minecraft:quartz"}
+  },
+  "result": {"id": "fpvdrone:drone_controller", "count": 1}
+}

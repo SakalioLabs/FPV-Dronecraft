@@ -1,0 +1,1270 @@
+{
+  "schemaVersion": 1,
+  "defaultTarget": "1.21.1",
+  "asOf": "2026-10-10T11:31:06.867528+00:00",
+  "sources": {
+    "minecraftManifest": "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+    "neoForgeMavenMetadata": "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml",
+    "modrinthApi": "https://api.modrinth.com/v2"
+  },
+  "targets": [
+    {
+      "minecraft": "1.21.1",
+      "neoforge": "21.1.257",
+      "java": 21,
+      "adapterFamily": "mc12101",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "21.1.",
+      "identifierTransform": false,
+      "channel": "stable",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.257/neoforge-21.1.257.pom",
+      "neoForm": "1.21.1-20240808.144430",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.1-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:38:59.4085694Z",
+          "finishedAt": "2026-10-10T10:39:37.6819118Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.1-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:39:37.6875900Z",
+          "finishedAt": "2026-10-10T10:41:41.1668718Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.1-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/1.21.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-184040.json",
+            "build/targets/1.21.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-184109.json",
+            "build/targets/1.21.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-184138.json",
+            "build/targets/1.21.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-184012.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:41:41.1694951Z",
+          "finishedAt": "2026-10-10T10:42:12.4911071Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.1-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/1.21.1/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "b83310d1-632c-4d7f-8e11-fadef4d8f94e",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.1.jar",
+          "sha256": "9d07b4d079ec07218b48938590d91862125dc1c5de841cf7e464ea4ae93b0395",
+          "size": 3586356
+        },
+        "unit": {
+          "status": "passed",
+          "tests": 1255,
+          "modules": {
+            "drone-sim-core": 520,
+            "computational-acoustics-core": 270,
+            "neoforge-mod": 465
+          },
+          "log": "build/mc12101-final-native-06.log"
+        },
+        "gameTest": {
+          "status": "passed",
+          "tests": 18,
+          "report": "build/targets/1.21.1/neoforge-mod/reports/gametest/results.xml"
+        },
+        "nativeWorld": {
+          "status": "passed",
+          "checks": 25,
+          "signedTurns": 4,
+          "screenshots": 11,
+          "runId": "f7d2c17a-da69-4a12-8d9f-36b4a1ef0b5d",
+          "report": "build/targets/1.21.1/neoforge-mod/run-client-validation/fpvdrone-client-validation/report.json",
+          "log": "build/mc12101-native-world-05.log"
+        },
+        "thirdPartyIntegration": {
+          "status": "passed",
+          "gates": 13,
+          "mekanism": "10.7.19.85",
+          "aerodynamics4mc": "0.2.1",
+          "runId": "fb292e39-1c0e-423a-8841-8b2e3d3b533d",
+          "report": "build/production-server-12101/integration-report-fb292e39.json"
+        }
+      },
+      "sourceOverlays": [
+        "mc12101"
+      ]
+    },
+    {
+      "minecraft": "1.21.2",
+      "neoforge": "21.2.1-beta",
+      "java": 21,
+      "adapterFamily": "mc1212",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "21.2.",
+      "identifierTransform": false,
+      "channel": "beta",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.2.1-beta/neoforge-21.2.1-beta.pom",
+      "neoForm": "1.21.2-20241022.151510",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.2-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:42:12.5028222Z",
+          "finishedAt": "2026-10-10T10:43:01.7366434Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.2-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:43:01.7403521Z",
+          "finishedAt": "2026-10-10T10:45:03.9978876Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.2-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/1.21.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-184404.json",
+            "build/targets/1.21.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-184433.json",
+            "build/targets/1.21.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-184500.json",
+            "build/targets/1.21.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-184335.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:45:03.9993008Z",
+          "finishedAt": "2026-10-10T10:45:32.5782505Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.2-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/1.21.2/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "842c02a2-aced-4273-bd89-30480b68c380",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/1.21.2/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.2-0.2.0-neoforge-dev.1.jar",
+          "sha256": "a3fd9f645dd4f2613a50aa75521d11314cd410160726ce5e1f87d6db7e6757f7",
+          "size": 3591280
+        }
+      },
+      "sourceOverlays": [
+        "mc1212"
+      ]
+    },
+    {
+      "minecraft": "1.21.3",
+      "neoforge": "21.3.97",
+      "java": 21,
+      "adapterFamily": "mc1213",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "21.3.",
+      "identifierTransform": false,
+      "channel": "stable",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.3.97/neoforge-21.3.97.pom",
+      "neoForm": "1.21.3-20241023.131943",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.3-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:45:32.5818779Z",
+          "finishedAt": "2026-10-10T10:46:09.9924022Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.3-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:46:09.9939675Z",
+          "finishedAt": "2026-10-10T10:48:04.4165462Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.3-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/1.21.3/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-184708.json",
+            "build/targets/1.21.3/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-184734.json",
+            "build/targets/1.21.3/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-184800.json",
+            "build/targets/1.21.3/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-184641.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:48:04.4186813Z",
+          "finishedAt": "2026-10-10T10:48:31.8607503Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.3-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/1.21.3/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "64d2dd0b-77c9-49cf-83c6-8f33302b2a35",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/1.21.3/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.3-0.2.0-neoforge-dev.1.jar",
+          "sha256": "11a960ea5e66e4b1531d1ef7bb4eb0a66b5163ddde6e9181cda4051cfc1b7173",
+          "size": 3591279
+        }
+      },
+      "sourceOverlays": [
+        "mc1212"
+      ]
+    },
+    {
+      "minecraft": "1.21.4",
+      "neoforge": "21.4.158",
+      "java": 21,
+      "adapterFamily": "mc1214",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "21.4.",
+      "identifierTransform": false,
+      "channel": "stable",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.4.158/neoforge-21.4.158.pom",
+      "neoForm": "1.21.4-20241203.161809",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.4-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:48:31.8636380Z",
+          "finishedAt": "2026-10-10T10:49:07.0126610Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.4-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:49:07.0149139Z",
+          "finishedAt": "2026-10-10T10:51:03.0832616Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.4-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/1.21.4/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-185004.json",
+            "build/targets/1.21.4/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-185031.json",
+            "build/targets/1.21.4/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-185100.json",
+            "build/targets/1.21.4/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-184937.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:51:03.0856560Z",
+          "finishedAt": "2026-10-10T10:51:30.7009566Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.4-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/1.21.4/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "317fcc66-a1bc-41e2-bf1b-010d0a54d656",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/1.21.4/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.4-0.2.0-neoforge-dev.1.jar",
+          "sha256": "490f837d9a70f6712d0ef30c37259b9a13a6ffbef54ef89a329d7c23461cca11",
+          "size": 3593185
+        }
+      },
+      "sourceOverlays": [
+        "mc1212",
+        "mc1214"
+      ]
+    },
+    {
+      "minecraft": "1.21.5",
+      "neoforge": "21.5.98",
+      "java": 21,
+      "adapterFamily": "mc1215",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "21.5.",
+      "identifierTransform": false,
+      "channel": "stable",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.5.98/neoforge-21.5.98.pom",
+      "neoForm": "1.21.5-20250325.162830",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.5-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:51:30.7032988Z",
+          "finishedAt": "2026-10-10T10:52:09.2234538Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.5-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:52:09.2253719Z",
+          "finishedAt": "2026-10-10T10:54:06.1265892Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.5-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/1.21.5/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-185308.json",
+            "build/targets/1.21.5/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-185336.json",
+            "build/targets/1.21.5/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-185402.json",
+            "build/targets/1.21.5/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-185239.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:54:06.1282497Z",
+          "finishedAt": "2026-10-10T10:54:35.0322296Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.5-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/1.21.5/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "99a2ba8e-52e6-403a-b6eb-0c5fc0038418",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/1.21.5/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.5-0.2.0-neoforge-dev.1.jar",
+          "sha256": "1391b8cff2f5c92875b80a0f01a5fa91b549596250ba7a89d45d643f0a1366e7",
+          "size": 3592814
+        }
+      },
+      "sourceOverlays": [
+        "mc1212",
+        "mc1214",
+        "mc1215"
+      ]
+    },
+    {
+      "minecraft": "1.21.6",
+      "neoforge": "21.6.20-beta",
+      "java": 21,
+      "adapterFamily": "mc1216",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "21.6.",
+      "identifierTransform": false,
+      "channel": "beta",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.6.20-beta/neoforge-21.6.20-beta.pom",
+      "neoForm": "1.21.6-20250617.151856",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.6-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:54:35.0354803Z",
+          "finishedAt": "2026-10-10T10:55:11.2655769Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.6-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:55:11.2665805Z",
+          "finishedAt": "2026-10-10T10:57:09.8685447Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.6-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/1.21.6/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-185611.json",
+            "build/targets/1.21.6/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-185640.json",
+            "build/targets/1.21.6/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-185707.json",
+            "build/targets/1.21.6/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-185542.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:57:09.8704490Z",
+          "finishedAt": "2026-10-10T10:57:38.4264757Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.6-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/1.21.6/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "e5da6439-41f8-47ed-88c4-05a696170470",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/1.21.6/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.6-0.2.0-neoforge-dev.1.jar",
+          "sha256": "7d927256e8a36951dcaa149544e3e033edcadd5b26c5aa605c48979d51d4dbac",
+          "size": 3593675
+        }
+      },
+      "sourceOverlays": [
+        "mc1212",
+        "mc1214",
+        "mc1215",
+        "mc1216"
+      ]
+    },
+    {
+      "minecraft": "1.21.7",
+      "neoforge": "21.7.25-beta",
+      "java": 21,
+      "adapterFamily": "mc1217",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "21.7.",
+      "identifierTransform": false,
+      "channel": "beta",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.7.25-beta/neoforge-21.7.25-beta.pom",
+      "neoForm": "1.21.7-20250711.194848",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.7-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:57:38.4290964Z",
+          "finishedAt": "2026-10-10T10:58:16.4527083Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.7-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T10:58:16.4545236Z",
+          "finishedAt": "2026-10-10T11:00:18.9608682Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.7-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/1.21.7/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-185920.json",
+            "build/targets/1.21.7/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-185948.json",
+            "build/targets/1.21.7/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-190015.json",
+            "build/targets/1.21.7/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-185850.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:00:18.9621531Z",
+          "finishedAt": "2026-10-10T11:00:48.3928308Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.7-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/1.21.7/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "0d7068b2-a1d1-4af5-b0c5-bf4af5ec9034",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/1.21.7/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.7-0.2.0-neoforge-dev.1.jar",
+          "sha256": "cfe9e0b179af888855b2fc509303807fe12c598896a51d324ece2a1cf6dc8176",
+          "size": 3593675
+        }
+      },
+      "sourceOverlays": [
+        "mc1212",
+        "mc1214",
+        "mc1215",
+        "mc1216",
+        "mc1217"
+      ]
+    },
+    {
+      "minecraft": "1.21.8",
+      "neoforge": "21.8.54",
+      "java": 21,
+      "adapterFamily": "mc1218",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "21.8.",
+      "identifierTransform": false,
+      "channel": "stable",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.8.54/neoforge-21.8.54.pom",
+      "neoForm": "1.21.8-20250717.133445",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.8-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:00:48.3958623Z",
+          "finishedAt": "2026-10-10T11:01:28.1511974Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.8-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:01:28.1531622Z",
+          "finishedAt": "2026-10-10T11:03:28.6063417Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.8-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/1.21.8/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-190228.json",
+            "build/targets/1.21.8/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-190256.json",
+            "build/targets/1.21.8/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-190325.json",
+            "build/targets/1.21.8/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-190159.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:03:28.6077676Z",
+          "finishedAt": "2026-10-10T11:03:53.2018167Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.8-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/1.21.8/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "c20e2519-bdf1-4ad7-a93f-1ad136f5453c",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/1.21.8/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.8-0.2.0-neoforge-dev.1.jar",
+          "sha256": "481395223d8819bbdf55bacca9b4943a3c20b3154e8c38146b21a3d1ce8383eb",
+          "size": 3593672
+        }
+      },
+      "sourceOverlays": [
+        "mc1212",
+        "mc1214",
+        "mc1215",
+        "mc1216",
+        "mc1217"
+      ]
+    },
+    {
+      "minecraft": "1.21.9",
+      "neoforge": "21.9.16-beta",
+      "java": 21,
+      "adapterFamily": "mc1219",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "21.9.",
+      "identifierTransform": false,
+      "channel": "beta",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.9.16-beta/neoforge-21.9.16-beta.pom",
+      "neoForm": "1.21.9-20250930.151910",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.9-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:03:53.2057064Z",
+          "finishedAt": "2026-10-10T11:04:31.8594778Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.9-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:04:31.8609874Z",
+          "finishedAt": "2026-10-10T11:06:21.4242487Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.9-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/1.21.9/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-190527.json",
+            "build/targets/1.21.9/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-190552.json",
+            "build/targets/1.21.9/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-190617.json",
+            "build/targets/1.21.9/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-190500.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:06:21.4252020Z",
+          "finishedAt": "2026-10-10T11:06:48.0588694Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.9-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/1.21.9/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "9abfda27-13d3-4b20-b556-9d19374fcd86",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/1.21.9/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.9-0.2.0-neoforge-dev.1.jar",
+          "sha256": "53eb16f032d2d25f0b8e238f5c46ace36f1e02986178c2389d4befacbd13848e",
+          "size": 3594186
+        }
+      },
+      "sourceOverlays": [
+        "mc1212",
+        "mc1214",
+        "mc1215",
+        "mc1216",
+        "mc1217",
+        "mc1219"
+      ]
+    },
+    {
+      "minecraft": "1.21.10",
+      "neoforge": "21.10.64",
+      "java": 21,
+      "adapterFamily": "mc12110",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "21.10.",
+      "identifierTransform": false,
+      "channel": "stable",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.10.64/neoforge-21.10.64.pom",
+      "neoForm": "1.21.10-20251010.172816",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.10-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:06:48.0625187Z",
+          "finishedAt": "2026-10-10T11:07:29.6182003Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.10-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:07:29.6197325Z",
+          "finishedAt": "2026-10-10T11:09:18.6065765Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.10-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/1.21.10/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-190825.json",
+            "build/targets/1.21.10/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-190851.json",
+            "build/targets/1.21.10/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-190915.json",
+            "build/targets/1.21.10/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-190758.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:09:18.6075505Z",
+          "finishedAt": "2026-10-10T11:09:44.9164120Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.10-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/1.21.10/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "34577ada-085f-483d-9781-476b44ac5b98",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/1.21.10/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.10-0.2.0-neoforge-dev.1.jar",
+          "sha256": "395ecbd73379bdf5ed52327922f6b8417c260c7bccb9217182e5e477a8c28e58",
+          "size": 3594182
+        }
+      },
+      "sourceOverlays": [
+        "mc1212",
+        "mc1214",
+        "mc1215",
+        "mc1216",
+        "mc1217",
+        "mc1219"
+      ]
+    },
+    {
+      "minecraft": "1.21.11",
+      "neoforge": "21.11.45",
+      "java": 21,
+      "adapterFamily": "mc12111",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "21.11.",
+      "identifierTransform": true,
+      "channel": "stable",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.11.45/neoforge-21.11.45.pom",
+      "neoForm": "1.21.11-20251209.172050",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.11-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:09:44.9198076Z",
+          "finishedAt": "2026-10-10T11:10:20.9908575Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.11-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:10:20.9934673Z",
+          "finishedAt": "2026-10-10T11:12:11.7814365Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.11-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/1.21.11/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-191117.json",
+            "build/targets/1.21.11/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-191143.json",
+            "build/targets/1.21.11/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-191207.json",
+            "build/targets/1.21.11/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-191050.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:12:11.7828006Z",
+          "finishedAt": "2026-10-10T11:12:38.0109693Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/1.21.11-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/1.21.11/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "1c11eece-abcb-4dd8-a0c3-a7297fdf3ab1",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/1.21.11/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.11-0.2.0-neoforge-dev.1.jar",
+          "sha256": "1442e2f2b38cb5555a6c2eef16e24f4281732515d3874adc30016ee6d6464017",
+          "size": 3593968
+        },
+        "thirdPartyCoInstall": {
+          "status": "passed",
+          "aerodynamics4mc": "0.2.1",
+          "scope": "native server flight self-tests and client startup only; not functional wind validation"
+        }
+      },
+      "sourceOverlays": [
+        "mc12111"
+      ]
+    },
+    {
+      "minecraft": "26.1",
+      "neoforge": "26.1.0.19-beta",
+      "java": 25,
+      "adapterFamily": "mc261",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "26.1.0.",
+      "identifierTransform": true,
+      "channel": "beta",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/26.1.0.19-beta/neoforge-26.1.0.19-beta.pom",
+      "neoForm": "26.1-1",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-112848-528/26.1-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:28:48.5408358Z",
+          "finishedAt": "2026-10-10T11:29:25.2321782Z",
+          "log": "build/reports/neoforge-matrix/20261010-112848-528/26.1-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-112848-528/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:13:17.9806152Z",
+          "finishedAt": "2026-10-10T11:15:00.0538260Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.1-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/26.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-191410.json",
+            "build/targets/26.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-191433.json",
+            "build/targets/26.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-191456.json",
+            "build/targets/26.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-191346.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:29:25.2381301Z",
+          "finishedAt": "2026-10-10T11:29:50.3879292Z",
+          "log": "build/reports/neoforge-matrix/20261010-112848-528/26.1-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-112848-528/results.json",
+          "report": "build/targets/26.1/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "84f40f62-c2e3-4c69-9ac4-25bc0800f626",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/26.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc26.1-0.2.0-neoforge-dev.1.jar",
+          "sha256": "e53ee141b977ece976d43b8c50dc4ba0afa155a31d4264697efcdc76363a37f0",
+          "size": 3593815
+        }
+      },
+      "sourceOverlays": [
+        "mc12111",
+        "mc261"
+      ]
+    },
+    {
+      "minecraft": "26.1.1",
+      "neoforge": "26.1.1.15-beta",
+      "java": 25,
+      "adapterFamily": "mc2611",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "26.1.1.",
+      "identifierTransform": true,
+      "channel": "beta",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/26.1.1.15-beta/neoforge-26.1.1.15-beta.pom",
+      "neoForm": "26.1.1-1",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.1.1-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:16:59.8270051Z",
+          "finishedAt": "2026-10-10T11:17:42.2017372Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.1.1-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:17:42.2031170Z",
+          "finishedAt": "2026-10-10T11:19:26.5398773Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.1.1-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/26.1.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-191835.json",
+            "build/targets/26.1.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-191858.json",
+            "build/targets/26.1.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-191922.json",
+            "build/targets/26.1.1/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-191811.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:19:26.5409345Z",
+          "finishedAt": "2026-10-10T11:19:45.4691170Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.1.1-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/26.1.1/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "e206d034-2d90-48ca-b029-bacd77da290e",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/26.1.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc26.1.1-0.2.0-neoforge-dev.1.jar",
+          "sha256": "8d3f1833ee1a636ef66aff6e5eb2b0055a56ff9999aa41b8dc81344dc948c9aa",
+          "size": 3593815
+        }
+      },
+      "sourceOverlays": [
+        "mc12111",
+        "mc261"
+      ]
+    },
+    {
+      "minecraft": "26.1.2",
+      "neoforge": "26.1.2.115",
+      "java": 25,
+      "adapterFamily": "mc2612",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "26.1.2.",
+      "identifierTransform": true,
+      "channel": "stable",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/26.1.2.115/neoforge-26.1.2.115.pom",
+      "neoForm": "26.1.2-1",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.1.2-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:19:45.4721413Z",
+          "finishedAt": "2026-10-10T11:20:23.9986356Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.1.2-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:20:24.0004731Z",
+          "finishedAt": "2026-10-10T11:22:04.9457453Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.1.2-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/26.1.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-192116.json",
+            "build/targets/26.1.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-192139.json",
+            "build/targets/26.1.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-192201.json",
+            "build/targets/26.1.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-192052.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:22:04.9478199Z",
+          "finishedAt": "2026-10-10T11:22:29.2361309Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.1.2-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/26.1.2/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "575e0dc6-a29d-42f0-9ba0-f83ca253f4d3",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/26.1.2/neoforge-mod/libs/fpv-dronecraft-neoforge-mc26.1.2-0.2.0-neoforge-dev.1.jar",
+          "sha256": "88b13d1c7eb687f74598b32ee31daa127da835e4c809c7cec310f2666bfc6b49",
+          "size": 3593802
+        }
+      },
+      "sourceOverlays": [
+        "mc12111",
+        "mc261"
+      ]
+    },
+    {
+      "minecraft": "26.2",
+      "neoforge": "26.2.0.89",
+      "java": 25,
+      "adapterFamily": "mc262",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "26.2.0.",
+      "identifierTransform": true,
+      "channel": "stable",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/26.2.0.89/neoforge-26.2.0.89.pom",
+      "neoForm": "26.2-2",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.2-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:22:29.2388735Z",
+          "finishedAt": "2026-10-10T11:23:10.6585995Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.2-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:23:10.6597624Z",
+          "finishedAt": "2026-10-10T11:25:01.7560329Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.2-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/26.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-192411.json",
+            "build/targets/26.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-192434.json",
+            "build/targets/26.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-192458.json",
+            "build/targets/26.2/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-192345.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:25:01.7576184Z",
+          "finishedAt": "2026-10-10T11:25:26.1150600Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.2-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/26.2/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "77931301-8727-4892-9394-0e87af8f1edd",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/26.2/neoforge-mod/libs/fpv-dronecraft-neoforge-mc26.2-0.2.0-neoforge-dev.1.jar",
+          "sha256": "933b8fd19ac8676f47fba45341821eb65f4c4e023f8ab555f89dc373aadee551",
+          "size": 3594579
+        }
+      },
+      "sourceOverlays": [
+        "mc12111",
+        "mc261",
+        "mc262"
+      ]
+    },
+    {
+      "minecraft": "26.3",
+      "neoforge": "26.3.0.64-beta",
+      "java": 25,
+      "adapterFamily": "mc263",
+      "status": "adapting",
+      "implemented": true,
+      "neoforgeFamily": "26.3.0.",
+      "identifierTransform": true,
+      "channel": "beta",
+      "source": "https://maven.neoforged.net/releases/net/neoforged/neoforge/26.3.0.64-beta/neoforge-26.3.0.64-beta.pom",
+      "neoForm": "26.3-1",
+      "verification": {
+        "packaging": {
+          "status": "passed",
+          "negativeFixtures": 8,
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.3-build.log"
+        },
+        "build": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:25:26.1173598Z",
+          "finishedAt": "2026-10-10T11:26:04.3508798Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.3-build.log",
+          "tasks": [
+            ":neoforge-mod:assemble",
+            ":neoforge-mod:verifyNeoForgePackaging"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json"
+        },
+        "server": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:26:04.3524307Z",
+          "finishedAt": "2026-10-10T11:27:49.2682134Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.3-server.log",
+          "tasks": [
+            ":neoforge-mod:runServerSelfTest",
+            ":neoforge-mod:runPlayableServerSelfTest",
+            ":neoforge-mod:runPlayableHorizonServerSelfTest",
+            ":neoforge-mod:runPlayableAcroServerSelfTest"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "reports": [
+            "build/targets/26.3/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-192659.json",
+            "build/targets/26.3/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-192723.json",
+            "build/targets/26.3/neoforge-mod/run/fpvdrone-selftest/server-selftest-playable-20261010-192746.json",
+            "build/targets/26.3/neoforge-mod/run/fpvdrone-selftest/server-selftest-simulation-20261010-192634.json"
+          ],
+          "variants": 4,
+          "durationTicksPerVariant": 240
+        },
+        "client": {
+          "status": "passed",
+          "startedAt": "2026-10-10T11:27:49.2691376Z",
+          "finishedAt": "2026-10-10T11:28:19.9799589Z",
+          "log": "build/reports/neoforge-matrix/20261010-103859-388/26.3-client.log",
+          "tasks": [
+            ":neoforge-mod:runClientSmoke"
+          ],
+          "sourceMatrixReport": "build/reports/neoforge-matrix/20261010-103859-388/results.json",
+          "report": "build/targets/26.3/neoforge-mod/run/fpvdrone-client-smoke/report.json",
+          "runId": "29b3567b-30ac-45ab-bb06-d9011052f73d",
+          "stableTicks": 20,
+          "scope": "native client title screen and controller model; not a world flight test"
+        },
+        "artifact": {
+          "path": "build/targets/26.3/neoforge-mod/libs/fpv-dronecraft-neoforge-mc26.3-0.2.0-neoforge-dev.1.jar",
+          "sha256": "4f1b47ca341057fe55d34166ffb481ac4b0b97f8197a9063a0a37e583195fe93",
+          "size": 3602755
+        },
+        "sdlHotplugAllocation": {
+          "status": "passed",
+          "scenarios": 5,
+          "assertions": 168,
+          "task": ":neoforge-mod:verifySdlJoystickSlots",
+          "scope": "pure production slot allocator; physical controller not tested"
+        }
+      },
+      "sourceOverlays": [
+        "mc12111",
+        "mc263"
+      ]
+    }
+  ]
+}

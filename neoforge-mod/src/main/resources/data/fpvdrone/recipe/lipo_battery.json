@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "LLL",
+    "RTR",
+    "LLL"
+  ],
+  "key": {
+    "L": {
+      "item": "mekanism:dust_lithium"
+    },
+    "R": {
+      "item": "minecraft:redstone_block"
+    },
+    "T": {
+      "item": "mekanism:energy_tablet"
+    }
+  },
+  "result": {
+    "id": "fpvdrone:lipo_battery",
+    "count": 1
+  },
+  "neoforge:conditions": [
+    {
+      "modid": "mekanism",
+      "type": "neoforge:mod_loaded"
+    }
+  ]
+}

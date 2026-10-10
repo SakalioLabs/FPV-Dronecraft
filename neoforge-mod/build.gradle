@@ -3,16 +3,17 @@ plugins {
 	id "net.neoforged.moddev"
 }
 
+apply from: rootProject.file("gradle/fpvdrone-version-profiles.gradle")
 apply from: rootProject.file("gradle/fpvdrone-selftest-validation.gradle")
 apply from: rootProject.file("gradle/fpvdrone-neoforge-distributions.gradle")
 apply from: rootProject.file("gradle/fpvdrone-neoforge-packaging-validation.gradle")
 
 base {
-	archivesName = "${rootProject.archives_base_name}-neoforge"
+	archivesName = "${rootProject.archives_base_name}-neoforge-mc${project.minecraft_version}"
 }
 
 java {
-	toolchain.languageVersion = JavaLanguageVersion.of(21)
+	toolchain.languageVersion = JavaLanguageVersion.of(fpvDroneTargetJava)
 	withSourcesJar()
 }
 
@@ -27,14 +28,39 @@ sourceSets {
 		compileClasspath += sourceSets.main.output
 		runtimeClasspath += sourceSets.main.output
 	}
+	if (project.minecraft_version == "1.21.1") {
+		clientValidation {
+			compileClasspath += sourceSets.main.output
+			runtimeClasspath += sourceSets.main.output
+		}
+		integrationValidation {
+			compileClasspath += sourceSets.main.output
+			runtimeClasspath += sourceSets.main.output
+		}
+	}
 }
 
 configurations {
+	fpvDroneBundledMixinExtras {
+		canBeConsumed = false
+		canBeResolved = true
+		transitive = false
+	}
 	gameTestImplementation.extendsFrom implementation
 	gameTestRuntimeOnly.extendsFrom runtimeOnly
+	if (project.minecraft_version == "1.21.1") {
+		clientValidationImplementation.extendsFrom implementation
+		clientValidationRuntimeOnly.extendsFrom runtimeOnly
+		integrationValidationImplementation.extendsFrom implementation
+		integrationValidationRuntimeOnly.extendsFrom runtimeOnly
+	}
 }
 
 def gameTestReport = layout.buildDirectory.file("reports/gametest/results.xml")
+def clientSmokeRunId = UUID.randomUUID().toString()
+def clientSmokeReport = layout.buildDirectory.file("run/fpvdrone-client-smoke/report.json")
+def clientWorldValidationRunId = UUID.randomUUID().toString()
+def clientWorldValidationReport = layout.buildDirectory.file("run-client-validation/fpvdrone-client-validation/report.json")
 def fpvDroneSelfTestSecondsProperty = providers.gradleProperty("fpvdroneSelfTestSeconds").orElse("12")
 def fpvDroneSelfTestSeconds = {
 	def rawSeconds = fpvDroneSelfTestSecondsProperty.get().trim()
@@ -49,14 +75,24 @@ def fpvDroneSelfTestSeconds = {
 	}
 }()
 def requiredGameTests = [
-		"fpvdrone:racing_quad_diagnostic_climbs_in_game",
-		"fpvdrone:new_drone_starts_in_stable_angle_mode",
-		"fpvdrone:drone_entity_playable_route_executes_through_router",
-		"fpvdrone:drone_entity_simulation_route_executes_through_router",
-		"fpvdrone:direct_flight_disarm_clears_playable_attitude",
-		"fpvdrone:direct_flight_respects_ceiling_collision",
-		"fpvdrone:direct_flight_link_loss_uses_playable_failsafe",
-		"fpvdrone:controller_reuses_nearest_owned_drone"
+		"survivalplacementconsumesoneandstartsunbound",
+		"creativeplacementkeepsitemandsupportsslabs",
+		"blockedorunsupportedplacementdoesnotconsumeorspawn",
+		"controlleruseandplaininteractionnevercreatebindorrepair",
+		"shiftbindingselectsexactdronekeepsdamageandotherdata",
+		"bindingrejectsotherownerremovedandoutofreach",
+		"armeddronecannotberebound",
+		"racingquaddiagnosticclimbsingame",
+		"newdronestartsinstableanglemode",
+		"droneentityplayablerouteexecutesthroughrouter",
+		"droneentitysimulationrouteexecutesthroughrouter",
+		"directflightdisarmclearsplayableattitude",
+		"directflightrespectsceilingcollision",
+		"directflightlinklossusesplayablefailsafe",
+		"acrosignedfullturnskeepentityrenderandcontrolframesaligned",
+		"assembly_retains_selected_modules_and_stack_persistence",
+		"assembly_rejects_duplicate_missing_and_unrelated_modules",
+		"vanilla_recipe_keeps_standalone_drone_unconfigured"
 ] as Set
 
 neoForge {
@@ -64,6 +100,10 @@ neoForge {
 		version = project.neoforge_version
 		disableRecompilation = true
 		enabledSourceSets = [sourceSets.main, sourceSets.gameTest] as Set
+		if (project.minecraft_version == "1.21.1") {
+			enabledSourceSets.add(sourceSets.clientValidation)
+			enabledSourceSets.add(sourceSets.integrationValidation)
+		}
 	}
 
 	mods {
@@ -74,12 +114,34 @@ neoForge {
 		fpvdrone_gametest {
 			sourceSet(sourceSets.gameTest)
 		}
+		if (project.minecraft_version == "1.21.1") {
+			fpvdrone_client_validation { sourceSet(sourceSets.clientValidation) }
+			fpvdrone_integration_validation { sourceSet(sourceSets.integrationValidation) }
+		}
 	}
 
 	runs {
 		client {
 			client()
 			loadedMods.set([mods.fpvdrone] as Set)
+		}
+		clientSmoke {
+			client()
+			loadedMods.set([mods.fpvdrone] as Set)
+			systemProperty "fpvdrone.client_smoke", "true"
+			systemProperty "fpvdrone.client_smoke.run_id", clientSmokeRunId
+		}
+		if (project.minecraft_version == "1.21.1") {
+			clientWorldValidation {
+				client()
+				sourceSet = sourceSets.clientValidation
+				loadedMods.set([mods.fpvdrone, mods.fpvdrone_client_validation] as Set)
+				systemProperty "fpvdrone.client_validation", "true"
+				systemProperty "fpvdrone.client_validation.run_id", clientWorldValidationRunId
+				systemProperty "fpvdrone.client_validation.report", clientWorldValidationReport.get().asFile.absolutePath
+				systemProperty "fpvdrone.client_validation.world", "fpv-validation-${clientWorldValidationRunId}"
+				systemProperty "fpvdrone.client_validation.create_world", "true"
+			}
 		}
 
 		server {
@@ -140,14 +202,14 @@ neoForge {
 			type = "gameTestServer"
 			sourceSet = sourceSets.gameTest
 			loadedMods.set([mods.fpvdrone, mods.fpvdrone_gametest] as Set)
-			programArgument "--tests"
-			programArgument "fpvdrone:*"
-			programArgument "--report"
-			programArgument gameTestReport.get().asFile.absolutePath
+			systemProperty "neoforge.enabledGameTestNamespaces", "fpvdrone"
+			systemProperty "neoforge.gameTestServer", "true"
+			systemProperty "fpvdrone.gameTestReport", gameTestReport.get().asFile.absolutePath
 		}
 
 		configureEach {
 			logLevel = org.slf4j.event.Level.INFO
+			gameDirectory = layout.buildDirectory.dir(name == "clientWorldValidation" ? "run-client-validation" : "run")
 		}
 	}
 
@@ -159,8 +221,18 @@ neoForge {
 }
 
 dependencies {
+	// Older NeoForge releases bundle 0.4.x, which cannot apply our expression hooks.
+	// Use the library's documented ModDevGradle setup; JarJar negotiates one version.
+	implementation(jarJar("io.github.llamalad7:mixinextras-neoforge:0.5.5"))
+	fpvDroneBundledMixinExtras "io.github.llamalad7:mixinextras-neoforge:0.5.5"
 	implementation project(":drone-sim-core")
 	jarJar project(":drone-sim-core")
+	implementation project(":computational-acoustics-core")
+	jarJar project(":computational-acoustics-core")
+	if (project.minecraft_version.startsWith("1.21.") && Integer.parseInt(project.minecraft_version.tokenize(".")[2]) < 9) {
+		additionalRuntimeClasspath project(":drone-sim-core")
+		additionalRuntimeClasspath project(":computational-acoustics-core")
+	}
 
 	testImplementation(platform("org.junit:junit-bom:5.10.3"))
 	testImplementation("org.junit.jupiter:junit-jupiter")
@@ -171,11 +243,13 @@ def generateModMetadata = tasks.register("generateModMetadata", ProcessResources
 	inputs.properties(
 			minecraft_version: project.minecraft_version,
 			neoforge_version: project.neoforge_version,
+			fml_loader_range: project.minecraft_version == "26.3" ? "[12,)" : "[4,)",
 			mod_version: project.mod_version
 	)
 	expand(
 			minecraft_version: project.minecraft_version,
 			neoforge_version: project.neoforge_version,
+			fml_loader_range: project.minecraft_version == "26.3" ? "[12,)" : "[4,)",
 			mod_version: project.mod_version
 	)
 	from("src/main/templates")
@@ -187,6 +261,75 @@ neoForge.ideSyncTask(generateModMetadata)
 
 tasks.test {
 	useJUnitPlatform()
+}
+
+tasks.named("runClientSmoke") {
+	group = "verification"
+	// Loader failures can prevent the in-game watchdog from ever ticking.
+	// RunGameTask extends JavaExec, so interrupting it terminates its owned child.
+	timeout.set(java.time.Duration.ofMinutes(4))
+	description = "Validates fresh client startup and model resources; flight/view behavior requires world validation."
+	doFirst { delete(clientSmokeReport) }
+	doLast {
+		File report = clientSmokeReport.get().asFile
+		if (!report.isFile()) throw new GradleException("Client startup report was not created: ${report}")
+		def evidence = new groovy.json.JsonSlurper().parse(report)
+		if (evidence.run_id != clientSmokeRunId || evidence.passed != true ||
+				evidence.title_screen_ready != true || evidence.controller_model_ready != true || evidence.stable_ticks < 20) {
+			throw new GradleException("Client startup evidence failed or belongs to an earlier run: ${report}")
+		}
+		logger.lifecycle("Client startup smoke passed: {}", report)
+	}
+}
+
+if (project.minecraft_version == "1.21.1") {
+	tasks.register("integrationValidationJar", Jar) {
+		group = "verification"
+		description = "Builds the explicit opt-in native third-party validator for an isolated production server."
+		archiveClassifier = "integration-validation"
+		from sourceSets.integrationValidation.output
+	}
+	tasks.named("runClientWorldValidation") {
+		group = "verification"
+		timeout.set(java.time.Duration.ofMinutes(14))
+		description = "Validates native placement, binding, four signed turns, remote streaming and the physical pilot in an isolated world."
+		doFirst { delete(clientWorldValidationReport) }
+		doLast {
+			File report = clientWorldValidationReport.get().asFile
+			if (!report.isFile()) throw new GradleException("Native world report missing: ${report}")
+			def evidence = new groovy.json.JsonSlurper().parse(report)
+			def required = [
+				"native_world_ready", "unbound_controller_air_use", "two_native_survival_placements",
+				"plain_interaction_does_not_bind", "shift_binds_first_uuid", "shift_rebinds_exact_second_uuid",
+				"bound_controller_arm_and_yaw_network", "fpv_visible_stationary_body_and_hidden_hands",
+				"third_person_visible_stationary_body_and_hidden_hands", "los_restores_native_hands",
+				"positive_pitch_full_turn", "negative_pitch_full_turn", "positive_roll_full_turn", "negative_roll_full_turn",
+				"unprepared_region_640m_streams", "dual_body_and_drone_block_updates",
+				"remote_entity_ticks_and_two_chunk_crossings", "far_three_view_cycle_same_uuid",
+				"real_husk_melee_damages_remote_pilot", "physical_pilot_falls_in_remote_view",
+				"controller_loss_expires_lease_and_tickets", "reconnect_before_native_disconnect",
+				"native_disconnect_clears_client_state", "server_stop_releases_remote_resources", "fixture_restored"
+			]
+			if (evidence.run_id != clientWorldValidationRunId || evidence.passed != true ||
+					evidence.all_required_stages_observed != true || evidence.final_stage != "COMPLETE" ||
+					required.any { evidence.checks?.get(it) != true }) {
+				throw new GradleException("Native world observations failed or are stale: ${report}")
+			}
+			def axes = ["positive_pitch", "negative_pitch", "positive_roll", "negative_roll"] as Set
+			if (!(evidence.turns instanceof List) || evidence.turns.size() != 4 ||
+					evidence.turns.collect { it.axis }.toSet() != axes || evidence.turns.any {
+						!(it.signed_body_rotation_degrees instanceof Number) || Math.abs(it.signed_body_rotation_degrees) < 720 ||
+						!(it.distinct_entity_pose_advances instanceof Number) || it.distinct_entity_pose_advances < 80 ||
+						!(it.native_camera_frames instanceof Number) || it.native_camera_frames < 40 ||
+						!(it.maximum_camera_basis_error instanceof Number) || !Double.isFinite(it.maximum_camera_basis_error.doubleValue()) || it.maximum_camera_basis_error >= 0.002 ||
+						!(it.maximum_server_model_render_basis_error instanceof Number) || !Double.isFinite(it.maximum_server_model_render_basis_error.doubleValue()) || it.maximum_server_model_render_basis_error >= 0.0001
+					}) throw new GradleException("Native four-turn evidence invalid: ${report}")
+			if (!(evidence.screenshots instanceof List) || evidence.screenshots.size() != 11 || evidence.screenshots.any {
+				it.png_verified != true || !(it.file instanceof String) || !new File(it.file).isFile()
+			}) throw new GradleException("Native world screenshot evidence incomplete: ${report}")
+			logger.lifecycle("Native world validation passed: {} required observations, {} signed turns: {}", required.size(), axes.size(), report)
+		}
+	}
 }
 
 [
@@ -263,4 +406,28 @@ tasks.named("runGameTestServer") {
 		}
 		logger.lifecycle("NeoForge GameTest gate passed: {} tests, {} failures, {} errors", tests, failures, errors)
 	}
+}
+
+// Exercise the production SDL slot allocator without initializing SDL or Minecraft.
+// Keep these standalone check classes out of all mod and source artifacts.
+if (project.minecraft_version == "26.3") {
+	def slotCheckClasses = layout.buildDirectory.dir("classes/sdlJoystickCheck")
+	def compileSlotCheck = tasks.register("compileSdlJoystickCheck", JavaCompile) {
+		source(files(
+				"src/compat/mc263/java/com/tenicana/dronecraft/client/control/SdlJoystickSlots.java",
+				"src/compat/mc263/test/java/com/tenicana/dronecraft/client/control/SdlJoystickSlotsCheck.java"))
+		classpath = files()
+		destinationDirectory = slotCheckClasses
+		javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+		options.release = 25
+	}
+	def verifySlots = tasks.register("verifySdlJoystickSlots", JavaExec) {
+		group = "verification"
+		description = "Checks SDL hotplug capacity, active slot isolation and reconnect identity."
+		dependsOn(compileSlotCheck)
+		javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }
+		classpath = files(slotCheckClasses)
+		mainClass = "com.tenicana.dronecraft.client.control.SdlJoystickSlotsCheck"
+	}
+	tasks.named("verifyNeoForgePackaging") { dependsOn(verifySlots) }
 }

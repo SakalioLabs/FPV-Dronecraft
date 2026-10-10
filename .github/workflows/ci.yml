@@ -2,18 +2,7 @@ name: CI Verification
 
 on:
   push:
-    branches:
-      - master
-      - NeoForge
-      - "playable/**"
-      - "sim/**"
-      - "integration/**"
-      - "refactor/**"
-      - "codex/**"
   pull_request:
-    branches:
-      - master
-      - NeoForge
 
 permissions:
   contents: read
@@ -22,192 +11,135 @@ env:
   FPVDRONE_UPDATE_GOLDEN_TRACES: "false"
 
 jobs:
-  verification-matrix:
-    name: ${{ matrix.name }}
+  targets:
+    name: Discover implemented targets
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    outputs:
+      matrix: ${{ steps.targets.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: targets
+        name: Read target inventory
+        shell: python
+        run: |
+          import json, os
+          with open("gradle/minecraft-targets.json", encoding="utf-8") as source:
+              inventory = json.load(source)
+          targets = [
+              {"minecraft": row["minecraft"], "java": row["java"]}
+              for row in inventory["targets"]
+              if row.get("implemented") is True and row.get("status") != "planned"
+          ]
+          if not targets:
+              raise SystemExit("No implemented Minecraft targets are available")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("matrix=" + json.dumps({"include": targets}, separators=(",", ":")) + "\n")
+
+  neoforge-build:
+    name: NeoForge / Minecraft ${{ matrix.minecraft }} build and packaging
+    needs: targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: drone-sim-core tests
-            command: ./gradlew --no-daemon :drone-sim-core:test
-          - name: Fabric compatibility tests
-            command: ./gradlew --no-daemon :fabric-mod:test
-          - name: NeoForge mod build
-            command: ./gradlew --no-daemon :neoforge-mod:build
-          - name: full multi-loader build
-            command: ./gradlew --no-daemon build
-          - name: simulation golden and route equivalence
-            command: ./gradlew --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.SimulationFlightGoldenTraceTest
-          - name: NeoForge playable golden and route equivalence
-            command: ./gradlew --no-daemon :neoforge-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightGoldenTraceTest
-          - name: core dependency boundary and NeoForge entity routing
-            command: |
-              ./gradlew --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.flight.FlightCoreDependencyBoundaryTest
-              ./gradlew --no-daemon :neoforge-mod:test --tests com.tenicana.dronecraft.entity.DroneEntityFlightModelRoutingTest
-          - name: core and NeoForge serialization round-trip
-            command: |
-              ./gradlew --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.flight.FlightSerializationCodecTest --tests com.tenicana.dronecraft.sim.flight.FlightStateSnapshotTest
-              ./gradlew --no-daemon :neoforge-mod:test --tests com.tenicana.dronecraft.entity.RotorLayoutCodecTest
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
-
-      - name: Prepare Gradle wrapper
-        run: chmod +x ./gradlew
-
-      - name: Refuse golden trace regeneration
-        run: |
-          if [ "${FPVDRONE_UPDATE_GOLDEN_TRACES}" = "true" ]; then
-            echo "CI must not run with FPVDRONE_UPDATE_GOLDEN_TRACES=true"
-            exit 1
-          fi
-
-      - name: Run ${{ matrix.name }}
-        run: ${{ matrix.command }}
-
-  neoforge-gametest:
-    name: NeoForge / GameTest integration
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
+        if: ${{ matrix.java == 25 }}
         with:
           distribution: temurin
-          java-version: "21"
-          cache: gradle
-
-      - name: Prepare Gradle wrapper
+          java-version: "25"
+      - name: Prepare wrapper
         run: chmod +x ./gradlew
-
-      - name: Refuse golden trace regeneration
-        run: |
-          if [ "${FPVDRONE_UPDATE_GOLDEN_TRACES}" = "true" ]; then
-            echo "CI must not run with FPVDRONE_UPDATE_GOLDEN_TRACES=true"
-            exit 1
-          fi
-
-      - name: Run NeoForge GameTests
-        run: ./gradlew --no-daemon --no-parallel --max-workers=1 :neoforge-mod:runGameTestServer
-
-      - name: Upload NeoForge GameTest report
+      - name: Check golden trace policy
+        run: test "$FPVDRONE_UPDATE_GOLDEN_TRACES" = "false"
+      - name: Build and verify NeoForge packaging
+        run: ./gradlew --no-daemon --no-parallel --max-workers=1 "-Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64" -PtargetMinecraft=${{ matrix.minecraft }} :neoforge-mod:assemble :neoforge-mod:verifyNeoForgePackaging
+      - name: Upload target jar and logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: neoforge-gametest-report
+          name: neoforge-mc${{ matrix.minecraft }}
           path: |
-            neoforge-mod/build/reports/gametest/results.xml
-            neoforge-mod/run/logs/latest.log
-            neoforge-mod/run/crash-reports/**
+            build/targets/${{ matrix.minecraft }}/neoforge-mod/libs/*.jar
+            !build/targets/${{ matrix.minecraft }}/neoforge-mod/libs/*-sources.jar
+            build/targets/${{ matrix.minecraft }}/neoforge-mod/reports/**
+            build/targets/${{ matrix.minecraft }}/neoforge-mod/run/logs/**
+            build/targets/${{ matrix.minecraft }}/neoforge-mod/run/crash-reports/**
+          if-no-files-found: warn
+          retention-days: 14
+
+  supported-profile-tests:
+    name: NeoForge / Minecraft 1.21.1 unit and GameTests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Prepare wrapper
+        run: chmod +x ./gradlew
+      - name: Run unit tests and GameTests
+        run: ./gradlew --no-daemon --no-parallel --max-workers=1 -PtargetMinecraft=1.21.1 :drone-sim-core:test :computational-acoustics-core:test :neoforge-mod:test :neoforge-mod:runGameTestServer
+      - name: Upload test reports and logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: neoforge-mc1.21.1-tests
+          path: |
+            drone-sim-core/build/reports/**
+            computational-acoustics-core/build/reports/**
+            build/targets/1.21.1/neoforge-mod/reports/**
+            build/targets/1.21.1/neoforge-mod/run/logs/**
+            build/targets/1.21.1/neoforge-mod/run/crash-reports/**
           if-no-files-found: warn
           retention-days: 7
 
-  neoforge-packaging:
-    name: NeoForge / verified distribution jars
+  server-self-tests:
+    name: NeoForge / Minecraft ${{ matrix.minecraft }} / four flight self-tests
+    needs: targets
     runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-
-      - name: Prepare Gradle wrapper
-        run: chmod +x ./gradlew
-
-      - name: Refuse golden trace regeneration
-        run: |
-          if [ "${FPVDRONE_UPDATE_GOLDEN_TRACES}" = "true" ]; then
-            echo "CI must not run with FPVDRONE_UPDATE_GOLDEN_TRACES=true"
-            exit 1
-          fi
-
-      - name: Verify NeoForge packaging
-        run: ./gradlew --no-daemon :neoforge-mod:verifyNeoForgePackaging
-
-      - name: Upload verified NeoForge jars
-        uses: actions/upload-artifact@v4
-        with:
-          name: neoforge-verified-distributions
-          path: |
-            neoforge-mod/build/libs/fpv-dronecraft-neoforge-*.jar
-            !neoforge-mod/build/libs/*-sources.jar
-            neoforge-mod/build/fpvdrone-distributions/*.jar
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 14
-
-  neoforge-server-self-test-matrix:
-    name: NeoForge / ${{ matrix.name }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: simulation angle self-test
-            slug: simulation-angle
-            task: :neoforge-mod:runServerSelfTest
-          - name: playable angle server self-test
-            slug: playable-angle
-            task: :neoforge-mod:runPlayableServerSelfTest
-          - name: playable horizon server self-test
-            slug: playable-horizon
-            task: :neoforge-mod:runPlayableHorizonServerSelfTest
-          - name: playable acro server self-test
-            slug: playable-acro
-            task: :neoforge-mod:runPlayableAcroServerSelfTest
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
-
-      - name: Prepare Gradle wrapper and NeoForge EULA
+      - uses: actions/setup-java@v4
+        if: ${{ matrix.java == 25 }}
+        with:
+          distribution: temurin
+          java-version: "25"
+      - name: Prepare wrapper
+        run: chmod +x ./gradlew
+      - name: Accept EULA for isolated CI server
         run: |
-          chmod +x ./gradlew
-          mkdir -p neoforge-mod/run
-          printf "eula=true\n" > neoforge-mod/run/eula.txt
-
-      - name: Refuse golden trace regeneration
-        run: |
-          if [ "${FPVDRONE_UPDATE_GOLDEN_TRACES}" = "true" ]; then
-            echo "CI must not run with FPVDRONE_UPDATE_GOLDEN_TRACES=true"
-            exit 1
-          fi
-
-      - name: Run ${{ matrix.name }}
-        run: ./gradlew --no-daemon --no-parallel --max-workers=1 ${{ matrix.task }} -PfpvdroneSelfTestSeconds=12
-
-      - name: Upload NeoForge self-test reports
+          mkdir -p build/targets/${{ matrix.minecraft }}/neoforge-mod/run
+          printf 'eula=true\n' > build/targets/${{ matrix.minecraft }}/neoforge-mod/run/eula.txt
+      - name: Run four server self-tests sequentially
+        run: ./gradlew --no-daemon --no-parallel --max-workers=1 "-Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64" -PtargetMinecraft=${{ matrix.minecraft }} :neoforge-mod:runServerSelfTest :neoforge-mod:runPlayableServerSelfTest :neoforge-mod:runPlayableHorizonServerSelfTest :neoforge-mod:runPlayableAcroServerSelfTest -PfpvdroneSelfTestSeconds=12
+      - name: Upload target self-test report and logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: neoforge-selftest-${{ matrix.slug }}
+          name: neoforge-mc${{ matrix.minecraft }}-flight-selftests
           path: |
-            neoforge-mod/run/fpvdrone-selftest
-            neoforge-mod/run/logs/latest.log
+            build/targets/${{ matrix.minecraft }}/neoforge-mod/run/fpvdrone-selftest/**
+            build/targets/${{ matrix.minecraft }}/neoforge-mod/run/logs/**
+            build/targets/${{ matrix.minecraft }}/neoforge-mod/run/crash-reports/**
           if-no-files-found: warn
           retention-days: 7
