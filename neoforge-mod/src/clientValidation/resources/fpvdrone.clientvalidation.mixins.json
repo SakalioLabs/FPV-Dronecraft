@@ -4,6 +4,6 @@
   "package": "com.tenicana.dronecraft.clientvalidation.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": ["DroneRouteTickFixtureMixin"],
-  "client": ["FirstPersonHandsProbeMixin"],
+  "client": ["FirstPersonHandsProbeMixin", "TerrainRenderProbeAccess"],
   "injectors": {"defaultRequire": 1}
 }

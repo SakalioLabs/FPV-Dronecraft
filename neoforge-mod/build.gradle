@@ -305,6 +305,7 @@ if (project.minecraft_version == "1.21.1") {
 				"third_person_visible_stationary_body_and_hidden_hands", "los_restores_native_hands",
 				"positive_pitch_full_turn", "negative_pitch_full_turn", "positive_roll_full_turn", "negative_roll_full_turn",
 				"unprepared_region_640m_streams", "dual_body_and_drone_block_updates",
+				"far_fpv_native_terrain_rendered", "far_third_person_native_terrain_rendered", "los_native_terrain_returns_to_body",
 				"remote_entity_ticks_and_two_chunk_crossings", "far_three_view_cycle_same_uuid",
 				"real_husk_melee_damages_remote_pilot", "physical_pilot_falls_in_remote_view",
 				"controller_loss_expires_lease_and_tickets", "reconnect_before_native_disconnect",
@@ -327,6 +328,13 @@ if (project.minecraft_version == "1.21.1") {
 			if (!(evidence.screenshots instanceof List) || evidence.screenshots.size() != 11 || evidence.screenshots.any {
 				it.png_verified != true || !(it.file instanceof String) || !new File(it.file).isFile()
 			}) throw new GradleException("Native world screenshot evidence incomplete: ${report}")
+			def terrainChecks = ["far_fpv_native_terrain_rendered", "far_third_person_native_terrain_rendered", "los_native_terrain_returns_to_body"] as Set
+			if (!(evidence.terrain_observations instanceof List) || evidence.terrain_observations.size() != 3 ||
+					evidence.terrain_observations.collect { it.check }.toSet() != terrainChecks || evidence.terrain_observations.any {
+					it.native_view_area_contains_camera_column != true || it.nonempty_compiled_sections_within_two_camera_chunks < 1 ||
+					it.nonempty_visible_sections_within_two_camera_chunks < 1 || it.consecutive_native_frames < 3 ||
+					(it.check == "los_native_terrain_returns_to_body" ? it.camera_body_distance_meters >= 4 : it.camera_body_distance_meters <= 600)
+				}) throw new GradleException("Native remote terrain render evidence incomplete: ${report}")
 			logger.lifecycle("Native world validation passed: {} required observations, {} signed turns: {}", required.size(), axes.size(), report)
 		}
 	}

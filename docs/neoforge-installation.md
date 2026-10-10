@@ -2,10 +2,29 @@
 
 ## Current status
 
-The NeoForge development build is `0.2.0-neoforge-dev.1`. Sixteen Minecraft
-profiles from 1.21.1 through 26.3 have source overlays enabled and all remain
-under adaptation. All 16 pinned targets have passing build/package, four-mode
-dedicated-server, and client startup/model stages. Fifteen complete records are
+The current NeoForge development build is `0.2.0-neoforge-dev.2`. The recorded
+sixteen-target matrix, 1,255 native unit tests, and World 05 validation below
+were completed on `0.2.0-neoforge-dev.1` and remain migration-baseline evidence;
+they do not establish full `dev.2` coverage. The `dev.2` Minecraft 1.21.1 /
+NeoForge 21.1.256 deployment passed packaging, 465 adapter unit tests and 28
+native-world checks with Mekanism and A4MC installed, using view/simulation
+distance 12. Native rendering observations found 41 nonempty visible sections
+near the FPV camera 637 meters from the pilot, 43 in third-person 675 meters
+away, and terrain around the body again after LOS switching. Run
+`f1d140f6-48a4-4470-aeba-9aeeb8907901` is recorded in
+`build/remote-terrain-256-validation.log` and
+`build/deployment-neoforge-21.1.256/targets/1.21.1/neoforge-mod/run-client-validation/fpvdrone-client-validation/report.json`.
+Default 21.1.257 packaging and client startup also passed in
+`build/remote-terrain-257-default-validation.log`. The 1.21.2 overlay also passed
+packaging without the 1.21.1-only hook in
+`build/remote-terrain-12102-overlay-validation.log`. Its new 1.21.1 change addresses
+the terrain camera anchor: when FPV or third-person drone view is active,
+terrain-ring positioning follows the actual camera instead of the stationary
+local player. It does not move the player body or change saved-world or chunk
+generation rules. Sixteen Minecraft profiles from 1.21.1 through 26.3 have
+source overlays enabled and all remain under adaptation. Historical `dev.1`
+evidence has passing build/package, four-mode dedicated-server, and client
+startup/model stages. Fifteen complete records are
 in `build/reports/neoforge-matrix/20261010-103859-388`; the 26.1 server pass is
 there as well, while its supplemental build/client pass is in
 `build/reports/neoforge-matrix/20261010-112848-528`. The original `103859-388`
@@ -27,7 +46,7 @@ root, build the default profile:
 ```
 
 The production jar is
-`build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.1.jar`.
+`build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.2.jar`.
 Install that target-specific jar in the `mods` folder of the client and server.
 Each Minecraft target has its own jar; do not reuse one target's jar with a
 different Minecraft version. Fabric Loader and Fabric API are not required.
@@ -58,23 +77,23 @@ Evidence is target- and stage-specific:
 
 | Stage | Current evidence |
 | --- | --- |
-| Compile/package, dedicated-server flight, and client smoke | Passed for all 16 pinned targets. Fifteen complete records are in `build/reports/neoforge-matrix/20261010-103859-388`; 26.1 server passed there and its supplemental build/client pass is in `build/reports/neoforge-matrix/20261010-112848-528`. The original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure. |
-| Native unit tests | Final `1.21.1` rerun passed 1,255 (520 core, 270 acoustics, 465 NeoForge), recorded in `build/mc12101-final-native-06.log` |
-| NeoForge GameTests | 18 passed on `1.21.1` |
-| Dedicated-server flight self-tests | Four modes passed for all 16 pinned targets; see each target’s latest `sourceMatrixReport` in the inventory. |
-| Client startup/model smoke | Passed for all 16 pinned targets; 26.1 uses the supplemental report above. This does not load a validation world. |
-| Native integrated-world validation | Run 05 passed on `1.21.1` only: 25 required observations, 4 signed continuous turns over 720°, and 11 real PNG captures; death, save/reopen, and hardware tests remain outstanding |
-| Mekanism + A4MC integration | All 13 functional checks passed on a production `1.21.1` server with Mekanism `10.7.19.85` and A4MC `0.2.1` installed |
-| All-target native build/package/server/client matrix | All 16 targets now have passing per-stage evidence across `103859-388` and supplemental `112848-528`; the original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure. |
+| Compile/package, dedicated-server flight, and client smoke | Historical `dev.1` evidence passed for all 16 pinned targets. Fifteen complete records are in `build/reports/neoforge-matrix/20261010-103859-388`; 26.1 server passed there and its supplemental build/client pass is in `build/reports/neoforge-matrix/20261010-112848-528`. The original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure. |
+| Native unit tests | Historical `dev.1` final `1.21.1` rerun passed 1,255 (520 core, 270 acoustics, 465 NeoForge), recorded in `build/mc12101-final-native-06.log` |
+| NeoForge GameTests | Historical `dev.1` evidence: 18 passed on `1.21.1` |
+| Dedicated-server flight self-tests | Historical `dev.1` evidence: four modes passed for all 16 pinned targets; see each target’s recorded `sourceMatrixReport` in the inventory. |
+| Client startup/model smoke | Historical `dev.1` evidence passed for all 16 pinned targets; 26.1 uses the supplemental report above. This does not load a validation world. |
+| Native integrated-world validation | Historical `dev.1` World 05 passed on `1.21.1` only: 25 required observations, 4 signed continuous turns over 720°, and 11 real PNG captures; death, save/reopen, and hardware tests remain outstanding |
+| Mekanism + A4MC integration | Historical `dev.1` evidence: all 13 functional checks passed on a production `1.21.1` server with Mekanism `10.7.19.85` and A4MC `0.2.1` installed |
+| All-target native build/package/server/client matrix | Historical `dev.1` evidence: all 16 targets have passing per-stage evidence across `103859-388` and supplemental `112848-528`; the original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure. |
 
 The earlier partial run `build/reports/neoforge-matrix/20261010-095244-936` is
 historical diagnostic-fixture/probe evidence and is superseded by the passing
 per-target records above. Keep the original `103859-388` aggregate marked failed
 even though supplemental 26.1 build/client stages passed.
 
-These results are provisional. Passing compile/package, unit, server-flight,
-startup, or third-party integration checks does not establish native-world
-behavior or complete support.
+These `dev.1` results are migration-baseline evidence. Passing compile/package,
+unit, server-flight, startup, or third-party integration checks does not
+establish native-world behavior or complete support.
 
 ## Gameplay and optional integrations
 
@@ -112,8 +131,8 @@ reading it, by placing `eula=true` in
 being tested. CI uploads artifacts and logs under target-specific names.
 
 Client validators are distinct. `:neoforge-mod:runClientSmoke` checks title
-screen readiness, controller model baking, and at least 20 stable ticks. This
-smoke passed for all 16 pinned targets; the 26.1 supplemental pass is in
+screen readiness, controller model baking, and at least 20 stable ticks. The
+`dev.1` smoke passed for all 16 pinned targets; the 26.1 supplemental pass is in
 `build/reports/neoforge-matrix/20261010-112848-528`. The smoke does not load a
 validation world. The Gradle task has an external 4-minute timeout. The
 `1.21.1` native-world validator is:
@@ -126,7 +145,8 @@ It exercises native placement/binding, four signed turns of at least 720°,
 camera/body views, chunk streaming, pilot damage, cleanup, and 11 verified
 screenshots. Its Gradle task has a 14-minute external timeout; internally it
 allows 12 minutes total, 4 minutes for world startup, and 60 seconds for each
-later stage. World run 05 passed on `1.21.1` only: all 25 required observations,
+later stage. Historical `dev.1` World run 05 passed on `1.21.1` only: all 25
+required observations,
 four signed continuous turns over 720°, and 11 real PNG captures; report UUID is
 `f7d2c17a-da69-4a12-8d9f-36b4a1ef0b5d` at
 `build/targets/1.21.1/neoforge-mod/run-client-validation/fpvdrone-client-validation/report.json`.
@@ -150,8 +170,9 @@ Mekanism/A4MC gates passed. The validator checks the saved report and matching
 run ID; it does not launch or repeat the isolated integration test.
 
 The original all-target matrix `build/reports/neoforge-matrix/20261010-103859-388`
-remains failed because it preserves the pre-fix 26.1 client failure. All 16
-targets now have passing per-stage build/package/server/client evidence: 15
+remains failed because it preserves the pre-fix 26.1 client failure. Historical
+`dev.1` evidence has passing per-stage build/package/server/client results for
+all 16 targets: 15
 complete rows are in `103859-388`, 26.1 server is also there, and its
 supplemental build/client pass is in
 `build/reports/neoforge-matrix/20261010-112848-528`. Refer to the target

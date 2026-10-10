@@ -114,7 +114,9 @@ def fpvPkgExpectedServerMixinClasses = [
 		"RemoteTrackedEntityMixin",
 		"RemotePlayerChunkSenderMixin"
 ]
-if (project.minecraft_version != "1.21.1") {
+if (project.minecraft_version == "1.21.1") {
+	fpvPkgExpectedMixinClasses.add(fpvPkgExpectedMixinClasses.indexOf("CameraMixin") + 1, "RemoteTerrainCameraMixin")
+} else {
 	fpvPkgExpectedMixinClasses += ["FramerateLimitTrackerAccessor", "MinecraftFramerateLimitTrackerAccessor"]
 }
 if (project.minecraft_version.toString().startsWith("26.")) {

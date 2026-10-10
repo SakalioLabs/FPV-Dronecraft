@@ -6,7 +6,7 @@ The normal client and production jar must load only the production mod.
 
 The harness is inert unless `-Dfpvdrone.client_validation=true` is explicit. It
 requires a valid UUID in `fpvdrone.client_validation.run_id`. The report contains
-that UUID and passes only after all 25 required observation keys are true and the
+that UUID and passes only after all 28 required observation keys are true and the
 state machine reaches `COMPLETE`. A failed or timed-out stage writes a failed
 report and exits. While client ticks continue, individual stages time out after
 60 seconds; native world startup has four minutes and the whole run has twelve
@@ -83,6 +83,14 @@ Actual remote leases
 must stream both body and drone blocks, the same drone UUID, a native ticking
 chicken, two additional chunk crossings, and all three views. This is remote
 streaming evidence, not a claim that a pilot flew the full route with stick input.
+
+Remote terrain additionally requires the native `ViewArea` to cover the actual
+camera column, and nonempty compiled sections in the native visible-section list
+within two horizontal chunks of that camera for three consecutive rendered
+frames. These read-only probes run in FPV and third-person more than 600 meters
+from the physical player, then require terrain around the body again after LOS
+switching. The probes never reposition the grid, compile terrain, or submit extra
+draws. Cached blocks and ticking entities alone do not satisfy these checks.
 
 The physical player remains in Survival with ordinary gravity. A real Husk AI
 attack must produce a native damage event, and removal of the temporary floor

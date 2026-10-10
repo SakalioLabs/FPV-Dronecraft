@@ -26,6 +26,7 @@ import com.tenicana.dronecraft.camera.DroneViewMode;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.control.DroneClientControls;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
+import com.tenicana.dronecraft.clientvalidation.mixin.TerrainRenderProbeAccess;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.item.DroneControllerItem;
@@ -38,6 +39,8 @@ import net.minecraft.client.CameraType;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import net.minecraft.client.renderer.ViewArea;
+import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -97,6 +100,7 @@ public final class NativeClientWorldValidation {
         "third_person_visible_stationary_body_and_hidden_hands", "los_restores_native_hands",
         "positive_pitch_full_turn", "negative_pitch_full_turn", "positive_roll_full_turn", "negative_roll_full_turn",
         "unprepared_region_640m_streams", "dual_body_and_drone_block_updates",
+        "far_fpv_native_terrain_rendered", "far_third_person_native_terrain_rendered", "los_native_terrain_returns_to_body",
         "remote_entity_ticks_and_two_chunk_crossings", "far_three_view_cycle_same_uuid",
         "real_husk_melee_damages_remote_pilot", "physical_pilot_falls_in_remote_view",
         "controller_loss_expires_lease_and_tickets", "reconnect_before_native_disconnect",
@@ -122,6 +126,7 @@ public final class NativeClientWorldValidation {
     private final JsonArray turns = new JsonArray();
     private final JsonArray observations = new JsonArray();
     private final JsonArray routeObservations = new JsonArray();
+    private final JsonArray terrainObservations = new JsonArray();
     private final Map<BlockPos, BlockState> originalBlocks = new LinkedHashMap<>();
     private final List<BlockPos> platform = new ArrayList<>();
     private final Map<String, Float> originalCameraSettings = new LinkedHashMap<>();
@@ -140,6 +145,8 @@ public final class NativeClientWorldValidation {
     private int stageTick, worldStableTicks;
     private volatile int routeCompletedTick, turnIndex;
     private long frames, bodyRenders, handsCalls;
+    private int terrainFrames;
+    private TerrainObservation terrain;
     private volatile long cameraSamples;
     private double maximumBodyDrift;
     private volatile double maximumCameraError, maximumModelRenderError;
@@ -182,13 +189,14 @@ public final class NativeClientWorldValidation {
         report.addProperty("turn_path", "production R/M/B and held keyboard controls -> production payload -> server playable quaternion -> native client camera frame");
         report.addProperty("streaming_fixture", "drone-only pose route on native DroneEntity.tick TAIL, up to 4m per tick; waits for next chunk to be loaded and entity-ticking through existing production lease; no getChunk preload or forced chunks");
         report.addProperty("body_fixture", "one initial server teleport to a temporary solid platform; normal gravity, Survival and real Husk AI; no per-tick body position writes");
-        report.addProperty("render_probe", "RenderPlayerEvent.Post on actual LocalPlayer and observation-only ItemInHandRenderer HEAD; no additional model submissions");
+        report.addProperty("render_probe", "RenderPlayerEvent.Post, native hands call counter and read-only native ViewArea/visible compiled sections; no additional model submissions or forced compilation");
         report.add("checks", checks);
         report.add("stages", stages);
         report.add("screenshots", screenshots);
         report.add("turns", turns);
         report.add("observations", observations);
         report.add("route_observations", routeObservations);
+        report.add("terrain_observations", terrainObservations);
     }
 
     public void clientTick(ClientTickEvent.Post event) {
@@ -205,7 +213,7 @@ public final class NativeClientWorldValidation {
             if (asynchronousFailure != null) throw new IllegalStateException(asynchronousFailure);
             require(System.nanoTime() - startedAt < TimeUnit.MINUTES.toNanos(12), "Native world validation exceeded the total timeout");
             long timeout = stage == Stage.WAIT_WORLD ? TimeUnit.MINUTES.toNanos(4) : TimeUnit.SECONDS.toNanos(60);
-            require(System.nanoTime() - stageStarted < timeout, "Timed out at " + stage + "; last server snapshot=" + snapshot);
+            require(System.nanoTime() - stageStarted < timeout, "Timed out at " + stage + "; last server snapshot=" + snapshot + "; native terrain=" + terrain);
             if (stage == Stage.WAIT_WORLD) { waitForWorld(client); return; }
             if (stage == Stage.DISCONNECT) { finishDisconnect(client); return; }
             require(client.player != null && client.level != null && client.gameMode != null,
@@ -514,6 +522,8 @@ public final class NativeClientWorldValidation {
             }
             case REMOTE_REGION -> {
                 if (!operationDone() || !bothMarkers(client, Blocks.EMERALD_BLOCK) || clientEntity(client, chickenId) == null || state.chickenTick() < 8) return;
+                if (!terrainReady(true)) return;
+                recordTerrain("far_fpv_native_terrain_rendered");
                 firstChickenTick = state.chickenTick();
                 check("dual_body_and_drone_block_updates");
                 capture(client, "remote-640m-fpv");
@@ -534,6 +544,8 @@ public final class NativeClientWorldValidation {
             }
             case REMOTE_THIRD -> {
                 if (!remote(client, state, DroneViewMode.THIRD_PERSON) || !settled(12)) return;
+                if (!terrainReady(true)) return;
+                recordTerrain("far_third_person_native_terrain_rendered");
                 require(client.gameRenderer.getMainCamera().isDetached(), "Far third-person camera was not detached");
                 capture(client, "remote-third-person");
                 click(GLFW.GLFW_KEY_B);
@@ -541,6 +553,8 @@ public final class NativeClientWorldValidation {
             }
             case REMOTE_LOS -> {
                 if (!captureDone() || !los(client, state) || !targetId.equals(state.sessionDrone()) || !settled(12)) return;
+                if (!terrainReady(false)) return;
+                recordTerrain("los_native_terrain_returns_to_body");
                 require(client.player.position().distanceTo(bodyHome) < 0.30 && bothMarkers(client, Blocks.DIAMOND_BLOCK), "LOS failed to retain both distant regions and the original pilot");
                 click(GLFW.GLFW_KEY_B);
                 advance(Stage.REMOTE_REATTACH);
@@ -704,6 +718,8 @@ public final class NativeClientWorldValidation {
     public void renderLevel(RenderLevelStageEvent event) {
         if (finished || event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL) return;
         frames++;
+        try { observeTerrain(event.getCamera()); }
+        catch (Throwable failure) { asynchronousFailure = "Native terrain observation failed: " + failure; }
         if (stage != Stage.TURN_HOLD) return;
         Minecraft client = Minecraft.getInstance();
         DroneEntity drone = DroneClientState.controlledDrone();
@@ -721,6 +737,58 @@ public final class NativeClientWorldValidation {
             cameraSamples++;
         } catch (Throwable failure) { asynchronousFailure = "Native render observation failed: " + failure; }
     }
+
+    private void observeTerrain(Camera camera) {
+        Minecraft client = Minecraft.getInstance();
+        TerrainRenderProbeAccess probe = (TerrainRenderProbeAccess) client.levelRenderer;
+        ViewArea area = probe.fpvValidation$viewArea();
+        if (area == null || client.player == null) return;
+        BlockPos cameraBlock = BlockPos.containing(camera.getPosition());
+        int cx = cameraBlock.getX() >> 4, cz = cameraBlock.getZ() >> 4;
+        boolean containsCamera = false;
+        int compiledNearCamera = 0, visibleNearCamera = 0;
+        for (SectionRenderDispatcher.RenderSection section : area.sections) {
+            BlockPos origin = section.getOrigin();
+            int dx = Math.abs((origin.getX() >> 4) - cx), dz = Math.abs((origin.getZ() >> 4) - cz);
+            if (dx == 0 && dz == 0) containsCamera = true;
+            if (dx <= 2 && dz <= 2 && renderable(section)) compiledNearCamera++;
+        }
+        for (SectionRenderDispatcher.RenderSection section : probe.fpvValidation$visibleSections()) {
+            BlockPos origin = section.getOrigin();
+            if (Math.abs((origin.getX() >> 4) - cx) <= 2 && Math.abs((origin.getZ() >> 4) - cz) <= 2 && renderable(section)) visibleNearCamera++;
+        }
+        terrain = new TerrainObservation(stage, camera.getPosition(), client.player.position(), containsCamera, compiledNearCamera, visibleNearCamera);
+        if (containsCamera && compiledNearCamera > 0 && visibleNearCamera > 0) terrainFrames++;
+        else terrainFrames = 0;
+    }
+
+    private static boolean renderable(SectionRenderDispatcher.RenderSection section) {
+        SectionRenderDispatcher.CompiledSection compiled = section.getCompiled();
+        return compiled != SectionRenderDispatcher.CompiledSection.UNCOMPILED && !compiled.hasNoRenderableLayers();
+    }
+
+    private boolean terrainReady(boolean remote) {
+        return terrain != null && terrain.stage() == stage && terrainFrames >= 3 && terrain.gridContainsCamera()
+                && terrain.compiledNearCamera() > 0 && terrain.visibleNearCamera() > 0
+                && (remote ? terrain.camera().distanceTo(terrain.body()) > 600 : terrain.camera().distanceTo(terrain.body()) < 4);
+    }
+
+    private void recordTerrain(String name) {
+        JsonObject evidence = new JsonObject();
+        evidence.addProperty("check", name);
+        evidence.addProperty("stage", stage.name());
+        evidence.add("camera_position", vector(terrain.camera()));
+        evidence.add("physical_player_position", vector(terrain.body()));
+        evidence.addProperty("camera_body_distance_meters", terrain.camera().distanceTo(terrain.body()));
+        evidence.addProperty("native_view_area_contains_camera_column", terrain.gridContainsCamera());
+        evidence.addProperty("nonempty_compiled_sections_within_two_camera_chunks", terrain.compiledNearCamera());
+        evidence.addProperty("nonempty_visible_sections_within_two_camera_chunks", terrain.visibleNearCamera());
+        evidence.addProperty("consecutive_native_frames", terrainFrames);
+        terrainObservations.add(evidence);
+        check(name);
+    }
+
+    private record TerrainObservation(Stage stage, Vec3 camera, Vec3 body, boolean gridContainsCamera, int compiledNearCamera, int visibleNearCamera) {}
 
     public void renderPlayer(RenderPlayerEvent.Post event) {
         Minecraft client = Minecraft.getInstance();
@@ -958,6 +1026,7 @@ public final class NativeClientWorldValidation {
         stageStarted = System.nanoTime();
         windowStarted = false;
         frames = bodyRenders = handsCalls = 0;
+        terrainFrames = 0;
     }
 
     private void block(ServerLevel level, BlockPos position, BlockState value) {
