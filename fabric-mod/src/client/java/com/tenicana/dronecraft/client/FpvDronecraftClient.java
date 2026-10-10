@@ -7,6 +7,7 @@ import com.tenicana.dronecraft.client.control.DroneClientControls;
 import com.tenicana.dronecraft.client.command.AcousticDiagnosticClientCommands;
 import com.tenicana.dronecraft.client.command.NativeEventTraceDiagnosticClientCommands;
 import com.tenicana.dronecraft.client.hud.DroneHud;
+import com.tenicana.dronecraft.client.performance.RuntimePerformanceMonitor;
 import com.tenicana.dronecraft.client.render.DroneEntityRenderer;
 import com.tenicana.dronecraft.client.render.DroneModelLayers;
 import com.tenicana.dronecraft.client.sound.DroneSoundManager;
@@ -33,6 +34,7 @@ public final class FpvDronecraftClient implements ClientModInitializer {
 		EntityRendererRegistry.register(DroneEntityTypes.DRONE, DroneEntityRenderer::new);
 		DroneClientControls.initialize();
 		DroneHud.initialize();
+		RuntimePerformanceMonitor.initialize();
 		AcousticProfileResources.initialize();
 		MinecraftAcousticWorldDirtyTracker.initialize();
 		if (traceMode.armed()) {

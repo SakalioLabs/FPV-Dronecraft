@@ -18,12 +18,16 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.Vec3;
+import com.mojang.blaze3d.audio.ListenerTransform;
+import com.tenicana.dronecraft.client.mixin.SoundManagerEngineAccessor;
+import com.tenicana.dronecraft.client.mixin.SoundEngineChannelsAccessor;
+import com.tenicana.dronecraft.client.mixin.SoundEngineControlInvoker;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -31,6 +35,8 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import com.tenicana.dronecraft.acoustics.AcousticBands;
 import com.tenicana.dronecraft.acoustics.AcousticEmissionFrame;
+import com.tenicana.dronecraft.acoustics.AcousticListenerFrame;
+import com.tenicana.dronecraft.acoustics.AcousticPropagation;
 import com.tenicana.dronecraft.acoustics.AcousticSourceFrame;
 import com.tenicana.dronecraft.acoustics.AcousticVector;
 import com.tenicana.dronecraft.acoustics.concurrent.LatestWinsProcessor;
@@ -47,18 +53,21 @@ import com.tenicana.dronecraft.acoustics.reverb.ReflectionVolume;
 import com.tenicana.dronecraft.acoustics.reverb.VoxelReflectionProbe;
 import com.tenicana.dronecraft.acoustics.voxel.DdaProductionSnapshotBundle;
 import com.tenicana.dronecraft.FpvDronecraftMod;
+import com.tenicana.dronecraft.client.camera.CameraAcousticOwnerAccess;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.sound.DroneSoundPhysics;
 
 public final class DroneSoundManager {
-	private static final int MAX_ACTIVE_DRONES = 6;
+	private static final int MAX_ACTIVE_DRONES = StreamingVoiceBudget.MAX_DRONES;
 	private static final double START_DISTANCE_SQUARED = 48.0 * 48.0;
 	private static final double RELEASE_DISTANCE_SQUARED = 64.0 * 64.0;
-	private static final int FADE_OUT_TICKS = 20;
 	private static final int RESTART_CHECK_INTERVAL_TICKS = 20;
 	private static final String DDA_EXPORT_PATH_PROPERTY =
 			"fpvdrone.acoustics.ddaExport";
 	private static final Map<Integer, DroneSoundSet> ACTIVE_SOUNDS = new HashMap<>();
+	private static final AcousticCameraListener CAMERA_LISTENER = new AcousticCameraListener();
+	private static final DroneCallbackControlCoordinator CALLBACK_CONTROLS = new DroneCallbackControlCoordinator();
+	private static ListenerTransform callbackListenerTransform;
 	private static final DirectPropagationController DIRECT_PROPAGATION = new DirectPropagationController();
 	private static final ListenerReverbController LISTENER_REVERB =
 			new ListenerReverbController();
@@ -78,6 +87,96 @@ public final class DroneSoundManager {
 	private static ClientLevel activeLevel;
 
 	private DroneSoundManager() {
+	}
+
+	/** Called with the same completed Camera pose that vanilla sends to OpenAL. */
+	public static void onAudioListenerUpdate(Camera camera) {
+		Minecraft client = Minecraft.getInstance();
+		CameraAcousticOwnerAccess context = (CameraAcousticOwnerAccess) camera;
+		Entity cameraEntity = camera.entity();
+		Entity velocityOwner = context.fpvdrone$acousticVelocityOwner();
+		if (client.level == null || cameraEntity == null || velocityOwner == null
+				|| cameraEntity.level() != client.level || velocityOwner.level() != client.level) {
+			invalidateCallbackControls();
+			callbackListenerTransform = null;
+			CAMERA_LISTENER.reset();
+			return;
+		}
+		AcousticListenerFrame frame = DroneAcousticSourceMapper.mapListener(
+				camera.position(), velocityOwner
+		);
+		AcousticCameraListener.Sample previous = CAMERA_LISTENER.latestFor(client.level);
+		AcousticCameraListener.Sample sample = CAMERA_LISTENER.capture(
+				new AcousticCameraListener.View(
+						client.level, cameraEntity, velocityOwner, context.fpvdrone$acousticViewMode()
+				),
+				frame.positionMeters(), frame.velocityMetersPerSecond()
+		);
+		if (previous == null || previous.epoch() != sample.epoch()) {
+			invalidateCallbackControls();
+			callbackListenerTransform = null;
+			DIRECT_PROPAGATION.invalidateListener();
+			LISTENER_REVERB.stop(client.getSoundManager());
+			for (DroneSoundSet sounds : ACTIVE_SOUNDS.values()) {
+				sounds.acousticState.resetTransmission();
+			}
+		}
+		for (DroneSoundSet sounds : ACTIVE_SOUNDS.values()) {
+			sounds.acousticState.updateListener(sample.frame());
+		}
+		if (Boolean.getBoolean(NativeCallbackBinding.ENABLE_PROPERTY)) {
+			callbackListenerTransform = new ListenerTransform(camera.position(),
+					new net.minecraft.world.phys.Vec3(camera.forwardVector()),
+					new net.minecraft.world.phys.Vec3(camera.upVector()));
+			stageCallbackControls();
+		}
+	}
+
+	public static DroneAudioControlFrame callbackCommittedFrame() { return CALLBACK_CONTROLS.committedFrame(); }
+	public static DroneAudioControlFrame callbackPendingFrame() { return CALLBACK_CONTROLS.pendingFrame(); }
+	public static long callbackControlGeneration() { return CALLBACK_CONTROLS.generation(); }
+	public static boolean callbackControlsSuppressListenerMutation() { return CALLBACK_CONTROLS.suppressListenerMutation(); }
+	public static void invalidateCallbackControls() { CALLBACK_CONTROLS.invalidate(); }
+
+	/** Assemble on the client, including wet geometry from the same frozen dry controls. */
+	public static void stageCallbackControls() {
+		if (!Boolean.getBoolean(NativeCallbackBinding.ENABLE_PROPERTY)
+				|| ACTIVE_SOUNDS.isEmpty() || callbackListenerTransform == null || LISTENER_REVERB.sound == null) return;
+		Minecraft client = Minecraft.getInstance();
+		if (client.level == null) return;
+		AcousticCameraListener.Sample listener = CAMERA_LISTENER.latestFor(client.level);
+		if (listener == null) return;
+		SoundEngine engine = ((SoundManagerEngineAccessor) client.getSoundManager()).fpvdrone$getSoundEngine();
+		var handles = ((SoundEngineChannelsAccessor) engine).fpvdrone$getInstanceToChannel();
+		SoundEngineControlInvoker gains = (SoundEngineControlInvoker) engine;
+		List<DroneAudioControlFrame.SourceControl> sources = new ArrayList<>(ACTIVE_SOUNDS.size());
+		for (DroneSoundSet sounds : ACTIVE_SOUNDS.values()) {
+			if (sounds.motor == null || sounds.propeller == null || !sounds.motor.usesProceduralAudio()
+					|| !sounds.propeller.usesProceduralAudio() || !sounds.acousticState.distanceStreamsVerified()) return;
+			var snapshot = sounds.acousticState.audioSnapshot();
+			if (snapshot == null || snapshot.listener() != listener.frame()) return;
+			sources.add(new DroneAudioControlFrame.SourceControl(sounds.drone.getId(), sounds.acousticState,
+					snapshot, sounds.acousticState.unoccludedEmissionFrame(), sounds.motor, sounds.propeller,
+					handles.get(sounds.motor), handles.get(sounds.propeller),
+					sounds.acousticState.distanceStream(com.tenicana.dronecraft.acoustics.PhaseContinuousSynthesizer.Layer.MOTOR),
+					sounds.acousticState.distanceStream(com.tenicana.dronecraft.acoustics.PhaseContinuousSynthesizer.Layer.PROPELLER),
+					sounds.motor.getVolume(), sounds.propeller.getVolume(),
+					gains.fpvdrone$calculateVolume(sounds.motor), gains.fpvdrone$calculateVolume(sounds.propeller),
+					gains.fpvdrone$calculatePitch(sounds.motor), gains.fpvdrone$calculatePitch(sounds.propeller)));
+		}
+		ListenerReverbSoundInstance bus = LISTENER_REVERB.sound;
+		DroneAudioControlFrame frame = new DroneAudioControlFrame(CALLBACK_CONTROLS.generation(),
+				CALLBACK_CONTROLS.nextVersion(), callbackListenerTransform, listener.frame(), sources,
+				LISTENER_REVERB.state, LISTENER_REVERB.state.snapshot().environment(), bus, handles.get(bus),
+				LISTENER_REVERB.state.callbackStream(), gains.fpvdrone$calculateVolume(bus), gains.fpvdrone$calculatePitch(bus));
+		CALLBACK_CONTROLS.stage(frame, engine);
+	}
+
+	private static double distanceSquared(DroneEntity drone, AcousticListenerFrame listener) {
+		AcousticVector difference = new AcousticVector(
+				drone.getX(), drone.getY() + drone.getBbHeight() * 0.5, drone.getZ()
+		).subtract(listener.positionMeters());
+		return difference.dot(difference);
 	}
 
 	public static void initialize() {
@@ -160,7 +259,15 @@ public final class DroneSoundManager {
 	}
 
 	public static void onSoundEngineReload() {
+		invalidateCallbackControls();
 		OPENAL_EFX.onSoundEngineReload();
+		for (DroneSoundSet sounds : ACTIVE_SOUNDS.values()) {
+			sounds.acousticState.resetDistanceOwnership();
+		}
+	}
+
+	static boolean internalPropagationEnabled() {
+		return PROPAGATION_COMPATIBILITY.internalPropagationEnabled();
 	}
 
 	static OpenAlEfxController.Diagnostics openAlEfxDiagnostics() {
@@ -226,9 +333,8 @@ public final class DroneSoundManager {
 			return;
 		}
 
-		Entity listener = client.getCameraEntity() != null ? client.getCameraEntity() : client.player;
+		AcousticCameraListener.Sample listener = CAMERA_LISTENER.latestFor(client.level);
 		if (listener == null) {
-			stopAll(client);
 			return;
 		}
 
@@ -237,7 +343,7 @@ public final class DroneSoundManager {
 			if (!(entity instanceof DroneEntity drone) || !drone.isAlive() || drone.isRemoved()) {
 				continue;
 			}
-			double distanceSquared = drone.distanceToSqr(listener);
+			double distanceSquared = distanceSquared(drone, listener.frame());
 			if (drone.isSilent()
 					|| distanceSquared > START_DISTANCE_SQUARED
 					|| !DroneSoundPhysics.isAudible(drone.getAverageMotorRpm())) {
@@ -268,7 +374,7 @@ public final class DroneSoundManager {
 				current = new DroneSoundSet(drone);
 				ACTIVE_SOUNDS.put(drone.getId(), current);
 			}
-			current.ensureActive(client.getSoundManager(), listener);
+			current.ensureActive(client.getSoundManager(), listener.frame());
 		}
 
 		Iterator<Map.Entry<Integer, DroneSoundSet>> iterator = ACTIVE_SOUNDS.entrySet().iterator();
@@ -283,13 +389,15 @@ public final class DroneSoundManager {
 					&& drone.isAlive()
 					&& !drone.isRemoved()
 					&& !drone.isSilent();
-			double distanceSquared = valid ? drone.distanceToSqr(listener) : Double.POSITIVE_INFINITY;
+			double distanceSquared = valid ? distanceSquared(drone, listener.frame()) : Double.POSITIVE_INFINITY;
 			boolean audible = valid && DroneSoundPhysics.isAudible(drone.getAverageMotorRpm());
 			if (audible && distanceSquared <= RELEASE_DISTANCE_SQUARED) {
+				// Retention skips layer restarts, not live source telemetry/geometry.
+				sounds.acousticState.updateSource(drone, listener.frame());
 				continue;
 			}
 			boolean canFade = valid && distanceSquared <= RELEASE_DISTANCE_SQUARED && !audible;
-			if (canFade && sounds.continueFadeOut()) {
+			if (canFade && sounds.continueFadeOut(client.getSoundManager())) {
 				continue;
 			}
 			sounds.stop(client.getSoundManager());
@@ -297,6 +405,11 @@ public final class DroneSoundManager {
 		}
 		boolean internalPropagation =
 				PROPAGATION_COMPATIBILITY.internalPropagationEnabled();
+		for (DroneSoundSet sounds : ACTIVE_SOUNDS.values()) {
+			if (sounds.acousticState.distanceOwnershipFailed()) {
+				sounds.stop(client.getSoundManager());
+			}
+		}
 		if (internalPropagation || DIRECT_PROPAGATION.hasPendingDiagnosticExport()) {
 			DIRECT_PROPAGATION.tick(
 					client.level,
@@ -310,7 +423,6 @@ public final class DroneSoundManager {
 			}
 		}
 		if (internalPropagation && LOCAL_PLANE_RESEARCH.enabled()) {
-			Vec3 listenerPosition = listener.getEyePosition();
 			List<MinecraftLocalPlaneSceneScheduler.Source> sources =
 					new ArrayList<>(ACTIVE_SOUNDS.size());
 			for (DroneSoundSet sounds : ACTIVE_SOUNDS.values()) {
@@ -328,11 +440,7 @@ public final class DroneSoundManager {
 			}
 			LOCAL_PLANE_RESEARCH.tick(
 					client.level,
-					new AcousticVector(
-							listenerPosition.x,
-							listenerPosition.y,
-							listenerPosition.z
-					),
+					listener.frame().positionMeters(),
 					sources
 			);
 		}
@@ -347,6 +455,7 @@ public final class DroneSoundManager {
 				internalPropagation,
 				backend
 		);
+		stageCallbackControls();
 		List<DroneLoopSoundInstance> activeLayers = new ArrayList<>();
 		for (DroneSoundSet sounds : ACTIVE_SOUNDS.values()) {
 			sounds.addActiveLayers(activeLayers);
@@ -423,6 +532,10 @@ public final class DroneSoundManager {
 	}
 
 	private static void stopAll(Minecraft client) {
+		invalidateCallbackControls();
+		callbackListenerTransform = null;
+		CAMERA_LISTENER.reset();
+		DIRECT_PROPAGATION.invalidateListener();
 		SoundManager soundManager = client.getSoundManager();
 		AUDIO_LAB.abort("audio lab aborted: sound manager stopped");
 		OPENAL_DOPPLER_GUARD.stop(soundManager);
@@ -440,20 +553,23 @@ public final class DroneSoundManager {
 		private DroneLoopSoundInstance motor;
 		private DroneLoopSoundInstance propeller;
 		private int restartCheckTicks;
-		private int fadeOutTicks;
 		private int propagationStaleTicks;
 
 		private DroneSoundSet(DroneEntity drone) {
 			this.drone = drone;
+			acousticState.useCallbackControls(CALLBACK_CONTROLS);
 		}
 
 		private DroneEntity drone() {
 			return drone;
 		}
 
-		private void ensureActive(SoundManager soundManager, Entity listener) {
-			fadeOutTicks = 0;
+		private void ensureActive(SoundManager soundManager, AcousticListenerFrame listener) {
 			acousticState.updateSource(drone, listener);
+			if (acousticState.distanceOwnershipFailed()) {
+				stop(soundManager);
+				return;
+			}
 			if (restartCheckTicks > 0) {
 				restartCheckTicks--;
 				return;
@@ -485,9 +601,13 @@ public final class DroneSoundManager {
 			return replacement;
 		}
 
-		private boolean continueFadeOut() {
-			fadeOutTicks++;
-			return fadeOutTicks <= FADE_OUT_TICKS;
+		private boolean continueFadeOut(SoundManager soundManager) {
+			return hasUnfinishedRelease(soundManager, motor) || hasUnfinishedRelease(soundManager, propeller);
+		}
+
+		private static boolean hasUnfinishedRelease(SoundManager soundManager, DroneLoopSoundInstance sound) {
+			// A retained playing layer owns its release duration; a lost handle cannot keep the set alive.
+			return sound != null && !sound.isStopped() && soundManager.isActive(sound) && sound.hasUnfinishedEnvelope();
 		}
 
 		private void applyTransmission(AcousticBands gain) {
@@ -529,6 +649,7 @@ public final class DroneSoundManager {
 			if (sound == null) {
 				return;
 			}
+			invalidateCallbackControls();
 			sound.end();
 			soundManager.stop(sound);
 		}
@@ -563,9 +684,11 @@ public final class DroneSoundManager {
 		private long lastAppliedSequence;
 		private int ticksUntilUpdate;
 
+		private ListenerReverbController() { state.useCallbackControls(CALLBACK_CONTROLS); }
+
 		private void tick(
 				Minecraft client,
-				Entity listener,
+				AcousticCameraListener.Sample listener,
 				Map<Integer, DroneSoundSet> activeSounds,
 				boolean internalPropagation,
 				AcousticBackendSelector.RuntimeBackend backend
@@ -583,8 +706,8 @@ public final class DroneSoundManager {
 				stop(soundManager);
 				return;
 			}
-			publishSources(listener, activeSounds);
-			applyLatest();
+			publishSources(listener.frame(), activeSounds);
+			applyLatest(listener.epoch());
 			if (javaEnabled) {
 				state.requestWetHistoryOwner();
 				ListenerReverbQueueHandoffProbe.onFallbackRequested(
@@ -611,12 +734,7 @@ public final class DroneSoundManager {
 				return;
 			}
 			ticksUntilUpdate = UPDATE_INTERVAL_TICKS - 1;
-			Vec3 eye = listener.getEyePosition();
-			AcousticVector listenerPoint = new AcousticVector(
-					eye.x,
-					eye.y,
-					eye.z
-			);
+			AcousticVector listenerPoint = listener.frame().positionMeters();
 			long generation = Math.max(0L, client.level.getGameTime());
 			ReflectionVolume volume = MinecraftReflectionSnapshot.capture(
 					client.level,
@@ -626,48 +744,43 @@ public final class DroneSoundManager {
 					generation
 			);
 			processor.submit(new ReflectionRequest(
+					listener.epoch(),
 					listenerPoint,
 					volume
 			));
 		}
 
 		private void publishSources(
-				Entity listener,
+				AcousticListenerFrame listener,
 				Map<Integer, DroneSoundSet> activeSounds
 			) {
 			List<ListenerReverbState.Source> sources =
 					new ArrayList<>(activeSounds.size());
 			for (DroneSoundSet sounds : activeSounds.values()) {
-				if (!DroneSoundPhysics.isAudible(
-						sounds.drone.getAverageMotorRpm()
-				)) {
+				// Include the actual release envelope after RPM becomes inaudible.
+				if (sounds.motor == null || sounds.propeller == null) {
+					continue;
+				}
+				// Previous procedural stream owners may remain until async close.
+				// Current resource or mixed backends cannot feed this source model.
+				if (!sounds.motor.usesProceduralAudio() || !sounds.propeller.usesProceduralAudio()) {
 					continue;
 				}
 				AcousticEmissionFrame emission =
 						sounds.acousticState.unoccludedEmissionFrame();
 				double distance = Math.sqrt(
-						sounds.drone.distanceToSqr(listener)
+						distanceSquared(sounds.drone, listener)
 				);
-				double distanceGain = Math.max(
-						0.0,
-						1.0 - distance / 48.0
-				);
-				if (distanceGain == 0.0) {
+				if (!sounds.acousticState.distanceStreamsVerified()) {
 					continue;
 				}
+				double distanceGain = AcousticPropagation.pressureDistanceGain(distance);
+				var calibration = sounds.acousticState.playbackCalibration();
 				sources.add(new ListenerReverbState.Source(
 						sounds.drone.getId(),
 						emission,
-						Math.min(
-								4.0,
-								distanceGain * sounds.acousticState
-										.motorPlaybackAmplitude()
-						),
-						Math.min(
-								4.0,
-								distanceGain * sounds.acousticState
-										.propellerPlaybackAmplitude()
-						)
+						distanceGain * sounds.motor.getVolume() * calibration.motorPlaybackAmplitude(),
+						distanceGain * sounds.propeller.getVolume() * calibration.propellerPlaybackAmplitude()
 				));
 			}
 			state.publishSources(sources);
@@ -678,6 +791,7 @@ public final class DroneSoundManager {
 				return;
 			}
 			if (sound != null) {
+				invalidateCallbackControls();
 				sound.end();
 				soundManager.stop(sound);
 			}
@@ -694,7 +808,7 @@ public final class DroneSoundManager {
 
 		private ReflectionResult solve(ReflectionRequest request) {
 			if (!request.volume().complete()) {
-				return ReflectionResult.incomplete();
+				return ReflectionResult.incomplete(request.listenerEpoch());
 			}
 			try {
 				ReflectionStatistics statistics =
@@ -706,22 +820,25 @@ public final class DroneSoundManager {
 				LateReverbEstimator.Parameters parameters =
 						LateReverbEstimator.estimate(statistics, 343.0);
 				return new ReflectionResult(
+						request.listenerEpoch(),
 						true,
 						FdnEnvironmentMapper.map(parameters)
 				);
 			} catch (IllegalArgumentException invalidSnapshot) {
-				return ReflectionResult.incomplete();
+				return ReflectionResult.incomplete(request.listenerEpoch());
 			}
 		}
 
-		private void applyLatest() {
+		private void applyLatest(long listenerEpoch) {
 			LatestWinsProcessor.Result<ReflectionResult> latest =
 					processor.latest();
 			if (latest == null || latest.sequence() <= lastAppliedSequence) {
 				return;
 			}
 			lastAppliedSequence = latest.sequence();
-			if (!latest.succeeded() || !latest.value().complete()) {
+			if (!latest.succeeded() || !latest.value().complete()
+					|| latest.value().listenerEpoch() != listenerEpoch
+					|| !CAMERA_LISTENER.isCurrent(listenerEpoch)) {
 				return;
 			}
 			state.publishEnvironment(latest.value().controls());
@@ -737,6 +854,7 @@ public final class DroneSoundManager {
 			if (sound == null) {
 				return;
 			}
+			invalidateCallbackControls();
 			sound.end();
 			soundManager.stop(sound);
 			sound = null;
@@ -758,17 +876,19 @@ public final class DroneSoundManager {
 	}
 
 	private record ReflectionRequest(
+			long listenerEpoch,
 			AcousticVector listener,
 			ReflectionVolume volume
 	) {
 	}
 
 	private record ReflectionResult(
+			long listenerEpoch,
 			boolean complete,
 			FdnEnvironmentMapper.Controls controls
 	) {
-		private static ReflectionResult incomplete() {
-			return new ReflectionResult(false, null);
+		private static ReflectionResult incomplete(long listenerEpoch) {
+			return new ReflectionResult(listenerEpoch, false, null);
 		}
 	}
 
@@ -802,9 +922,13 @@ public final class DroneSoundManager {
 			);
 		}
 
+		private void invalidateListener() {
+			ticksUntilUpdate = 0;
+		}
+
 		private void tick(
 				ClientLevel level,
-				Entity listener,
+				AcousticCameraListener.Sample listener,
 				Map<Integer, DroneSoundSet> activeSounds,
 				boolean applyPropagationResults
 		) {
@@ -812,7 +936,7 @@ public final class DroneSoundManager {
 				for (DroneSoundSet sounds : activeSounds.values()) {
 					sounds.advancePropagationAge();
 				}
-				applyLatest(activeSounds);
+				applyLatest(activeSounds, listener.epoch());
 			}
 			if (ticksUntilUpdate > 0) {
 				ticksUntilUpdate--;
@@ -820,12 +944,7 @@ public final class DroneSoundManager {
 			}
 			ticksUntilUpdate = UPDATE_INTERVAL_TICKS - 1;
 
-			Vec3 listenerPosition = listener.getEyePosition();
-			AcousticVector listenerPoint = new AcousticVector(
-					listenerPosition.x,
-					listenerPosition.y,
-					listenerPosition.z
-			);
+			AcousticVector listenerPoint = listener.frame().positionMeters();
 			List<PropagationRequest> requests = new ArrayList<>(activeSounds.size());
 			for (DroneSoundSet sounds : activeSounds.values()) {
 				AcousticSourceFrame sourceFrame = sounds.acousticState.sourceFrame();
@@ -843,6 +962,7 @@ public final class DroneSoundManager {
 						captureAirCorridor
 				);
 				requests.add(new PropagationRequest(
+						listener.epoch(),
 						sounds.drone.getId(),
 						sounds.drone.getUUID(),
 						probes,
@@ -869,7 +989,7 @@ public final class DroneSoundManager {
 			return configuredPath != null && !configuredPath.isBlank();
 		}
 
-		private void applyLatest(Map<Integer, DroneSoundSet> activeSounds) {
+		private void applyLatest(Map<Integer, DroneSoundSet> activeSounds, long listenerEpoch) {
 			LatestWinsProcessor.Result<PropagationBatchResult> latest = processor.latest();
 			if (latest == null || latest.sequence() <= lastAppliedSequence) {
 				return;
@@ -881,6 +1001,8 @@ public final class DroneSoundManager {
 			for (PropagationResult path : latest.value().results()) {
 				DroneSoundSet sounds = activeSounds.get(path.entityId());
 				if (sounds == null
+						|| path.listenerEpoch() != listenerEpoch
+						|| !CAMERA_LISTENER.isCurrent(listenerEpoch)
 						|| !sounds.drone.getUUID().equals(path.entityUuid())
 						|| !path.complete()) {
 					continue;
@@ -912,6 +1034,7 @@ public final class DroneSoundManager {
 						EmpiricalDiffraction.Parameters.researchDefaults()
 				);
 				results.add(new PropagationResult(
+						request.listenerEpoch(),
 						request.entityId(),
 						request.entityUuid(),
 						result,
@@ -1057,6 +1180,7 @@ public final class DroneSoundManager {
 	}
 
 	private record PropagationRequest(
+			long listenerEpoch,
 			int entityId,
 			UUID entityUuid,
 			List<MultiPathSolver.Probe> probes,
@@ -1070,6 +1194,7 @@ public final class DroneSoundManager {
 	}
 
 	private record PropagationResult(
+			long listenerEpoch,
 			int entityId,
 			UUID entityUuid,
 			HybridPropagationSolver.Result result,

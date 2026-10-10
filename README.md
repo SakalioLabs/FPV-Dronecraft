@@ -12,6 +12,10 @@ Progress archive: [简体中文完整原始记录](docs/progress/progress.zh-CN.
 
 Current release: [v0.1.0](https://github.com/SakalioLabs/FPV-Dronecraft/releases/tag/v0.1.0)
 
+Fabric recovery source milestone: [v0.1.1-playtest.11-fabric](https://github.com/SakalioLabs/FPV-Dronecraft/tree/v0.1.1-playtest.11-fabric) — [validation and build notes](docs/development/fabric-release-20261010.md).
+
+Local recovery test build: **0.1.1-playtest.11** — [独立放置、绑定与玩家模型](docs/development/placement-binding-20261010.md), [安装、控制与开发入口](docs/development/playable-recovery.md), [遥控器模型与飞行视角](docs/development/controller-model-20261010.md), [独立遥控与回退](docs/development/remote-pilot-20261010.md), [B 键三视角与回退](docs/development/camera-views-20261010.md), [无人机模型接入](docs/development/drone-model-20261010.md), [连续翻滚修复与回退](docs/development/rotation-continuity-20261010.md), [帧时间监测](docs/development/runtime-performance-monitor-20261010.md), [渲染优化](docs/development/render-optimization-20261010.md). Separate drone placement item and explicit Shift + right-click controller UUID binding; the real local player body renders in both drone views. Imported Blockbench controller item; FPV and drone third person hide first-person hands and held items. FPV keeps the physical player in place with normal survival damage and gravity; separate drone chunk loading, simulation and tracking continue during remote flight. B cycles line of sight → FPV → drone third person → line of sight, with an upright follow camera and block collision checks. Imported Blockbench drone geometry, detailed texture and animated tri-blade rotors; continuous ACRO body rotation with preserved attitude on stick release; agile five-inch preset, responsive throttle, client pose interpolation, runtime performance capture, cached rotor geometry and a verified Sodium client bundle.
+
 ## 简体中文
 
 FPV Dronecraft 是一个面向 Minecraft Fabric 的多轴无人机/穿越机模拟 Mod。项目目标不是把无人机做成普通载具，而是在 Minecraft 世界中实现可游玩的 FPV 飞行体验，同时保留可继续研究的飞行动力学、遥测、诊断和模型验证基础。

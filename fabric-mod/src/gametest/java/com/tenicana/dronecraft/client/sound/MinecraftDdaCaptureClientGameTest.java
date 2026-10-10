@@ -122,6 +122,114 @@ public final class MinecraftDdaCaptureClientGameTest
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
+		if (ManagerAssetReleaseMatrixClientGameTest.requested()) {
+			ManagerAssetReleaseMatrixClientGameTest.run(context);
+			return;
+		}
+		if (ManagerAssetReleaseClockClientGameTest.requested()) {
+			ManagerAssetReleaseClockClientGameTest.run(context);
+			return;
+		}
+		if (ManagerAssetPitchHeadroomClientGameTest.requested()) {
+			ManagerAssetPitchHeadroomClientGameTest.run(context);
+			return;
+		}
+		if (ManagerAssetResetDeliveryClientGameTest.requested()) {
+			ManagerAssetResetDeliveryClientGameTest.run(context);
+			return;
+		}
+		if (ManagerAssetRetiredCleanDeliveryClientGameTest.requested()) {
+			ManagerAssetRetiredCleanDeliveryClientGameTest.run(context);
+			return;
+		}
+		if (ManagerAssetRetiredDeliveryClientGameTest.requested()) {
+			ManagerAssetRetiredDeliveryClientGameTest.run(context);
+			return;
+		}
+		if (ManagerAssetLateDeliveryClientGameTest.requested()) {
+			ManagerAssetLateDeliveryClientGameTest.run(context);
+			return;
+		}
+		if (ManagerAssetCatalogGuardClientGameTest.requested()) {
+			ManagerAssetCatalogGuardClientGameTest.run(context);
+			return;
+		}
+		if (ManagerAssetCapacityClientGameTest.requested()) {
+			ManagerAssetCapacityClientGameTest.run(context);
+			return;
+		}
+		if (ManagerCatalogPublicationClientGameTest.requested()) {
+			ManagerCatalogPublicationClientGameTest.run(context);
+			return;
+		}
+		if (ManagerAssetResumptionClientGameTest.requested()) {
+			ManagerAssetResumptionClientGameTest.run(context);
+			return;
+		}
+		if (ManagerAssetReleaseClientGameTest.requested()) {
+			ManagerAssetReleaseClientGameTest.run(context);
+			return;
+		}
+		if (EnvironmentManagerCallbackClientGameTest.requested()) {
+			EnvironmentManagerCallbackClientGameTest.run(context);
+			return;
+		}
+		if (HistoryManagerCallbackClientGameTest.requested()) {
+			HistoryManagerCallbackClientGameTest.run(context);
+			return;
+		}
+		if (CommittedManagerCallbackClientGameTest.requested()) {
+			CommittedManagerCallbackClientGameTest.run(context);
+			return;
+		}
+		if (ActualManagerCallbackClientGameTest.requested()) {
+			ActualManagerCallbackClientGameTest.run(context);
+			return;
+		}
+		if (ProductionCallbackClientGameTest.requested()) {
+			ProductionCallbackClientGameTest.run(context);
+			return;
+		}
+		if (CallbackBufferNativeClientGameTest.requested()) {
+			CallbackBufferNativeClientGameTest.run(context);
+			return;
+		}
+		if (CalibrationTransitionNativeClientGameTest.requested()) {
+			CalibrationTransitionNativeClientGameTest.run(context);
+			return;
+		}
+		if (SixDroneNativeClientGameTest.requested()) {
+			SixDroneNativeClientGameTest.run(context);
+			return;
+		}
+		if (AssetNativeCapture.requested()) {
+			AssetNativeClientGameTest.run(context);
+			return;
+		}
+		if (CalibratedAssetClientGameTest.requested()) {
+			CalibratedAssetClientGameTest.run(context);
+			return;
+		}
+		if (FallbackRouteClientGameTest.requested()) {
+			FallbackRouteClientGameTest.run(context);
+			return;
+		}
+		if (CalibratedGainCapture.requested()) {
+			CalibratedGainClientGameTest.run(context);
+			return;
+		}
+		if (WetMainOutputCapture.requested()) {
+			MainWetContextOutputClientGameTest.run(context);
+			return;
+		}
+		if (MainContextOutputCapture.requested()) {
+			MainContextOutputClientGameTest.run(context);
+			return;
+		}
+		if (System.getProperty("fpvdrone.acoustics.distanceIntegrationProtocol") != null) {
+			ProductionDistanceClientGameTest.run(context);
+			return;
+		}
 		Path output = requiredOutputPath();
 		AtomicReference<OpenAlEfxController.Diagnostics>
 				activeEfxDiagnostics = new AtomicReference<>();

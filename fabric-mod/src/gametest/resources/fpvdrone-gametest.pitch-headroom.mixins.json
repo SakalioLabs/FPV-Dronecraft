@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "com.tenicana.dronecraft.client.mixin.pitchheadroom",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["PitchHeadroomChannelMixin", "PitchHeadroomTickMixin"],
+  "injectors": {"defaultRequire": 1}
+}

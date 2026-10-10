@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "package": "com.tenicana.dronecraft.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MainOutputLibraryMixin",
+    "MainOutputLibraryAccessor",
+    "MainOutputChannelAccessor",
+    "SoundEngineMainOutputAccessor",
+    "ProceduralOutputPcmMixin",
+    "CallbackStreamCaptureMixin",
+    "ManagerCallbackAttachCaptureMixin",
+    "ManagerWetPublicationMixin",
+    "ManagerWetEnvironmentMixin"
+  ],
+  "injectors": { "defaultRequire": 1 }
+}

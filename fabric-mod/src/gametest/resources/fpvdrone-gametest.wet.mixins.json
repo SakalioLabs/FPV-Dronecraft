@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "plugin": "com.tenicana.dronecraft.client.mixin.wet.WetCaptureMixinPlugin",
+  "package": "com.tenicana.dronecraft.client.mixin.wet",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["WetOutputStreamMixin", "WetMixerStagesMixin", "WetManagerPublisherMixin", "WetChannelAllocationMixin", "WetSoundAdmissionMixin", "WetHandleAdmissionMixin", "CalibratedEnvelopeMixin", "CalibratedNativeGainMixin", "CalibratedVolumeCalculationMixin", "CalibratedRawPcmMixin", "AssetNativeVolumeMixin", "AssetNativeChannelMixin", "AssetNativeReadMixin", "CalibrationTransitionReadMixin", "CalibrationTransitionQueueMixin", "ManagerAssetReleaseTickMixin", "ManagerAssetReleaseStopMixin", "ManagerAssetReleaseChannelMixin", "ManagerAssetResumptionTickMixin", "ManagerAssetResumptionStopMixin", "ManagerAssetResumptionChannelMixin", "ManagerAssetResumptionEnvelopeMixin", "ManagerAssetResumptionEngineMixin", "ManagerCatalogPublicationTickMixin", "ManagerCatalogPublicationStopMixin", "ManagerCatalogPublicationChannelMixin", "ManagerCatalogPublicationEnvelopeMixin", "ManagerCatalogPublicationEngineMixin"],
+  "injectors": {"defaultRequire": 1}
+}

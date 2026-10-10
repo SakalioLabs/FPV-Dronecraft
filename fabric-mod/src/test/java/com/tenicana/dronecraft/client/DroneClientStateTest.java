@@ -7,8 +7,28 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import com.tenicana.dronecraft.sim.FlightMode;
+import com.tenicana.dronecraft.camera.DroneViewMode;
 
 class DroneClientStateTest {
+	@Test
+	void viewCycleKeepsBothMountedViewsDistinctAndResetsToPlayerOnDisconnect() {
+		DroneClientState.resetTransientFlightState();
+		assertEquals(DroneViewMode.LINE_OF_SIGHT, DroneClientState.viewMode());
+		assertFalse(DroneClientState.isDroneViewEnabled());
+		DroneClientState.setViewMode(DroneClientState.viewMode().next());
+		assertEquals(DroneViewMode.FPV, DroneClientState.viewMode());
+		assertTrue(DroneClientState.isFpvViewEnabled());
+		DroneClientState.setViewMode(DroneClientState.viewMode().next());
+		assertEquals(DroneViewMode.THIRD_PERSON, DroneClientState.viewMode());
+		assertFalse(DroneClientState.isFpvViewEnabled());
+		assertTrue(DroneClientState.isDroneViewEnabled());
+		assertFalse(DroneClientState.isDroneCameraActive(null), "stale camera requests need a valid world/drone");
+		DroneClientState.resetTransientFlightState();
+		assertEquals(DroneViewMode.LINE_OF_SIGHT, DroneClientState.viewMode());
+		DroneClientState.setViewMode(DroneViewMode.THIRD_PERSON.next());
+		assertEquals(DroneViewMode.LINE_OF_SIGHT, DroneClientState.viewMode());
+	}
+
 	@Test
 	void defaultsToAngleModeForFirstTimeControl() {
 		DroneClientState.updateControls(

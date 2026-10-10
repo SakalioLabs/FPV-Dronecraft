@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "package": "com.tenicana.dronecraft.client.sound.callbackprobe",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "DryCallbackSnapshotMixin",
+    "WetCallbackSnapshotMixin",
+    "DryCallbackFrameMixin",
+    "WetCallbackFrameMixin",
+    "WetOracleProducerLifecycleMixin",
+    "WetOracleProducerRenderMixin",
+    "WetOracleChannelAttachMixin",
+    "EnvironmentWetStimulusMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

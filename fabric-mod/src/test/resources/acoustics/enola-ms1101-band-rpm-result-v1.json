@@ -1,0 +1,939 @@
+{
+  "schema_version": 1,
+  "experiment_id": "enola-ms1101-band-rpm-v1",
+  "protocol_sha256": "68cfefb62459845a66b8e0bd58f05f534c7d4241143cd65a82ee72dfaf732577",
+  "analysis_script_sha256": "0e9afebf8632863b808b9dcc72f669fb738ad2f9129ebe2405062623b2389fce",
+  "source_url": "https://zenodo.org/records/20111572",
+  "derived_data_license": "CC-BY-SA-4.0",
+  "limitations": [
+    "nominal RPM labels are not synchronized tach measurements",
+    "absolute pressure calibration chain is not documented in inspected README",
+    "one propeller, no independent replicate runs identified",
+    "residual bands are not a complete broadband/motor decomposition",
+    "not target five-inch three-blade whole-aircraft calibration",
+    "dataset holdout cannot establish in-game audible improvement"
+  ],
+  "observations": [
+    {
+      "rpm": 3840,
+      "microphone": 1,
+      "elevation_deg": -60,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 41.3821421985421,
+        "mid": 65.00110125466114,
+        "high": 62.7267116473197
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic1_3840rpm.csv",
+      "sha256": "1ded20f063bbb18d80591ae59bfdc3f7b4264f12c4e9a94e46c37479d3add4d0",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 3840,
+      "microphone": 2,
+      "elevation_deg": -30,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 34.78225810657045,
+        "mid": 56.975079785225454,
+        "high": 62.71613130282719
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic2_3840rpm.csv",
+      "sha256": "9e75ed934391b0a2e19b150f2bf3cf25eb82d3fb9478d7f37e7ab46c72af4bec",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 3840,
+      "microphone": 3,
+      "elevation_deg": 0,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 33.550308033555524,
+        "mid": 49.19128830469581,
+        "high": 56.77534987676956
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic3_3840rpm.csv",
+      "sha256": "a518eca9b577e33e19539744fe3007d8b261dd2f34e19c06cc32ffedaa713753",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 3840,
+      "microphone": 4,
+      "elevation_deg": 30,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 36.355118241195655,
+        "mid": 51.14973091786068,
+        "high": 59.78698369043508
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic4_3840rpm.csv",
+      "sha256": "d97e7fffb51d784cf1b085d65f9340b29151ffcfe62752a12da83c7d336fcca3",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 3840,
+      "microphone": 5,
+      "elevation_deg": 60,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 34.34108756141151,
+        "mid": 54.46170260212749,
+        "high": 62.887798494353795
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic5_3840rpm.csv",
+      "sha256": "19e17cc3b1f4db8ffc0b3d0c705dbcd1b30e4b9c6552969a6c2f8429379e3e6a",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 3840,
+      "microphone": 6,
+      "elevation_deg": 90,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 32.93457517069807,
+        "mid": 56.622417952402834,
+        "high": 63.38036870820828
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic6_3840rpm.csv",
+      "sha256": "accced9f7ef8cecce6206d37b48e3341df0d87d75521089e1d67b96722f9a6ff",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 4710,
+      "microphone": 1,
+      "elevation_deg": -60,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 51.824531421432056,
+        "mid": 58.0945799934012,
+        "high": 60.55873482737
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic1_4710rpm.csv",
+      "sha256": "3dbe82cf10522d8f291a71d3c39753935e20d4cbf68e5e1b16fac8b6a6ed0517",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 4710,
+      "microphone": 2,
+      "elevation_deg": -30,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 38.70509143011711,
+        "mid": 52.47555445137971,
+        "high": 60.10459141632539
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic2_4710rpm.csv",
+      "sha256": "29312cf1a97070ddd69c36447c718016707be81d33b196689a079a94395a5a1c",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 4710,
+      "microphone": 3,
+      "elevation_deg": 0,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 36.74769477500914,
+        "mid": 44.04771760377528,
+        "high": 54.68593600704719
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic3_4710rpm.csv",
+      "sha256": "052a7e778a4e960315abad390841c44b733cb91f8684ebd0dd8368bd1fa44151",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 4710,
+      "microphone": 4,
+      "elevation_deg": 30,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 46.610910553487685,
+        "mid": 52.36661139090782,
+        "high": 59.24534686234759
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic4_4710rpm.csv",
+      "sha256": "ad191a2c13b329723d288d7ebae48117fce9968033d8a654b2fc66a3d64b39c7",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 4710,
+      "microphone": 5,
+      "elevation_deg": 60,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 36.83043854109178,
+        "mid": 54.9705602604658,
+        "high": 63.26367018234477
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic5_4710rpm.csv",
+      "sha256": "8cf6308550c5b5d11369c0dfcc92e29a74c7c2b46a2d6dbc376af4cb4f0330d0",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 4710,
+      "microphone": 6,
+      "elevation_deg": 90,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 38.95004417741386,
+        "mid": 57.561030772145834,
+        "high": 63.91662064383976
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic6_4710rpm.csv",
+      "sha256": "d1290b4344b947be4d67dad29c5e6392b8260f12cf9840e4ce02bf75ace34d2c",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 5460,
+      "microphone": 1,
+      "elevation_deg": -60,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 59.687236873213514,
+        "mid": 60.60768197339708,
+        "high": 62.910389547561714
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic1_5460rpm.csv",
+      "sha256": "48a04d4159b0a5f769dc76ec1729d6ba88ca929de9e0add3bfe326d8dcfb023f",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 5460,
+      "microphone": 2,
+      "elevation_deg": -30,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 44.15352668819022,
+        "mid": 55.639408725493176,
+        "high": 64.61952243866952
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic2_5460rpm.csv",
+      "sha256": "433700b6f554022eca7288bdcdd79d751b60adeafc883ab996f329a425f62cbd",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 5460,
+      "microphone": 3,
+      "elevation_deg": 0,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 40.59498227901615,
+        "mid": 46.717181092821704,
+        "high": 58.105813769992984
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic3_5460rpm.csv",
+      "sha256": "e86104bbc506fa3310be945221780fb91fcabe94e48ed1abd6f047ef3e3b7062",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 5460,
+      "microphone": 4,
+      "elevation_deg": 30,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 37.63444203964418,
+        "mid": 55.1202792340453,
+        "high": 62.35097104365896
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic4_5460rpm.csv",
+      "sha256": "c5ebdc1575279fa229bb753f2fe3e5b31db2eaae46e1cc4db3fa2783190bef30",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 5460,
+      "microphone": 5,
+      "elevation_deg": 60,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 39.37599478454159,
+        "mid": 57.65502174154207,
+        "high": 67.20120402650298
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic5_5460rpm.csv",
+      "sha256": "2efe0214c27ea8b3a4aec95b16b501a5ac8ba2bea5f4df1c48bce2ce0d5ce0ff",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 5460,
+      "microphone": 6,
+      "elevation_deg": 90,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 53.22090733941819,
+        "mid": 60.287244510751165,
+        "high": 67.82688392552615
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic6_5460rpm.csv",
+      "sha256": "8407a0f034c869e476f08121af9f33cf663b5a17793d55187dc3f043114c74ab",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6240,
+      "microphone": 1,
+      "elevation_deg": -60,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 52.8994191142074,
+        "mid": 62.784482887469075,
+        "high": 62.445299191272134
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic1_6240rpm.csv",
+      "sha256": "204ef4fa04001ec1b75cbfb61032ba8f8e57ecf8a185237ca11554b8382f50fe",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6240,
+      "microphone": 2,
+      "elevation_deg": -30,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 43.208121818633565,
+        "mid": 58.17012831454435,
+        "high": 61.28981940985477
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic2_6240rpm.csv",
+      "sha256": "b06f4157ace4e4d7d5a3900191ef6487a002da16114c7e19ec098ea7532acf97",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6240,
+      "microphone": 3,
+      "elevation_deg": 0,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 39.38219006194175,
+        "mid": 49.87034659723846,
+        "high": 55.0915956231626
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic3_6240rpm.csv",
+      "sha256": "984beff09bbbf2cd94692215db904e15286defef1301c792ec473159bc748c58",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6240,
+      "microphone": 4,
+      "elevation_deg": 30,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 37.93979595308078,
+        "mid": 57.347964818093274,
+        "high": 61.18729626466867
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic4_6240rpm.csv",
+      "sha256": "472fac5824adff6c087572fa10e32c8557b70e855e86f5cdc590232d2b0ffa0f",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6240,
+      "microphone": 5,
+      "elevation_deg": 60,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 41.227164686106576,
+        "mid": 59.77353081156978,
+        "high": 65.55362626954826
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic5_6240rpm.csv",
+      "sha256": "d003dbbec8ec3d00044b73049c76a22b77cf84b6eb412a57a2e40a0325e77de2",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6240,
+      "microphone": 6,
+      "elevation_deg": 90,
+      "split": "validation",
+      "residual_band_level_db": {
+        "low": 46.61346960707698,
+        "mid": 62.0507946083893,
+        "high": 66.57760128178671
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic6_6240rpm.csv",
+      "sha256": "f2dad667d7ac75dd7c7b539e324cdf0b7bda4b918753fe4963fbff5785c1c0e0",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6690,
+      "microphone": 1,
+      "elevation_deg": -60,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 60.094052959004046,
+        "mid": 67.42738714066607,
+        "high": 64.95952245735978
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic1_6690rpm.csv",
+      "sha256": "a06545364de40fc00185039609f7fc9d7f12e420bdc9dcd59aeb6d923f6e7e7e",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6690,
+      "microphone": 2,
+      "elevation_deg": -30,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 43.14136556055843,
+        "mid": 61.16382398122745,
+        "high": 63.59778731940071
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic2_6690rpm.csv",
+      "sha256": "1c42df54f8a5897e15afad2dd775f1eaac1dd51d4332c44c24564198a7fd31d0",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6690,
+      "microphone": 3,
+      "elevation_deg": 0,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 39.72854590552131,
+        "mid": 52.18099650680941,
+        "high": 57.127922208051054
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic3_6690rpm.csv",
+      "sha256": "a88a80c1042f4099ed70eadc22605e7f408682d7e14660772144044890793e7d",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6690,
+      "microphone": 4,
+      "elevation_deg": 30,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 41.95864882797213,
+        "mid": 60.702235847008225,
+        "high": 63.87955470073677
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic4_6690rpm.csv",
+      "sha256": "84b18ec1486b1683c8e32975ed00e1cbd30372be33678160440fad92db083190",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6690,
+      "microphone": 5,
+      "elevation_deg": 60,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 40.34604107291304,
+        "mid": 62.60727787300076,
+        "high": 68.25625897499704
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic5_6690rpm.csv",
+      "sha256": "b4ac8798924cb8ca10f77e3b4b5dbcf5cfec167705b4acc7181d1abfded58d3c",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    },
+    {
+      "rpm": 6690,
+      "microphone": 6,
+      "elevation_deg": 90,
+      "split": "train",
+      "residual_band_level_db": {
+        "low": 47.05547975337005,
+        "mid": 64.93327040558833,
+        "high": 68.97271166745433
+      },
+      "input": "BBDD/T-Motor/MS1101/results/acoustics/MS1101_acoustic_mic6_6690rpm.csv",
+      "sha256": "3ab23c2fd9363a524a33c85b6d1431e60735971e342538202667909558f1f1ca",
+      "sample_count": 131072,
+      "inferred_sampling_rate_hz": 65536.00026905806
+    }
+  ],
+  "models": {
+    "shared_total_gain": {
+      "reference_band_level_db": {
+        "low": 33.550308033555524,
+        "mid": 49.19128830469581,
+        "high": 56.77534987676956
+      },
+      "anchors": {
+        "3840": {
+          "low": 0.0,
+          "mid": 0.0,
+          "high": 0.0
+        },
+        "5460": {
+          "low": 0.9904176811878571,
+          "mid": 0.9904176811878571,
+          "high": 0.9904176811878571
+        },
+        "6690": {
+          "low": 0.9023649702881684,
+          "mid": 0.9023649702881684,
+          "high": 0.9023649702881684
+        }
+      },
+      "directivity": {
+        "low": {
+          "c2_db": 12.941842222052365,
+          "c4_db": -5.305195544247823
+        },
+        "mid": {
+          "c2_db": 33.62088754262119,
+          "c4_db": -22.81932207914147
+        },
+        "high": {
+          "c2_db": 20.750168940045135,
+          "c4_db": -12.438539044187287
+        }
+      }
+    },
+    "independent_band_gain": {
+      "reference_band_level_db": {
+        "low": 33.550308033555524,
+        "mid": 49.19128830469581,
+        "high": 56.77534987676956
+      },
+      "anchors": {
+        "3840": {
+          "low": 0.0,
+          "mid": 0.0,
+          "high": 0.0
+        },
+        "5460": {
+          "low": 7.044674245460627,
+          "mid": -2.474107211874106,
+          "high": 1.330463893223424
+        },
+        "6690": {
+          "low": 6.178237871965784,
+          "mid": 2.9897082021135972,
+          "high": 0.35257233128149323
+        }
+      },
+      "directivity": {
+        "low": {
+          "c2_db": 12.941842222052365,
+          "c4_db": -5.305195544247823
+        },
+        "mid": {
+          "c2_db": 33.62088754262119,
+          "c4_db": -22.81932207914147
+        },
+        "high": {
+          "c2_db": 20.750168940045135,
+          "c4_db": -12.438539044187287
+        }
+      }
+    }
+  },
+  "validation": {
+    "shared_total_gain": {
+      "primary_plane": {
+        "observation_count": 2,
+        "band_error_count": 6,
+        "pooled_rmse_db": 3.595985383200335,
+        "maximum_absolute_error_db": 5.718207721179141,
+        "per_band_rmse_db": {
+          "low": 3.9295243923989,
+          "mid": 4.047354371775211,
+          "high": 2.640282800645704
+        }
+      },
+      "secondary_all_microphones": {
+        "observation_count": 12,
+        "band_error_count": 36,
+        "pooled_rmse_db": 4.4004924394165394,
+        "maximum_absolute_error_db": 11.694357365280318,
+        "per_band_rmse_db": {
+          "low": 6.199453392223934,
+          "mid": 3.6181380587917187,
+          "high": 2.5629779072891794
+        }
+      },
+      "validation_predictions": [
+        {
+          "rpm": 4710,
+          "microphone": 1,
+          "predicted_db": {
+            "low": 40.84715422671401,
+            "mid": 62.14572231240323,
+            "high": 65.91593538970668
+          },
+          "signed_error_db": {
+            "low": -10.977377194718045,
+            "mid": 4.051142319002032,
+            "high": 5.357200562336672
+          }
+        },
+        {
+          "rpm": 4710,
+          "microphone": 2,
+          "predicted_db": {
+            "low": 37.02883088781174,
+            "mid": 56.74493958066338,
+            "high": 61.76012044177775
+          },
+          "signed_error_db": {
+            "low": -1.6762605423053643,
+            "mid": 4.26938512928367,
+            "high": 1.6555290254523598
+          }
+        },
+        {
+          "rpm": 4710,
+          "microphone": 3,
+          "predicted_db": {
+            "low": 34.12494505381414,
+            "mid": 49.765925324954424,
+            "high": 57.349986897028174
+          },
+          "signed_error_db": {
+            "low": -2.6227497211949995,
+            "mid": 5.718207721179141,
+            "high": 2.6640508899809845
+          }
+        },
+        {
+          "rpm": 4710,
+          "microphone": 4,
+          "predicted_db": {
+            "low": 37.02883088781174,
+            "mid": 56.74493958066338,
+            "high": 61.76012044177775
+          },
+          "signed_error_db": {
+            "low": -9.582079665675941,
+            "mid": 4.378328189755557,
+            "high": 2.5147735794301624
+          }
+        },
+        {
+          "rpm": 4710,
+          "microphone": 5,
+          "predicted_db": {
+            "low": 40.84715422671401,
+            "mid": 62.14572231240323,
+            "high": 65.91593538970668
+          },
+          "signed_error_db": {
+            "low": 4.016715685622231,
+            "mid": 7.175162051937427,
+            "high": 2.652265207361907
+          }
+        },
+        {
+          "rpm": 4710,
+          "microphone": 6,
+          "predicted_db": {
+            "low": 41.76159173161868,
+            "mid": 60.56749078843414,
+            "high": 65.66161679288604
+          },
+          "signed_error_db": {
+            "low": 2.8115475542048216,
+            "mid": 3.006460016288308,
+            "high": 1.7449961490462798
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 1,
+          "predicted_db": {
+            "low": 41.20506174892708,
+            "mid": 62.50362983461631,
+            "high": 66.27384291191974
+          },
+          "signed_error_db": {
+            "low": -11.694357365280318,
+            "mid": -0.28085305285276263,
+            "high": 3.828543720647609
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 2,
+          "predicted_db": {
+            "low": 37.38673841002481,
+            "mid": 57.102847102876446,
+            "high": 62.11802796399082
+          },
+          "signed_error_db": {
+            "low": -5.821383408608753,
+            "mid": -1.067281211667904,
+            "high": 0.8282085541360473
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 3,
+          "predicted_db": {
+            "low": 34.482852576027206,
+            "mid": 50.12383284716749,
+            "high": 57.70789441924124
+          },
+          "signed_error_db": {
+            "low": -4.899337485914543,
+            "mid": 0.2534862499290327,
+            "high": 2.6162987960786452
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 4,
+          "predicted_db": {
+            "low": 37.38673841002481,
+            "mid": 57.102847102876446,
+            "high": 62.11802796399082
+          },
+          "signed_error_db": {
+            "low": -0.5530575430559708,
+            "mid": -0.24511771521682846,
+            "high": 0.9307316993221519
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 5,
+          "predicted_db": {
+            "low": 41.20506174892708,
+            "mid": 62.50362983461631,
+            "high": 66.27384291191974
+          },
+          "signed_error_db": {
+            "low": -0.022102937179496962,
+            "mid": 2.7300990230465345,
+            "high": 0.7202166423714829
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 6,
+          "predicted_db": {
+            "low": 42.11949925383175,
+            "mid": 60.92539831064721,
+            "high": 66.01952431509909
+          },
+          "signed_error_db": {
+            "low": -4.493970353245231,
+            "mid": -1.1253962977420926,
+            "high": -0.5580769666876222
+          }
+        }
+      ]
+    },
+    "independent_band_gain": {
+      "primary_plane": {
+        "observation_count": 2,
+        "band_error_count": 6,
+        "pooled_rmse_db": 2.1969260208746744,
+        "maximum_absolute_error_db": 3.7081019860177804,
+        "per_band_rmse_db": {
+          "low": 0.7764671414908962,
+          "mid": 2.640248797505524,
+          "high": 2.6278578517576405
+        }
+      },
+      "secondary_all_microphones": {
+        "observation_count": 12,
+        "band_error_count": 36,
+        "pooled_rmse_db": 3.483098441141264,
+        "maximum_absolute_error_db": 7.529375059596994,
+        "per_band_rmse_db": {
+          "low": 4.9008384939875755,
+          "mid": 2.3569646566771647,
+          "high": 2.611977012736981
+        }
+      },
+      "validation_predictions": [
+        {
+          "rpm": 4710,
+          "microphone": 1,
+          "predicted_db": {
+            "low": 44.359813600688774,
+            "mid": 60.13561657724188,
+            "high": 66.11322906261445
+          },
+          "signed_error_db": {
+            "low": -7.464717820743282,
+            "mid": 2.041036583840686,
+            "high": 5.554494235244448
+          }
+        },
+        {
+          "rpm": 4710,
+          "microphone": 2,
+          "predicted_db": {
+            "low": 40.54149026178651,
+            "mid": 54.73483384550202,
+            "high": 61.95741411468552
+          },
+          "signed_error_db": {
+            "low": 1.836398831669399,
+            "mid": 2.2592793941223093,
+            "high": 1.8528226983601286
+          }
+        },
+        {
+          "rpm": 4710,
+          "microphone": 3,
+          "predicted_db": {
+            "low": 37.6376044277889,
+            "mid": 47.75581958979306,
+            "high": 57.54728056993594
+          },
+          "signed_error_db": {
+            "low": 0.8899096527797639,
+            "mid": 3.7081019860177804,
+            "high": 2.8613445628887533
+          }
+        },
+        {
+          "rpm": 4710,
+          "microphone": 4,
+          "predicted_db": {
+            "low": 40.54149026178651,
+            "mid": 54.73483384550202,
+            "high": 61.95741411468552
+          },
+          "signed_error_db": {
+            "low": -6.069420291701178,
+            "mid": 2.3682224545941963,
+            "high": 2.7120672523379312
+          }
+        },
+        {
+          "rpm": 4710,
+          "microphone": 5,
+          "predicted_db": {
+            "low": 44.359813600688774,
+            "mid": 60.13561657724188,
+            "high": 66.11322906261445
+          },
+          "signed_error_db": {
+            "low": 7.529375059596994,
+            "mid": 5.165056316776081,
+            "high": 2.849558880269683
+          }
+        },
+        {
+          "rpm": 4710,
+          "microphone": 6,
+          "predicted_db": {
+            "low": 45.27425110559344,
+            "mid": 58.55738505327278,
+            "high": 65.8589104657938
+          },
+          "signed_error_db": {
+            "low": 6.324206928179585,
+            "mid": 0.9963542811269477,
+            "high": 1.9422898219540414
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 1,
+          "predicted_db": {
+            "low": 46.74772127979227,
+            "mid": 62.68810144424652,
+            "high": 66.0290375420423
+          },
+          "signed_error_db": {
+            "low": -6.151697834415124,
+            "mid": -0.09638144322255471,
+            "high": 3.583738350770169
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 2,
+          "predicted_db": {
+            "low": 42.929397940890006,
+            "mid": 57.28731871250667,
+            "high": 61.87322259411338
+          },
+          "signed_error_db": {
+            "low": -0.278723877743559,
+            "mid": -0.8828096020376819,
+            "high": 0.5834031842586072
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 3,
+          "predicted_db": {
+            "low": 40.0255121068924,
+            "mid": 50.308304456797714,
+            "high": 57.4630890493638
+          },
+          "signed_error_db": {
+            "low": 0.6433220449506507,
+            "mid": 0.4379578595592548,
+            "high": 2.371493426201205
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 4,
+          "predicted_db": {
+            "low": 42.929397940890006,
+            "mid": 57.28731871250667,
+            "high": 61.87322259411338
+          },
+          "signed_error_db": {
+            "low": 4.989601987809223,
+            "mid": -0.060646105586606325,
+            "high": 0.6859263294447118
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 5,
+          "predicted_db": {
+            "low": 46.74772127979227,
+            "mid": 62.68810144424652,
+            "high": 66.0290375420423
+          },
+          "signed_error_db": {
+            "low": 5.520556593685697,
+            "mid": 2.9145706326767424,
+            "high": 0.4754112724940427
+          }
+        },
+        {
+          "rpm": 6240,
+          "microphone": 6,
+          "predicted_db": {
+            "low": 47.66215878469694,
+            "mid": 61.10986992027743,
+            "high": 65.77471894522165
+          },
+          "signed_error_db": {
+            "low": 1.0486891776199627,
+            "mid": -0.9409246881118705,
+            "high": -0.8028823365650624
+          }
+        }
+      ]
+    }
+  },
+  "passes_registered_improvement_criterion": true,
+  "primary_all_errors_within_three_db": false,
+  "release_profile_eligible": false
+}

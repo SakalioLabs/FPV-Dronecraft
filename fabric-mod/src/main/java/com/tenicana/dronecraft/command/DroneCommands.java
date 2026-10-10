@@ -6,7 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,8 +23,6 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.entity.EntityTypeTest;
-import net.minecraft.world.phys.AABB;
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 
@@ -37,6 +34,7 @@ import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.entity.PlayableFlightPreset;
+import com.tenicana.dronecraft.network.DroneNetworking;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
@@ -401,7 +399,7 @@ public final class DroneCommands {
 	private static int flightStatus(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
 		DroneEntity drone = findOwnedDrone(source);
 		if (drone == null) {
-			source.sendFailure(Component.literal("No linked drone found nearby. Use /fpvdrone spawn or right-click a drone with a controller."));
+			source.sendFailure(Component.literal("No linked drone found. Place a drone item, then Shift + right-click it with a controller."));
 			return 0;
 		}
 
@@ -783,7 +781,7 @@ public final class DroneCommands {
 		}
 
 		ServerPlayer player = source.getPlayerOrException();
-		int durationTicks = DroneControlManager.startDiagnostic(player.getUUID(), drone.tickCount, seconds * 20, autoSaveBlackbox);
+		int durationTicks = DroneControlManager.startDiagnostic(player.getUUID(), drone.getUUID(), drone.tickCount, seconds * 20, autoSaveBlackbox, com.tenicana.dronecraft.sim.FlightMode.DEFAULT_FIRST_FLIGHT);
 		drone.blackbox().startRecording(RecordingSource.SCRIPTED_DIAGNOSTIC, true);
 		source.sendSuccess(
 				() -> Component.literal(String.format(
@@ -1044,20 +1042,7 @@ public final class DroneCommands {
 
 	private static DroneEntity findOwnedDrone(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
 		ServerPlayer player = source.getPlayerOrException();
-		AABB search = player.getBoundingBox().inflate(512.0);
-		List<DroneEntity> drones = player.level().getEntities(
-				EntityTypeTest.forClass(DroneEntity.class),
-				search,
-				drone -> drone.isAlive() && drone.isOwnedBy(player.getUUID())
-		);
-
-		if (drones.isEmpty()) {
-			return null;
-		}
-
-		return drones.stream()
-				.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(player)))
-				.orElse(null);
+		return DroneNetworking.selectedDrone(player);
 	}
 
 	private static String formatEnvironmentStatus(DroneEntity drone) {

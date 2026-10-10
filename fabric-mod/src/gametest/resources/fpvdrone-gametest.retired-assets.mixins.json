@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.tenicana.dronecraft.client.mixin.retiredassets",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "RetiredAssetStreamDeliveryMixin",
+    "RetiredAssetSoundEngineTickMixin",
+    "RetiredAssetManagerTickMixin",
+    "RetiredAssetChannelMixin",
+    "RetiredAssetReadMixin",
+    "RetiredAssetLibraryMixin"
+  ],
+  "injectors": { "defaultRequire": 1 }
+}

@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.control;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -28,8 +29,20 @@ public final class DroneControlManager {
 	}
 
 	public static void update(UUID playerId, DroneInput input, int tickCount) {
+		update(playerId, null, input, tickCount);
+	}
+
+	public static void update(UUID playerId, UUID droneId, DroneInput input, int tickCount) {
+		TimedInput previous = INPUTS.get(playerId);
+		if (previous != null && !Objects.equals(previous.droneId(), droneId)) {
+			INPUTS.remove(playerId);
+		}
 		DroneInput sanitized = sanitizeManualInput(playerId, input, tickCount);
-		INPUTS.put(playerId, new TimedInput(sanitized, tickCount));
+		INPUTS.put(playerId, new TimedInput(droneId, sanitized, tickCount));
+	}
+
+	public static void clearInput(UUID playerId) {
+		INPUTS.remove(playerId);
 	}
 
 	public static DroneInput get(UUID playerId, int tickCount) {
@@ -37,13 +50,18 @@ public final class DroneControlManager {
 	}
 
 	public static DroneInput get(UUID playerId, int tickCount, DroneState state, DroneConfig config) {
-		DroneInput diagnosticInput = diagnosticInput(playerId, tickCount, state, config);
+		return get(playerId, null, tickCount, state, config);
+	}
+
+	public static DroneInput get(UUID playerId, UUID droneId, int tickCount, DroneState state, DroneConfig config) {
+		DroneInput diagnosticInput = diagnosticInput(playerId, droneId, tickCount, state, config);
 		if (diagnosticInput != null) {
 			return diagnosticInput;
 		}
 
 		TimedInput input = INPUTS.get(playerId);
-		if (input == null || tickCount - input.tickCount > INPUT_TIMEOUT_TICKS) {
+		if (input == null || (droneId != null && input.droneId() != null && !droneId.equals(input.droneId()))
+				|| tickCount - input.tickCount < 0 || tickCount - input.tickCount > INPUT_TIMEOUT_TICKS) {
 			return DroneInput.idle();
 		}
 		return input.input;
@@ -80,8 +98,12 @@ public final class DroneControlManager {
 	}
 
 	public static int startDiagnostic(UUID playerId, int startTick, int durationTicks, boolean autoSaveBlackbox, FlightMode flightMode) {
+		return startDiagnostic(playerId, null, startTick, durationTicks, autoSaveBlackbox, flightMode);
+	}
+
+	public static int startDiagnostic(UUID playerId, UUID droneId, int startTick, int durationTicks, boolean autoSaveBlackbox, FlightMode flightMode) {
 		int safeDuration = (int) MathUtil.clamp(durationTicks, MIN_DIAGNOSTIC_DURATION_TICKS, MAX_DIAGNOSTIC_DURATION_TICKS);
-		DIAGNOSTICS.put(playerId, new DiagnosticScript(startTick, safeDuration, autoSaveBlackbox, flightMode));
+		DIAGNOSTICS.put(playerId, new DiagnosticScript(droneId, startTick, safeDuration, autoSaveBlackbox, flightMode));
 		COMPLETED_DIAGNOSTICS.remove(playerId);
 		return safeDuration;
 	}
@@ -107,9 +129,9 @@ public final class DroneControlManager {
 		return script.status(tickCount);
 	}
 
-	private static DroneInput diagnosticInput(UUID playerId, int tickCount, DroneState state, DroneConfig config) {
+	private static DroneInput diagnosticInput(UUID playerId, UUID droneId, int tickCount, DroneState state, DroneConfig config) {
 		DiagnosticScript script = DIAGNOSTICS.get(playerId);
-		if (script == null) {
+		if (script == null || (droneId != null && script.droneId != null && !droneId.equals(script.droneId))) {
 			return null;
 		}
 		if (script.isExpired(tickCount)) {
@@ -132,6 +154,7 @@ public final class DroneControlManager {
 		}
 		TimedInput previous = INPUTS.get(playerId);
 		boolean alreadyArmed = previous != null
+				&& tickCount - previous.tickCount() >= 0
 				&& tickCount - previous.tickCount() <= INPUT_TIMEOUT_TICKS
 				&& previous.input() != null
 				&& previous.input().armed();
@@ -154,7 +177,7 @@ public final class DroneControlManager {
 		);
 	}
 
-	private record TimedInput(DroneInput input, int tickCount) {
+	private record TimedInput(UUID droneId, DroneInput input, int tickCount) {
 	}
 
 	public record ActiveInput(UUID playerId, DroneInput input, int ageTicks) {
@@ -178,13 +201,15 @@ public final class DroneControlManager {
 	}
 
 	private static final class DiagnosticScript {
+		private final UUID droneId;
 		private final int startTick;
 		private final int durationTicks;
 		private final boolean autoSaveBlackbox;
 		private final FlightMode flightMode;
 		private double originAltitudeMeters = Double.NaN;
 
-		private DiagnosticScript(int startTick, int durationTicks, boolean autoSaveBlackbox, FlightMode flightMode) {
+		private DiagnosticScript(UUID droneId, int startTick, int durationTicks, boolean autoSaveBlackbox, FlightMode flightMode) {
+			this.droneId = droneId;
 			this.startTick = startTick;
 			this.durationTicks = durationTicks;
 			this.autoSaveBlackbox = autoSaveBlackbox;

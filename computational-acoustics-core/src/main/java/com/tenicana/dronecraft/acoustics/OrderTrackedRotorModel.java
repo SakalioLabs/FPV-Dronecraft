@@ -51,7 +51,8 @@ public final class OrderTrackedRotorModel {
 
 			for (int harmonic = 1; harmonic <= parameters.bladePassHarmonics(); harmonic++) {
 				double harmonicAmplitude = parameters.bladePassAmplitude() * rotorAmplitudeScale
-						/ Math.pow(harmonic, parameters.harmonicRolloff());
+						/ Math.pow(harmonic, parameters.harmonicRolloff())
+						* parameters.rotorHarmonicGainCurve().evaluate(harmonic, rotor.rpm());
 				addTone(tones, TonalComponent.Kind.BLADE_PASS, rotorIndex, harmonic,
 						rotor.bladePassFrequencyHz() * harmonic, harmonicAmplitude,
 						rotor.phaseRadians() * rotor.bladeCount() * harmonic, nyquistGuardHz);
@@ -62,7 +63,9 @@ public final class OrderTrackedRotorModel {
 					* (0.25 + 0.75 * Math.min(rotor.normalizedLoad(), 1.5))
 					* operatingPointGain.broadbandEnergy();
 			broadband = broadband.add(
-					parameters.broadbandDistribution().multiply(broadbandScale)
+					parameters.broadbandDistribution().multiply(broadbandScale).multiply(
+							parameters.broadbandOperatingPointGainCurve().evaluate(rotor.rpm())
+					)
 			);
 		}
 		return new AcousticEmissionFrame(tones, broadband);
@@ -92,7 +95,9 @@ public final class OrderTrackedRotorModel {
 			double coggingCandidateAmplitude,
 			double broadbandEnergy,
 			RotorOperatingPointGainCurve operatingPointGainCurve,
-			AcousticBands broadbandDistribution
+			AcousticBands broadbandDistribution,
+			RotorBroadbandGainCurve broadbandOperatingPointGainCurve,
+			RotorHarmonicGainCurve rotorHarmonicGainCurve
 	) {
 		public static Parameters researchDefaults() {
 			return new Parameters(
@@ -105,6 +110,44 @@ public final class OrderTrackedRotorModel {
 					0.08,
 					RotorOperatingPointGainCurve.unity(),
 					new AcousticBands(0.20, 0.50, 0.30)
+			);
+		}
+
+		public Parameters(
+				int bladePassHarmonics,
+				double harmonicRolloff,
+				double shaftAmplitude,
+				double bladePassAmplitude,
+				double electricalAmplitude,
+				double coggingCandidateAmplitude,
+				double broadbandEnergy,
+				RotorOperatingPointGainCurve operatingPointGainCurve,
+				AcousticBands broadbandDistribution,
+				RotorBroadbandGainCurve broadbandOperatingPointGainCurve
+		) {
+			this(
+					bladePassHarmonics, harmonicRolloff, shaftAmplitude, bladePassAmplitude,
+					electricalAmplitude, coggingCandidateAmplitude, broadbandEnergy,
+					operatingPointGainCurve, broadbandDistribution, broadbandOperatingPointGainCurve,
+					RotorHarmonicGainCurve.unity()
+			);
+		}
+
+		public Parameters(
+				int bladePassHarmonics,
+				double harmonicRolloff,
+				double shaftAmplitude,
+				double bladePassAmplitude,
+				double electricalAmplitude,
+				double coggingCandidateAmplitude,
+				double broadbandEnergy,
+				RotorOperatingPointGainCurve operatingPointGainCurve,
+				AcousticBands broadbandDistribution
+		) {
+			this(
+					bladePassHarmonics, harmonicRolloff, shaftAmplitude, bladePassAmplitude,
+					electricalAmplitude, coggingCandidateAmplitude, broadbandEnergy,
+					operatingPointGainCurve, broadbandDistribution, RotorBroadbandGainCurve.unity()
 			);
 		}
 
@@ -168,6 +211,12 @@ public final class OrderTrackedRotorModel {
 			}
 			if (broadbandDistribution == null) {
 				throw new NullPointerException("broadbandDistribution");
+			}
+			if (broadbandOperatingPointGainCurve == null) {
+				throw new NullPointerException("broadbandOperatingPointGainCurve");
+			}
+			if (rotorHarmonicGainCurve == null) {
+				throw new NullPointerException("rotorHarmonicGainCurve");
 			}
 			if (Math.abs(broadbandDistribution.totalEnergy() - 1.0) > 1.0e-6) {
 				throw new IllegalArgumentException(

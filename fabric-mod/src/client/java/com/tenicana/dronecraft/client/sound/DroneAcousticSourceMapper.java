@@ -63,11 +63,10 @@ final class DroneAcousticSourceMapper {
 		);
 	}
 
-	static AcousticListenerFrame mapListener(Entity listener) {
-		Vec3 position = listener.getEyePosition();
-		Vec3 velocityPerTick = listener.getDeltaMovement();
+	static AcousticListenerFrame mapListener(Vec3 cameraPosition, Entity velocityOwner) {
+		Vec3 velocityPerTick = velocityOwner.getDeltaMovement();
 		return new AcousticListenerFrame(
-				new AcousticVector(position.x, position.y, position.z),
+				new AcousticVector(cameraPosition.x, cameraPosition.y, cameraPosition.z),
 				new AcousticVector(
 						velocityPerTick.x * TICK_RATE_HZ,
 						velocityPerTick.y * TICK_RATE_HZ,

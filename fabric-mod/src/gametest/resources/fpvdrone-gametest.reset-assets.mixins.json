@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "package": "com.tenicana.dronecraft.client.mixin.resetassets",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ResetAssetStreamDeliveryMixin",
+    "ResetAssetSoundEngineTickMixin",
+    "ResetAssetManagerTickMixin",
+    "ResetAssetChannelMixin",
+    "ResetAssetReadMixin",
+    "ResetAssetLibraryMixin",
+    "ResetAssetConsumerMixin",
+    "ResetAssetHandleMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

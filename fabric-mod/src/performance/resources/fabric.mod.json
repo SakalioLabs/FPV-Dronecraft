@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "fpvdrone-performance",
+  "version": "1.0.0",
+  "name": "FPV Dronecraft Normal Client Performance Probe",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.tenicana.dronecraft.performance.NormalClientPerformanceProbe"]
+  },
+  "mixins": ["fpvdrone-performance.mixins.json"],
+  "depends": {
+    "fpvdrone": "*",
+    "fabric-api": "*",
+    "minecraft": "1.21.11"
+  }
+}

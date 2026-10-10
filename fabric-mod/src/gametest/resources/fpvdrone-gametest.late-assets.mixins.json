@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.tenicana.dronecraft.client.mixin.lateassets",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "LateAssetStreamDeliveryMixin",
+    "LateAssetSoundEngineTickMixin",
+    "LateAssetManagerTickMixin",
+    "LateAssetChannelMixin",
+    "LateAssetReadMixin",
+    "LateAssetLibraryMixin"
+  ],
+  "injectors": { "defaultRequire": 1 }
+}

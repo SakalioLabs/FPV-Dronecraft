@@ -10,10 +10,10 @@ import com.tenicana.dronecraft.acoustics.AxisymmetricSourceDirectivity;
 import com.tenicana.dronecraft.acoustics.DopplerPcmConformance;
 import com.tenicana.dronecraft.acoustics.OrderTrackedRotorModel;
 import com.tenicana.dronecraft.acoustics.PhaseContinuousSynthesizer;
+import com.tenicana.dronecraft.acoustics.PreparedPhaseContinuousSynthesizer;
 import com.tenicana.dronecraft.acoustics.propagation.EmissionTransmission;
 import com.tenicana.dronecraft.acoustics.propagation.DopplerShift;
 import com.tenicana.dronecraft.entity.DroneEntity;
-import net.minecraft.world.entity.Entity;
 
 import java.util.List;
 
@@ -35,6 +35,7 @@ final class DroneAcousticRenderState {
 	private volatile AcousticSourceProfile activeProfile =
 			AcousticSourceProfile.researchFallback();
 	private AcousticEmissionFrame rawEmissionFrame = SILENT;
+	private AcousticEmissionFrame omnidirectionalEmissionFrame = SILENT;
 	private AcousticBands transmissionEnergyGain = UNITY_GAIN;
 	private OrderTrackedRotorModel sourceModel =
 			new OrderTrackedRotorModel(activeProfile.sourceModel());
@@ -42,43 +43,117 @@ final class DroneAcousticRenderState {
 	private volatile double soundSpeedMetersPerSecond =
 			AcousticPropagation.speedOfSoundMetersPerSecond(20.0);
 	private volatile AudioSnapshot audioSnapshot;
+	private DroneCallbackControlCoordinator callbackControls;
+	private Object motorDistanceStream;
+	private Object propellerDistanceStream;
+	private boolean motorDistanceVerified;
+	private boolean propellerDistanceVerified;
+	private volatile boolean distanceOwnershipFailed;
 
-	void updateSource(DroneEntity drone, Entity listener) {
+	synchronized void registerDistanceStream(PhaseContinuousSynthesizer.Layer layer, Object stream) {
+		if (layer == PhaseContinuousSynthesizer.Layer.MOTOR) {
+			motorDistanceStream = stream;
+			motorDistanceVerified = false;
+		} else {
+			propellerDistanceStream = stream;
+			propellerDistanceVerified = false;
+		}
+	}
+
+	synchronized boolean distanceStreamMayConfigure(PhaseContinuousSynthesizer.Layer layer, Object stream) {
+		return !distanceOwnershipFailed && (layer == PhaseContinuousSynthesizer.Layer.MOTOR
+				? motorDistanceStream == stream : propellerDistanceStream == stream);
+	}
+
+	synchronized boolean configureDistanceStream(PhaseContinuousSynthesizer.Layer layer, Object stream, boolean verified) {
+		if (!distanceStreamMayConfigure(layer, stream)) return false;
+		if (layer == PhaseContinuousSynthesizer.Layer.MOTOR && motorDistanceStream == stream) {
+			motorDistanceVerified = verified;
+			if (!verified) distanceOwnershipFailed = true;
+		} else if (layer == PhaseContinuousSynthesizer.Layer.PROPELLER && propellerDistanceStream == stream) {
+			propellerDistanceVerified = verified;
+			if (!verified) distanceOwnershipFailed = true;
+		}
+		return verified;
+	}
+
+	synchronized void closeDistanceStream(PhaseContinuousSynthesizer.Layer layer, Object stream) {
+		if (layer == PhaseContinuousSynthesizer.Layer.MOTOR && motorDistanceStream == stream) {
+			motorDistanceStream = null;
+			motorDistanceVerified = false;
+		} else if (layer == PhaseContinuousSynthesizer.Layer.PROPELLER && propellerDistanceStream == stream) {
+			propellerDistanceStream = null;
+			propellerDistanceVerified = false;
+		}
+	}
+
+	synchronized boolean distanceStreamsVerified() {
+		return !distanceOwnershipFailed && motorDistanceVerified && propellerDistanceVerified;
+	}
+
+	synchronized boolean distanceStreamVerified(PhaseContinuousSynthesizer.Layer layer, Object stream) {
+		return distanceStreamMayConfigure(layer, stream) && (layer == PhaseContinuousSynthesizer.Layer.MOTOR
+				? motorDistanceVerified : propellerDistanceVerified);
+	}
+
+	boolean distanceOwnershipFailed() { return distanceOwnershipFailed; }
+
+	synchronized void resetDistanceOwnership() {
+		motorDistanceStream = null;
+		propellerDistanceStream = null;
+		motorDistanceVerified = false;
+		propellerDistanceVerified = false;
+		distanceOwnershipFailed = false;
+	}
+
+	void updateSource(DroneEntity drone, AcousticListenerFrame listener) {
 		AcousticSourceFrame nextSource = DroneAcousticSourceMapper.map(drone);
-		AcousticListenerFrame listenerFrame = DroneAcousticSourceMapper.mapListener(listener);
 		AcousticSourceProfile nextProfile = AcousticProfileResources.select(drone);
 		if (nextProfile != activeProfile) {
 			activeProfile = nextProfile;
 			sourceModel = new OrderTrackedRotorModel(nextProfile.sourceModel());
 		}
-		AcousticEmissionFrame sourceEmission = sourceModel.evaluate(
+		omnidirectionalEmissionFrame = sourceModel.evaluate(
 				nextSource,
 				SAMPLE_RATE
 		);
-		sourceEmission = AxisymmetricSourceDirectivity.apply(
-				sourceEmission,
-				nextSource,
-				listenerFrame,
-				nextProfile.directivity()
-		);
-		double nextSoundSpeed =
+		sourceFrame = nextSource;
+		soundSpeedMetersPerSecond =
 				AcousticPropagation.speedOfSoundMetersPerSecond(
 						safeTemperature(
 								drone.getAmbientTemperatureCelsius()
 						)
 				);
+		updateListener(listener);
+	}
+
+	/** Refreshes only listener-dependent math; no world reads or rotor fitting. */
+	void updateListener(AcousticListenerFrame listener) {
+		AcousticSourceFrame source = sourceFrame;
+		if (source == null) {
+			return;
+		}
+		AcousticEmissionFrame sourceEmission = AxisymmetricSourceDirectivity.apply(
+				omnidirectionalEmissionFrame,
+				source,
+				listener,
+				activeProfile.directivity()
+		);
 		DopplerShift.Result doppler = DopplerShift.apply(
 				sourceEmission,
-				nextSource,
-				listenerFrame,
-				nextSoundSpeed
+				source,
+				listener,
+				soundSpeedMetersPerSecond
 		);
 		preDopplerEmissionFrame = sourceEmission;
 		rawEmissionFrame = doppler.emission();
 		dopplerFrequencyRatio = doppler.frequencyRatio();
-		sourceFrame = nextSource;
-		this.listenerFrame = listenerFrame;
-		soundSpeedMetersPerSecond = nextSoundSpeed;
+		listenerFrame = listener;
+		rebuildEmission();
+	}
+
+	void resetTransmission() {
+		transmissionEnergyGain = UNITY_GAIN;
 		rebuildEmission();
 	}
 
@@ -145,16 +220,37 @@ final class DroneAcousticRenderState {
 		return audioSnapshot;
 	}
 
+	void useCallbackControls(DroneCallbackControlCoordinator controls) { callbackControls = controls; }
+
+	AudioSnapshot callbackAudioSnapshot(Object stream, PhaseContinuousSynthesizer.Layer layer) {
+		DroneCallbackControlCoordinator controls = callbackControls;
+		if (controls == null || !(stream instanceof CallbackPcmStream candidate)
+				|| !candidate.callbackControlsEnrolled()) return audioSnapshot;
+		DroneAudioControlFrame frame = controls.committedFrame();
+		AudioSnapshot selected = frame == null ? null : frame.drySnapshot(this, layer, stream);
+		// A removed native owner keeps its last complete control until async close.
+		return selected != null ? selected : (AudioSnapshot) candidate.previousCallbackControl();
+	}
+
+	synchronized Object distanceStream(PhaseContinuousSynthesizer.Layer layer) {
+		return layer == PhaseContinuousSynthesizer.Layer.MOTOR ? motorDistanceStream : propellerDistanceStream;
+	}
+
 	boolean replacesLegacyRpmVolume() {
-		return activeProfile.calibration().replacesLegacyRpmVolume();
+		return playbackCalibration().replacesLegacyRpmVolume();
 	}
 
 	double motorPlaybackAmplitude() {
-		return activeProfile.calibration().motorPlaybackAmplitude();
+		return playbackCalibration().motorPlaybackAmplitude();
 	}
 
 	double propellerPlaybackAmplitude() {
-		return activeProfile.calibration().propellerPlaybackAmplitude();
+		return playbackCalibration().propellerPlaybackAmplitude();
+	}
+
+	AcousticSourceProfile.Calibration playbackCalibration() {
+		AudioSnapshot snapshot = audioSnapshot;
+		return snapshot == null ? activeProfile.calibration() : snapshot.calibration();
 	}
 
 	private void rebuildEmission() {
@@ -168,7 +264,8 @@ final class DroneAcousticRenderState {
 					preDopplerEmissionFrame,
 					emissionFrame,
 					dopplerFrequencyRatio,
-					soundSpeedMetersPerSecond
+					soundSpeedMetersPerSecond,
+					activeProfile.calibration()
 			);
 		}
 	}
@@ -197,8 +294,26 @@ final class DroneAcousticRenderState {
 			AcousticEmissionFrame preDopplerEmission,
 			AcousticEmissionFrame emission,
 			double dopplerFrequencyRatio,
-			double soundSpeedMetersPerSecond
+			double soundSpeedMetersPerSecond,
+			AcousticSourceProfile.Calibration calibration,
+			PreparedPhaseContinuousSynthesizer.PreparedEmission preparedMotor,
+			PreparedPhaseContinuousSynthesizer.PreparedEmission preparedPropeller
 	) {
+		AudioSnapshot(AcousticSourceFrame source, AcousticListenerFrame listener,
+				AcousticEmissionFrame preDopplerEmission, AcousticEmissionFrame emission,
+				double dopplerFrequencyRatio, double soundSpeedMetersPerSecond,
+				AcousticSourceProfile.Calibration calibration) {
+			this(source, listener, preDopplerEmission, emission, dopplerFrequencyRatio,
+					soundSpeedMetersPerSecond, calibration,
+					PreparedPhaseContinuousSynthesizer.prepare(emission, PhaseContinuousSynthesizer.Layer.MOTOR, SAMPLE_RATE),
+					PreparedPhaseContinuousSynthesizer.prepare(emission, PhaseContinuousSynthesizer.Layer.PROPELLER, SAMPLE_RATE));
+		}
+
+		AudioSnapshot {
+			java.util.Objects.requireNonNull(calibration, "calibration");
+			java.util.Objects.requireNonNull(preparedMotor, "preparedMotor");
+			java.util.Objects.requireNonNull(preparedPropeller, "preparedPropeller");
+		}
 	}
 
 }

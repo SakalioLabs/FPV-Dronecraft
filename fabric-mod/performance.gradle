@@ -1,0 +1,76 @@
+// Isolated normal-client diagnostics. This source set never enters jar/remapJar.
+sourceSets {
+	performance {
+		compileClasspath += sourceSets.main.output + sourceSets.client.output
+		runtimeClasspath += sourceSets.main.output + sourceSets.client.output
+	}
+}
+
+configurations {
+	performanceCompileOnly.extendsFrom compileOnly, clientCompileOnly
+	performanceImplementation.extendsFrom implementation, clientImplementation
+	performanceRuntimeOnly.extendsFrom runtimeOnly, clientRuntimeOnly
+}
+
+// Include mapped Minecraft/Fabric dependencies, excluding our GameTest source set.
+sourceSets.performance.compileClasspath += sourceSets.client.compileClasspath
+sourceSets.performance.runtimeClasspath += sourceSets.client.runtimeClasspath
+
+def performanceRunRoot = rootProject.file("build/performance/normal-client")
+
+loom {
+	mods {
+		"fpvdrone-performance" {
+			sourceSet sourceSets.performance
+		}
+	}
+	runs {
+		performanceClient {
+			client()
+			source sourceSets.performance
+			runDir new File(performanceRunRoot, "run").absolutePath
+			vmArg "-Dfpvdrone.performance=true"
+			vmArg "-Dfpvdrone.performance.workspace=${rootProject.projectDir.absolutePath}"
+			vmArg "-Dfpvdrone.performance.output=${new File(performanceRunRoot, 'report.json').absolutePath}"
+			vmArg "-Dfpvdrone.performance.hidden=${project.findProperty('performanceHidden') ?: 'true'}"
+			vmArg "-Dfpvdrone.performance.jfr=${project.findProperty('performanceJfr') ?: 'false'}"
+			vmArg "-Dfpvdrone.performance.phaseSeconds=${project.findProperty('performancePhaseSeconds') ?: '8'}"
+			vmArg "-Dfpvdrone.performance.warmupSeconds=${project.findProperty('performanceWarmupSeconds') ?: '10'}"
+			vmArg "-Dfpvdrone.performance.dirtyRadius=${project.findProperty('performanceDirtyRadius') ?: '2'}"
+			vmArg "-Dfpvdrone.performance.runtimeMonitorSmoke=${project.findProperty('performanceRuntimeMonitorSmoke') ?: 'false'}"
+			if ((project.findProperty('performanceJfr') ?: 'false').toString().toBoolean()) {
+				vmArg "-XX:FlightRecorderOptions=repository=${new File(performanceRunRoot, 'jfr-repository').absolutePath}"
+			}
+			vmArg "--enable-native-access=ALL-UNNAMED"
+		}
+	}
+}
+
+// Disposable production-runtime verification helper; never ship this test mod.
+def performanceSmokeJar = tasks.register("performanceSmokeJar", Jar) {
+	dependsOn("performanceClasses")
+	from(sourceSets.performance.output)
+	archiveFileName = "fpvdrone-performance-smoke-dev.jar"
+	destinationDirectory = layout.buildDirectory.dir("performance-smoke")
+}
+def remapTaskType = tasks.named("remapJar").get().class.superclass
+tasks.register("remapPerformanceSmokeJar", remapTaskType) {
+	dependsOn(performanceSmokeJar)
+	inputFile = performanceSmokeJar.flatMap { it.archiveFile }
+	classpath.from(sourceSets.performance.compileClasspath)
+	addNestedDependencies = false
+	archiveFileName = "fpvdrone-performance-smoke.jar"
+	destinationDirectory = layout.buildDirectory.dir("performance-smoke")
+}
+
+tasks.named("runPerformanceClient").configure {
+	dependsOn("performanceClasses", "clientClasses")
+	doFirst {
+		// A dedicated game directory is essential: never reuse a normal profile.
+		def runDirectory = new File(performanceRunRoot, "run")
+		runDirectory.mkdirs()
+		new File(performanceRunRoot, "jfr-repository").mkdirs()
+		def options = new File(runDirectory, "options.txt")
+		options.text = "onboardAccessibility:false\npauseOnLostFocus:false\nmaxFps:260\nenableVsync:false\nrenderDistance:8\nsimulationDistance:8\n"
+	}
+}

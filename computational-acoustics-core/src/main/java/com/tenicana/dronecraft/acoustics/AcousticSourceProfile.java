@@ -18,13 +18,13 @@ public record AcousticSourceProfile(
 		OrderTrackedRotorModel.Parameters sourceModel,
 		AxisymmetricSourceDirectivity.Parameters directivity
 ) {
-	public static final int CURRENT_SCHEMA_VERSION = 1;
+	public static final int CURRENT_SCHEMA_VERSION = 2;
 	private static final Pattern PROFILE_ID = Pattern.compile(
 			"[a-z0-9][a-z0-9_.-]{0,63}:[a-z0-9][a-z0-9_./-]{0,127}"
 	);
 
 	public AcousticSourceProfile {
-		if (schemaVersion != CURRENT_SCHEMA_VERSION) {
+		if (schemaVersion != 1 && schemaVersion != CURRENT_SCHEMA_VERSION) {
 			throw new IllegalArgumentException(
 					"unsupported acoustic profile schema version " + schemaVersion
 			);
@@ -45,6 +45,12 @@ public record AcousticSourceProfile(
 			);
 		}
 		Objects.requireNonNull(sourceModel, "sourceModel");
+		if (schemaVersion == 1 && !sourceModel.broadbandOperatingPointGainCurve().isUnity()) {
+			throw new IllegalArgumentException("schema v1 cannot contain independent broadband gains");
+		}
+		if (!sourceModel.rotorHarmonicGainCurve().isUnity()) {
+			throw new IllegalArgumentException("schema v1/v2 cannot contain independent harmonic gains");
+		}
 		Objects.requireNonNull(directivity, "directivity");
 		if (calibration.measured()) {
 			if (!validation.passesReleaseGate()) {

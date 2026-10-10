@@ -1,6 +1,6 @@
 {
-	"parent": "minecraft:item/generated",
-	"textures": {
-		"layer0": "minecraft:item/spyglass"
-	}
+  "parent": "fpvdrone:item/fpv_controller_v1",
+  "textures": {
+    "particle": "fpvdrone:item/fpv_controller_v1"
+  }
 }

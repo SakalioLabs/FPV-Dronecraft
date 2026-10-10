@@ -55,6 +55,45 @@ class FpvCameraOrientationTest {
 		assertOrthonormal(after);
 	}
 
+	@Test
+	void completedPositiveAndNegativeLoopsPreserveTheCameraControlFrame() {
+		FpvCameraOrientation.Orientation reference = FpvCameraOrientation.fromFpvMount(
+				37.0f, 8.0f, (float) Math.toRadians(-12.0), 16.0f, 0.0f, 0.0f, 0.0f);
+		for (int turns : new int[] {-2, -1, 1, 2}) {
+			FpvCameraOrientation.Orientation pitched = FpvCameraOrientation.fromFpvMount(
+					37.0f, 8.0f + turns * 360.0f, (float) Math.toRadians(-12.0), 16.0f, 0.0f, 0.0f, 0.0f);
+			FpvCameraOrientation.Orientation rolled = FpvCameraOrientation.fromFpvMount(
+					37.0f, 8.0f, (float) Math.toRadians(-12.0 + turns * 360.0), 16.0f, 0.0f, 0.0f, 0.0f);
+			assertSameBasis(reference, pitched);
+			assertSameBasis(reference, rolled);
+		}
+	}
+
+	@Test
+	void neighboringSamplesAcrossVerticalAndFullTurnsDoNotSnapTheCamera() {
+		for (float boundary : new float[] {-720.0f, -360.0f, -180.0f, -90.0f, 90.0f, 180.0f, 360.0f, 720.0f}) {
+			FpvCameraOrientation.Orientation beforePitch = FpvCameraOrientation.fromCameraAngles(
+					37.0f, boundary - 1.0f, (float) Math.toRadians(12.0));
+			FpvCameraOrientation.Orientation afterPitch = FpvCameraOrientation.fromCameraAngles(
+					37.0f, boundary + 1.0f, (float) Math.toRadians(12.0));
+			FpvCameraOrientation.Orientation beforeRoll = FpvCameraOrientation.fromCameraAngles(
+					37.0f, 8.0f, (float) Math.toRadians(boundary - 1.0f));
+			FpvCameraOrientation.Orientation afterRoll = FpvCameraOrientation.fromCameraAngles(
+					37.0f, 8.0f, (float) Math.toRadians(boundary + 1.0f));
+			assertTrue(Math.abs(beforePitch.rotation().dot(afterPitch.rotation())) > 0.9998f,
+					"pitch camera snapped at " + boundary);
+			assertTrue(Math.abs(beforeRoll.rotation().dot(afterRoll.rotation())) > 0.9998f,
+					"roll camera snapped at " + boundary);
+		}
+	}
+
+	private static void assertSameBasis(FpvCameraOrientation.Orientation expected, FpvCameraOrientation.Orientation actual) {
+		assertTrue(expected.forwards().dot(actual.forwards()) > 0.99999f);
+		assertTrue(expected.up().dot(actual.up()) > 0.99999f);
+		assertTrue(expected.left().dot(actual.left()) > 0.99999f);
+		assertOrthonormal(actual);
+	}
+
 	private static void assertOrthonormal(FpvCameraOrientation.Orientation orientation) {
 		assertEquals(1.0f, orientation.forwards().length(), 1.0e-5f);
 		assertEquals(1.0f, orientation.up().length(), 1.0e-5f);

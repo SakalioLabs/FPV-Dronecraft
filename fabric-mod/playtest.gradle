@@ -1,0 +1,60 @@
+// A small client smoke test mod, separate from the acoustic research GameTests.
+// Production fpvdrone code and Mixins are loaded normally; research test code is
+// deliberately absent from this source set's compile and runtime classpaths.
+def playableTestSourceSet = sourceSets.create("playtest") {
+	compileClasspath += sourceSets.main.output + sourceSets.client.output
+	runtimeClasspath += sourceSets.main.output + sourceSets.client.output
+}
+
+configurations.named(playableTestSourceSet.compileClasspathConfigurationName) {
+	extendsFrom(configurations.compileClasspath, configurations.clientCompileClasspath)
+}
+configurations.named(playableTestSourceSet.runtimeClasspathConfigurationName) {
+	extendsFrom(configurations.runtimeClasspath, configurations.clientRuntimeClasspath)
+}
+
+loom.createRemapConfigurations(playableTestSourceSet)
+loom.mods.create("fpvdrone-playtest") {
+	sourceSet(playableTestSourceSet)
+}
+
+def playableTestRunId = providers.gradleProperty("playtestRunId").orElse("latest").get()
+if (!(playableTestRunId ==~ /[A-Za-z0-9_-]+/)) {
+	throw new GradleException("playtestRunId must contain only letters, digits, underscores or hyphens")
+}
+def playableTestRunDirectory = layout.buildDirectory.dir("run/playableClientGameTest/${playableTestRunId}")
+def playableTestReport = providers.gradleProperty("playtestReport")
+		.map { rootProject.file(it).absolutePath }
+		.orElse(playableTestRunDirectory.map { it.file("playtest-client-report.json").asFile.absolutePath })
+
+loom.runs.create("playableClientGameTest") {
+	inherit(loom.runs.getByName("client"))
+	source(playableTestSourceSet)
+	runDirectory.set(playableTestRunDirectory)
+	property("fabric.client.gametest")
+	property("fabric.client.gametest.modid", "fpvdrone-playtest")
+	// Fabric's packet synchronizer rejects the mod's normal asynchronous packet
+	// handoff. Keep real packet delivery and wait for observable client state.
+	property("fabric.client.gametest.disableNetworkSynchronizer")
+	property("fabric.client.gametest.testModResourcesPath", file("src/playtest/resources").absolutePath)
+	property("fpvdrone.playtest.report", playableTestReport.get())
+	property("fpvdrone.playtest.hideWindow", "true")
+	programArgs("--username", "Player0")
+	ideConfigGenerated(false)
+}
+
+// This follows the existing configureTests { eula = true } test setup, without
+// clearing this run's directory. Loom's shared configureLaunch still schedules
+// the existing configureTests cleanup for the separate server GameTest directory.
+def playableTestEula = tasks.register(
+		"acceptPlayableClientGameTestEula",
+		WriteProperties
+) {
+	destinationFile.set(playableTestRunDirectory.map { it.file("eula.txt") })
+	property("eula", "true")
+}
+
+tasks.named("runPlayableClientGameTest").configure {
+	description = "Runs isolated client playability checks with production fpvdrone and closes Minecraft after the result."
+	dependsOn("playtestClasses", playableTestEula)
+}

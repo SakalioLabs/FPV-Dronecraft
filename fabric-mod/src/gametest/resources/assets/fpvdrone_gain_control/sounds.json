@@ -1,0 +1,5 @@
+{
+  "calibrated_160": {
+    "sounds": [{"name": "fpvdrone_gain_control:calibrated_160", "stream": true, "volume": 0.5, "pitch": 1.25}]
+  }
+}

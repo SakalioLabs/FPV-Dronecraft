@@ -9,6 +9,8 @@ on:
       - "integration/**"
       - "refactor/**"
       - "codex/**"
+    tags:
+      - "v*-fabric"
   pull_request:
     branches:
       - master

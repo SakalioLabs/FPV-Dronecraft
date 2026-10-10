@@ -2,6 +2,8 @@ package com.tenicana.dronecraft.gametest;
 
 import java.util.Locale;
 import java.lang.reflect.Method;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 import net.minecraft.core.BlockPos;
@@ -9,11 +11,13 @@ import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 
+import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder.RecordingSource;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
@@ -22,6 +26,7 @@ import com.tenicana.dronecraft.registry.DroneEntityTypes;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.FlightMode;
+import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.Vec3;
 import com.tenicana.dronecraft.sim.flight.FlightModelCapabilities;
 import com.tenicana.dronecraft.sim.flight.SimulationFlightModelAdapter;
@@ -56,6 +61,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 		double initialY = drone.getY();
 		DroneControlManager.startDiagnostic(TEST_OWNER, drone.tickCount, DURATION_TICKS);
+		drone.blackbox().startRecording(RecordingSource.SCRIPTED_DIAGNOSTIC, true);
 
 		context.runAfterDelay(160, () -> {
 			float yawRadians = drone.getRenderYawRadians();
@@ -65,6 +71,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 		context.runAfterDelay(ASSERT_TICKS, () -> {
 			DroneControlManager.stopDiagnostic(TEST_OWNER);
+			drone.blackbox().stopRecording(RecordingSource.SCRIPTED_DIAGNOSTIC);
 			assertTrue(!drone.isRemoved(), "drone was removed during GameTest");
 			assertTrue(drone.tickCount > 120, "drone did not tick enough in GameTest: " + drone.tickCount);
 			assertTrue(drone.blackbox().size() > 120, "blackbox did not collect enough samples: " + drone.blackbox().size());
@@ -323,6 +330,143 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 			drone.discard();
 			context.succeed();
 		});
+	}
+
+	@GameTest(structure = "fabric-gametest-api-v1:empty", setupTicks = 400, maxTicks = 130)
+	public void acroSignedFullTurnsKeepEntityRenderAndControlFramesAligned(GameTestHelper context) {
+		DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 4, 1));
+		DroneEntity[] drones = new DroneEntity[4];
+		UUID[] owners = new UUID[4];
+		Quaternion[] previous = new Quaternion[4];
+		double[][] previousAngles = new double[4][];
+		int[] previousDroneTicks = new int[4];
+		int[] heldPoseAdvances = new int[4];
+		boolean[] completedTwoTurns = new boolean[4];
+		Set<ChunkPos> tickingChunks = new HashSet<>();
+		Set<ChunkPos> newlyForcedChunks = new HashSet<>();
+		for (int index = 0; index < drones.length; index++) {
+			DroneEntity drone = new DroneEntity(DroneEntityTypes.DRONE, level);
+			owners[index] = new UUID(0L, 0xf010L + index);
+			drones[index] = drone;
+			drone.applyConfig(DroneConfig.racingQuad(), "racing_quad");
+			drone.setOwner(owners[index]);
+			drone.setYRot(37.0f);
+			// Keep both loops airborne so ground stabilization cannot mask a turn error.
+			drone.setPos(spawn.getX() + 0.5 + index * 3.0, spawn.getY() + 224.0, spawn.getZ() + 0.5);
+			ensureTurnFixtureTickingChunks(level, drone.chunkPosition(), tickingChunks, newlyForcedChunks);
+			level.addFreshEntity(drone);
+		}
+
+		for (int tick = 1; tick <= 119; tick++) {
+			int testTick = tick;
+			context.runAfterDelay(tick, () -> {
+				for (int index = 0; index < drones.length; index++) {
+					DroneEntity drone = drones[index];
+					// Extend the disposable fixture's ticking area ahead of the moving drone.
+					ensureTurnFixtureTickingChunks(level, drone.chunkPosition(), tickingChunks, newlyForcedChunks);
+					boolean pitchTurn = index < 2;
+					double sign = index % 2 == 0 ? 1.0 : -1.0;
+					boolean held = testTick >= 5 && testTick <= 108;
+					DroneInput input = new DroneInput(
+							testTick < 5 ? 0.02 : 0.52,
+							held && pitchTurn ? sign : 0.0,
+							held && !pitchTurn ? sign : 0.0,
+							0.0, true, true, FlightMode.ACRO);
+					DroneControlManager.update(owners[index], input, drone.tickCount);
+					if (testTick < 12) {
+						continue;
+					}
+					assertTrue(!drone.isRemoved(), "signed turn drone was removed: " + index);
+					assertTrue(drone.getFlightMode() == FlightMode.ACRO, "signed turn left ACRO: " + index);
+					assertTrue(!drone.onGround(), "signed turn fixture hit the ground: " + index);
+					Quaternion rendered = playableRenderedAttitude(drone);
+					Quaternion model = drone.activeFlightModelAttitudeForDiagnostics();
+					assertVectorClose(model.rotate(new Vec3(0.0, 0.0, 1.0)), rendered.rotate(new Vec3(0.0, 0.0, 1.0)),
+							2.0e-5, "render forward diverged during signed turn " + index + " tick " + testTick);
+					assertVectorClose(model.rotate(new Vec3(0.0, 1.0, 0.0)), rendered.rotate(new Vec3(0.0, 1.0, 0.0)),
+							2.0e-5, "render up diverged during signed turn " + index + " tick " + testTick);
+					float angle = pitchTurn ? drone.getRenderPitchRadians() : drone.getRenderRollRadians();
+					completedTwoTurns[index] |= Math.abs(angle) >= Math.PI * 4.0;
+					// GameTest scheduling and entity ticking can run in different order,
+					// and a drone outside ticking chunks can hold the same entity tick.
+					// Such a repeated pose is not a reversed response to the held stick.
+					if (previous[index] != null && drone.tickCount > previousDroneTicks[index] && testTick <= 108) {
+						heldPoseAdvances[index]++;
+						Quaternion bodyStep = previous[index].conjugate().multiply(rendered).normalized();
+						double axisStep = (pitchTurn ? bodyStep.x() : bodyStep.z()) * (bodyStep.w() < 0.0 ? -1.0 : 1.0);
+						assertTrue(axisStep * sign > 0.0,
+								String.format(Locale.ROOT,
+										"held control reversed after rotation: drone=%d testTick=%d axisStep=%.12f "
+												+ "previous[entityTick=%d yawDeg=%.6f pitchDeg=%.6f rollDeg=%.6f] "
+												+ "current[entityTick=%d yawDeg=%.6f pitchDeg=%.6f rollDeg=%.6f]",
+										index, testTick, axisStep, previousDroneTicks[index],
+										previousAngles[index][0], previousAngles[index][1], previousAngles[index][2],
+										drone.tickCount, Math.toDegrees(drone.getRenderYawRadians()),
+										Math.toDegrees(drone.getRenderPitchRadians()), Math.toDegrees(drone.getRenderRollRadians())));
+					}
+					previous[index] = rendered;
+					previousAngles[index] = new double[] {
+							Math.toDegrees(drone.getRenderYawRadians()), Math.toDegrees(drone.getRenderPitchRadians()),
+							Math.toDegrees(drone.getRenderRollRadians())};
+					previousDroneTicks[index] = drone.tickCount;
+				}
+			});
+		}
+
+		context.runAfterDelay(120, () -> {
+			for (int index = 0; index < drones.length; index++) {
+				assertTrue(completedTwoTurns[index], String.format(Locale.ROOT,
+						"signed turn fixture did not complete 720 degrees: drone=%d entityTick=%d "
+								+ "pitchDeg=%.6f rollDeg=%.6f advances=%d chunk=%s",
+						index, drones[index].tickCount, Math.toDegrees(drones[index].getRenderPitchRadians()),
+						Math.toDegrees(drones[index].getRenderRollRadians()), heldPoseAdvances[index], drones[index].chunkPosition()));
+				assertTrue(heldPoseAdvances[index] >= 80,
+						"signed turn fixture had too few distinct entity pose advances: drone=" + index
+								+ " advances=" + heldPoseAdvances[index] + " entityTick=" + drones[index].tickCount);
+				drones[index].discard();
+			}
+			for (ChunkPos chunk : newlyForcedChunks) {
+				level.setChunkForced(chunk.x, chunk.z, false);
+			}
+			context.succeed();
+		});
+	}
+
+	private static void ensureTurnFixtureTickingChunks(
+			ServerLevel level, ChunkPos center, Set<ChunkPos> tickingChunks, Set<ChunkPos> newlyForcedChunks
+	) {
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dz = -1; dz <= 1; dz++) {
+				ChunkPos chunk = new ChunkPos(center.x + dx, center.z + dz);
+				if (tickingChunks.add(chunk)) {
+					if (level.setChunkForced(chunk.x, chunk.z, true)) {
+						newlyForcedChunks.add(chunk);
+					}
+					level.getChunk(chunk.x, chunk.z);
+				}
+			}
+		}
+	}
+
+	private static Quaternion playableRenderedAttitude(DroneEntity drone) {
+		Quaternion yaw = axisAngle(0.0, 1.0, 0.0, -drone.getRenderYawRadians());
+		Quaternion pitch = axisAngle(1.0, 0.0, 0.0, drone.getRenderPitchRadians());
+		Quaternion roll = axisAngle(0.0, 0.0, 1.0, drone.getRenderRollRadians());
+		return yaw.multiply(pitch).multiply(roll).normalized();
+	}
+
+	private static Quaternion axisAngle(double x, double y, double z, double radians) {
+		double half = radians * 0.5;
+		double sin = Math.sin(half);
+		return new Quaternion(Math.cos(half), x * sin, y * sin, z * sin).normalized();
+	}
+
+	private static void assertVectorClose(Vec3 expected, Vec3 actual, double tolerance, String message) {
+		assertClose(expected.x(), actual.x(), tolerance, message + " x");
+		assertClose(expected.y(), actual.y(), tolerance, message + " y");
+		assertClose(expected.z(), actual.z(), tolerance, message + " z");
 	}
 
 	private static void scheduleInput(GameTestHelper context, DroneEntity drone, UUID owner, int firstTick, int lastTick, DroneInput input) {

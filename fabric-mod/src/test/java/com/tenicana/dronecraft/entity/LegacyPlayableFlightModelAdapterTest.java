@@ -12,6 +12,7 @@ import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.FlightMode;
+import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.Vec3;
 import com.tenicana.dronecraft.sim.flight.FlightModelInitializationContext;
 import com.tenicana.dronecraft.sim.flight.FlightStateSnapshot;
@@ -208,6 +209,152 @@ class LegacyPlayableFlightModelAdapterTest {
 		assertTrue(yawBefore > 120.0f, "yawBefore=" + yawBefore);
 		assertEquals(0.0, angularDifferenceDegrees(yawBefore, yawAfter), 1.0e-4,
 				() -> "yawBefore=" + yawBefore + " yawAfter=" + yawAfter);
+	}
+
+	@Test
+	void signedAcroRevolutionsRetainContinuousAnglesThroughIntegrationAndTeleport() {
+		DroneConfig config = DroneConfig.racingQuad();
+		for (boolean pitchAxis : new boolean[] { true, false }) {
+			for (double sign : new double[] { -1.0, 1.0 }) {
+				LegacyPlayableFlightModelAdapter adapter = new LegacyPlayableFlightModelAdapter();
+				adapter.initialize(new FlightModelInitializationContext(
+						config,
+						new FlightStateSnapshot(new Vec3(0.0, 500.0, 0.0), Vec3.ZERO,
+								PlayableAttitude.quaternion(137.0, 0.0, 0.0), Vec3.ZERO, FlightMode.ACRO, true),
+						DroneEnvironment.calm(), 0L
+				));
+				boolean crossedFirstTurn = false, crossedSecondTurn = false;
+				for (int tick = 0; tick < 100; tick++) {
+					FlightStepResult result = adapter.step(new FlightStepContext(
+							new DroneInput(0.20, pitchAxis ? sign : 0.0, pitchAxis ? 0.0 : sign,
+									0.0, true, true, FlightMode.ACRO),
+							adapter.snapshot(), DroneEnvironment.calm(), 0.05, tick, config,
+							Map.of(LegacyPlayableFlightModelAdapter.OPTION_PLAYABLE_PRESET, PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE.id())
+					));
+					float pitch = diagnosticFloat(result, "visual_pitch_radians");
+					float roll = diagnosticFloat(result, "visual_roll_radians");
+					float yaw = diagnosticFloat(result, "yaw_degrees");
+					assertAttitudeBasisEquals(PlayableAttitude.quaternion(yaw, pitch, roll), result.nextState().attitude());
+					adapter.applyResolvedState(result.nextState(), new StateCorrection(
+							StateCorrectionReason.NORMAL_INTEGRATION, "TEST_WORLD_RESOLUTION", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO
+					));
+					assertEquals(pitch, adapterDiagnosticFloat(adapter, "visual_pitch_radians"), 1.0e-6f);
+					assertEquals(roll, adapterDiagnosticFloat(adapter, "visual_roll_radians"), 1.0e-6f);
+					double turnAngle = sign * (pitchAxis ? pitch : roll);
+					if ((!crossedFirstTurn && turnAngle > Math.PI * 2.0)
+							|| (!crossedSecondTurn && turnAngle > Math.PI * 4.0)) {
+						FlightStateSnapshot before = adapter.snapshot();
+						adapter.applyResolvedState(before, new StateCorrection(
+								StateCorrectionReason.RESET_TELEPORT, "TEST_RESTORED_ATTITUDE", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO
+						));
+						assertEquals(pitch, adapterDiagnosticFloat(adapter, "visual_pitch_radians"), 2.0e-5f);
+						assertEquals(roll, adapterDiagnosticFloat(adapter, "visual_roll_radians"), 2.0e-5f);
+						assertEquals(yaw, adapterDiagnosticFloat(adapter, "yaw_degrees"), 2.0e-4f);
+						assertAttitudeBasisEquals(before.attitude(), adapter.snapshot().attitude());
+						if (turnAngle > Math.PI * 4.0) {
+							crossedSecondTurn = true;
+							break;
+						}
+						crossedFirstTurn = true;
+					}
+				}
+				assertTrue(crossedFirstTurn && crossedSecondTurn, "pitchAxis=" + pitchAxis + " sign=" + sign);
+			}
+		}
+	}
+
+	@Test
+	void playableYawSnapshotAndPhysicalForwardUseTheSameMinecraftConvention() {
+		DroneConfig config = DroneConfig.racingQuad();
+		for (double yaw : new double[] { -137.0, -90.0, 0.0, 90.0, 137.0 }) {
+			LegacyPlayableFlightModelAdapter adapter = new LegacyPlayableFlightModelAdapter();
+			Quaternion initial = PlayableAttitude.quaternion(yaw, Math.toRadians(25.0), 0.0);
+			adapter.initialize(new FlightModelInitializationContext(config,
+					new FlightStateSnapshot(new Vec3(0.0, 500.0, 0.0), Vec3.ZERO, initial, Vec3.ZERO, FlightMode.ACRO, true),
+					DroneEnvironment.calm(), 0L));
+			assertAttitudeBasisEquals(initial, adapter.snapshot().attitude());
+			FlightStepResult result = adapter.step(new FlightStepContext(
+					new DroneInput(0.50, 0.0, 0.0, 0.0, true, true, FlightMode.ACRO),
+					adapter.snapshot(), DroneEnvironment.calm(), 0.05, 1L, config,
+					Map.of(LegacyPlayableFlightModelAdapter.OPTION_PLAYABLE_PRESET, PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE.id())));
+			Vec3 forward = result.nextState().attitude().rotate(new Vec3(0.0, 0.0, 1.0));
+			Vec3 velocity = result.nextState().velocityWorldMetersPerSecond();
+			assertTrue(forward.x() * velocity.x() + forward.z() * velocity.z() > 0.0, "yaw=" + yaw);
+		}
+	}
+
+	private static float adapterDiagnosticFloat(LegacyPlayableFlightModelAdapter adapter, String key) {
+		return Float.parseFloat(adapter.diagnostics().values().get(key));
+	}
+
+	@Test
+	void tinyBankedCorrectionsPreserveTheirCompleteBodyRotation() {
+		DroneConfig config = DroneConfig.racingQuad();
+		LegacyPlayableFlightModelAdapter adapter = new LegacyPlayableFlightModelAdapter();
+		adapter.initialize(new FlightModelInitializationContext(config,
+				new FlightStateSnapshot(new Vec3(0, 500, 0), Vec3.ZERO,
+						PlayableAttitude.quaternion(37, Math.toRadians(25), Math.toRadians(1)), Vec3.ZERO, FlightMode.ACRO, true),
+				DroneEnvironment.calm(), 0));
+		Quaternion before = adapter.snapshot().attitude();
+		FlightStepResult result = adapter.step(new FlightStepContext(
+				new DroneInput(0.20, 0.020, 0, 0, true, true, FlightMode.ACRO),
+				adapter.snapshot(), DroneEnvironment.calm(), 0.05, 1, config,
+				Map.of(LegacyPlayableFlightModelAdapter.OPTION_PLAYABLE_PRESET, PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE.id())));
+		double coupling = diagnosticFloat(result, "acro_heading_coupling_degrees_per_tick");
+		assertTrue(Math.abs(coupling) > 0.0 && Math.abs(coupling) < 0.015);
+		double pitchRate = diagnosticFloat(result, "acro_pitch_rate_radians_per_tick");
+		double rollRate = diagnosticFloat(result, "acro_roll_rate_radians_per_tick");
+		double angle = Math.hypot(pitchRate, rollRate), scale = Math.sin(angle / 2.0) / angle;
+		Quaternion increment = new Quaternion(Math.cos(angle / 2.0), pitchRate * scale, 0, rollRate * scale);
+		assertAttitudeBasisEquals(before.multiply(increment), result.nextState().attitude());
+	}
+
+	@Test
+	void restoringMixedTurnDoesNotConvertGeometricHeadingIntoYawMomentum() {
+		DroneConfig config = DroneConfig.racingQuad();
+		LegacyPlayableFlightModelAdapter adapter = new LegacyPlayableFlightModelAdapter();
+		adapter.initialize(new FlightModelInitializationContext(config,
+				new FlightStateSnapshot(new Vec3(0, 500, 0), Vec3.ZERO,
+						PlayableAttitude.quaternion(37, Math.toRadians(73), Math.toRadians(80)), Vec3.ZERO, FlightMode.ACRO, true),
+				DroneEnvironment.calm(), 0));
+		FlightStepResult turning = adapter.step(new FlightStepContext(
+				new DroneInput(0.20, 0.20, 0, 0, true, true, FlightMode.ACRO),
+				adapter.snapshot(), DroneEnvironment.calm(), 0.05, 1, config,
+				Map.of(LegacyPlayableFlightModelAdapter.OPTION_PLAYABLE_PRESET, PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE.id())));
+		assertTrue(Math.abs(diagnosticFloat(turning, "acro_heading_coupling_degrees_per_tick")) > 1.0);
+		adapter.applyResolvedState(turning.nextState(), new StateCorrection(
+				StateCorrectionReason.RESET_TELEPORT, "TEST_MIXED_TURN_RESTORE", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO));
+		FlightStepResult neutral = adapter.step(new FlightStepContext(
+				new DroneInput(0.20, 0, 0, 0, true, true, FlightMode.ACRO),
+				adapter.snapshot(), DroneEnvironment.calm(), 0.05, 2, config,
+				Map.of(LegacyPlayableFlightModelAdapter.OPTION_PLAYABLE_PRESET, PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE.id())));
+		assertEquals(0.0f,
+				diagnosticFloat(neutral, "target_yaw_degrees_per_tick") - diagnosticFloat(neutral, "acro_heading_coupling_degrees_per_tick"),
+				1.0e-5f);
+	}
+
+	@Test
+	void verticalGeometricHeadingChangeDoesNotRotateWorldMomentum() {
+		DroneConfig config = DroneConfig.racingQuad();
+		LegacyPlayableFlightModelAdapter adapter = new LegacyPlayableFlightModelAdapter();
+		Vec3 initialVelocity = new Vec3(6, 0, 0);
+		adapter.initialize(new FlightModelInitializationContext(config,
+				new FlightStateSnapshot(new Vec3(0, 500, 0), initialVelocity,
+						PlayableAttitude.quaternion(37, Math.toRadians(89), Math.toRadians(80)), Vec3.ZERO, FlightMode.ACRO, true),
+				DroneEnvironment.calm(), 0));
+		FlightStepResult result = adapter.step(new FlightStepContext(
+				new DroneInput(0.20, 0.50, 0, 0, true, true, FlightMode.ACRO),
+				adapter.snapshot(), DroneEnvironment.calm(), 0.05, 1, config,
+				Map.of(LegacyPlayableFlightModelAdapter.OPTION_PLAYABLE_PRESET, PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE.id())));
+		assertTrue(Math.abs(diagnosticFloat(result, "acro_heading_coupling_degrees_per_tick")) > 20.0);
+		Vec3 change = result.nextState().velocityWorldMetersPerSecond().subtract(initialVelocity);
+		assertTrue(change.length() < 1.20, "coordinate branch change must not rotate existing velocity: " + change);
+	}
+
+	private static void assertAttitudeBasisEquals(Quaternion expected, Quaternion actual) {
+		for (Vec3 axis : new Vec3[] { new Vec3(1.0, 0.0, 0.0), new Vec3(0.0, 1.0, 0.0), new Vec3(0.0, 0.0, 1.0) }) {
+			assertVecClose(expected.rotate(axis), actual.rotate(axis), 3.0e-6);
+		}
 	}
 
 	private static void assertVecClose(Vec3 expected, Vec3 actual, double tolerance) {

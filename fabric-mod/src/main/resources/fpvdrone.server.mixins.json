@@ -1,0 +1,13 @@
+{
+	"required": true,
+	"package": "com.tenicana.dronecraft.server.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"RemoteChunkMapMixin",
+		"RemoteTrackedEntityMixin",
+		"RemotePlayerChunkSenderMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

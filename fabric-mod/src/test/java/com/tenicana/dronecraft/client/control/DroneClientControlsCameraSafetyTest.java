@@ -134,8 +134,8 @@ class DroneClientControlsCameraSafetyTest {
 				"client tick must sweep stale DroneEntity camera targets"
 		);
 		assertTrue(
-				restoreInvalidDroneCamera.contains("client.getCameraEntity() instanceof DroneEntity && !DroneClientState.isFpvActive(client.level)"),
-				"client camera sweep must only restore DroneEntity camera targets when FPV is no longer active"
+				restoreInvalidDroneCamera.contains("client.getCameraEntity() instanceof DroneEntity && !DroneClientState.isDroneCameraActive(client.level)"),
+				"client camera sweep must preserve both mounted views and restore inactive drone camera targets"
 		);
 		assertTrue(
 				restoreInvalidDroneCamera.contains("restoreVanillaCamera(client);"),

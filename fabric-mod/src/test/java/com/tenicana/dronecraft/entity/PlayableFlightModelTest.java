@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.sim.ControlStickProfile;
 import com.tenicana.dronecraft.sim.FlightMode;
+import com.tenicana.dronecraft.sim.Quaternion;
+import com.tenicana.dronecraft.sim.Vec3;
 
 class PlayableFlightModelTest {
 	@Test
@@ -978,1205 +980,219 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
-	void acroModeCapturesCompletedRotationAfterStickRelease() {
-		PlayableFlightModel.Step rolled = holdStick(FlightMode.ACRO, 42, 0.45f, 0.0f, 1.0f, 0.0f);
-		PlayableFlightModel.Step released = runFrom(
-				FlightMode.ACRO,
-				8,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				stateFrom(rolled)
-		);
-
-		assertTrue(rolled.rollRadians() > Math.toRadians(360.0), "rolledDeg=" + Math.toDegrees(rolled.rollRadians()));
-		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
-		assertTrue(Math.abs(released.targetVelocityX()) < 1.0e-3f, "releasedTargetX=" + released.targetVelocityX());
-	}
-
-	@Test
-	void debugFilteredFullRollReleaseDoesNotRemainInSideFlight() {
-		PlayableFlightModel.State state = PlayableFlightModel.State.zero(FlightMode.ACRO);
-		PlayableFlightModel.Step step = null;
-		float filteredRoll = 0.0f;
-		for (int i = 0; i < 50; i++) {
-			filteredRoll = PlayableDebugAxisFilter.filter(
-					filteredRoll,
-					1.0f,
-					PlayableDebugAxisFilter.DEFAULT_RISE_SMOOTHING,
-					PlayableDebugAxisFilter.DEFAULT_FALL_SMOOTHING,
-					true
-			);
-			step = PlayableFlightModel.step(
-					FlightMode.ACRO,
-					0.50f,
-					0.0f,
-					filteredRoll,
-					0.0f,
-					0.20f,
-					false,
-					state
-			);
-			state = stateFrom(step);
+	void completedAcroTurnsKeepTheirResidualAttitudeOnRelease() {
+		// The old 250/300-degree capture threshold must not turn any of these
+		// released attitudes into an automatic level command.
+		for (PlayableFlightPreset preset : PlayableFlightPreset.values()) {
+			for (float sign : new float[] { -1.0f, 1.0f }) {
+				for (float degrees : new float[] { 264.0f, 300.0f, 330.0f, 390.0f, 428.0f, 451.0f, 540.0f, 720.0f }) {
+					for (boolean pitchAxis : new boolean[] { true, false }) {
+						float attitude = (float) Math.toRadians(sign * degrees);
+						PlayableFlightModel.State previous = acroTurnState(
+								pitchAxis ? attitude : 0.0f, pitchAxis ? 0.0f : attitude,
+								0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0
+						);
+						PlayableFlightModel.Step released = acroTurnStep(preset, previous, 0.0f, 0.0f);
+						String scenario = preset + " angle=" + sign * degrees + " pitchAxis=" + pitchAxis;
+						assertEquals(previous.pitchRadians(), released.pitchRadians(), 1.0e-5f, scenario);
+						assertEquals(previous.rollRadians(), released.rollRadians(), 1.0e-5f, scenario);
+						assertEquals(0, released.acroRollRecoveryTicksRemaining(), scenario);
+					}
+				}
+			}
 		}
+	}
 
-		for (int i = 0; i < 18; i++) {
-			filteredRoll = PlayableDebugAxisFilter.filter(
-					filteredRoll,
-					0.0f,
-					PlayableDebugAxisFilter.DEFAULT_RISE_SMOOTHING,
-					PlayableDebugAxisFilter.DEFAULT_FALL_SMOOTHING,
-					true
-			);
-			step = PlayableFlightModel.step(
-					FlightMode.ACRO,
-					0.50f,
-					0.0f,
-					filteredRoll,
-					0.0f,
-					0.20f,
-					false,
-					state
-			);
-			state = stateFrom(step);
+	@Test
+	void acroTurnReleaseBrakesRatesSmoothlyWithoutJumpingToLevel() {
+		for (PlayableFlightPreset preset : PlayableFlightPreset.values()) {
+			for (float sign : new float[] { -1.0f, 1.0f }) {
+				for (float degrees : new float[] { 300.0f, 330.0f, 390.0f }) {
+					for (boolean pitchAxis : new boolean[] { true, false }) {
+						float attitude = (float) Math.toRadians(sign * degrees);
+						float initialRate = (float) Math.toRadians(sign * 5.0f);
+						PlayableFlightModel.State state = acroTurnState(
+								pitchAxis ? attitude : 0.0f, pitchAxis ? 0.0f : attitude,
+								0.0f, 0.0f, 0.0f,
+								pitchAxis ? initialRate : 0.0f, pitchAxis ? 0.0f : initialRate, 0
+						);
+						for (int tick = 0; tick < 8; tick++) {
+							PlayableFlightModel.Step released = acroTurnStep(preset, state, 0.0f, 0.0f);
+							float previousAttitude = pitchAxis ? state.pitchRadians() : state.rollRadians();
+							float nextAttitude = pitchAxis ? released.pitchRadians() : released.rollRadians();
+							float rate = pitchAxis ? released.acroPitchRateRadiansPerTick() : released.acroRollRateRadiansPerTick();
+							String scenario = preset + " angle=" + sign * degrees + " pitchAxis=" + pitchAxis + " tick=" + tick;
+							assertTrue(Math.abs(nextAttitude - previousAttitude) < Math.toRadians(2.0), scenario);
+							assertTrue(Math.abs(nextAttitude - attitude) < Math.toRadians(3.0), scenario);
+							assertTrue(Math.abs(rate) < Math.abs(initialRate), scenario);
+							assertEquals(0, released.acroRollRecoveryTicksRemaining(), scenario);
+							state = stateFrom(released);
+						}
+						float rate = pitchAxis ? state.acroPitchRateRadiansPerTick() : state.acroRollRateRadiansPerTick();
+						assertEquals(0.0f, rate, (float) Math.toRadians(0.04));
+					}
+				}
+			}
 		}
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				step.velocityX(),
-				step.velocityY(),
-				step.velocityZ(),
-				step.pitchRadians(),
-				step.rollRadians()
-		);
-
-		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertEquals(0.0f, step.targetVelocityX(), 1.0e-6f);
-		assertTrue(Math.abs(bodyVelocity.x()) < 0.32f, "bodySideVelocity=" + bodyVelocity.x());
 	}
 
 	@Test
-	void completedAcroRollDoesNotKeepCreatingSidewaysTarget() {
-		PlayableFlightModel.Step completedRoll = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(360.0),
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-		PlayableFlightModel.Step quarterRoll = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(90.0),
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-
-		assertEquals(0.0f, completedRoll.rollRadians(), 1.0e-5);
-		assertTrue(Math.abs(completedRoll.targetVelocityX()) < 1.0e-3f, "completedRollTargetX=" + completedRoll.targetVelocityX());
-		assertEquals(0.0f, completedRoll.velocityX(), 1.0e-3f);
-		assertTrue(Math.abs(quarterRoll.targetVelocityX()) > 24.0f, "quarterRollTargetX=" + quarterRoll.targetVelocityX());
-	}
-
-	@Test
-	void releasedAcroRollOvershootSnapsToCompletedRotation() {
-		PlayableFlightModel.Step overshotRoll = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(395.0),
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-		PlayableFlightModel.Step activeBank = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.35f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(450.0),
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-
-		assertEquals(0.0f, overshotRoll.rollRadians(), 1.0e-5);
-		assertTrue(Math.abs(overshotRoll.targetVelocityX()) < 1.0e-3f, "overshotRollTargetX=" + overshotRoll.targetVelocityX());
-		assertEquals(0.0f, overshotRoll.velocityX(), 1.0e-3f);
-		assertTrue(Math.abs(activeBank.targetVelocityX()) > 24.0f, "activeBankTargetX=" + activeBank.targetVelocityX());
-	}
-
-	@Test
-	void releasedAcroRollWideOvershootSnapsToCompletedRotation() {
-		PlayableFlightModel.Step overshotRoll = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(428.0),
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-		PlayableFlightModel.Step activeKnifeEdge = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.35f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(450.0),
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-
-		assertEquals(0.0f, overshotRoll.rollRadians(), 1.0e-5);
-		assertTrue(Math.abs(overshotRoll.targetVelocityX()) < 1.0e-3f, "overshotRollTargetX=" + overshotRoll.targetVelocityX());
-		assertEquals(0.0f, overshotRoll.velocityX(), 1.0e-3f);
-		assertTrue(Math.abs(activeKnifeEdge.targetVelocityX()) > 24.0f, "activeKnifeEdgeTargetX=" + activeKnifeEdge.targetVelocityX());
-	}
-
-	@Test
-	void releasedAcroRollNearKnifeEdgeCompletesTurnInsteadOfKeepingSideThrust() {
-		PlayableFlightModel.Step released = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(451.0),
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-
-		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
-		assertTrue(Math.abs(released.targetVelocityX()) < 1.0e-3f, "releasedTargetX=" + released.targetVelocityX());
-		assertEquals(0.0f, released.velocityX(), 1.0e-3f);
-	}
-
-	@Test
-	void filteredReleaseTailAfterFullRollDoesNotKeepSideFlying() {
-		PlayableFlightModel.Step released = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.10f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						1.35f,
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(480.0),
-						0.0f,
-						FlightMode.ACRO,
-						0,
-						1.70f,
-						0.0f,
-						(float) Math.toRadians(4.0)
-				)
-		);
-
-		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertTrue(Math.abs(released.targetVelocityX()) < 1.0e-3f, "releasedTargetX=" + released.targetVelocityX());
-		assertEquals(0.0f, released.velocityX(), 1.0e-6f);
-	}
-
-	@Test
-	void filteredHighRateReleaseNearFullRollCapturesInsteadOfParkingSideways() {
-		PlayableFlightModel.State state = new PlayableFlightModel.State(
-				12.0f,
-				0.0f,
-				6.0f,
-				0.0f,
-				(float) Math.toRadians(292.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(8.0)
-		);
-		PlayableFlightModel.Step released = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.30f,
-				0.0f,
-				0.20f,
-				false,
-				state
-		);
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				released.velocityX(),
-				released.velocityY(),
-				released.velocityZ(),
-				released.pitchRadians(),
-				released.rollRadians()
-		);
-
-		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
-		assertTrue(Math.abs(bodyVelocity.x()) <= 0.32f, "bodySideVelocity=" + bodyVelocity.x());
-		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
-	}
-
-	@Test
-	void activeNearKnifeEdgeRollCommandDoesNotUseFilteredReleaseCapture() {
-		PlayableFlightModel.State state = new PlayableFlightModel.State(
-				12.0f,
-				0.0f,
-				6.0f,
-				0.0f,
-				(float) Math.toRadians(292.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(2.8)
-		);
-		PlayableFlightModel.Step active = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.30f,
-				0.0f,
-				0.20f,
-				false,
-				state
-		);
-
-		assertTrue(active.rollRadians() > Math.toRadians(294.0), "activeRollDeg=" + Math.toDegrees(active.rollRadians()));
-		assertTrue(Math.abs(active.targetVelocityX()) > 18.0f, "activeTargetX=" + active.targetVelocityX());
-		assertTrue(active.acroRollRateRadiansPerTick() > Math.toRadians(2.0), "activeRollRateDeg=" + Math.toDegrees(active.acroRollRateRadiansPerTick()));
-	}
-
-	@Test
-	void oppositeReleaseTailAfterFullRollCapturesAndStopsSideThrust() {
-		PlayableFlightModel.State state = new PlayableFlightModel.State(
-				12.0f,
-				0.0f,
-				6.0f,
-				0.0f,
-				(float) Math.toRadians(428.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(3.0)
-		);
-		PlayableFlightModel.Step released = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				-0.10f,
-				0.0f,
-				0.20f,
-				false,
-				state
-		);
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				released.velocityX(),
-				released.velocityY(),
-				released.velocityZ(),
-				released.pitchRadians(),
-				released.rollRadians()
-		);
-
-		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
-		assertTrue(Math.abs(bodyVelocity.x()) <= 0.32f, "bodySideVelocity=" + bodyVelocity.x());
-		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
-	}
-
-	@Test
-	void releasedFullRollWithResidualSlipNormalizesAndBleedsSideVelocity() {
-		PlayableFlightModel.State state = new PlayableFlightModel.State(
-				12.0f,
-				0.0f,
-				0.0f,
-				0.0f,
-				(float) Math.toRadians(428.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(3.0)
-		);
-		PlayableFlightModel.Step released = runFrom(
-				FlightMode.ACRO,
-				20,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				state
-		);
-
-		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
-		assertTrue(Math.abs(released.velocityX()) < 0.32f, "releasedVelocityX=" + released.velocityX());
-	}
-
-	@Test
-	void releasedFullRollWithFastSideSlipCapsBodySideVelocityButKeepsForwardInertia() {
-		PlayableFlightModel.State state = new PlayableFlightModel.State(
-				14.0f,
-				0.0f,
-				6.0f,
-				0.0f,
-				(float) Math.toRadians(428.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(3.0)
-		);
-		PlayableFlightModel.Step released = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				state
-		);
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				released.velocityX(),
-				released.velocityY(),
-				released.velocityZ(),
-				released.pitchRadians(),
-				released.rollRadians()
-		);
-
-		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertTrue(Math.abs(bodyVelocity.x()) <= 0.32f, "bodySideVelocity=" + bodyVelocity.x());
-		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
-	}
-
-	@Test
-	void releasedFullRollContinuesBleedingSideSlipDuringRecoveryWindow() {
-		PlayableFlightModel.State state = new PlayableFlightModel.State(
-				14.0f,
-				0.0f,
-				6.0f,
-				0.0f,
-				(float) Math.toRadians(428.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(3.0)
-		);
-		PlayableFlightModel.Step captured = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				state
-		);
-		PlayableFlightModel.Step recovered = runFrom(
-				FlightMode.ACRO,
-				8,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				stateFrom(captured)
-		);
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				recovered.velocityX(),
-				recovered.velocityY(),
-				recovered.velocityZ(),
-				recovered.pitchRadians(),
-				recovered.rollRadians()
-		);
-
-		assertEquals(0.0f, captured.rollRadians(), 1.0e-5);
-		assertTrue(captured.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + captured.acroRollRecoveryTicksRemaining());
-		assertEquals(0.0f, recovered.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, recovered.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertTrue(Math.abs(bodyVelocity.x()) < 0.10f, "bodySideVelocity=" + bodyVelocity.x());
-		assertTrue(bodyVelocity.z() > 4.0f, "bodyForwardVelocity=" + bodyVelocity.z());
-	}
-
-	@Test
-	void completedRollCaptureRefreshesAeroMemoryFromTrimmedSideSlip() {
-		PlayableFlightModel.State slippingRoll = new PlayableFlightModel.State(
-				14.0f,
-				0.0f,
-				6.0f,
-				0.0f,
-				(float) Math.toRadians(428.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(3.0),
-				0,
-				1.0f,
-				1.0f
-		);
-		PlayableFlightModel.Step captured = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				slippingRoll
-		);
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				captured.velocityX(),
-				captured.velocityY(),
-				captured.velocityZ(),
-				captured.pitchRadians(),
-				captured.rollRadians()
-		);
-
-		assertEquals(0.0f, captured.rollRadians(), 1.0e-5);
-		assertTrue(captured.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + captured.acroRollRecoveryTicksRemaining());
-		assertTrue(Math.abs(bodyVelocity.x()) <= 0.28f, "bodySideVelocity=" + bodyVelocity.x());
-		assertTrue(bodyVelocity.z() > 4.0f, "bodyForwardVelocity=" + bodyVelocity.z());
-		assertTrue(captured.acroAeroCrossflowLag() > 0.34f, "lag=" + captured.acroAeroCrossflowLag());
-		assertTrue(captured.acroAeroCrossflowLag() < 0.42f, "lag=" + captured.acroAeroCrossflowLag());
-		assertTrue(captured.acroSidewashMemory() > 0.26f, "memory=" + captured.acroSidewashMemory());
-		assertTrue(captured.acroSidewashMemory() < 0.34f, "memory=" + captured.acroSidewashMemory());
-		assertTrue(captured.acroSidewashMemory() < captured.acroAeroCrossflowLag(),
-				"memory=" + captured.acroSidewashMemory() + " lag=" + captured.acroAeroCrossflowLag());
-	}
-
-	@Test
-	void highSpeedFullRollReleaseDoesNotReenterPassiveSideFlightAfterRecoveryWindow() {
-		PlayableFlightModel.State state = PlayableFlightModel.State.zero(FlightMode.ACRO);
-		PlayableFlightModel.Step step = null;
-		for (int i = 0; i < 8; i++) {
-			step = PlayableFlightModel.step(
-					FlightMode.ACRO,
-					0.68f,
-					1.0f,
-					0.0f,
-					0.0f,
-					0.20f,
-					false,
-					state
-			);
-			state = stateFrom(step);
+	void smallAcroCorrectionsRemainUsableAfterSignedFullTurns() {
+		for (PlayableFlightPreset preset : PlayableFlightPreset.values()) {
+			for (float degrees : new float[] { -720.0f, -360.0f, 360.0f, 720.0f }) {
+				for (float command : new float[] { -0.10f, 0.10f }) {
+					for (boolean pitchAxis : new boolean[] { true, false }) {
+						float attitude = (float) Math.toRadians(degrees);
+						PlayableFlightModel.State previous = acroTurnState(
+								pitchAxis ? attitude : 0.0f, pitchAxis ? 0.0f : attitude,
+								0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 28
+						);
+						PlayableFlightModel.Step corrected = acroTurnStep(
+								preset, previous, pitchAxis ? command : 0.0f, pitchAxis ? 0.0f : command
+						);
+						float delta = pitchAxis
+								? corrected.pitchRadians() - previous.pitchRadians()
+								: corrected.rollRadians() - previous.rollRadians();
+						float rate = pitchAxis ? corrected.acroPitchRateRadiansPerTick() : corrected.acroRollRateRadiansPerTick();
+						String scenario = preset + " angle=" + degrees + " command=" + command + " pitchAxis=" + pitchAxis;
+						assertTrue(command * delta > 0.0f, scenario);
+						assertTrue(command * rate > 0.0f, scenario);
+						assertTrue(Math.abs(delta) < Math.toRadians(3.0), scenario);
+						assertEquals(0, corrected.acroRollRecoveryTicksRemaining(), scenario);
+					}
+				}
+			}
 		}
-		for (int i = 0; i < 38; i++) {
-			step = PlayableFlightModel.step(
-					FlightMode.ACRO,
-					0.68f,
-					0.0f,
-					0.0f,
-					0.0f,
-					0.20f,
-					false,
-					state
-			);
-			state = stateFrom(step);
+	}
+
+	@Test
+	void signedFullTurnOffsetsPreserveMixedBodyAxisControlAndVelocity() {
+		for (PlayableFlightPreset preset : PlayableFlightPreset.values()) {
+			for (float pitchDegrees : new float[] { -115.0f, -37.0f, 0.0f, 37.0f, 115.0f }) {
+				for (float rollDegrees : new float[] { -68.0f, 0.0f, 68.0f }) {
+					for (float[] commands : new float[][] { { 0.10f, 0.0f }, { -0.10f, 0.0f }, { 0.0f, 0.10f }, { 0.0f, -0.10f }, { 0.30f, -0.25f } }) {
+						PlayableFlightModel.State base = acroTurnState(
+								(float) Math.toRadians(pitchDegrees), (float) Math.toRadians(rollDegrees),
+								12.0f, -2.0f, 6.0f, 0.0f, 0.0f, 0
+						);
+						PlayableFlightModel.Step expected = acroTurnStep(preset, base, commands[0], commands[1]);
+						for (float pitchTurns : new float[] { -720.0f, -360.0f, 0.0f, 360.0f, 720.0f }) {
+							for (float rollTurns : new float[] { -720.0f, -360.0f, 0.0f, 360.0f, 720.0f }) {
+								PlayableFlightModel.State turned = acroTurnState(
+										(float) Math.toRadians(pitchDegrees + pitchTurns), (float) Math.toRadians(rollDegrees + rollTurns),
+										12.0f, -2.0f, 6.0f, 0.0f, 0.0f, 0
+								);
+								PlayableFlightModel.Step actual = acroTurnStep(preset, turned, commands[0], commands[1]);
+								String scenario = preset + " pitch=" + pitchDegrees + "/" + pitchTurns + " roll=" + rollDegrees + "/" + rollTurns;
+								assertEquals(expected.pitchRadians() - base.pitchRadians(), actual.pitchRadians() - turned.pitchRadians(), 3.0e-5f, scenario);
+								assertEquals(expected.rollRadians() - base.rollRadians(), actual.rollRadians() - turned.rollRadians(), 3.0e-5f, scenario);
+								assertEquals(expected.acroPitchRateRadiansPerTick(), actual.acroPitchRateRadiansPerTick(), 2.0e-5f, scenario);
+								assertEquals(expected.acroRollRateRadiansPerTick(), actual.acroRollRateRadiansPerTick(), 2.0e-5f, scenario);
+								assertEquals(expected.velocityX(), actual.velocityX(), 2.0e-4f, scenario);
+								assertEquals(expected.velocityY(), actual.velocityY(), 2.0e-4f, scenario);
+								assertEquals(expected.velocityZ(), actual.velocityZ(), 2.0e-4f, scenario);
+								assertEquals(expected.yawDegreesPerTick(), actual.yawDegreesPerTick(), 2.0e-4f, scenario);
+							}
+						}
+					}
+				}
+			}
 		}
-		for (int i = 0; i < 42; i++) {
-			step = PlayableFlightModel.step(
-					FlightMode.ACRO,
-					0.56f,
-					0.0f,
-					1.0f,
-					0.0f,
-					0.20f,
-					false,
-					state
-			);
-			state = stateFrom(step);
+	}
+
+	@Test
+	void completingAcroTurnsDoesNotTrimMomentumOrResetAeroMemory() {
+		for (PlayableFlightPreset preset : PlayableFlightPreset.values()) {
+			for (float[] angles : new float[][] { { 0.0f, 35.0f }, { 34.0f, 0.0f }, { 34.0f, 35.0f } }) {
+				PlayableFlightModel.State base = acroTurnState(
+						(float) Math.toRadians(angles[0]), (float) Math.toRadians(angles[1]),
+						14.0f, -2.0f, 6.0f, 0.0f, 0.0f, 0
+				);
+				PlayableFlightModel.State turned = acroTurnState(
+						(float) Math.toRadians(angles[0] + 360.0f), (float) Math.toRadians(angles[1] + 360.0f),
+						14.0f, -2.0f, 6.0f, 0.0f, 0.0f, 28
+				);
+				PlayableFlightModel.Step expected = acroTurnStep(preset, base, 0.0f, 0.0f);
+				PlayableFlightModel.Step actual = acroTurnStep(preset, turned, 0.0f, 0.0f);
+				assertEquals(expected.velocityX(), actual.velocityX(), 2.0e-4f);
+				assertEquals(expected.velocityY(), actual.velocityY(), 2.0e-4f);
+				assertEquals(expected.velocityZ(), actual.velocityZ(), 2.0e-4f);
+				assertEquals(expected.acroAeroCrossflowLag(), actual.acroAeroCrossflowLag(), 1.0e-5f);
+				assertEquals(expected.acroSidewashMemory(), actual.acroSidewashMemory(), 1.0e-5f);
+				assertTrue(actual.velocityX() > 12.0f, "turn must not erase lateral momentum");
+				assertTrue(actual.velocityZ() > 4.0f, "turn must not erase forward momentum");
+				assertEquals(0, actual.acroRollRecoveryTicksRemaining());
+			}
 		}
-		for (int i = 0; i < 30; i++) {
-			step = PlayableFlightModel.step(
-					FlightMode.ACRO,
-					0.56f,
-					0.0f,
-					0.0f,
-					0.0f,
-					0.20f,
-					false,
-					state
+	}
+
+	@Test
+	void exactAcroFullTurnsRemainLevelWithoutChangingStoredRevolution() {
+		for (float degrees : new float[] { -720.0f, -360.0f, 360.0f, 720.0f }) {
+			float radians = (float) Math.toRadians(degrees);
+			PlayableFlightModel.Step loop = acroTurnStep(
+					PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE,
+					acroTurnState(radians, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0), 0.0f, 0.0f
 			);
-			state = stateFrom(step);
+			PlayableFlightModel.Step roll = acroTurnStep(
+					PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE,
+					acroTurnState(0.0f, radians, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0), 0.0f, 0.0f
+			);
+			assertEquals(radians, loop.pitchRadians(), 1.0e-5f);
+			assertEquals(radians, roll.rollRadians(), 1.0e-5f);
+			assertEquals(0.0f, loop.targetVelocityZ(), 1.0e-3f);
+			assertEquals(0.0f, roll.targetVelocityX(), 1.0e-3f);
+			assertEquals(1.0f, PlayableFlightModel.verticalThrustProjection(loop.pitchRadians(), loop.rollRadians()), 1.0e-5f);
+			assertEquals(1.0f, PlayableFlightModel.verticalThrustProjection(roll.pitchRadians(), roll.rollRadians()), 1.0e-5f);
 		}
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				step.velocityX(),
-				step.velocityY(),
-				step.velocityZ(),
-				step.pitchRadians(),
-				step.rollRadians()
-		);
-
-		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-4f);
-		assertTrue(step.acroAeroCrossflowLag() < 0.16f, "lag=" + step.acroAeroCrossflowLag());
-		assertTrue(step.acroSidewashMemory() < 0.10f, "memory=" + step.acroSidewashMemory());
-		assertTrue(Math.abs(bodyVelocity.x()) < 0.25f,
-				"bodySideVelocity=" + bodyVelocity.x()
-						+ " bodyForwardVelocity=" + bodyVelocity.z()
-						+ " yawRate=" + step.yawDegreesPerTick());
-		assertTrue(bodyVelocity.z() > 12.0f, "bodyForwardVelocity=" + bodyVelocity.z());
 	}
 
 	@Test
-	void highSpeedFullRollReleaseWithYawReframeDoesNotKeepSideFlying() {
-		YawReframedRun run = YawReframedRun.zero(FlightMode.ACRO);
-		run = runYawReframedFrom(run, 8, 0.68f, 1.0f, 0.0f, 0.0f);
-		run = runYawReframedFrom(run, 38, 0.68f, 0.0f, 0.0f, 0.0f);
-		run = runYawReframedFrom(run, 42, 0.56f, 0.0f, 1.0f, 0.0f);
-		run = runYawReframedFrom(run, 50, 0.56f, 0.0f, 0.0f, 0.0f);
-
-		PlayableFlightModel.Step step = run.step();
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				step.velocityX(),
-				step.velocityY(),
-				step.velocityZ(),
-				step.pitchRadians(),
-				step.rollRadians()
+	void legacyTurnRecoveryCountersNeverSuppressNewAcroCommands() {
+		PlayableFlightModel.State previous = acroTurnState(
+				0.0f, (float) Math.toRadians(370.0), 16.0f, 0.0f, 16.0f, 0.0f, 0.0f, 28
 		);
-
-		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-4f);
-		assertTrue(Math.abs(bodyVelocity.x()) < 0.25f,
-				"bodySideVelocity=" + bodyVelocity.x()
-						+ " bodyForwardVelocity=" + bodyVelocity.z()
-						+ " yawDegrees=" + run.yawDegrees()
-						+ " yawRate=" + step.yawDegreesPerTick());
-		assertTrue(bodyVelocity.z() > 12.0f, "bodyForwardVelocity=" + bodyVelocity.z());
+		assertEquals(0, previous.acroRollRecoveryTicksRemaining());
+		PlayableFlightModel.Step corrected = acroTurnStep(PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE, previous, 0.0f, 0.10f);
+		assertTrue(corrected.rollRadians() > previous.rollRadians());
+		assertTrue(corrected.acroRollRateRadiansPerTick() > 0.0f);
+		assertEquals(0, corrected.acroRollRecoveryTicksRemaining());
 	}
 
-	@Test
-	void debugFilteredFullRollThenForwardCommandDoesNotReenterSideFlight() {
-		YawReframedRun run = YawReframedRun.zero(FlightMode.ACRO);
-		DebugFilteredAxes axes = new DebugFilteredAxes();
-		run = runDebugFilteredYawReframedFrom(run, axes, 8, 0.68f, 1.0f, 0.0f, 0.0f);
-		run = runDebugFilteredYawReframedFrom(run, axes, 38, 0.68f, 0.0f, 0.0f, 0.0f);
-		run = runDebugFilteredYawReframedFrom(run, axes, 42, 0.56f, 0.0f, 1.0f, 0.0f);
-		run = runDebugFilteredYawReframedFrom(run, axes, 8, 0.68f, 0.65f, 0.0f, 0.0f);
-		run = runDebugFilteredYawReframedFrom(run, axes, 28, 0.68f, 0.0f, 0.0f, 0.0f);
-
-		PlayableFlightModel.Step step = run.step();
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				step.velocityX(),
-				step.velocityY(),
-				step.velocityZ(),
-				step.pitchRadians(),
-				step.rollRadians()
+	private static PlayableFlightModel.State acroTurnState(
+			float pitchRadians, float rollRadians,
+			float velocityX, float velocityY, float velocityZ,
+			float pitchRate, float rollRate, int retiredRecoveryTicks
+	) {
+		return new PlayableFlightModel.State(
+				velocityX, velocityY, velocityZ, pitchRadians, rollRadians,
+				0.0f, FlightMode.ACRO, 0, 1.0f, pitchRate, rollRate,
+				retiredRecoveryTicks, 1.0f, 1.0f
 		);
-		float horizontalSpeed = horizontalSpeed(bodyVelocity.x(), bodyVelocity.z());
-		float sideRatio = Math.abs(bodyVelocity.x()) / Math.max(1.0e-6f, horizontalSpeed);
-
-		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-4f);
-		assertTrue(sideRatio < 0.055f,
-				"sideRatio=" + sideRatio
-						+ " bodySideVelocity=" + bodyVelocity.x()
-						+ " bodyForwardVelocity=" + bodyVelocity.z()
-						+ " yawDegrees=" + run.yawDegrees()
-						+ " yawRate=" + step.yawDegreesPerTick());
-		assertTrue(bodyVelocity.z() > 11.0f, "bodyForwardVelocity=" + bodyVelocity.z());
 	}
 
-	@Test
-	void acroPresetFullRollReleaseTailThenForwardCommandDoesNotReenterSideFlight() {
-		DroneClientConfig config = DroneClientConfig.defaults();
-		config.applyGamepadFeelPreset(DroneClientConfig.ControlFeelPreset.ACRO);
-		YawReframedRun run = YawReframedRun.zero(FlightMode.ACRO);
-		ClientTrainingAxes axes = new ClientTrainingAxes();
-		run = runClientPresetYawReframedFrom(run, axes, config, 8, 0.68f, 1.0f, 0.0f, 0.0f);
-		run = runClientPresetYawReframedFrom(run, axes, config, 38, 0.68f, 0.0f, 0.0f, 0.0f);
-		run = runClientPresetYawReframedFrom(run, axes, config, 42, 0.56f, 0.0f, 1.0f, 0.0f);
-		run = runClientPresetYawReframedFrom(run, axes, config, 10, 0.68f, 0.72f, 0.0f, 0.0f);
-		run = runClientPresetYawReframedFrom(run, axes, config, 30, 0.68f, 0.0f, 0.0f, 0.0f);
-
-		PlayableFlightModel.Step step = run.step();
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				step.velocityX(),
-				step.velocityY(),
-				step.velocityZ(),
-				step.pitchRadians(),
-				step.rollRadians()
-		);
-		float horizontalSpeed = horizontalSpeed(bodyVelocity.x(), bodyVelocity.z());
-		float sideRatio = Math.abs(bodyVelocity.x()) / Math.max(1.0e-6f, horizontalSpeed);
-
-		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-4f);
-		assertTrue(sideRatio < 0.052f,
-				"sideRatio=" + sideRatio
-						+ " bodySideVelocity=" + bodyVelocity.x()
-						+ " bodyForwardVelocity=" + bodyVelocity.z()
-						+ " yawDegrees=" + run.yawDegrees()
-						+ " yawRate=" + step.yawDegreesPerTick());
-		assertTrue(bodyVelocity.z() > 10.8f, "bodyForwardVelocity=" + bodyVelocity.z());
-	}
-
-	@Test
-	void activeRollInputCancelsCompletedRollRecoveryWindow() {
-		PlayableFlightModel.State state = new PlayableFlightModel.State(
-				14.0f,
-				0.0f,
-				6.0f,
-				0.0f,
-				(float) Math.toRadians(428.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(3.0)
-		);
-		PlayableFlightModel.Step captured = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				state
-		);
-		PlayableFlightModel.Step activeRoll = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.65f,
-				0.0f,
-				0.20f,
-				false,
-				stateFrom(captured)
-		);
-
-		assertTrue(captured.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + captured.acroRollRecoveryTicksRemaining());
-		assertEquals(0, activeRoll.acroRollRecoveryTicksRemaining());
-		assertTrue(activeRoll.rollRadians() > Math.toRadians(3.0), "activeRollDeg=" + Math.toDegrees(activeRoll.rollRadians()));
-	}
-
-	@Test
-	void completedRollRecoverySurvivesModerateStickReturnTail() {
-		PlayableFlightModel.State state = new PlayableFlightModel.State(
-				14.0f,
-				0.0f,
-				6.0f,
-				0.0f,
-				(float) Math.toRadians(428.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(3.0)
-		);
-		PlayableFlightModel.Step captured = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				state
-		);
-		PlayableFlightModel.Step recovered = runFrom(
-				FlightMode.ACRO,
-				6,
-				0.45f,
-				0.0f,
-				0.28f,
-				0.0f,
-				0.20f,
-				false,
-				stateFrom(captured)
-		);
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				recovered.velocityX(),
-				recovered.velocityY(),
-				recovered.velocityZ(),
-				recovered.pitchRadians(),
-				recovered.rollRadians()
-		);
-
-		assertTrue(captured.acroRollRecoveryTicksRemaining() > 0, "capturedRecoveryTicks=" + captured.acroRollRecoveryTicksRemaining());
-		assertTrue(recovered.acroRollRecoveryTicksRemaining() > 0, "recoveredRecoveryTicks=" + recovered.acroRollRecoveryTicksRemaining());
-		assertEquals(0.0f, recovered.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, recovered.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertTrue(Math.abs(bodyVelocity.x()) < 0.10f,
-				"bodySideVelocity=" + bodyVelocity.x()
-						+ " bodyForwardVelocity=" + bodyVelocity.z()
-						+ " recoveryTicks=" + recovered.acroRollRecoveryTicksRemaining());
-		assertTrue(bodyVelocity.z() > 4.0f, "bodyForwardVelocity=" + bodyVelocity.z());
-	}
-
-	@Test
-	void releasedFullRollInvertedDeadbandStillCompletesInsteadOfHoldingSideFlight() {
-		PlayableFlightModel.State state = new PlayableFlightModel.State(
-				12.0f,
-				0.0f,
-				6.0f,
-				0.0f,
-				(float) Math.toRadians(540.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(0.8)
-		);
-		PlayableFlightModel.Step released = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				state
-		);
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				released.velocityX(),
-				released.velocityY(),
-				released.velocityZ(),
-				released.pitchRadians(),
-				released.rollRadians()
-		);
-
-		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
-		assertTrue(Math.abs(bodyVelocity.x()) <= 0.32f, "bodySideVelocity=" + bodyVelocity.x());
-		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
-	}
-
-	@Test
-	void completedRollRecoverySuppressesPassiveTransverseMomentFromResidualSlip() {
-		PlayableFlightModel.State recovering = new PlayableFlightModel.State(
-				16.0f,
-				0.0f,
-				16.0f,
-				0.0f,
-				0.0f,
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(0.6),
-				8
-		);
-		PlayableFlightModel.Step step = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				recovering
-		);
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				step.velocityX(),
-				step.velocityY(),
-				step.velocityZ(),
-				step.pitchRadians(),
-				step.rollRadians()
-		);
-
-		assertEquals(0.0f, step.rollRadians(), 1.0e-6f);
-		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertTrue(step.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + step.acroRollRecoveryTicksRemaining());
-		assertTrue(Math.abs(bodyVelocity.x()) < 0.10f, "bodySideVelocity=" + bodyVelocity.x());
-		assertTrue(bodyVelocity.z() > 12.0f, "bodyForwardVelocity=" + bodyVelocity.z());
-	}
-
-	@Test
-	void releasedFullRollTailPastOldSnapWindowDoesNotParkSideways() {
-		PlayableFlightModel.State state = new PlayableFlightModel.State(
-				12.0f,
-				0.0f,
-				6.0f,
-				0.0f,
-				(float) Math.toRadians(507.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(0.8)
-		);
-		PlayableFlightModel.Step released = runFrom(
-				FlightMode.ACRO,
-				12,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				state
-		);
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				released.velocityX(),
-				released.velocityY(),
-				released.velocityZ(),
-				released.pitchRadians(),
-				released.rollRadians()
-		);
-
-		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
-		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
-		assertTrue(Math.abs(bodyVelocity.x()) < 0.32f, "bodySideVelocity=" + bodyVelocity.x());
-		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
-	}
-
-	@Test
-	void releasedNearCompletedRollWithRateTailCompletesInsteadOfRemainingSideways() {
-		PlayableFlightModel.State state = new PlayableFlightModel.State(
-				10.0f,
-				0.0f,
-				8.0f,
-				0.0f,
-				(float) Math.toRadians(264.0),
-				0.0f,
-				FlightMode.ACRO,
-				0,
-				1.70f,
-				0.0f,
-				(float) Math.toRadians(4.2)
-		);
-		PlayableFlightModel.Step released = runFrom(
-				FlightMode.ACRO,
-				24,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				state
-		);
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				released.velocityX(),
-				released.velocityY(),
-				released.velocityZ(),
-				released.pitchRadians(),
-				released.rollRadians()
-		);
-
-		assertEquals(0.0f, released.rollRadians(), 1.0e-5,
-				"rollDeg=" + Math.toDegrees(released.rollRadians())
-						+ " rollRateDeg=" + Math.toDegrees(released.acroRollRateRadiansPerTick())
-						+ " recoveryTicks=" + released.acroRollRecoveryTicksRemaining()
-						+ " bodySideVelocity=" + bodyVelocity.x());
-		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-4f);
-		assertTrue(Math.abs(bodyVelocity.x()) < 0.40f,
-				"bodySideVelocity=" + bodyVelocity.x()
-						+ " bodyForwardVelocity=" + bodyVelocity.z()
-						+ " rollDeg=" + Math.toDegrees(released.rollRadians()));
-		assertTrue(bodyVelocity.z() > 5.0f, "bodyForwardVelocity=" + bodyVelocity.z());
-	}
-
-	@Test
-	void filteredReleaseProjectedNearCompletedRollCapturesInsteadOfParkingSideways() {
-		PlayableFlightModel.Step rolling = holdStick(FlightMode.ACRO, 26, 0.56f, 0.0f, 1.0f, 0.0f);
-		PlayableFlightModel.Step released = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.56f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				stateFrom(rolling)
-		);
-		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
-				released.velocityX(),
-				released.velocityY(),
-				released.velocityZ(),
-				released.pitchRadians(),
-				released.rollRadians()
-		);
-
-		assertTrue(rolling.rollRadians() > Math.toRadians(230.0), "rollingDeg=" + Math.toDegrees(rolling.rollRadians()));
-		assertTrue(rolling.rollRadians() < Math.toRadians(245.0), "rollingDeg=" + Math.toDegrees(rolling.rollRadians()));
-		assertTrue(rolling.acroRollRateRadiansPerTick() > Math.toRadians(8.0), "rollingRateDeg=" + Math.toDegrees(rolling.acroRollRateRadiansPerTick()));
-		assertEquals(0.0f, released.rollRadians(), 1.0e-5,
-				"releasedRollDeg=" + Math.toDegrees(released.rollRadians())
-						+ " releasedRateDeg=" + Math.toDegrees(released.acroRollRateRadiansPerTick())
-						+ " recoveryTicks=" + released.acroRollRecoveryTicksRemaining()
-						+ " bodySideVelocity=" + bodyVelocity.x());
-		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertTrue(released.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + released.acroRollRecoveryTicksRemaining());
-		assertTrue(Math.abs(bodyVelocity.x()) < 0.32f,
-				"bodySideVelocity=" + bodyVelocity.x()
-						+ " bodyForwardVelocity=" + bodyVelocity.z());
-	}
-
-	@Test
-	void completedAcroPitchLoopDoesNotKeepCreatingForwardTarget() {
-		PlayableFlightModel.Step completedLoop = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(360.0),
-						0.0f,
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-		PlayableFlightModel.Step quarterLoop = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(90.0),
-						0.0f,
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-
-		assertEquals(0.0f, completedLoop.pitchRadians(), 1.0e-5);
-		assertTrue(Math.abs(completedLoop.targetVelocityZ()) < 1.0e-3f, "completedLoopTargetZ=" + completedLoop.targetVelocityZ());
-		assertEquals(0.0f, completedLoop.velocityZ(), 1.0e-3f);
-		assertTrue(Math.abs(quarterLoop.targetVelocityZ()) > 24.0f, "quarterLoopTargetZ=" + quarterLoop.targetVelocityZ());
-	}
-
-	@Test
-	void releasedAcroPitchLoopOvershootSnapsToCompletedRotation() {
-		PlayableFlightModel.Step overshotLoop = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(394.0),
-						0.0f,
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-		PlayableFlightModel.Step activeSteepLoop = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.35f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(450.0),
-						0.0f,
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-
-		assertEquals(0.0f, overshotLoop.pitchRadians(), 1.0e-5);
-		assertTrue(Math.abs(overshotLoop.targetVelocityZ()) < 1.0e-3f, "overshotLoopTargetZ=" + overshotLoop.targetVelocityZ());
-		assertEquals(0.0f, overshotLoop.velocityZ(), 1.0e-3f);
-		assertTrue(Math.abs(activeSteepLoop.targetVelocityZ()) > 24.0f, "activeSteepLoopTargetZ=" + activeSteepLoop.targetVelocityZ());
-	}
-
-	@Test
-	void releasedAcroPitchWideOvershootSnapsToCompletedRotation() {
-		PlayableFlightModel.Step overshotLoop = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.0f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(425.0),
-						0.0f,
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-		PlayableFlightModel.Step activeSteepLoop = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.35f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						0.0f,
-						(float) Math.toRadians(450.0),
-						0.0f,
-						0.0f,
-						FlightMode.ACRO
-				)
-		);
-
-		assertEquals(0.0f, overshotLoop.pitchRadians(), 1.0e-5);
-		assertTrue(Math.abs(overshotLoop.targetVelocityZ()) < 1.0e-3f, "overshotLoopTargetZ=" + overshotLoop.targetVelocityZ());
-		assertEquals(0.0f, overshotLoop.velocityZ(), 1.0e-3f);
-		assertTrue(Math.abs(activeSteepLoop.targetVelocityZ()) > 24.0f, "activeSteepLoopTargetZ=" + activeSteepLoop.targetVelocityZ());
-	}
-
-	@Test
-	void filteredReleaseTailAfterFullPitchLoopDoesNotKeepForwardThrust() {
-		PlayableFlightModel.Step released = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				0.10f,
-				0.0f,
-				0.0f,
-				0.20f,
-				false,
-				new PlayableFlightModel.State(
-						0.0f,
-						0.0f,
-						1.35f,
-						(float) Math.toRadians(480.0),
-						0.0f,
-						0.0f,
-						FlightMode.ACRO,
-						0,
-						1.70f,
-						(float) Math.toRadians(4.0),
-						0.0f
-				)
-		);
-
-		assertEquals(0.0f, released.pitchRadians(), 1.0e-5);
-		assertEquals(0.0f, released.acroPitchRateRadiansPerTick(), 1.0e-6f);
-		assertTrue(Math.abs(released.targetVelocityZ()) < 1.0e-3f, "releasedTargetZ=" + released.targetVelocityZ());
-		assertEquals(0.0f, released.velocityZ(), 1.0e-6f);
+	private static PlayableFlightModel.Step acroTurnStep(
+			PlayableFlightPreset preset, PlayableFlightModel.State previous, float pitch, float roll
+	) {
+		return PlayableFlightModel.step(preset, FlightMode.ACRO, 0.20f, pitch, roll, 0.0f, 0.20f, false, 1.0f, previous);
 	}
 
 	@Test
 	void acroDiagonalCommandUsesSingleHorizontalSpeedEnvelope() {
 		PlayableFlightModel.Step diagonal = holdStick(FlightMode.ACRO, 9, 0.68f, 1.0f, 1.0f, 0.0f);
 		float horizontalTargetSpeed = horizontalSpeed(diagonal.targetVelocityX(), diagonal.targetVelocityZ());
+		Vec3 thrustAxis = PlayableAttitude.quaternion(diagonal.acroHeadingCouplingDegreesPerTick(),
+				diagonal.pitchRadians(), diagonal.rollRadians()).rotate(new Vec3(0.0, 1.0, 0.0));
+		double horizontalThrust = Math.hypot(thrustAxis.x(), thrustAxis.z());
 
-		assertTrue(Math.abs(diagonal.targetVelocityX()) > 24.0f, "targetX=" + diagonal.targetVelocityX());
-		assertTrue(Math.abs(diagonal.targetVelocityZ()) > 4.5f, "targetZ=" + diagonal.targetVelocityZ());
-		assertTrue(Math.abs(diagonal.targetVelocityX()) > Math.abs(diagonal.targetVelocityZ()) * 2.35f);
 		assertTrue(horizontalTargetSpeed > 25.0f, "horizontalTargetSpeed=" + horizontalTargetSpeed);
 		assertTrue(horizontalTargetSpeed < 27.6f, "horizontalTargetSpeed=" + horizontalTargetSpeed);
+		// Diagonal sticks rotate about two body axes; their horizontal projection
+		// need not contain the old fixed X/Z ratio. The shared envelope and the
+		// physical thrust direction must hold for the resulting complete attitude.
+		assertTrue(horizontalThrust > 0.0);
+		assertEquals(thrustAxis.x() / horizontalThrust, diagonal.targetVelocityX() / horizontalTargetSpeed, 1.0e-5);
+		assertEquals(thrustAxis.z() / horizontalThrust, diagonal.targetVelocityZ() / horizontalTargetSpeed, 1.0e-5);
 	}
 
 	@Test
@@ -5081,38 +4097,76 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
-	void acroBodyRateYawCouplingAddsBankedPitchAndVerticalRollHeadingChange() {
-		float levelPitch = PlayableFlightModel.acroBodyRateYawCouplingDegreesPerTick(
-				0.0f,
-				0.0f,
-				(float) Math.toRadians(4.0),
-				0.0f
-		);
-		float rightBankPitch = PlayableFlightModel.acroBodyRateYawCouplingDegreesPerTick(
-				0.0f,
-				(float) Math.toRadians(60.0),
-				(float) Math.toRadians(4.0),
-				0.0f
-		);
-		float leftBankPitch = PlayableFlightModel.acroBodyRateYawCouplingDegreesPerTick(
-				0.0f,
-				(float) Math.toRadians(-60.0),
-				(float) Math.toRadians(4.0),
-				0.0f
-		);
-		float verticalRoll = PlayableFlightModel.acroBodyRateYawCouplingDegreesPerTick(
-				(float) Math.toRadians(88.0),
-				0.0f,
-				0.0f,
-				(float) Math.toRadians(4.5)
-		);
+	void exactBodyRotationKeepsPitchAndRollDirectionsAtVerticalAndInvertedAttitudes() {
+		for (float pitchDegrees : new float[] { -181, -179, -91, -90, -89, -73, 0, 73, 89, 90, 91, 179, 181, 359, 361 }) {
+			for (float rollDegrees : new float[] { -100, -80, 0, 80, 100 }) {
+				for (float[] rates : new float[][] { { 10, 0 }, { -10, 0 }, { 0, 10 }, { 0, -10 }, { 10, -8 }, { 0.06f, 0.04f } }) {
+					float pitch = (float) Math.toRadians(pitchDegrees), roll = (float) Math.toRadians(rollDegrees);
+					float pitchRate = (float) Math.toRadians(rates[0]), rollRate = (float) Math.toRadians(rates[1]);
+					PlayableFlightModel.AcroBodyRateAttitudeDelta delta = PlayableFlightModel.acroBodyRateAttitudeDelta(pitch, roll, pitchRate, rollRate);
+					Quaternion before = PlayableAttitude.quaternion(0.0, pitch, roll);
+					Quaternion after = PlayableAttitude.quaternion(delta.yawDegreesPerTick(), pitch + delta.pitchRateRadiansPerTick(), roll + delta.rollRateRadiansPerTick());
+					Quaternion bodyStep = before.conjugate().multiply(after).normalized();
+					double canonical = bodyStep.w() < 0.0 ? -1.0 : 1.0;
+					String scenario = "pitch=" + pitchDegrees + " roll=" + rollDegrees + " rates=" + rates[0] + "/" + rates[1];
+					assertTrue(pitchRate == 0.0f || bodyStep.x() * canonical * pitchRate > 0.0, scenario);
+					assertTrue(rollRate == 0.0f || bodyStep.z() * canonical * rollRate > 0.0, scenario);
+					assertEquals(0.0, bodyStep.y(), 2.0e-6, scenario);
+					assertBodyRotationBasis(before, after, pitchRate, rollRate, scenario);
+				}
+			}
+		}
+	}
 
-		assertEquals(0.0f, levelPitch, 1.0e-6f);
-		assertTrue(rightBankPitch > 1.55f, "rightBankPitch=" + rightBankPitch);
-		assertTrue(rightBankPitch < 1.72f, "rightBankPitch=" + rightBankPitch);
-		assertEquals(-rightBankPitch, leftBankPitch, 1.0e-6f);
-		assertTrue(verticalRoll > 2.25f, "verticalRoll=" + verticalRoll);
-		assertTrue(verticalRoll <= 2.35f, "verticalRoll=" + verticalRoll);
+	@Test
+	void repeatedMixedBodyRotationsReconstructTheExactAttitudeAcrossVerticalBoundaries() {
+		float pitch = (float) Math.toRadians(73.0), roll = (float) Math.toRadians(80.0);
+		double yaw = 37.0;
+		Quaternion expected = PlayableAttitude.quaternion(yaw, pitch, roll);
+		for (int tick = 0; tick < 180; tick++) {
+			float pitchRate = (float) Math.toRadians(tick < 120 ? 10.0 : -8.0);
+			float rollRate = (float) Math.toRadians(tick % 36 < 18 ? 3.0 : -3.0);
+			PlayableFlightModel.AcroBodyRateAttitudeDelta delta = PlayableFlightModel.acroBodyRateAttitudeDelta(pitch, roll, pitchRate, rollRate);
+			Quaternion before = PlayableAttitude.quaternion(yaw, pitch, roll);
+			pitch += delta.pitchRateRadiansPerTick();
+			roll += delta.rollRateRadiansPerTick();
+			yaw += delta.yawDegreesPerTick();
+			Quaternion after = PlayableAttitude.quaternion(yaw, pitch, roll);
+			assertBodyRotationBasis(before, after, pitchRate, rollRate, "tick=" + tick);
+			expected = expected.multiply(bodyIncrement(pitchRate, rollRate)).normalized();
+			assertOrientationBasis(expected, after, 6.0e-5, "accumulated tick=" + tick);
+		}
+	}
+
+	@Test
+	void geometricHeadingDoesNotBecomeYawMomentumOnTheNextTick() {
+		PlayableFlightModel.State previous = new PlayableFlightModel.State(
+				0, 0, 0, (float) Math.toRadians(73.0), (float) Math.toRadians(80.0),
+				0, FlightMode.ACRO, 0, 1, 0, 0, 0, 0, 0
+		);
+		PlayableFlightModel.Step turning = acroTurnStep(PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE, previous, 0.20f, 0.0f);
+		assertTrue(Math.abs(turning.acroHeadingCouplingDegreesPerTick()) > 1.0f);
+		PlayableFlightModel.Step released = acroTurnStep(PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE, stateFrom(turning), 0.0f, 0.0f);
+		assertEquals(0.0f, released.yawDegreesPerTick() - released.acroHeadingCouplingDegreesPerTick(), 1.0e-5f);
+	}
+
+	private static Quaternion bodyIncrement(float pitchRate, float rollRate) {
+		double angle = Math.hypot(pitchRate, rollRate);
+		double scale = Math.sin(angle / 2.0) / angle;
+		return new Quaternion(Math.cos(angle / 2.0), pitchRate * scale, 0.0, rollRate * scale);
+	}
+
+	private static void assertBodyRotationBasis(Quaternion before, Quaternion after, float pitchRate, float rollRate, String scenario) {
+		assertOrientationBasis(before.multiply(bodyIncrement(pitchRate, rollRate)), after, 3.0e-6, scenario);
+	}
+
+	private static void assertOrientationBasis(Quaternion expected, Quaternion actual, double tolerance, String scenario) {
+		for (Vec3 axis : new Vec3[] { new Vec3(1, 0, 0), new Vec3(0, 1, 0), new Vec3(0, 0, 1) }) {
+			Vec3 expectedAxis = expected.rotate(axis), actualAxis = actual.rotate(axis);
+			assertEquals(expectedAxis.x(), actualAxis.x(), tolerance, scenario);
+			assertEquals(expectedAxis.y(), actualAxis.y(), tolerance, scenario);
+			assertEquals(expectedAxis.z(), actualAxis.z(), tolerance, scenario);
+		}
 	}
 
 	@Test
@@ -5877,12 +4931,15 @@ class PlayableFlightModelTest {
 		);
 
 		assertEquals(0.0f, levelPitch.yawDegreesPerTick(), 1.0e-6f);
-		assertTrue(bankedPitch.yawDegreesPerTick() > 1.70f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
-		assertTrue(bankedPitch.yawDegreesPerTick() <= 2.35f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
+		assertTrue(bankedPitch.yawDegreesPerTick() < 0.0f, "Minecraft heading follows the banked body pitch axis");
+		assertEquals(bankedPitch.acroHeadingCouplingDegreesPerTick(), bankedPitch.yawDegreesPerTick(), 1.0e-5f);
+		assertBodyRotationBasis(PlayableAttitude.quaternion(0, banked.pitchRadians(), banked.rollRadians()),
+				PlayableAttitude.quaternion(bankedPitch.yawDegreesPerTick(), bankedPitch.pitchRadians(), bankedPitch.rollRadians()),
+				bankedPitch.acroPitchRateRadiansPerTick(), bankedPitch.acroRollRateRadiansPerTick(), "banked pitch");
 	}
 
 	@Test
-	void activeYawKeepsPriorityOverBankedBodyRateCoupling() {
+	void activeYawKeepsItsDynamicAuthorityWhilePreservingExactBankedBodyRotation() {
 		PlayableFlightModel.State banked = new PlayableFlightModel.State(
 				0.0f,
 				0.0f,
@@ -5917,9 +4974,10 @@ class PlayableFlightModelTest {
 				banked
 		);
 
-		assertTrue(passive.yawDegreesPerTick() > 1.15f, "passiveYaw=" + passive.yawDegreesPerTick());
-		assertTrue(activeYaw.yawDegreesPerTick() > 4.80f, "activeYaw=" + activeYaw.yawDegreesPerTick());
-		assertTrue(activeYaw.yawDegreesPerTick() < 5.45f, "activeYaw=" + activeYaw.yawDegreesPerTick());
+		assertEquals(passive.acroHeadingCouplingDegreesPerTick(), passive.yawDegreesPerTick(), 1.0e-5f);
+		float dynamicYaw = activeYaw.yawDegreesPerTick() - activeYaw.acroHeadingCouplingDegreesPerTick();
+		assertTrue(dynamicYaw > 4.80f && dynamicYaw < 5.45f, "dynamicYaw=" + dynamicYaw);
+		assertEquals(passive.acroHeadingCouplingDegreesPerTick(), activeYaw.acroHeadingCouplingDegreesPerTick(), 1.0e-5f);
 	}
 
 	@Test
@@ -5979,8 +5037,8 @@ class PlayableFlightModelTest {
 						+ " bankedEulerPitchDeg=" + Math.toDegrees(bankedPitch.pitchRadians())
 						+ " levelEulerPitchDeg=" + Math.toDegrees(levelPitch.pitchRadians()));
 		assertEquals(bankedDelta.pitchRateRadiansPerTick(), bankedPitch.pitchRadians(), 1.0e-5f);
-		assertTrue(bankedPitch.yawDegreesPerTick() > 1.90f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
-		assertTrue(bankedPitch.yawDegreesPerTick() <= 2.35f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
+		assertTrue(bankedPitch.yawDegreesPerTick() < 0.0f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
+		assertEquals(bankedDelta.yawDegreesPerTick(), bankedPitch.yawDegreesPerTick(), 1.0e-5f);
 		assertTrue(bankedPitch.pitchRadians() < Math.toRadians(80.0), "bankedPitchDeg=" + Math.toDegrees(bankedPitch.pitchRadians()));
 	}
 
@@ -6025,25 +5083,12 @@ class PlayableFlightModelTest {
 				0.0f,
 				verticalRoll.acroRollRateRadiansPerTick()
 		);
-		float verticalExactProjection = Math.abs(verticalDelta.rollRateRadiansPerTick() / verticalRoll.acroRollRateRadiansPerTick());
-
-		assertTrue(verticalExactProjection > 0.30f, "verticalExactProjection=" + verticalExactProjection);
-		assertTrue(verticalExactProjection < 0.35f, "verticalExactProjection=" + verticalExactProjection);
-		assertTrue(verticalRoll.acroRollRateRadiansPerTick() > levelRoll.acroRollRateRadiansPerTick() * 0.95f,
-				"verticalBodyRollRateDeg=" + Math.toDegrees(verticalRoll.acroRollRateRadiansPerTick())
-						+ " levelBodyRollDeg=" + Math.toDegrees(levelRoll.acroRollRateRadiansPerTick()));
-		assertTrue(verticalRoll.rollRadians() < levelRoll.rollRadians() * 0.38f,
-				"verticalRollRateDeg=" + Math.toDegrees(verticalRoll.acroRollRateRadiansPerTick())
-						+ " verticalEulerRollDeg=" + Math.toDegrees(verticalRoll.rollRadians())
-						+ " levelEulerRollDeg=" + Math.toDegrees(levelRoll.rollRadians()));
-		assertTrue(verticalRoll.rollRadians() > levelRoll.rollRadians() * 0.28f,
-				"verticalRollRateDeg=" + Math.toDegrees(verticalRoll.acroRollRateRadiansPerTick())
-						+ " verticalEulerRollDeg=" + Math.toDegrees(verticalRoll.rollRadians())
-						+ " levelEulerRollDeg=" + Math.toDegrees(levelRoll.rollRadians()));
+		assertTrue(verticalRoll.acroRollRateRadiansPerTick() > levelRoll.acroRollRateRadiansPerTick() * 0.95f);
 		assertEquals(verticalDelta.rollRateRadiansPerTick(), verticalRoll.rollRadians(), 1.0e-5f);
-		assertTrue(verticalRoll.yawDegreesPerTick() > 1.60f, "verticalYaw=" + verticalRoll.yawDegreesPerTick());
-		assertTrue(verticalRoll.yawDegreesPerTick() <= 2.35f, "verticalYaw=" + verticalRoll.yawDegreesPerTick());
-		assertTrue(verticalRoll.rollRadians() < Math.toRadians(83.0), "verticalRollDeg=" + Math.toDegrees(verticalRoll.rollRadians()));
+		assertEquals(verticalDelta.yawDegreesPerTick(), verticalRoll.yawDegreesPerTick(), 1.0e-5f);
+		assertBodyRotationBasis(PlayableAttitude.quaternion(0.0, Math.toRadians(78.0), 0.0),
+				PlayableAttitude.quaternion(verticalRoll.yawDegreesPerTick(), verticalRoll.pitchRadians(), verticalRoll.rollRadians()),
+				verticalRoll.acroPitchRateRadiansPerTick(), verticalRoll.acroRollRateRadiansPerTick(), "vertical body roll");
 	}
 
 	@Test
@@ -6122,10 +5167,9 @@ class PlayableFlightModelTest {
 
 		assertTrue(verticalRoll.acroRollRateRadiansPerTick() > Math.toRadians(5.0),
 				"bodyRollRateDeg=" + Math.toDegrees(verticalRoll.acroRollRateRadiansPerTick()));
-		assertTrue(verticalRoll.rollRadians() > Math.toRadians(1.65),
-				"eulerRollDeg=" + Math.toDegrees(verticalRoll.rollRadians()));
-		assertTrue(verticalRoll.rollRadians() < Math.toRadians(2.10),
-				"eulerRollDeg=" + Math.toDegrees(verticalRoll.rollRadians()));
+		assertBodyRotationBasis(PlayableAttitude.quaternion(0.0, Math.toRadians(78.0), 0.0),
+				PlayableAttitude.quaternion(verticalRoll.yawDegreesPerTick(), verticalRoll.pitchRadians(), verticalRoll.rollRadians()),
+				verticalRoll.acroPitchRateRadiansPerTick(), verticalRoll.acroRollRateRadiansPerTick(), "vertical roll midpoint");
 		assertTrue(verticalRoll.velocityX() < 0.0f,
 				"velocityX=" + verticalRoll.velocityX() + " eulerRollDeg=" + Math.toDegrees(verticalRoll.rollRadians())
 						+ " bodyRollRateDeg=" + Math.toDegrees(verticalRoll.acroRollRateRadiansPerTick()));
@@ -6409,12 +5453,14 @@ class PlayableFlightModelTest {
 		PlayableFlightModel.Step angle = holdStick(FlightMode.ANGLE, 12, 0.45f, 1.0f, 1.0f, 1.0f);
 		PlayableFlightModel.Step acro = holdStick(FlightMode.ACRO, 12, 0.45f, 1.0f, 1.0f, 1.0f);
 
-		assertTrue(Math.abs(acro.targetVelocityZ()) > Math.abs(angle.targetVelocityZ()));
+		assertTrue(horizontalSpeed(acro.targetVelocityX(), acro.targetVelocityZ())
+				> horizontalSpeed(angle.targetVelocityX(), angle.targetVelocityZ()));
 		assertTrue(Math.abs(acro.rollRadians()) > Math.abs(angle.rollRadians()) * 4.0f,
 				"acroRollDeg=" + Math.toDegrees(acro.rollRadians()) + " angleRollDeg=" + Math.toDegrees(angle.rollRadians()));
 		assertTrue(acro.acroPitchRateRadiansPerTick() > Math.toRadians(8.0), "acroPitchRateDeg=" + Math.toDegrees(acro.acroPitchRateRadiansPerTick()));
 		assertTrue(acro.acroRollRateRadiansPerTick() > Math.toRadians(8.0), "acroRollRateDeg=" + Math.toDegrees(acro.acroRollRateRadiansPerTick()));
-		assertTrue(acro.yawDegreesPerTick() > angle.yawDegreesPerTick());
+		float dynamicAcroYaw = acro.yawDegreesPerTick() - acro.acroHeadingCouplingDegreesPerTick();
+		assertTrue(dynamicAcroYaw > angle.yawDegreesPerTick(), "dynamicAcroYaw=" + dynamicAcroYaw);
 	}
 
 	@Test
@@ -6424,17 +5470,22 @@ class PlayableFlightModelTest {
 		float hoverThrottle = (float) ControlStickProfile.gamepadThrottle(0.50);
 		PlayableFlightModel.Step midStick = runClientPresetStick(config, 20, 0.70f, -0.70f, 0.70f, hoverThrottle);
 		PlayableFlightModel.Step fullStick = runClientPresetStick(config, 20, 1.0f, -1.0f, 1.0f, hoverThrottle);
+		float midDynamicYaw = midStick.yawDegreesPerTick() - midStick.acroHeadingCouplingDegreesPerTick();
+		float fullDynamicYaw = fullStick.yawDegreesPerTick() - fullStick.acroHeadingCouplingDegreesPerTick();
 
 		assertTrue(Math.abs(midStick.pitchRadians()) > Math.toRadians(30.0), "midPitchDeg=" + Math.toDegrees(midStick.pitchRadians()));
 		assertTrue(Math.abs(midStick.pitchRadians()) < Math.toRadians(80.0), "midPitchDeg=" + Math.toDegrees(midStick.pitchRadians()));
 		assertTrue(Math.abs(midStick.rollRadians()) > Math.toRadians(84.0), "midRollDeg=" + Math.toDegrees(midStick.rollRadians()));
 		assertTrue(Math.abs(midStick.rollRadians()) < Math.toRadians(135.0), "midRollDeg=" + Math.toDegrees(midStick.rollRadians()));
-		assertTrue(midStick.yawDegreesPerTick() < 2.85f, "midYawDegPerTick=" + midStick.yawDegreesPerTick());
+		assertTrue(midDynamicYaw > 0.0f && midDynamicYaw < 2.85f, "midDynamicYaw=" + midDynamicYaw);
 		assertTrue(Math.abs(fullStick.pitchRadians()) > Math.toRadians(30.0), "fullPitchDeg=" + Math.toDegrees(fullStick.pitchRadians()));
 		assertTrue(Math.abs(fullStick.acroPitchRateRadiansPerTick()) > Math.toRadians(8.0), "fullPitchRateDeg=" + Math.toDegrees(fullStick.acroPitchRateRadiansPerTick()));
 		assertTrue(Math.abs(fullStick.acroRollRateRadiansPerTick()) > Math.toRadians(8.0), "fullRollRateDeg=" + Math.toDegrees(fullStick.acroRollRateRadiansPerTick()));
 		assertTrue(Math.abs(fullStick.rollRadians()) > Math.toRadians(115.0), "fullRollDeg=" + Math.toDegrees(fullStick.rollRadians()));
-		assertTrue(fullStick.yawDegreesPerTick() > 4.5f, "fullYawDegPerTick=" + fullStick.yawDegreesPerTick());
+		assertTrue(fullDynamicYaw > 4.5f, "fullDynamicYaw=" + fullDynamicYaw);
+		assertTrue(fullDynamicYaw > midDynamicYaw * 1.25f);
+		assertTrue(Math.abs(fullStick.acroPitchRateRadiansPerTick()) > Math.abs(midStick.acroPitchRateRadiansPerTick()) * 1.25f);
+		assertTrue(Math.abs(fullStick.acroRollRateRadiansPerTick()) > Math.abs(midStick.acroRollRateRadiansPerTick()) * 1.25f);
 	}
 
 	@Test
@@ -6597,7 +5648,8 @@ class PlayableFlightModelTest {
 						state.acroRollRateRadiansPerTick(),
 						state.acroRollRecoveryTicksRemaining(),
 						state.acroAeroCrossflowLag(),
-						state.acroSidewashMemory()
+						state.acroSidewashMemory(),
+						state.acroHeadingCouplingDegreesPerTick()
 				);
 			}
 			PlayableFlightModel.Step step = PlayableFlightModel.step(
@@ -6670,7 +5722,8 @@ class PlayableFlightModelTest {
 				step.acroRollRateRadiansPerTick(),
 				step.acroRollRecoveryTicksRemaining(),
 				step.acroAeroCrossflowLag(),
-				step.acroSidewashMemory()
+				step.acroSidewashMemory(),
+				step.acroHeadingCouplingDegreesPerTick()
 		);
 	}
 

@@ -1,14 +1,12 @@
 package com.tenicana.dronecraft.client.sound;
 
-import com.tenicana.dronecraft.acoustics.reverb.FdnEnvironmentMapper;
-import com.tenicana.dronecraft.acoustics.reverb.ListenerSharedFdn;
 import net.minecraft.client.sounds.AudioStream;
 import org.lwjgl.BufferUtils;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
 
-final class ListenerReverbAudioStream implements AudioStream {
+final class ListenerReverbAudioStream implements CallbackPcmStream {
 	private static final AudioFormat FORMAT = new AudioFormat(
 			DroneAcousticRenderState.SAMPLE_RATE,
 			16,
@@ -19,34 +17,24 @@ final class ListenerReverbAudioStream implements AudioStream {
 
 	private final ListenerReverbState state;
 	private final ListenerReverbHistoryProducer.ActiveSession session;
-	private final ListenerSharedFdn fdn =
-			new ListenerSharedFdn(DroneAcousticRenderState.SAMPLE_RATE);
 	private float[] mixedInput = new float[0];
 	private float[] wetOutput = new float[0];
-	private long environmentGeneration = Long.MIN_VALUE;
 	private final int prerollFrames;
 	private final long prerollNanos;
 	private volatile boolean closed;
+	private final SingleOwnerRenderGate callbackGate = new SingleOwnerRenderGate();
+	private float[] callbackMixed, callbackWet;
+	private volatile boolean callbackPrepared;
+	private volatile boolean callbackControlsEnrolled;
+	private volatile ListenerReverbState.Snapshot previousCallbackControl;
+	private boolean queuedReadStarted;
 
 	ListenerReverbAudioStream(ListenerReverbState state) {
 		this.state = state;
 		this.session = state.acquireWetSession();
-		ListenerReverbState.Snapshot snapshot = state.snapshot();
-		FdnEnvironmentMapper.Controls environment = snapshot.environment();
-		fdn.configure(
-				environment.rt60Seconds(),
-				environment.wetGain(),
-				0.0
-		);
-		environmentGeneration = environment.snapshotGeneration();
-		float[] history = session.history();
-		prerollFrames = history.length;
-		long started = System.nanoTime();
-		if (history.length > 0) {
-			float[] discardedWet = new float[history.length];
-			fdn.process(history, discardedWet, 0, history.length);
-		}
-		prerollNanos = System.nanoTime() - started;
+		state.registerCallbackStream(this);
+		prerollFrames = session.prerollFrames();
+		prerollNanos = session.prerollNanos();
 	}
 
 	@Override
@@ -56,45 +44,27 @@ final class ListenerReverbAudioStream implements AudioStream {
 
 	@Override
 	public ByteBuffer read(int requestedBytes) {
-		if (closed || requestedBytes <= 0) {
+		if (closed || callbackPrepared || requestedBytes <= 0) {
 			return BufferUtils.createByteBuffer(0);
 		}
+		queuedReadStarted = true;
 		int byteCount = requestedBytes & ~1;
 		int sampleCount = byteCount / Short.BYTES;
-		ensureCapacity(sampleCount);
-
-		ListenerReverbState.Snapshot snapshot = state.snapshot();
-		FdnEnvironmentMapper.Controls environment = snapshot.environment();
-		if (environment.snapshotGeneration() != environmentGeneration) {
-			fdn.configure(
-					environment.rt60Seconds(),
-					environment.wetGain(),
-					environmentGeneration == Long.MIN_VALUE
-							? 0.0
-							: environment.transitionSeconds()
-			);
-			environmentGeneration = environment.snapshotGeneration();
+		// Capture references before lifecycle close clears the stream fields.
+		float[] mixed = mixedInput, wet = wetOutput;
+		if (mixed.length < sampleCount || wet.length < sampleCount) {
+			mixed = new float[sampleCount]; wet = new float[sampleCount];
 		}
-
-		boolean ownsWetPath = session.render(
-				snapshot.sources(),
-				mixedInput,
-				sampleCount
-		);
-		if (ownsWetPath) {
-			fdn.process(mixedInput, wetOutput, 0, sampleCount);
-		} else {
-			java.util.Arrays.fill(
-					wetOutput,
-					0,
-					sampleCount,
-					0.0F
-			);
+		mixedInput = mixed; wetOutput = wet;
+		if (closed) {
+			mixedInput = new float[0]; wetOutput = new float[0];
+			return BufferUtils.createByteBuffer(0);
 		}
+		session.renderWet(state.snapshot(), mixed, wet, sampleCount);
 
 		ByteBuffer output = BufferUtils.createByteBuffer(byteCount);
 		for (int index = 0; index < sampleCount; index++) {
-			float sample = wetOutput[index];
+			float sample = wet[index];
 			int pcm = Math.round(
 					Math.max(-1.0F, Math.min(1.0F, sample)) * 32767.0F
 			);
@@ -107,17 +77,51 @@ final class ListenerReverbAudioStream implements AudioStream {
 				prerollFrames,
 				prerollNanos
 		);
+		if (closed) { mixedInput = new float[0]; wetOutput = new float[0]; }
 		return output;
 	}
 
 	@Override
-	public void close() {
+	public synchronized void close() {
 		closed = true;
+		state.closeCallbackStream(this);
+		callbackGate.closeForControl();
 		session.close();
 		mixedInput = new float[0];
 		wetOutput = new float[0];
-		fdn.reset();
 	}
+
+	@Override public synchronized boolean prepareCallback() {
+		if (closed || queuedReadStarted) return false;
+		if (callbackPrepared) return true;
+		callbackMixed = new float[MAXIMUM_CALLBACK_FRAMES];
+		callbackWet = new float[MAXIMUM_CALLBACK_FRAMES];
+		callbackPrepared = true;
+		return true;
+	}
+
+	@Override public int readCallback(long samples, int requestedBytes) {
+		if (closed || !callbackPrepared || !Pcm16NativeWriter.validRequest(samples, requestedBytes)
+				|| !callbackGate.tryEnter()) return 0;
+		try {
+			int frames = requestedBytes / Short.BYTES;
+			// Lifecycle transitions reject a block with zeros, as the queued path does.
+			// A temporary producer gate closure must not become native end-of-stream.
+			ListenerReverbState.Snapshot snapshot = state.callbackSnapshot(this);
+			session.renderWet(snapshot, callbackMixed, callbackWet, frames);
+			Pcm16NativeWriter.write(callbackWet, frames, 1.0, samples);
+			return requestedBytes;
+		} finally { callbackGate.leave(); }
+	}
+
+	@Override public Object callbackControlOwner() { return state; }
+	@Override public int callbackControlLayer() { return 2; }
+	@Override public void enrollCallbackControls(Object snapshot) {
+		previousCallbackControl = (ListenerReverbState.Snapshot) snapshot;
+		callbackControlsEnrolled = true;
+	}
+	@Override public boolean callbackControlsEnrolled() { return callbackControlsEnrolled; }
+	@Override public Object previousCallbackControl() { return previousCallbackControl; }
 
 	int synthesizerCount() {
 		return closed
@@ -141,11 +145,4 @@ final class ListenerReverbAudioStream implements AudioStream {
 		return prerollNanos;
 	}
 
-	private void ensureCapacity(int sampleCount) {
-		if (mixedInput.length >= sampleCount) {
-			return;
-		}
-		mixedInput = new float[sampleCount];
-		wetOutput = new float[sampleCount];
-	}
 }

@@ -1,7 +1,7 @@
 package com.tenicana.dronecraft.network;
 
 import java.util.Comparator;
-import java.util.List;
+import java.util.UUID;
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
@@ -17,6 +17,7 @@ import net.minecraft.world.phys.AABB;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.entity.DroneEntity;
+import com.tenicana.dronecraft.item.DroneControllerItem;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.FlightMode;
 
@@ -29,6 +30,9 @@ public final class DroneNetworking {
 	public static void initialize() {
 		PayloadTypeRegistry.playC2S().register(DroneControlPayload.TYPE, DroneControlPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(DroneViewPayload.TYPE, DroneViewPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(DroneSessionEndedPayload.TYPE, DroneSessionEndedPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(DroneChunkCentersPayload.TYPE, DroneChunkCentersPayload.CODEC);
+		DroneRemoteSessions.initialize();
 		ServerPlayNetworking.registerGlobalReceiver(DroneControlPayload.TYPE, (payload, context) -> {
 			ServerPlayer player = context.player();
 			if (player == null) {
@@ -46,7 +50,7 @@ public final class DroneNetworking {
 
 			context.server().execute(() -> {
 				boolean hasIntent = hasControlIntent(input);
-				boolean autoBound = bindNearestDroneIfNeeded(player, input);
+				boolean autoBound = false;
 				int nearbyCount = nearbyDroneCount(player, input);
 				boolean hasOwned = hasOwnedDrone(player, input);
 				boolean hasUnowned = hasUnownedDrone(player, input);
@@ -84,7 +88,11 @@ public final class DroneNetworking {
 							input.linkActive()
 					);
 				}
-				DroneControlManager.update(player.getUUID(), input, player.tickCount);
+				DroneEntity drone = fpvCameraDrone(player);
+				DroneRemoteSessions.controlHeartbeat(player, drone);
+				if (drone != null && player.isAlive()) {
+					DroneControlManager.update(player.getUUID(), drone.getUUID(), input, drone.tickCount);
+				}
 			});
 		});
 		ServerPlayNetworking.registerGlobalReceiver(DroneViewPayload.TYPE, (payload, context) -> {
@@ -107,6 +115,7 @@ public final class DroneNetworking {
 				world.getServer().getPlayerList().getPlayers().stream()
 						.filter(player -> player.getCamera() == entity)
 						.forEach(DroneNetworking::restorePlayerCamera);
+				DroneRemoteSessions.entityUnloaded(entity);
 			}
 		});
 		ServerTickEvents.END_SERVER_TICK.register(server -> server.getPlayerList().getPlayers().forEach(DroneNetworking::restoreInvalidDroneCamera));
@@ -117,18 +126,29 @@ public final class DroneNetworking {
 			return;
 		}
 		if (!fpvView) {
-			restorePlayerCamera(player);
+			DroneRemoteSessions.setRemoteView(player, false);
 			return;
 		}
 		DroneEntity drone = fpvCameraDrone(player);
 		if (drone == null) {
 			restorePlayerCamera(player);
-		} else if (player.getCamera() != drone) {
-			player.setCamera(drone);
+			DroneRemoteSessions.setRemoteView(player, true);
+		} else {
+			DroneRemoteSessions.controlHeartbeat(player, drone);
+			DroneRemoteSessions.setRemoteView(player, true);
 		}
 	}
 
 	private static DroneEntity fpvCameraDrone(ServerPlayer player) {
+		if (DroneControllerItem.hasControllerItem(player)) {
+			UUID boundId = DroneControllerItem.boundDroneId(player);
+			Entity bound = boundId == null ? null : player.level().getEntity(boundId);
+			return bound instanceof DroneEntity drone && isValidFpvCameraDrone(player, drone) ? drone : null;
+		}
+		DroneEntity tracked = DroneRemoteSessions.trackedDrone(player);
+		if (tracked != null) {
+			return tracked;
+		}
 		Entity camera = player.getCamera();
 		if (camera instanceof DroneEntity drone && isValidFpvCameraDrone(player, drone)) {
 			return drone;
@@ -144,7 +164,12 @@ public final class DroneNetworking {
 				.orElse(null);
 	}
 
+	public static DroneEntity selectedDrone(ServerPlayer player) {
+		return player == null ? null : fpvCameraDrone(player);
+	}
+
 	private static void restorePlayerCamera(ServerPlayer player) {
+		DroneRemoteSessions.end(player);
 		if (player != null && player.getCamera() != player) {
 			player.setCamera(player);
 		}
@@ -167,50 +192,6 @@ public final class DroneNetworking {
 				&& !drone.isRemoved()
 				&& drone.level() == player.level()
 				&& drone.isOwnedBy(player.getUUID());
-	}
-
-	private static boolean bindNearestDroneIfNeeded(ServerPlayer player, DroneInput input) {
-		if (player == null || input == null || !hasControlIntent(input)) {
-			return false;
-		}
-
-		AABB search = player.getBoundingBox().inflate(24.0);
-		List<DroneEntity> nearby = player.level().getEntitiesOfClass(
-				DroneEntity.class,
-				search,
-				drone -> drone.isAlive() && player.level() == drone.level()
-		);
-		if (nearby.isEmpty()) {
-			return false;
-		}
-
-		DroneEntity owned = nearby.stream()
-				.filter(drone -> drone.isOwnedBy(player.getUUID()))
-				.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(player)))
-				.orElse(null);
-		if (owned != null) {
-			return false;
-		}
-
-		DroneEntity unowned = nearby.stream()
-				.filter(drone -> drone.getOwner() == null)
-				.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(player)))
-				.orElse(null);
-		if (unowned != null) {
-			unowned.setOwner(player.getUUID());
-			return true;
-		}
-
-		DroneDebugSettings.logControlReason(
-				player,
-				player.tickCount,
-				null,
-				"no_drone_nearby",
-				nearby.size(),
-				true,
-				input.linkActive()
-		);
-		return false;
 	}
 
 	private static int nearbyDroneCount(ServerPlayer player, DroneInput input) {

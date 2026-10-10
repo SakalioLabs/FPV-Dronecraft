@@ -23,10 +23,11 @@ import com.tenicana.dronecraft.acoustics.AcousticBands;
 import com.tenicana.dronecraft.acoustics.AcousticSourceProfile;
 import com.tenicana.dronecraft.acoustics.AxisymmetricSourceDirectivity;
 import com.tenicana.dronecraft.acoustics.OrderTrackedRotorModel;
+import com.tenicana.dronecraft.acoustics.RotorBroadbandGainCurve;
 import com.tenicana.dronecraft.acoustics.RotorOperatingPointGainCurve;
 
 /**
- * Strict v1 decoder. Unknown or missing fields fail the whole resource reload
+ * Strict v1/v2 decoder. Unknown or missing fields fail the whole resource reload
  * instead of silently producing a partially calibrated model.
  */
 final class AcousticProfileJsonDecoder {
@@ -49,10 +50,10 @@ final class AcousticProfileJsonDecoder {
 				"directivity"
 		);
 		int schemaVersion = integer(root, "schema_version", "$");
-		if (schemaVersion != AcousticSourceProfile.CURRENT_SCHEMA_VERSION) {
+		if (schemaVersion != 1 && schemaVersion != AcousticSourceProfile.CURRENT_SCHEMA_VERSION) {
 			throw error(
 					"$.schema_version",
-					"expected " + AcousticSourceProfile.CURRENT_SCHEMA_VERSION
+					"expected 1 or " + AcousticSourceProfile.CURRENT_SCHEMA_VERSION
 							+ " but got " + schemaVersion
 			);
 		}
@@ -63,7 +64,7 @@ final class AcousticProfileJsonDecoder {
 				decodeCalibration(requiredObject(root, "calibration", "$")),
 				decodeValidation(requiredObject(root, "validation", "$")),
 				decodeEvidence(requiredArray(root, "evidence", "$")),
-				decodeSourceModel(requiredObject(root, "source_model", "$")),
+				decodeSourceModel(requiredObject(root, "source_model", "$"), schemaVersion),
 				decodeDirectivity(requiredObject(root, "directivity", "$"))
 		);
 	}
@@ -234,12 +235,10 @@ final class AcousticProfileJsonDecoder {
 	}
 
 	private static OrderTrackedRotorModel.Parameters decodeSourceModel(
-			JsonObject object
+			JsonObject object, int schemaVersion
 	) {
 		String path = "$.source_model";
-		exactFields(
-				object,
-				path,
+		String[] fields = {
 				"blade_pass_harmonics",
 				"harmonic_rolloff",
 				"shaft_amplitude",
@@ -249,7 +248,12 @@ final class AcousticProfileJsonDecoder {
 				"broadband_energy",
 				"operating_points",
 				"broadband_distribution"
-		);
+		};
+		if (schemaVersion == 2) {
+			fields = Arrays.copyOf(fields, fields.length + 1);
+			fields[fields.length - 1] = "broadband_operating_points";
+		}
+		exactFields(object, path, fields);
 		return new OrderTrackedRotorModel.Parameters(
 				integer(object, "blade_pass_harmonics", path),
 				number(object, "harmonic_rolloff", path),
@@ -264,8 +268,24 @@ final class AcousticProfileJsonDecoder {
 				decodeBands(
 						requiredObject(object, "broadband_distribution", path),
 						path + ".broadband_distribution"
-				)
+				),
+				schemaVersion == 1 ? RotorBroadbandGainCurve.unity()
+						: decodeBroadbandOperatingPoints(requiredArray(object, "broadband_operating_points", path))
 		);
+	}
+
+	private static RotorBroadbandGainCurve decodeBroadbandOperatingPoints(JsonArray array) {
+		List<RotorBroadbandGainCurve.Anchor> anchors = new ArrayList<>(array.size());
+		for (int index = 0; index < array.size(); index++) {
+			String path = "$.source_model.broadband_operating_points[" + index + "]";
+			JsonObject object = object(array.get(index), path);
+			exactFields(object, path, "rpm", "low_gain_db", "mid_gain_db", "high_gain_db");
+			anchors.add(new RotorBroadbandGainCurve.Anchor(
+					number(object, "rpm", path), number(object, "low_gain_db", path),
+					number(object, "mid_gain_db", path), number(object, "high_gain_db", path)
+			));
+		}
+		return new RotorBroadbandGainCurve(anchors);
 	}
 
 	private static AcousticBands decodeBands(

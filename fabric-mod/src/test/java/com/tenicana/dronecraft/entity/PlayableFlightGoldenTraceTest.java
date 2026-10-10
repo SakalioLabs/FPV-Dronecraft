@@ -33,6 +33,9 @@ import com.tenicana.dronecraft.sim.flight.StateCorrection;
 import com.tenicana.dronecraft.sim.flight.StateCorrectionReason;
 
 class PlayableFlightGoldenTraceTest {
+	// This baseline covers the direct-route wrapper around the current model.
+	// The 2026-10-10 revision uses Minecraft yaw and carries exact ACRO heading
+	// coupling separately from yaw-controller memory and inertial velocity.
 	private static final String UPDATE_PROPERTY = "fpvdrone.updateGoldenTraces";
 	private static final double DT_SECONDS = 0.05;
 	private static final double ABS_TOLERANCE = 1.0e-5;
@@ -349,6 +352,7 @@ class PlayableFlightGoldenTraceTest {
 		private int debugAcroRollRecoveryTicksRemaining;
 		private float debugAcroAeroCrossflowLag;
 		private float debugAcroSidewashMemory;
+		private float debugAcroHeadingCouplingDegreesPerTick;
 		private boolean lastArmed;
 		private List<String> lastStateCorrectionEvents = List.of();
 		private String lastCorrection = "NONE";
@@ -418,7 +422,6 @@ class PlayableFlightGoldenTraceTest {
 			float previousPitch = debugVisualPitchRadians;
 			float previousRoll = debugVisualRollRadians;
 			float previousYaw = yawDegrees;
-			int previousRecoveryTicks = debugAcroRollRecoveryTicksRemaining;
 			float hoverThrottle = clamp((float) config.hoverThrottle(), 0.12f, 0.55f);
 			float lowAltitudeHorizontalAuthorityScale = nearGroundLocked ? LOW_ALTITUDE_LOCKED_AUTHORITY : 1.0f;
 			PlayableFlightModel.Step step = PlayableFlightModel.step(
@@ -444,7 +447,8 @@ class PlayableFlightGoldenTraceTest {
 							debugAcroRollRateRadiansPerTick,
 							debugAcroRollRecoveryTicksRemaining,
 							debugAcroAeroCrossflowLag,
-							debugAcroSidewashMemory
+							debugAcroSidewashMemory,
+							debugAcroHeadingCouplingDegreesPerTick
 					)
 			);
 
@@ -469,7 +473,8 @@ class PlayableFlightGoldenTraceTest {
 			if (Math.abs(targetVz) < 0.015f) {
 				targetVz = 0.0f;
 			}
-			if (Math.abs(targetYaw) < 0.015f) {
+			boolean preserveGeometricHeading = step.mode() == FlightMode.ACRO && step.acroHeadingCouplingDegreesPerTick() != 0.0f;
+			if (!preserveGeometricHeading && Math.abs(targetYaw) < 0.015f) {
 				targetYaw = 0.0f;
 			}
 
@@ -489,11 +494,9 @@ class PlayableFlightGoldenTraceTest {
 			debugAcroRollRecoveryTicksRemaining = step.acroRollRecoveryTicksRemaining();
 			debugAcroAeroCrossflowLag = step.acroAeroCrossflowLag();
 			debugAcroSidewashMemory = step.acroSidewashMemory();
-			if (previousRecoveryTicks == 0 && debugAcroRollRecoveryTicksRemaining > 0) {
-				correctionEvents.add(StateCorrectionReason.COMPLETED_ROLL_VELOCITY_TRIM.name() + ":ACRO_ROLL_RECOVERY_STARTED");
-			}
+			debugAcroHeadingCouplingDegreesPerTick = step.acroHeadingCouplingDegreesPerTick();
 
-			float movementYawDegrees = PlayableMovementYaw.midpointForTick(yawDegrees, targetYaw);
+			float movementYawDegrees = PlayableMovementYaw.midpointForTick(yawDegrees, targetYaw - debugAcroHeadingCouplingDegreesPerTick);
 			PlayableFlightModel.Velocity worldVelocity = PlayableFlightModel.worldVelocityForYaw(
 					debugVelocityX,
 					debugVelocityY,
@@ -512,7 +515,7 @@ class PlayableFlightGoldenTraceTest {
 			debugVelocityY = localVelocity.y();
 			debugVelocityZ = localVelocity.z();
 			debugVelocityYawDegrees = movementYawDegrees;
-			if (Math.abs(targetYaw) > PlayableMovementYaw.APPLY_EPSILON_DEGREES) {
+			if (preserveGeometricHeading || Math.abs(targetYaw) > PlayableMovementYaw.APPLY_EPSILON_DEGREES) {
 				yawDegrees += targetYaw;
 			}
 			lastAttitude = attitudeQuaternion(yawDegrees, debugVisualPitchRadians, debugVisualRollRadians);
@@ -727,6 +730,7 @@ class PlayableFlightGoldenTraceTest {
 			debugAcroRollRecoveryTicksRemaining = 0;
 			debugAcroAeroCrossflowLag = 0.0f;
 			debugAcroSidewashMemory = 0.0f;
+			debugAcroHeadingCouplingDegreesPerTick = 0.0f;
 			debugModeSwitchTicksRemaining = 0;
 			debugCommandThrottle = 0.0f;
 			debugCommandPitch = 0.0f;
@@ -741,7 +745,7 @@ class PlayableFlightGoldenTraceTest {
 	}
 
 	private static Quaternion attitudeQuaternion(double yawDegrees, double pitchRadians, double rollRadians) {
-		Quaternion yaw = axisAngle(0.0, 1.0, 0.0, Math.toRadians(yawDegrees));
+		Quaternion yaw = axisAngle(0.0, 1.0, 0.0, -Math.toRadians(yawDegrees));
 		Quaternion pitch = axisAngle(1.0, 0.0, 0.0, pitchRadians);
 		Quaternion roll = axisAngle(0.0, 0.0, 1.0, rollRadians);
 		return yaw.multiply(pitch).multiply(roll).normalized();
@@ -781,7 +785,7 @@ class PlayableFlightGoldenTraceTest {
 	}
 
 	private static Path goldenPath() {
-		return projectDir().resolve("src/test/resources/golden/flight/playable-direct-v1.csv");
+		return projectDir().resolve("src/test/resources/golden/flight/playable-direct-v2-continuous-acro.csv");
 	}
 
 	private static Path projectDir() {

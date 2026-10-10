@@ -39,17 +39,21 @@ public final class AcousticProfileResources
 	public static void initialize() {
 		ResourceManagerHelper.get(PackType.CLIENT_RESOURCES)
 				.registerReloadListener(INSTANCE);
+		CalibratedAssetResources.initialize();
 	}
 
 	static AcousticSourceProfile select(DroneEntity drone) {
-		AcousticProfileKey key = AcousticProfileKey.fromMetres(
+		return catalog.select(keyOf(drone));
+	}
+
+	static AcousticProfileKey keyOf(DroneEntity drone) {
+		return AcousticProfileKey.fromMetres(
 				drone.getAirframePreset(),
 				drone.getRotorCount(),
 				drone.getRotorBladeCount(),
 				drone.getRotorRadiusMeters(),
 				drone.getMotorPolePairs()
 		);
-		return catalog.select(key);
 	}
 
 	static AcousticProfileCatalog snapshot() {

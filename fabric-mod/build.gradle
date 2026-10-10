@@ -7,6 +7,7 @@ base {
 }
 
 loom {
+	accessWidenerPath = file("src/main/resources/fpvdrone-remote.accesswidener")
 	splitEnvironmentSourceSets()
 
 	mods {
@@ -98,6 +99,28 @@ tasks.register("playablePresetJars") {
 
 tasks.test {
 	useJUnitPlatform()
+}
+
+tasks.register("openAlDistanceConformance", JavaExec) {
+	group = "verification"
+	description = "Captures a standalone synthetic native OpenAL per-source distance matrix."
+	dependsOn("clientClasses")
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.client.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.client.sound.OpenAlDistanceConformanceCli")
+	args(rootProject.file(project.findProperty("distanceProtocol")
+		?: "docs/acoustics/openal-distance-reference-d152-v2.json").absolutePath)
+}
+
+tasks.register("productionDistanceConformance", JavaExec) {
+	group = "verification"
+	description = "Renders the production per-source distance helper against the analytic contract."
+	dependsOn("clientClasses")
+	workingDir = rootProject.projectDir
+	classpath = sourceSets.client.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.client.sound.ProductionDistanceConformanceCli")
+	args(rootProject.file(project.findProperty("distanceProtocol")
+		?: "docs/acoustics/production-distance-reference-d153-v1.json").absolutePath)
 }
 
 tasks.register("minecraftVoxelShapeLocalPlaneReference", JavaExec) {
@@ -288,6 +311,12 @@ tasks.register("cudaDdaWorkerBenchmark", JavaExec) {
 			"build/native/cuda-dda-boundary/Release/"
 				+ "mcfpv_cuda_worker.exe"
 		).absolutePath,
+		rootProject.file(
+			"build/native/cuda-dda-boundary/Release/"
+				+ "mcfpv_system_boot_probe.exe"
+		).absolutePath,
+		project.findProperty("workerMinimumBootInstant")
+			?: "2026-07-27T16:00:00Z",
 		workerNvrtcLibrary.absolutePath,
 		rootProject.file(
 			"native/cuda-dda/src/dda_nvrtc_kernel.cu"
@@ -610,6 +639,138 @@ tasks.named("runClientGameTest").configure {
 	)
 	systemProperty("fpvdrone.openalEfx", "true")
 	systemProperty("fpvdrone.listenerReverb", "true")
+	if (project.hasProperty("fallbackRouteProtocol")) {
+		systemProperty("fpvdrone.acoustics.fallbackRouteProtocol",
+			rootProject.file(project.property("fallbackRouteProtocol")).absolutePath)
+		if (!project.hasProperty("fallbackRouteOutput")) {
+			throw new GradleException("Pass -PfallbackRouteOutput=<new-report-json>")
+		}
+		systemProperty("fpvdrone.acoustics.fallbackRouteOutput",
+			rootProject.file(project.property("fallbackRouteOutput")).absolutePath)
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "false")
+	}
+	if (project.hasProperty("calibratedAssetProtocol")) {
+		systemProperty("fpvdrone.acoustics.calibratedAssetProtocol",
+			rootProject.file(project.property("calibratedAssetProtocol")).absolutePath)
+		if (!project.hasProperty("calibratedAssetOutput")) {
+			throw new GradleException("Pass -PcalibratedAssetOutput=<new-report-json>")
+		}
+		systemProperty("fpvdrone.acoustics.calibratedAssetOutput",
+			rootProject.file(project.property("calibratedAssetOutput")).absolutePath)
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "false")
+	}
+	if (project.hasProperty("distanceIntegrationProtocol")) {
+		systemProperty("fpvdrone.acoustics.distanceIntegrationProtocol",
+			rootProject.file(project.property("distanceIntegrationProtocol")).absolutePath)
+		systemProperty("fpvdrone.acoustics.propagationMode", "internal")
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "false")
+	}
+	if (project.hasProperty("mainOutputProtocol")) {
+		systemProperty("fpvdrone.acoustics.mainOutputProtocol",
+			rootProject.file(project.property("mainOutputProtocol")).absolutePath)
+		// Enable unchanged source-lifetime instrumentation, with the new early-return branch.
+		systemProperty("fpvdrone.acoustics.distanceIntegrationProtocol",
+			rootProject.file(project.property("mainOutputProtocol")).absolutePath)
+		systemProperty("fpvdrone.acoustics.propagationMode", "internal")
+		systemProperty("fpvdrone.acoustics.nativeEventTrace", "false")
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "false")
+	}
+	if (project.hasProperty("calibratedGainProtocol")) {
+		def calibratedPath = rootProject.file(project.property("calibratedGainProtocol")).absolutePath
+		systemProperty("fpvdrone.acoustics.calibratedGainProtocol", calibratedPath)
+		systemProperty("fpvdrone.acoustics.wetOutputProtocol", calibratedPath)
+		systemProperty("fpvdrone.acoustics.mainOutputProtocol", calibratedPath)
+		systemProperty("fpvdrone.acoustics.distanceIntegrationProtocol", calibratedPath)
+		systemProperty("fpvdrone.acoustics.propagationMode", "internal")
+		systemProperty("fpvdrone.acoustics.nativeEventTrace", "false")
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "false")
+	}
+	if (project.hasProperty("calibrationTransitionProtocol")) {
+		def transitionPath = rootProject.file(project.property("calibrationTransitionProtocol")).absolutePath
+		for (def key : ["calibrationTransitionProtocol", "calibratedGainProtocol", "wetOutputProtocol", "mainOutputProtocol", "distanceIntegrationProtocol"]) {
+			systemProperty("fpvdrone.acoustics." + key, transitionPath)
+		}
+		systemProperty("fpvdrone.acoustics.propagationMode", "internal")
+		systemProperty("fpvdrone.acoustics.nativeEventTrace", "false")
+		systemProperty("fpvdrone.proceduralAudio", "true")
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "false")
+	}
+	if (project.hasProperty("sixDroneProtocol")) {
+		def capacityPath = rootProject.file(project.property("sixDroneProtocol")).absolutePath
+		for (def key : ["sixDroneProtocol", "wetOutputProtocol", "mainOutputProtocol", "distanceIntegrationProtocol"]) {
+			systemProperty("fpvdrone.acoustics." + key, capacityPath)
+		}
+		systemProperty("fpvdrone.acoustics.propagationMode", "internal")
+		systemProperty("fpvdrone.acoustics.nativeEventTrace", "false")
+		systemProperty("fpvdrone.proceduralAudio", "true")
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "true")
+	}
+	if (project.hasProperty("assetResetDeliveryProtocol")) {
+		systemProperty("fpvdrone.acoustics.assetResetDeliveryProtocol", rootProject.file(project.property("assetResetDeliveryProtocol")).absolutePath)
+		systemProperty("fpvdrone.acoustics.propagationMode", "clean")
+		systemProperty("fpvdrone.acoustics.nativeEventTrace", "false")
+		systemProperty("fpvdrone.proceduralAudio", "false")
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "false")
+	}
+	if (project.hasProperty("assetRetiredCleanDeliveryProtocol")) {
+		systemProperty("fpvdrone.acoustics.assetRetiredCleanDeliveryProtocol", rootProject.file(project.property("assetRetiredCleanDeliveryProtocol")).absolutePath)
+		systemProperty("fpvdrone.acoustics.propagationMode", "clean")
+		systemProperty("fpvdrone.acoustics.nativeEventTrace", "false")
+		systemProperty("fpvdrone.proceduralAudio", "false")
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "false")
+	}
+	if (project.hasProperty("assetRetiredDeliveryProtocol")) {
+		systemProperty("fpvdrone.acoustics.assetRetiredDeliveryProtocol", rootProject.file(project.property("assetRetiredDeliveryProtocol")).absolutePath)
+		systemProperty("fpvdrone.acoustics.propagationMode", "internal")
+		systemProperty("fpvdrone.acoustics.nativeEventTrace", "false")
+		systemProperty("fpvdrone.proceduralAudio", "false")
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "false")
+	}
+	if (project.hasProperty("assetLateDeliveryProtocol")) {
+		systemProperty("fpvdrone.acoustics.assetLateDeliveryProtocol",
+				rootProject.file(project.property("assetLateDeliveryProtocol")).absolutePath)
+		systemProperty("fpvdrone.acoustics.propagationMode", "internal")
+		systemProperty("fpvdrone.acoustics.nativeEventTrace", "false")
+		systemProperty("fpvdrone.proceduralAudio", "false")
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "false")
+	}
+	if (project.hasProperty("assetCatalogGuardProtocol")) {
+		systemProperty("fpvdrone.acoustics.assetCatalogGuardProtocol",
+				rootProject.file(project.property("assetCatalogGuardProtocol")).absolutePath)
+	}
+	if (project.hasProperty("assetNativeProtocol")) {
+		def assetPath = rootProject.file(project.property("assetNativeProtocol")).absolutePath
+		systemProperty("fpvdrone.acoustics.assetNativeProtocol", assetPath)
+		systemProperty("fpvdrone.acoustics.wetOutputProtocol", assetPath)
+		systemProperty("fpvdrone.acoustics.mainOutputProtocol", assetPath)
+		systemProperty("fpvdrone.acoustics.distanceIntegrationProtocol", assetPath)
+		systemProperty("fpvdrone.acoustics.propagationMode", "internal")
+		systemProperty("fpvdrone.acoustics.nativeEventTrace", "false")
+		systemProperty("fpvdrone.proceduralAudio", "false")
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "false")
+	}
+	if (project.hasProperty("wetOutputProtocol")) {
+		def wetProtocolPath = rootProject.file(project.property("wetOutputProtocol")).absolutePath
+		systemProperty("fpvdrone.acoustics.wetOutputProtocol", wetProtocolPath)
+		systemProperty("fpvdrone.acoustics.mainOutputProtocol", wetProtocolPath)
+		systemProperty("fpvdrone.acoustics.distanceIntegrationProtocol", wetProtocolPath)
+		systemProperty("fpvdrone.acoustics.propagationMode", "internal")
+		systemProperty("fpvdrone.acoustics.nativeEventTrace", "false")
+		systemProperty("fpvdrone.openalEfx", "false")
+		systemProperty("fpvdrone.listenerReverb", "true")
+	}
 }
 
 tasks.register("verifyAcousticProfileFile", JavaExec) {
@@ -1440,3 +1601,6 @@ tasks.register("runPlayableAcroServerSelfTest") {
 	dependsOn("runServer")
 	finalizedBy("assertServerSelfTest")
 }
+
+apply from: "playtest.gradle"
+apply from: "performance.gradle"

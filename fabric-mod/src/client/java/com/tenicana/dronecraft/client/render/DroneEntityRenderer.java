@@ -17,6 +17,7 @@ import com.tenicana.dronecraft.entity.RotorLayoutCodec;
 public class DroneEntityRenderer extends EntityRenderer<DroneEntity, DroneEntityRenderState> {
 	private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(FpvDronecraftMod.MOD_ID, "textures/entity/drone.png");
 	private final DroneEntityModel model;
+	private final RotorLayoutRenderCache rotorLayouts = new RotorLayoutRenderCache();
 
 	public DroneEntityRenderer(EntityRendererProvider.Context context) {
 		super(context);
@@ -36,7 +37,7 @@ public class DroneEntityRenderer extends EntityRenderer<DroneEntity, DroneEntity
 		state.yawRadians = entity.getInterpolatedRenderYawRadians(tickProgress);
 		state.rollRadians = entity.getInterpolatedRenderRollRadians(tickProgress);
 		state.motorPower = entity.getMotorPower();
-		RotorLayoutCodec.Layout layout = RotorLayoutCodec.decode(entity.getRotorLayout());
+		RotorLayoutRenderCache.Snapshot layout = rotorLayouts.get(entity.getRotorLayout());
 		state.rotorCount = layout.rotorCount();
 		for (int i = 0; i < RotorLayoutCodec.MAX_RENDER_ROTORS; i++) {
 			state.rotorRpm[i] = i < entity.getRotorCount() ? entity.getMotorRpm(i) : 0.0f;
@@ -65,7 +66,7 @@ public class DroneEntityRenderer extends EntityRenderer<DroneEntity, DroneEntity
 				model.renderType(TEXTURE),
 				state.lightCoords,
 				OverlayTexture.NO_OVERLAY,
-				-1,
+				state.outlineColor,
 				null
 		);
 		poseStack.popPose();

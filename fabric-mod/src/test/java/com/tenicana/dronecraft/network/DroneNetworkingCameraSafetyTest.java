@@ -55,6 +55,8 @@ class DroneNetworkingCameraSafetyTest {
 				source.contains("player.getCamera() == entity"),
 				"server drone unload recovery must target players whose camera still references that exact entity"
 		);
+		assertTrue(source.contains("DroneRemoteSessions.entityUnloaded(entity);"),
+				"unloading a drone must end independent remote sessions as well as legacy camera references");
 	}
 
 	@Test
@@ -66,7 +68,10 @@ class DroneNetworkingCameraSafetyTest {
 		);
 
 		assertTrue(updateFpvCamera.contains("if (!fpvView)"), "FPV-off packets must have an explicit restore branch");
-		assertTrue(updateFpvCamera.contains("restorePlayerCamera(player);"), "FPV-off packets must restore the player camera");
+		assertTrue(updateFpvCamera.contains("DroneRemoteSessions.setRemoteView(player, false);"),
+				"LOS must switch the observation center without dropping the remote control lease");
+		assertTrue(!updateFpvCamera.contains("player.setCamera(drone)"),
+				"a remote view must never teleport the player's physical body through the native spectator camera");
 		assertTrue(updateFpvCamera.contains("if (drone == null)"), "FPV-on packets with no valid drone must be handled");
 		assertTrue(updateFpvCamera.contains("restorePlayerCamera(player);"), "missing valid FPV drones must restore the player camera");
 	}
@@ -103,7 +108,7 @@ class DroneNetworkingCameraSafetyTest {
 		String source = Files.readString(droneNetworkingSource(), StandardCharsets.UTF_8);
 		String validity = source.substring(
 				source.indexOf("private static boolean isValidFpvCameraDrone"),
-				source.indexOf("private static boolean bindNearestDroneIfNeeded")
+				source.indexOf("private static int nearbyDroneCount")
 		);
 
 		assertTrue(validity.contains("drone.isAlive()"), "dead drones must not remain FPV camera targets");

@@ -1,0 +1,16 @@
+{
+	"schemaVersion": 1,
+	"id": "fpvdrone-playtest",
+	"version": "1.0.0",
+	"name": "FPV Dronecraft Playability Tests",
+	"environment": "client",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"com.tenicana.dronecraft.playtest.PlayableClientGameTest"
+		]
+	},
+	"depends": {
+		"fpvdrone": "*",
+		"fabric-client-gametest-api-v1": "*"
+	}
+}

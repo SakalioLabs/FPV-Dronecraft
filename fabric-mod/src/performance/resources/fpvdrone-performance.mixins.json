@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "package": "com.tenicana.dronecraft.performance.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MinecraftTimingMixin",
+    "GameRendererTimingMixin",
+    "GameRendererFovAccess",
+    "IntegratedServerTimingMixin",
+    "MinecraftServerSaveTimingMixin",
+    "PerformanceFramerateLimitMixin",
+    "DroneTickTimingMixin",
+    "ModelPreviewRendererMixin",
+    "ControllerHandPassProbeMixin",
+    "ControllerHandsProbeMixin",
+    "ControllerItemModelProbeMixin",
+    "PilotBodyExtractionProbeMixin",
+    "PilotBodySubmissionProbeMixin"
+  ],
+  "injectors": { "defaultRequire": 1 }
+}

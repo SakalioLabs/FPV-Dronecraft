@@ -20,6 +20,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
+import com.tenicana.dronecraft.camera.DroneViewMode;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.DroneClientState.InputSource;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
@@ -28,6 +29,9 @@ import com.tenicana.dronecraft.client.mixin.MinecraftCameraStateAccessor;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.network.DroneControlPayload;
 import com.tenicana.dronecraft.network.DroneViewPayload;
+import com.tenicana.dronecraft.network.DroneSessionEndedPayload;
+import com.tenicana.dronecraft.network.DroneChunkCentersPayload;
+import com.tenicana.dronecraft.client.chunk.RemoteClientChunkCacheAccess;
 import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.FlightMode;
@@ -54,8 +58,6 @@ public final class DroneClientControls {
 	private static final KeyMapping YAW_RIGHT = register("key.fpvdrone.yaw_right", GLFW.GLFW_KEY_X);
 	private static final KeyMapping THROTTLE_CALIBRATE = register("key.fpvdrone.calibrate_throttle", GLFW.GLFW_KEY_C);
 	private static final float THROTTLE_CALIBRATION_MIN_SPAN = 0.05f;
-	private static final float GAMEPAD_THROTTLE_RISE_PER_TICK = 0.08f;
-	private static final float GAMEPAD_THROTTLE_FALL_PER_TICK = 0.14f;
 
 	private static float throttle;
 	private static float keyboardPitchAxis;
@@ -95,6 +97,18 @@ public final class DroneClientControls {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> resetClientRuntimeState(client));
 		ClientWorldEvents.AFTER_CLIENT_WORLD_CHANGE.register((client, world) -> resetClientRuntimeState(client));
 		ClientLifecycleEvents.CLIENT_STOPPING.register(DroneClientControls::resetClientRuntimeState);
+		ClientPlayNetworking.registerGlobalReceiver(DroneSessionEndedPayload.TYPE,
+				(payload, context) -> context.client().execute(() -> {
+					disableFpvView(context.client(), false);
+					resetControlSessionState();
+				}));
+		ClientPlayNetworking.registerGlobalReceiver(DroneChunkCentersPayload.TYPE,
+				(payload, context) -> context.client().execute(() -> {
+					if (context.client().level != null) {
+						((RemoteClientChunkCacheAccess) context.client().level.getChunkSource()).fpvdrone$setRemoteCenters(
+								payload.active(), payload.bodyX(), payload.bodyZ(), payload.droneX(), payload.droneZ());
+					}
+				}));
 		ClientEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
 			Minecraft client = Minecraft.getInstance();
 			if (entity == DroneClientState.controlledDrone() || client.getCameraEntity() == entity) {
@@ -104,20 +118,21 @@ public final class DroneClientControls {
 		});
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
-			if (client.player == null || client.level == null) {
+			if (client.player == null || client.level == null || !client.player.isAlive()) {
 				resetClientRuntimeState(client);
 				return;
 			}
 
 			boolean hasController = client.player.getMainHandItem().is(DroneItems.DRONE_CONTROLLER)
 					|| client.player.getOffhandItem().is(DroneItems.DRONE_CONTROLLER);
-			boolean fpvRequestedBeforeRefresh = DroneClientState.isFpvViewEnabled();
+			boolean fpvRequestedBeforeRefresh = DroneClientState.isDroneViewEnabled();
 			DroneClientState.refreshControlledDrone(client);
-			if (CONTROL_SESSION.updateControlledDrone(controlledDroneId())) {
+			boolean controlledDroneChanged = CONTROL_SESSION.updateControlledDrone(controlledDroneId());
+			if (controlledDroneChanged) {
 				resetControlSessionState();
 			}
 			boolean hasLinkedDrone = DroneClientState.hasControlledDrone(client);
-			if (fpvRequestedBeforeRefresh && !hasLinkedDrone) {
+			if (fpvRequestedBeforeRefresh && (controlledDroneChanged || !hasLinkedDrone)) {
 				disableFpvView(client, true, true);
 			}
 
@@ -130,15 +145,22 @@ public final class DroneClientControls {
 			}
 
 			while (FPV_VIEW.consumeClick()) {
-				boolean fpvEnabled = !DroneClientState.isFpvViewEnabled();
-				if (fpvEnabled) {
-					DroneClientState.setFpvViewEnabled(true);
+				if (!hasLinkedDrone || !DroneControlAuthority.hasControlAuthority(hasController, virtualControllerEnabled, hasLinkedDrone)) {
+					disableFpvView(client, true);
+					client.player.displayClientMessage(Component.translatable("message.fpvdrone.drone_view_unavailable"), true);
+					continue;
+				}
+				DroneViewMode nextMode = DroneClientState.viewMode().next();
+				DroneClientState.setViewMode(nextMode);
+				clearStaleHitTargets(client);
+				if (nextMode.isDroneCamera()) {
+					client.setCameraEntity(DroneClientState.controlledDrone());
 					sendFpvViewState(true);
 				} else {
-					disableFpvView(client, true);
+					disableFpvView(client, true, true);
 				}
 				client.player.displayClientMessage(
-						Component.translatable(fpvEnabled ? "message.fpvdrone.fpv_view_enabled" : "message.fpvdrone.fpv_view_disabled"),
+						Component.translatable(nextMode.messageKey()),
 						true
 				);
 			}
@@ -321,7 +343,7 @@ public final class DroneClientControls {
 			);
 			restoreInvalidDroneCamera(client);
 			sendControlInput(input);
-			sendFpvViewState(DroneClientState.isFpvViewEnabled());
+			sendFpvViewState(DroneClientState.isDroneViewEnabled());
 		});
 	}
 
@@ -333,6 +355,7 @@ public final class DroneClientControls {
 	}
 
 	private static void sendFpvViewState(boolean fpvView) {
+		// Both mounted views prioritize the drone region; the physical player remains independent.
 		if (!ClientPlayNetworking.canSend(DroneViewPayload.TYPE)) {
 			return;
 		}
@@ -344,7 +367,7 @@ public final class DroneClientControls {
 	}
 
 	private static void disableFpvView(Minecraft client, boolean notifyServer, boolean forceNotifyServer) {
-		boolean wasEnabled = DroneClientState.isFpvViewEnabled();
+		boolean wasEnabled = DroneClientState.isDroneViewEnabled();
 		DroneClientState.setFpvViewEnabled(false);
 		restoreVanillaCamera(client);
 		if (notifyServer && (wasEnabled || forceNotifyServer)) {
@@ -497,7 +520,7 @@ public final class DroneClientControls {
 		if (client == null || client.player == null || client.level == null) {
 			return;
 		}
-		if (client.getCameraEntity() instanceof DroneEntity && !DroneClientState.isFpvActive(client.level)) {
+		if (client.getCameraEntity() instanceof DroneEntity && !DroneClientState.isDroneCameraActive(client.level)) {
 			restoreVanillaCamera(client);
 		}
 	}
@@ -512,11 +535,7 @@ public final class DroneClientControls {
 	}
 
 	private static ClientControlInput smoothGamepadInput(ClientControlInput input) {
-		float throttle = INPUT_SMOOTHER.sampleThrottle(
-				input.throttle(),
-				GAMEPAD_THROTTLE_RISE_PER_TICK,
-				GAMEPAD_THROTTLE_FALL_PER_TICK
-		);
+		float throttle = INPUT_SMOOTHER.sampleGamepadThrottle(input.throttle(), flightMode);
 		ControlInputSmoother.Axes axes = INPUT_SMOOTHER.sample(
 				input.pitch(),
 				input.roll(),

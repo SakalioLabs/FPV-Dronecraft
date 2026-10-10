@@ -4,6 +4,7 @@
 	"version": "1.0.0",
 	"name": "FPV Dronecraft Game Tests",
 	"environment": "*",
+	"mixins": ["fpvdrone-gametest.client.mixins.json", "fpvdrone-gametest.wet.mixins.json", "fpvdrone-gametest.callback.mixins.json", "fpvdrone-gametest.late-assets.mixins.json", "fpvdrone-gametest.retired-assets.mixins.json", "fpvdrone-gametest.retired-clean-assets.mixins.json", "fpvdrone-gametest.reset-assets.mixins.json", "fpvdrone-gametest.pitch-headroom.mixins.json"],
 	"entrypoints": {
 		"fabric-gametest": [
 			"com.tenicana.dronecraft.gametest.DroneFlightGameTest",

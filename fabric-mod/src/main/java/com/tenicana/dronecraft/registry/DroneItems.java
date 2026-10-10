@@ -16,8 +16,15 @@ import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.item.DroneControllerItem;
+import com.tenicana.dronecraft.item.DronePlacementItem;
 
 public final class DroneItems {
+	public static final Item DRONE = register(
+			"drone",
+			DronePlacementItem::new,
+			new Item.Properties().stacksTo(1)
+	);
+
 	public static final Item DRONE_CONTROLLER = register(
 			"drone_controller",
 			DroneControllerItem::new,
@@ -33,6 +40,7 @@ public final class DroneItems {
 			.icon(() -> new ItemStack(DRONE_CONTROLLER))
 			.title(Component.translatable("creativeTab.fpvdrone"))
 			.displayItems((parameters, output) -> {
+				output.accept(DRONE);
 				output.accept(DRONE_CONTROLLER);
 			})
 			.build();

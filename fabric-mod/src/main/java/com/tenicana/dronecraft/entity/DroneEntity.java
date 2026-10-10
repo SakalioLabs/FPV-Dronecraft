@@ -30,6 +30,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
@@ -314,13 +315,10 @@ public class DroneEntity extends Entity {
 	private float debugLowAltitudeHorizontalAuthority = 1.0f;
 	private ActuatorOutput playableActuatorOutput = ActuatorOutput.empty();
 	private int debugModeSwitchTicksRemaining;
-	private float previousRenderPitchRadians;
-	private float currentRenderPitchRadians;
-	private float previousRenderYawRadians;
-	private float currentRenderYawRadians;
-	private float previousRenderRollRadians;
-	private float currentRenderRollRadians;
-	private boolean renderAttitudeInitialized;
+	// Use one tick of interpolation for FPV instead of the default three-tick interval.
+	private final InterpolationHandler clientInterpolation = new InterpolationHandler(this, 1);
+	private final DroneRenderAttitudeHistory clientRenderAttitude = new DroneRenderAttitudeHistory();
+	private boolean applyingClientInterpolation;
 	private float debugCommandThrottle;
 	private float debugCommandPitch;
 	private float debugCommandRoll;
@@ -422,6 +420,10 @@ public class DroneEntity extends Entity {
 
 	public Vec3 activeFlightModelPositionWorldMetersForDiagnostics() {
 		return flightModels.snapshot().positionWorldMeters();
+	}
+
+	public Quaternion activeFlightModelAttitudeForDiagnostics() {
+		return flightModels.snapshot().attitude();
 	}
 
 	public String fixedFlightModelIdForDiagnostics() {
@@ -674,7 +676,13 @@ public class DroneEntity extends Entity {
 		super.tick();
 		setNoGravity(true);
 		if (level().isClientSide()) {
-			updateClientRenderAttitudeHistory();
+			applyingClientInterpolation = true;
+			try {
+				clientInterpolation.interpolate();
+			} finally {
+				applyingClientInterpolation = false;
+			}
+			clientRenderAttitude.tick();
 		}
 
 		if (!level().isClientSide()) {
@@ -689,7 +697,7 @@ public class DroneEntity extends Entity {
 			decrementRotorStrikeCooldowns();
 
 			UUID activeOwner = getOwner();
-			DroneInput rawInput = activeOwner == null ? stableIdleInput() : simulationRuntime.controlInput(activeOwner, tickCount);
+			DroneInput rawInput = activeOwner == null ? stableIdleInput() : simulationRuntime.controlInput(activeOwner, getUUID(), tickCount);
 			DroneControlManager.ActiveInput sample = DroneDebugSettings.ownerlessControlEnabled()
 					? DroneControlManager.latestActiveInput(tickCount)
 					: null;
@@ -875,7 +883,9 @@ public class DroneEntity extends Entity {
 				stateCorrection(correctionReason, correctionReason.name(), Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
 		);
 		if (!hasCorrection(result, StateCorrectionReason.GROUND_STABILIZATION)) {
-			setYRot((float) yawDegrees(result.nextState().attitude()));
+			// A projected forward heading flips by 180 degrees during a pitch loop.
+			// Rendering needs the model's yaw together with its continuous pitch/roll.
+			setYRot(diagnosticFloat(result, "yaw_degrees", getYRot()));
 			setXRot((float) Math.toDegrees(debugVisualPitchRadians));
 		}
 	}
@@ -943,17 +953,16 @@ public class DroneEntity extends Entity {
 	private FlightStateSnapshot playableEntitySnapshot(DroneInput input) {
 		return simulationRuntime.flightStateSnapshot(
 				entityPhysicsPosition(),
-				attitudeQuaternion(getYRot(), debugVisualPitchRadians, debugVisualRollRadians),
+				PlayableAttitude.quaternion(getYRot(), debugVisualPitchRadians, debugVisualRollRadians),
 				input == null ? debugFlightMode : input.flightMode(),
 				input != null && input.armed()
 		);
 	}
 
 	private FlightStateSnapshot playableResolvedSnapshot(FlightStateSnapshot modelState, DroneInput input) {
-		double resolvedYawDegrees = yawDegrees(modelState.attitude());
 		return simulationRuntime.flightStateSnapshot(
 				entityPhysicsPosition(),
-				attitudeQuaternion(resolvedYawDegrees, debugVisualPitchRadians, debugVisualRollRadians),
+				modelState.attitude(),
 				modelState.angularVelocityBodyRadiansPerSecond(),
 				debugFlightMode,
 				input != null && input.armed()
@@ -1038,27 +1047,6 @@ public class DroneEntity extends Entity {
 		}
 	}
 
-	private static Quaternion attitudeQuaternion(double yawDegrees, double pitchRadians, double rollRadians) {
-		Quaternion yaw = axisAngle(0.0, 1.0, 0.0, Math.toRadians(yawDegrees));
-		Quaternion pitch = axisAngle(1.0, 0.0, 0.0, pitchRadians);
-		Quaternion roll = axisAngle(0.0, 0.0, 1.0, rollRadians);
-		return yaw.multiply(pitch).multiply(roll).normalized();
-	}
-
-	private static Quaternion yawQuaternion(double yawDegrees) {
-		return axisAngle(0.0, 1.0, 0.0, Math.toRadians(yawDegrees));
-	}
-
-	private static Quaternion axisAngle(double x, double y, double z, double radians) {
-		double half = radians * 0.5;
-		double sin = Math.sin(half);
-		return new Quaternion(Math.cos(half), x * sin, y * sin, z * sin).normalized();
-	}
-
-	private static double yawDegrees(Quaternion attitude) {
-		return FlightAttitudeProjection.headingYawDegrees(attitude, 0.0);
-	}
-
 	private void stepSimulationFlightModel(DroneInput input, double dtSeconds, DroneEnvironment environment) {
 		flightModels.select(SimulationFlightModelAdapter.ID);
 		flightModels.stepStateOnly(
@@ -1114,7 +1102,8 @@ public class DroneEntity extends Entity {
 			actualWorldVelocityY = worldVelocityY;
 		}
 
-		Vec3 localVelocity = yawQuaternion(yawDegrees).conjugate().rotate(new Vec3(actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ));
+		Vec3 localVelocity = LegacyPlayableFlightModelAdapter.yawLocalVelocity(
+				actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ, yawDegrees);
 		debugVelocityX = (float) localVelocity.x();
 		debugVelocityY = (float) localVelocity.y();
 		debugVelocityZ = (float) localVelocity.z();
@@ -2961,83 +2950,51 @@ public class DroneEntity extends Entity {
 	}
 
 	public float getInterpolatedRenderPitchRadians(float partialTick) {
-		ensureClientRenderAttitudeInitialized();
-		return interpolateRadians(previousRenderPitchRadians, currentRenderPitchRadians, partialTick);
+		return level().isClientSide() ? clientRenderAttitude.pitchRadians(partialTick) : getRenderPitchRadians();
 	}
 
 	public float getInterpolatedRenderYawRadians(float partialTick) {
-		ensureClientRenderAttitudeInitialized();
-		return interpolateRadians(previousRenderYawRadians, currentRenderYawRadians, partialTick);
+		return level().isClientSide() ? clientRenderAttitude.yawRadians(partialTick) : getRenderYawRadians();
 	}
 
 	public float getInterpolatedRenderRollRadians(float partialTick) {
-		ensureClientRenderAttitudeInitialized();
-		return interpolateRadians(previousRenderRollRadians, currentRenderRollRadians, partialTick);
+		return level().isClientSide() ? clientRenderAttitude.rollRadians(partialTick) : getRenderRollRadians();
 	}
 
-	private void updateClientRenderAttitudeHistory() {
-		float pitch = getRenderPitchRadians();
-		float yaw = getRenderYawRadians();
-		float roll = getRenderRollRadians();
-		if (!renderAttitudeInitialized) {
-			previousRenderPitchRadians = pitch;
-			currentRenderPitchRadians = pitch;
-			previousRenderYawRadians = yaw;
-			currentRenderYawRadians = yaw;
-			previousRenderRollRadians = roll;
-			currentRenderRollRadians = roll;
-			renderAttitudeInitialized = true;
-			return;
-		}
-		previousRenderPitchRadians = currentRenderPitchRadians;
-		currentRenderPitchRadians = pitch;
-		previousRenderYawRadians = currentRenderYawRadians;
-		currentRenderYawRadians = yaw;
-		previousRenderRollRadians = currentRenderRollRadians;
-		currentRenderRollRadians = roll;
+	@Override
+	public InterpolationHandler getInterpolation() {
+		return level().isClientSide() ? clientInterpolation : null;
 	}
 
-	private void ensureClientRenderAttitudeInitialized() {
-		if (!renderAttitudeInitialized) {
-			updateClientRenderAttitudeHistory();
-			return;
-		}
+	@Override
+	public void onSyncedDataUpdated(List<SynchedEntityData.DataValue<?>> values) {
+		super.onSyncedDataUpdated(values);
 		if (level().isClientSide()) {
-			syncClientRenderAttitudeTarget();
+			// assignValues has finished the whole packet, so all three angles share one target.
+			clientRenderAttitude.receive(getRenderPitchRadians(), getRenderYawRadians(), getRenderRollRadians());
 		}
 	}
 
-	private void syncClientRenderAttitudeTarget() {
-		float pitch = getRenderPitchRadians();
-		float yaw = getRenderYawRadians();
-		float roll = getRenderRollRadians();
-		if (pitch == currentRenderPitchRadians && yaw == currentRenderYawRadians && roll == currentRenderRollRadians) {
-			return;
+	@Override
+	public void setPos(double x, double y, double z) {
+		super.setPos(x, y, z);
+		if (!applyingClientInterpolation) {
+			resetClientRenderPose();
 		}
-		previousRenderPitchRadians = currentRenderPitchRadians;
-		currentRenderPitchRadians = pitch;
-		previousRenderYawRadians = currentRenderYawRadians;
-		currentRenderYawRadians = yaw;
-		previousRenderRollRadians = currentRenderRollRadians;
-		currentRenderRollRadians = roll;
 	}
 
-	private static float interpolateLinear(float start, float end, float partialTick) {
-		float t = clampPartialTick(partialTick);
-		return start + (end - start) * t;
+	@Override
+	public void snapTo(double x, double y, double z, float yaw, float pitch) {
+		super.snapTo(x, y, z, yaw, pitch);
+		resetClientRenderPose();
 	}
 
-	private static float interpolateRadians(float start, float end, float partialTick) {
-		float t = clampPartialTick(partialTick);
-		float delta = (float) Math.atan2(Math.sin(end - start), Math.cos(end - start));
-		return start + delta * t;
-	}
-
-	private static float clampPartialTick(float partialTick) {
-		if (!Float.isFinite(partialTick)) {
-			return 0.0f;
+	private void resetClientRenderPose() {
+		// Entity construction can call setPos before these fields have been initialized.
+		if (clientInterpolation != null && clientRenderAttitude != null && level().isClientSide()) {
+			clientInterpolation.cancel();
+			clientRenderAttitude.reset(getRenderPitchRadians(), getRenderYawRadians(), getRenderRollRadians());
 		}
-		return Math.max(0.0f, Math.min(1.0f, partialTick));
 	}
 
 	public float getMotorPower() {
@@ -3875,22 +3832,24 @@ public class DroneEntity extends Entity {
 	}
 
 	@Override
+	public boolean isPickable() {
+		return isAlive() && !isRemoved();
+	}
+
+	@Override
 	public InteractionResult interact(Player player, InteractionHand hand) {
 		if (!player.getItemInHand(hand).is(DroneItems.DRONE_CONTROLLER)) {
 			return super.interact(player, hand);
 		}
 
-		if (!level().isClientSide()) {
-			setOwner(player.getUUID());
-			if (player.isShiftKeyDown()) {
-				repair();
-				player.displayClientMessage(Component.translatable("message.fpvdrone.repaired"), true);
-			} else {
-				player.displayClientMessage(Component.translatable("message.fpvdrone.bound"), true);
+		if (!player.isShiftKeyDown()) {
+			if (!level().isClientSide()) {
+				player.displayClientMessage(Component.translatable("message.fpvdrone.binding_hint"), true);
 			}
+			return InteractionResult.SUCCESS;
 		}
-
-		return InteractionResult.SUCCESS;
+		return com.tenicana.dronecraft.item.DroneControllerItem.bindToDrone(player, hand, this)
+				? InteractionResult.SUCCESS : InteractionResult.FAIL;
 	}
 
 	@Override

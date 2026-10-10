@@ -31,8 +31,6 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 	static final String OPTION_PLAYABLE_PRESET = "legacy_playable.preset";
 	private static final float DEBUG_AXIS_RISE_SMOOTH = PlayableDebugAxisFilter.DEFAULT_RISE_SMOOTHING;
 	private static final float DEBUG_AXIS_FALL_SMOOTH = PlayableDebugAxisFilter.DEFAULT_FALL_SMOOTHING;
-	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
-	private static final float DEBUG_MOVEMENT_EPSILON = 0.015f;
 	private static final float DEBUG_FAILSAFE_COMMAND_DAMPING = 0.28f;
 	private static final float DEBUG_FAILSAFE_HORIZONTAL_DAMPING = 0.72f;
 	private static final float LOW_ALTITUDE_LOCKED_AUTHORITY = 0.62f;
@@ -69,6 +67,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 	private int debugAcroRollRecoveryTicksRemaining;
 	private float debugAcroAeroCrossflowLag;
 	private float debugAcroSidewashMemory;
+	private float debugAcroHeadingCouplingDegreesPerTick;
 	private PlayableFlightPreset playablePreset = PlayableFlightPreset.defaultPreset();
 	private DroneInput lastInput = DroneInput.idle();
 	private FlightModelDiagnostics diagnostics = FlightModelDiagnostics.empty();
@@ -107,6 +106,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		debugAcroRollRecoveryTicksRemaining = 0;
 		debugAcroAeroCrossflowLag = 0.0f;
 		debugAcroSidewashMemory = 0.0f;
+		debugAcroHeadingCouplingDegreesPerTick = 0.0f;
 		lastInput = DroneInput.idle();
 		debugModeSwitchTicksRemaining = 0;
 		debugFlightMode = safeState.flightMode();
@@ -154,6 +154,17 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		List<String> lossyFields = lossyEnvironmentFields(environment);
 		rebaseDebugVelocityToCurrentYaw();
 
+		// Disarming must stop the actuators even if the controller still sends a
+		// high throttle or axis command. Use the existing idle state correction.
+		if (!input.armed()) {
+			clearDebugFlightState();
+			debugFlightMode = input.flightMode();
+			lastArmed = false;
+			corrections.add(new StateCorrection(StateCorrectionReason.GROUND_STABILIZATION, "IDLE_CLEAR", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO));
+			diagnostics = diagnosticsFor(environment, corrections, lossyFields);
+			return result(corrections);
+		}
+
 		float throttle = (float) MathUtil.clamp(input.throttle(), 0.0, 1.0);
 		float pitch = (float) MathUtil.clamp(input.pitch(), -1.0, 1.0);
 		float roll = (float) MathUtil.clamp(input.roll(), -1.0, 1.0);
@@ -163,7 +174,13 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		float playableRoll = PlayableFlightModel.playableAxisCommand(roll);
 		float playableYaw = PlayableFlightModel.playableAxisCommand(yaw);
 
-		float smoothedThrottle = PlayableDebugAxisFilter.throttle(debugCommandThrottle, throttle);
+		// The agile ACRO model already carries motor collective response. Repeating
+		// the debug command low-pass here delays a full-throttle descent recovery.
+		boolean agileAcro = playablePreset == PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE
+				&& input.flightMode() == FlightMode.ACRO;
+		float smoothedThrottle = agileAcro
+				? (Float.isFinite(throttle) ? throttle : 0.0f)
+				: PlayableDebugAxisFilter.throttle(debugCommandThrottle, throttle);
 		float smoothedPitch = PlayableDebugAxisFilter.filter(debugCommandPitch, playablePitch, DEBUG_AXIS_RISE_SMOOTH, DEBUG_AXIS_FALL_SMOOTH, true);
 		float smoothedRoll = PlayableDebugAxisFilter.filter(debugCommandRoll, playableRoll, DEBUG_AXIS_RISE_SMOOTH, DEBUG_AXIS_FALL_SMOOTH, true);
 		float smoothedYaw = PlayableDebugAxisFilter.filter(debugCommandYaw, playableYaw, DEBUG_AXIS_RISE_SMOOTH, DEBUG_AXIS_FALL_SMOOTH, true);
@@ -173,14 +190,9 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		debugCommandRoll = smoothedRoll;
 		debugCommandYaw = smoothedYaw;
 
-		boolean shouldFly = input.armed()
-				|| smoothedThrottle > DEBUG_THRUST_DEADZONE
-				|| Math.abs(smoothedPitch) > DEBUG_MOVEMENT_EPSILON
-				|| Math.abs(smoothedRoll) > DEBUG_MOVEMENT_EPSILON;
 		float previousPitch = debugVisualPitchRadians;
 		float previousRoll = debugVisualRollRadians;
 		float previousYaw = yawDegrees;
-		int previousRecoveryTicks = debugAcroRollRecoveryTicksRemaining;
 		boolean nearGroundLocked = nearGroundLocked(environment);
 		float lowAltitudeHorizontalAuthorityScale = lowAltitudeHorizontalAuthorityScale(environment, nearGroundLocked);
 		PlayableFlightModel.Step step = PlayableFlightModel.step(
@@ -207,20 +219,13 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 						debugAcroRollRateRadiansPerTick,
 						debugAcroRollRecoveryTicksRemaining,
 						debugAcroAeroCrossflowLag,
-						debugAcroSidewashMemory
+						debugAcroSidewashMemory,
+						debugAcroHeadingCouplingDegreesPerTick
 				)
 		);
 
-		float targetYaw = settledTargetYaw(step.yawDegreesPerTick());
-		if (!shouldFly) {
-			clearDebugFlightState();
-			lastArmed = input.armed();
-			StateCorrection correction = new StateCorrection(StateCorrectionReason.GROUND_STABILIZATION, "IDLE_CLEAR", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO);
-			corrections.add(correction);
-			diagnostics = diagnosticsFor(environment, corrections, lossyFields);
-			return result(corrections);
-		}
-
+		boolean preserveGeometricHeading = step.mode() == FlightMode.ACRO && step.acroHeadingCouplingDegreesPerTick() != 0.0f;
+		float targetYaw = preserveGeometricHeading ? step.yawDegreesPerTick() : settledTargetYaw(step.yawDegreesPerTick());
 		debugVelocityX = step.velocityX();
 		debugVelocityY = step.velocityY();
 		debugVelocityZ = step.velocityZ();
@@ -237,11 +242,9 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		debugAcroRollRecoveryTicksRemaining = step.acroRollRecoveryTicksRemaining();
 		debugAcroAeroCrossflowLag = step.acroAeroCrossflowLag();
 		debugAcroSidewashMemory = step.acroSidewashMemory();
-		if (previousRecoveryTicks == 0 && debugAcroRollRecoveryTicksRemaining > 0) {
-			corrections.add(new StateCorrection(StateCorrectionReason.COMPLETED_ROLL_VELOCITY_TRIM, "ACRO_ROLL_RECOVERY_STARTED", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO));
-		}
-
-		float movementYawDegrees = PlayableMovementYaw.midpointForTick(yawDegrees, targetYaw);
+		debugAcroHeadingCouplingDegreesPerTick = step.acroHeadingCouplingDegreesPerTick();
+		float dynamicYaw = targetYaw - step.acroHeadingCouplingDegreesPerTick();
+		float movementYawDegrees = PlayableMovementYaw.midpointForTick(yawDegrees, dynamicYaw);
 		PlayableFlightModel.Velocity worldVelocity = PlayableFlightModel.worldVelocityForYaw(
 				debugVelocityX,
 				debugVelocityY,
@@ -260,7 +263,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		debugVelocityY = localVelocity.y();
 		debugVelocityZ = localVelocity.z();
 		debugVelocityYawDegrees = movementYawDegrees;
-		if (Math.abs(targetYaw) > PlayableMovementYaw.APPLY_EPSILON_DEGREES) {
+		if (preserveGeometricHeading || Math.abs(targetYaw) > PlayableMovementYaw.APPLY_EPSILON_DEGREES) {
 			yawDegrees += targetYaw;
 		}
 		lastAttitude = attitudeQuaternion(yawDegrees, debugVisualPitchRadians, debugVisualRollRadians);
@@ -359,6 +362,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		values.put("acro_roll_recovery_ticks_remaining", Integer.toString(debugAcroRollRecoveryTicksRemaining));
 		values.put("acro_aero_crossflow_lag", Float.toString(debugAcroAeroCrossflowLag));
 		values.put("acro_sidewash_memory", Float.toString(debugAcroSidewashMemory));
+		values.put("acro_heading_coupling_degrees_per_tick", Float.toString(debugAcroHeadingCouplingDegreesPerTick));
 		values.put("playable_preset", playablePreset.id());
 		values.put("ground_clearance_m", Double.toString(environment.groundClearanceMeters()));
 		values.put("ground_lock_threshold_m", Double.toString(APPROXIMATE_GROUND_LOCK_CLEARANCE_METERS));
@@ -380,12 +384,14 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 
 	private void syncResolvedState(FlightStateSnapshot state) {
 		FlightStateSnapshot safeState = state == null ? FlightStateSnapshot.zero(debugFlightMode) : state;
+		debugTargetYawRate -= debugAcroHeadingCouplingDegreesPerTick;
 		positionWorldMeters = safeState.positionWorldMeters();
 		lastWorldVelocityMetersPerSecond = safeState.velocityWorldMetersPerSecond();
-		Vec3 euler = safeState.attitude().toEulerXYZRadians();
-		debugVisualPitchRadians = (float) euler.x();
-		yawDegrees = (float) FlightAttitudeProjection.headingYawDegrees(safeState.attitude(), yawDegrees);
-		debugVisualRollRadians = (float) euler.z();
+		PlayableAttitude.Angles angles = PlayableAttitude.project(safeState.attitude(),
+				yawDegrees, debugVisualPitchRadians, debugVisualRollRadians);
+		debugVisualPitchRadians = (float) angles.pitchRadians();
+		yawDegrees = (float) angles.yawDegrees();
+		debugVisualRollRadians = (float) angles.rollRadians();
 		PlayableFlightModel.Velocity localVelocity = PlayableFlightModel.localVelocityForYaw(
 				(float) lastWorldVelocityMetersPerSecond.x(),
 				(float) lastWorldVelocityMetersPerSecond.y(),
@@ -401,6 +407,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		lastBodyRateRadiansPerSecond = safeState.angularVelocityBodyRadiansPerSecond();
 		lastArmed = safeState.armed();
 		debugFlightMode = safeState.flightMode();
+		debugAcroHeadingCouplingDegreesPerTick = 0.0f;
 	}
 
 	private List<String> lossyEnvironmentFields(DroneEnvironment environment) {
@@ -481,6 +488,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		debugAcroRollRecoveryTicksRemaining = 0;
 		debugAcroAeroCrossflowLag = 0.0f;
 		debugAcroSidewashMemory = 0.0f;
+		debugAcroHeadingCouplingDegreesPerTick = 0.0f;
 		debugModeSwitchTicksRemaining = 0;
 		debugCommandThrottle = 0.0f;
 		debugCommandPitch = 0.0f;
@@ -497,20 +505,16 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		return Math.abs(value) < epsilon ? 0.0f : value;
 	}
 
+	static Vec3 yawLocalVelocity(float worldX, float worldY, float worldZ, float yawDegrees) {
+		PlayableFlightModel.Velocity local = PlayableFlightModel.localVelocityForYaw(worldX, worldY, worldZ, yawDegrees);
+		return new Vec3(local.x(), local.y(), local.z());
+	}
+
 	private static float settledTargetYaw(float value) {
 		return Math.abs(value) < 0.015f ? 0.0f : value;
 	}
 
 	private static Quaternion attitudeQuaternion(double yawDegrees, double pitchRadians, double rollRadians) {
-		Quaternion yaw = axisAngle(0.0, 1.0, 0.0, Math.toRadians(yawDegrees));
-		Quaternion pitch = axisAngle(1.0, 0.0, 0.0, pitchRadians);
-		Quaternion roll = axisAngle(0.0, 0.0, 1.0, rollRadians);
-		return yaw.multiply(pitch).multiply(roll).normalized();
-	}
-
-	private static Quaternion axisAngle(double x, double y, double z, double radians) {
-		double half = radians * 0.5;
-		double sin = Math.sin(half);
-		return new Quaternion(Math.cos(half), x * sin, y * sin, z * sin).normalized();
+		return PlayableAttitude.quaternion(yawDegrees, pitchRadians, rollRadians);
 	}
 }

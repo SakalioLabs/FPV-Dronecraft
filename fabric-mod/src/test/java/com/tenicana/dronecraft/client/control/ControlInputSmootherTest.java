@@ -4,8 +4,34 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import com.tenicana.dronecraft.sim.FlightMode;
 
 class ControlInputSmootherTest {
+	@Test
+	void acroGamepadThrottleTracksPunchAndCutWithoutAnExtraRamp() {
+		ControlInputSmoother smoother = new ControlInputSmoother();
+		assertEquals(1.0f, smoother.sampleGamepadThrottle(1.0f, FlightMode.ACRO), 1.0e-6f);
+		assertEquals(0.37f, smoother.sampleGamepadThrottle(0.37f, FlightMode.ACRO), 1.0e-6f);
+		assertEquals(0.0f, smoother.sampleGamepadThrottle(0.0f, FlightMode.ACRO), 1.0e-6f);
+	}
+
+	@Test
+	void assistedModeKeepsItsRampAndUsesTheLastAcroThrottleOnSwitch() {
+		ControlInputSmoother smoother = new ControlInputSmoother();
+		assertEquals(0.08f, smoother.sampleGamepadThrottle(1.0f, FlightMode.ANGLE), 1.0e-6f);
+		assertEquals(0.16f, smoother.sampleGamepadThrottle(1.0f, FlightMode.HORIZON), 1.0e-6f);
+		assertEquals(0.80f, smoother.sampleGamepadThrottle(0.80f, FlightMode.ACRO), 1.0e-6f);
+		assertEquals(0.66f, smoother.sampleGamepadThrottle(0.0f, FlightMode.ANGLE), 1.0e-6f);
+	}
+
+	@Test
+	void acroGamepadThrottleRejectsInvalidSamplesAndClampsEndpoints() {
+		ControlInputSmoother smoother = new ControlInputSmoother();
+		assertEquals(1.0f, smoother.sampleGamepadThrottle(1.2f, FlightMode.ACRO), 1.0e-6f);
+		assertEquals(0.0f, smoother.sampleGamepadThrottle(Float.NaN, FlightMode.ACRO), 1.0e-6f);
+		assertEquals(0.0f, smoother.sampleGamepadThrottle(-0.2f, FlightMode.ACRO), 1.0e-6f);
+	}
+
 	@Test
 	void axisCommandsRiseGraduallyTowardStickTarget() {
 		ControlInputSmoother smoother = new ControlInputSmoother();

@@ -1,10 +1,19 @@
 package com.tenicana.dronecraft.client.config;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
+import org.lwjgl.glfw.GLFW;
+
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractContainerWidget;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import com.tenicana.dronecraft.client.DroneClientState;
@@ -22,10 +31,9 @@ public final class DroneControllerSettingsScreen extends Screen {
 	private static final float MIN_AXIS_CAPTURE_DELTA = 0.05f;
 	private static final float MIN_THROTTLE_CALIBRATION_RANGE = 0.05f;
 	private static final float MAX_CENTER_CAPTURE_OFFSET = 0.45f;
-	private static final int REMOTE_STICK_MIN_SIZE = 96;
+	private static final int REMOTE_STICK_MIN_SIZE = 64;
 	private static final int REMOTE_STICK_MAX_SIZE = 148;
-	private static final int REMOTE_STICK_MIN_GAP = 24;
-	private static final int REMOTE_STICK_MAX_GAP = 56;
+	private static final int CONTENT_COLUMN_GAP = 12;
 	private static final int REMOTE_BUTTON_HEIGHT = 20;
 	private static final int REMOTE_BUTTON_GAP = 4;
 	private static final byte BUTTON_PRESSED = 1;
@@ -61,6 +69,8 @@ public final class DroneControllerSettingsScreen extends Screen {
 	private Button gamepadEnabledButton;
 	private Button refreshButton;
 	private Button closeButton;
+	private ControlsPanel controlsPanel;
+	private int mappedOutputY;
 
 	private final JoystickProvider joystickProvider = GlfwJoystickProvider.INSTANCE;
 	private GamepadDeviceResolver.Resolution controllerResolution = new GamepadDeviceResolver.Resolution(
@@ -94,13 +104,16 @@ public final class DroneControllerSettingsScreen extends Screen {
 		super.init();
 		refreshSelectedController(true);
 
+		int panelWidth = Math.max(80, Math.min(600, width - 24));
+		controlsPanel = addRenderableWidget(new ControlsPanel(
+				(width - panelWidth) / 2, 70, panelWidth, Math.max(24, height - 102)
+		));
 		int stickSize = remoteStickSize();
-		int stickGap = remoteStickGap();
-		int stickY = remoteStickTop(stickSize);
-		int leftX = leftStickX(stickSize, stickGap);
-		int rightX = rightStickX(stickGap);
+		int stickY = controlsPanel.getY() + 14;
+		int leftX = controlsPanel.getX() + 2;
+		int rightX = leftX + contentColumnWidth() + CONTENT_COLUMN_GAP;
 		int rowHeight = REMOTE_BUTTON_HEIGHT + REMOTE_BUTTON_GAP;
-		int buttonWidth = stickSize;
+		int buttonWidth = contentColumnWidth();
 		int halfButtonWidth = (buttonWidth - REMOTE_BUTTON_GAP) / 2;
 		int controlY = stickY + stickSize + 18;
 
@@ -146,63 +159,57 @@ public final class DroneControllerSettingsScreen extends Screen {
 				button -> swapRightStickAxes()
 		);
 
-		int utilityY = Math.min(height - 52, controlY + rowHeight * 4 + 12);
-		int utilityWidth = Math.min(150, Math.max(116, stickSize));
-		int utilityGap = 6;
-		int utilityTotalWidth = utilityWidth * 4 + utilityGap * 3;
-		int utilityX = Math.max(12, width / 2 - utilityTotalWidth / 2);
+		mappedOutputY = controlY + rowHeight * 4 + 6;
+		int utilityY = mappedOutputY + 28;
 		throttleCalibrateButton = addButton(
-				utilityX,
+				leftX,
 				utilityY,
-				utilityWidth,
+				buttonWidth,
 				Component.translatable("screen.fpvdrone.start_throttle_calibration"),
 				button -> toggleScreenThrottleCalibration()
 		);
 		stickCenterCalibrateButton = addButton(
-				utilityX + utilityWidth + utilityGap,
+				rightX,
 				utilityY,
-				utilityWidth,
+				buttonWidth,
 				Component.translatable("screen.fpvdrone.calibrate_stick_center"),
 				button -> calibrateStickCenters()
 		);
 		feelPresetButton = addButton(
-				utilityX + (utilityWidth + utilityGap) * 2,
-				utilityY,
-				utilityWidth,
+				leftX,
+				utilityY + rowHeight,
+				buttonWidth,
 				Component.translatable("screen.fpvdrone.feel_entry", Component.translatable(config.gamepadFeelPreset().translationKey())),
 				button -> cycleGamepadFeelPreset()
 		);
 		gamepadEnabledButton = addButton(
-				utilityX + (utilityWidth + utilityGap) * 3,
-				utilityY,
-				utilityWidth,
+				rightX,
+				utilityY + rowHeight,
+				buttonWidth,
 				Component.translatable(config.gamepadEnabled() ? "screen.fpvdrone.gamepad_enabled" : "screen.fpvdrone.gamepad_disabled"),
 				button -> toggleGamepadEnabled()
 		);
 
-		int bindY = utilityY + rowHeight;
-		int bindWidth = Math.max(88, Math.min(116, (width - 144) / 4));
-		int bindTotalWidth = bindWidth * 3 + utilityGap * 4 + 80 + 76;
-		int bindX = Math.max(12, width / 2 - bindTotalWidth / 2);
-		armButtonButton = addButton(bindX, bindY, bindWidth, Component.translatable(BUTTON_PREFIX + "arm_button"), button -> startButtonCapture(CaptureTarget.ARM_BUTTON));
+		int bindY = utilityY + rowHeight * 2 + 6;
+		armButtonButton = addButton(leftX, bindY, buttonWidth, Component.translatable(BUTTON_PREFIX + "arm_button"), button -> startButtonCapture(CaptureTarget.ARM_BUTTON));
 		disarmButtonButton = addButton(
-				bindX + bindWidth + utilityGap,
+				rightX,
 				bindY,
-				bindWidth,
+				buttonWidth,
 				Component.translatable(BUTTON_PREFIX + "disarm_button"),
 				button -> startButtonCapture(CaptureTarget.DISARM_BUTTON)
 		);
 		calibrateButtonButton = addButton(
-				bindX + (bindWidth + utilityGap) * 2,
-				bindY,
-				bindWidth,
+				leftX,
+				bindY + rowHeight,
+				buttonWidth,
 				Component.translatable(BUTTON_PREFIX + "calibrate_button"),
 				button -> startButtonCapture(CaptureTarget.CALIBRATE_BUTTON)
 		);
 		refreshButton = addButton(
-				bindX + (bindWidth + utilityGap) * 3 + utilityGap,
-				bindY,
-				80,
+				rightX,
+				bindY + rowHeight,
+				buttonWidth,
 				Component.translatable("screen.fpvdrone.refresh"),
 				button -> {
 					config.clearPreferredGamepadDevice();
@@ -214,7 +221,10 @@ public final class DroneControllerSettingsScreen extends Screen {
 					updateButtonLabels();
 				}
 		);
-		closeButton = addButton(bindX + (bindWidth + utilityGap) * 3 + utilityGap + 86, bindY, 76, Component.translatable("gui.done"), button -> onClose());
+		controlsPanel.totalContentHeight = bindY + rowHeight + REMOTE_BUTTON_HEIGHT + 8 - controlsPanel.getY();
+		int closeWidth = Math.min(120, width - 24);
+		closeButton = addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
+				.bounds((width - closeWidth) / 2, height - 26, closeWidth, REMOTE_BUTTON_HEIGHT).build());
 		updateButtonLabels();
 	}
 
@@ -245,79 +255,67 @@ public final class DroneControllerSettingsScreen extends Screen {
 	@Override
 	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
 		super.render(graphics, mouseX, mouseY, partialTicks);
-
-		int stickSize = remoteStickSize();
-		int stickGap = remoteStickGap();
-		int stickY = remoteStickTop(stickSize);
-		int leftX = leftStickX(stickSize, stickGap);
-		int rightX = rightStickX(stickGap);
-		GamepadControlPreview.Preview preview = axesSnapshot.length == 0
-				? null
-				: GamepadControlPreview.fromAxes(config, axesSnapshot, previewHoverThrottle());
-
-		graphics.drawCenteredString(font, title, width / 2, 10, 0xE8EEF9);
+		drawFittedCenteredString(graphics, title, 10, 0xFFE8EEF9);
 		Component controllerStatus = selectedController != null
 				? Component.translatable("screen.fpvdrone.connected_controller", selectedController.name())
 				: Component.translatable("screen.fpvdrone.no_controller");
-		graphics.drawCenteredString(font, controllerStatus, width / 2, 25, selectedController != null && config.gamepadEnabled() ? 0x66C0FF : 0xFFAA66);
-		graphics.drawCenteredString(
-				font,
+		drawFittedCenteredString(graphics, controllerStatus, 25,
+				selectedController != null && config.gamepadEnabled() ? 0xFF66C0FF : 0xFFFFAA66);
+		drawFittedCenteredString(graphics,
 				Component.translatable(config.gamepadEnabled() ? "screen.fpvdrone.gamepad_input_enabled" : "screen.fpvdrone.gamepad_input_disabled"),
-				width / 2,
-				35,
-				config.gamepadEnabled() ? 0x66FFAA : 0xFFAA66
-		);
+				35, config.gamepadEnabled() ? 0xFF66FFAA : 0xFFFFAA66);
 
-		drawRemoteStick(
-				graphics,
-				leftX,
-				stickY,
-				stickSize,
+		if (captureThrottleInProgress) {
+			drawFittedCenteredString(graphics, Component.translatable("screen.fpvdrone.throttle_calibration_running"), 47, 0xFFFFCC66);
+			drawFittedCenteredString(graphics, Component.translatable(
+					"screen.fpvdrone.throttle_calibration_range",
+					String.format(Locale.ROOT, "%.3f", capturedThrottleMin),
+					String.format(Locale.ROOT, "%.3f", capturedThrottleMax)), 57, 0xFFFFCC66);
+		} else if (captureTarget != CaptureTarget.NONE) {
+			drawFittedCenteredString(graphics, Component.translatable("screen.fpvdrone.binding_target", bindingTargetLabel()), 47, 0xFFFFCC99);
+		} else if (!status.getString().isEmpty()) {
+			drawFittedCenteredString(graphics, status, 47, 0xFFFFCC99);
+		}
+	}
+
+	@Override
+	public boolean keyPressed(KeyEvent event) {
+		if (event.key() == GLFW.GLFW_KEY_PAGE_UP || event.key() == GLFW.GLFW_KEY_PAGE_DOWN) {
+			int direction = event.key() == GLFW.GLFW_KEY_PAGE_UP ? -1 : 1;
+			controlsPanel.setScrollAmount(controlsPanel.scrollAmount() + direction * controlsPanel.getHeight());
+			return true;
+		}
+		return super.keyPressed(event);
+	}
+
+	private void drawFittedCenteredString(GuiGraphics graphics, Component message, int y, int color) {
+		String fitted = font.plainSubstrByWidth(message.getString(), Math.max(1, width - 24));
+		graphics.drawCenteredString(font, fitted, width / 2, y, color);
+	}
+
+	private void renderControllerContents(GuiGraphics graphics) {
+		int stickSize = remoteStickSize();
+		int scroll = (int) controlsPanel.scrollAmount();
+		int stickY = controlsPanel.getY() + 14 - scroll;
+		int leftX = controlsPanel.getX() + 2 + (contentColumnWidth() - stickSize) / 2;
+		int rightX = leftX + contentColumnWidth() + CONTENT_COLUMN_GAP;
+		GamepadControlPreview.Preview preview = axesSnapshot.length == 0
+				? null
+				: GamepadControlPreview.fromAxes(config, axesSnapshot, previewHoverThrottle());
+		drawRemoteStick(graphics, leftX, stickY, stickSize,
 				Component.translatable("screen.fpvdrone.left_stick"),
 				Component.translatable("screen.fpvdrone.axis_yaw"),
 				Component.translatable("screen.fpvdrone.axis_throttle"),
 				preview == null ? 0.0f : preview.yawStick(),
 				preview == null ? 0.0f : preview.calibratedThrottle() * 2.0f - 1.0f,
-				preview == null || preview.yawAxisPresent(),
-				preview == null || preview.throttleAxisPresent()
-		);
-		drawRemoteStick(
-				graphics,
-				rightX,
-				stickY,
-				stickSize,
+				preview == null || preview.yawAxisPresent(), preview == null || preview.throttleAxisPresent());
+		drawRemoteStick(graphics, rightX, stickY, stickSize,
 				Component.translatable("screen.fpvdrone.right_stick"),
 				Component.translatable("screen.fpvdrone.axis_roll"),
 				Component.translatable("screen.fpvdrone.axis_pitch"),
-				preview == null ? 0.0f : preview.rollStick(),
-				preview == null ? 0.0f : preview.pitchStick(),
-				preview == null || preview.rollAxisPresent(),
-				preview == null || preview.pitchAxisPresent()
-		);
-
-		int infoY = Math.max(38, stickY - 12);
-		if (captureThrottleInProgress) {
-			graphics.drawCenteredString(font, Component.translatable("screen.fpvdrone.throttle_calibration_running"), width / 2, infoY, 0xFFCC66);
-			graphics.drawCenteredString(
-					font,
-					Component.translatable(
-							"screen.fpvdrone.throttle_calibration_range",
-							String.format(Locale.ROOT, "%.3f", capturedThrottleMin),
-							String.format(Locale.ROOT, "%.3f", capturedThrottleMax)
-					),
-					width / 2,
-					infoY + 10,
-					0xFFCC66
-			);
-		} else if (captureTarget != CaptureTarget.NONE) {
-			graphics.drawCenteredString(font, Component.translatable("screen.fpvdrone.binding_target", bindingTargetLabel()), width / 2, infoY, 0xFFCC99);
-		}
-
-		if (!status.getString().isEmpty()) {
-			graphics.drawCenteredString(font, status, width / 2, Math.min(height - 68, stickY + stickSize + 98), 0xFFCC99);
-		}
-
-		drawMappedOutputPreview(graphics, width / 2, Math.min(height - 80, stickY + stickSize + 84), preview);
+				preview == null ? 0.0f : preview.rollStick(), preview == null ? 0.0f : preview.pitchStick(),
+				preview == null || preview.rollAxisPresent(), preview == null || preview.pitchAxisPresent());
+		drawMappedOutputPreview(graphics, width / 2, mappedOutputY - scroll, preview);
 	}
 
 	@Override
@@ -326,33 +324,100 @@ public final class DroneControllerSettingsScreen extends Screen {
 		super.onClose();
 	}
 
+	private int contentColumnWidth() {
+		return (controlsPanel.getWidth() - CONTENT_COLUMN_GAP - 12) / 2;
+	}
+
 	private int remoteStickSize() {
-		int widthDriven = (width - REMOTE_STICK_MIN_GAP - 48) / 2;
+		int widthDriven = contentColumnWidth() - 4;
 		int heightDriven = Math.max(REMOTE_STICK_MIN_SIZE, height - 260);
-		return Math.max(REMOTE_STICK_MIN_SIZE, Math.min(REMOTE_STICK_MAX_SIZE, Math.min(widthDriven, heightDriven)));
-	}
-
-	private int remoteStickGap() {
-		return Math.max(REMOTE_STICK_MIN_GAP, Math.min(REMOTE_STICK_MAX_GAP, width / 12));
-	}
-
-	private int remoteStickTop(int stickSize) {
-		int available = Math.max(0, height - stickSize - 170);
-		return Math.max(42, Math.min(72, available / 2 + 34));
-	}
-
-	private int leftStickX(int stickSize, int stickGap) {
-		return width / 2 - stickGap / 2 - stickSize;
-	}
-
-	private int rightStickX(int stickGap) {
-		return width / 2 + stickGap / 2;
+		return Math.max(32, Math.min(REMOTE_STICK_MAX_SIZE, Math.min(widthDriven, heightDriven)));
 	}
 
 	private Button addButton(int x, int y, int width, Component message, Button.OnPress onPress) {
 		Button button = Button.builder(message, onPress).bounds(x, y, width, REMOTE_BUTTON_HEIGHT).build();
-		addRenderableWidget(button);
+		controlsPanel.addContentButton(button);
 		return button;
+	}
+
+	private record ContentButton(Button button, int originalY) {
+	}
+
+	private final class ControlsPanel extends AbstractContainerWidget {
+		private final List<Button> buttons = new ArrayList<>();
+		private final List<ContentButton> positions = new ArrayList<>();
+		private int totalContentHeight;
+
+		private ControlsPanel(int x, int y, int width, int height) {
+			super(x, y, width, height, DroneControllerSettingsScreen.this.title);
+		}
+
+		private void addContentButton(Button button) {
+			buttons.add(button);
+			positions.add(new ContentButton(button, button.getY()));
+		}
+
+		@Override
+		public List<? extends GuiEventListener> children() {
+			return buttons;
+		}
+
+		@Override
+		protected int contentHeight() {
+			return totalContentHeight;
+		}
+
+		@Override
+		protected double scrollRate() {
+			return REMOTE_BUTTON_HEIGHT + REMOTE_BUTTON_GAP;
+		}
+
+		@Override
+		public void setScrollAmount(double amount) {
+			super.setScrollAmount(amount);
+			for (ContentButton position : positions) {
+				position.button().setY(position.originalY() - (int) scrollAmount());
+			}
+		}
+
+		@Override
+		public void setFocused(GuiEventListener listener) {
+			super.setFocused(listener);
+			if (listener instanceof Button button) {
+				if (button.getY() < getY()) {
+					setScrollAmount(scrollAmount() + button.getY() - getY());
+				} else if (button.getBottom() > getBottom()) {
+					setScrollAmount(scrollAmount() + button.getBottom() - getBottom());
+				}
+			}
+		}
+
+		@Override
+		public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+			return isMouseOver(event.x(), event.y()) && super.mouseClicked(event, doubleClick);
+		}
+
+		@Override
+		protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+			graphics.enableScissor(getX(), getY(), getRight() - 8, getBottom());
+			renderControllerContents(graphics);
+			for (Button button : buttons) {
+				if (button.getBottom() > getY() && button.getY() < getBottom()) {
+					button.render(graphics, mouseX, mouseY, partialTicks);
+				}
+			}
+			graphics.disableScissor();
+			renderScrollbar(graphics, mouseX, mouseY);
+		}
+
+		@Override
+		protected void updateWidgetNarration(NarrationElementOutput output) {
+			if (getFocused() instanceof Button button) {
+				button.updateNarration(output);
+			} else {
+				defaultButtonNarrationText(output);
+			}
+		}
 	}
 
 	private void updateButtonLabels() {
@@ -691,9 +756,9 @@ public final class DroneControllerSettingsScreen extends Screen {
 		graphics.fill(pointerX - 5, pointerY - 5, pointerX + 6, pointerY + 6, 0xFFE9F2FF);
 		graphics.fill(pointerX - 3, pointerY - 3, pointerX + 4, pointerY + 4, 0xFFFFB74D);
 
-		graphics.drawCenteredString(font, title, centerX, y - 12, 0xE8EEF9);
-		graphics.drawCenteredString(font, horizontalLabel, centerX, y + size + 3, horizontalAxisPresent ? 0xAACCEE : 0xFFAA66);
-		graphics.drawString(font, verticalLabel, x + 5, y + 5, verticalAxisPresent ? 0xAACCEE : 0xFFAA66);
+		graphics.drawCenteredString(font, title, centerX, y - 12, 0xFFE8EEF9);
+		graphics.drawCenteredString(font, horizontalLabel, centerX, y + size + 3, horizontalAxisPresent ? 0xFFAACCEE : 0xFFFFAA66);
+		graphics.drawString(font, verticalLabel, x + 5, y + 5, verticalAxisPresent ? 0xFFAACCEE : 0xFFFFAA66);
 	}
 
 	private void drawMappedOutputPreview(GuiGraphics graphics, int centerX, int y, GamepadControlPreview.Preview preview) {
@@ -707,9 +772,9 @@ public final class DroneControllerSettingsScreen extends Screen {
 				signed(preview.rollCommand()),
 				signed(preview.yawCommand())
 		);
-		graphics.drawCenteredString(font, output, centerX, y, preview.allAxesPresent() ? 0xBFE8C8 : 0xFFAA66);
+		graphics.drawCenteredString(font, output, centerX, y, preview.allAxesPresent() ? 0xFFBFE8C8 : 0xFFFFAA66);
 		if (!preview.allAxesPresent()) {
-			graphics.drawCenteredString(font, Component.translatable("screen.fpvdrone.mapped_axes_missing"), centerX, y + 10, 0xFFAA66);
+			graphics.drawCenteredString(font, Component.translatable("screen.fpvdrone.mapped_axes_missing"), centerX, y + 10, 0xFFFFAA66);
 		}
 	}
 

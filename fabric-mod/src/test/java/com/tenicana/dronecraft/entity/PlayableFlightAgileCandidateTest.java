@@ -215,7 +215,8 @@ class PlayableFlightAgileCandidateTest {
 				step.acroRollRateRadiansPerTick(),
 				step.acroRollRecoveryTicksRemaining(),
 				step.acroAeroCrossflowLag(),
-				step.acroSidewashMemory()
+				step.acroSidewashMemory(),
+				step.acroHeadingCouplingDegreesPerTick()
 		);
 	}
 

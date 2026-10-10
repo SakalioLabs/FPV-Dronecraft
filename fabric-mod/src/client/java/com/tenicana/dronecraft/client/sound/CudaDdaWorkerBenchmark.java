@@ -17,6 +17,7 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HexFormat;
@@ -44,9 +45,10 @@ public final class CudaDdaWorkerBenchmark {
 	}
 
 	public static void main(String[] arguments) throws Exception {
-		if (arguments.length != 11) {
+		if (arguments.length != 13) {
 			throw new IllegalArgumentException(
-				"usage: <worker.exe> <nvrtc-library> <kernel.cu> "
+				"usage: <worker.exe> <boot-probe.exe> "
+					+ "<minimum-boot-instant> <nvrtc-library> <kernel.cu> "
 					+ "<bundle.bin> <output.json> <warmup> "
 					+ "<iterations> <comma-separated-ray-limits> "
 					+ "<driver-probe-timeout-seconds> "
@@ -54,23 +56,36 @@ public final class CudaDdaWorkerBenchmark {
 			);
 		}
 		Path worker = absoluteFile(arguments[0], "worker");
-		Path nvrtc = absoluteFile(arguments[1], "NVRTC library");
-		Path kernel = absoluteFile(arguments[2], "NVRTC kernel");
-		Path bundlePath = absoluteFile(arguments[3], "production bundle");
-		Path output = Path.of(arguments[4]).toAbsolutePath();
-		int warmup = positive(arguments[5], "warmup");
-		int iterations = positive(arguments[6], "iterations");
-		int[] rayLimits = parseRayLimits(arguments[7]);
+		Path bootProbe = absoluteFile(arguments[1], "system boot probe");
+		Instant minimumBootInstant = Instant.parse(arguments[2]);
+		Path nvrtc = absoluteFile(arguments[3], "NVRTC library");
+		Path kernel = absoluteFile(arguments[4], "NVRTC kernel");
+		Path bundlePath = absoluteFile(arguments[5], "production bundle");
+		Path output = Path.of(arguments[6]).toAbsolutePath();
+		int warmup = positive(arguments[7], "warmup");
+		int iterations = positive(arguments[8], "iterations");
+		int[] rayLimits = parseRayLimits(arguments[9]);
 		int driverProbeTimeout = positive(
-			arguments[8],
+			arguments[10],
 			"driver probe timeout"
 		);
 		Duration initializeTimeout = Duration.ofMillis(
-			positive(arguments[9], "initialize timeout")
+			positive(arguments[11], "initialize timeout")
 		);
 		Duration submitTimeout = Duration.ofMillis(
-			positive(arguments[10], "submit timeout")
+			positive(arguments[12], "submit timeout")
 		);
+		BootEvidence bootEvidence = probeBoot(
+			bootProbe,
+			Duration.ofSeconds(2)
+		);
+		if (bootEvidence.estimatedBoot.isBefore(minimumBootInstant)) {
+			throw new IllegalStateException(
+				"system boot " + bootEvidence.estimatedBoot
+					+ " predates required recovery "
+					+ minimumBootInstant
+			);
+		}
 		String driverProbe = probeDriver(
 			Duration.ofSeconds(driverProbeTimeout)
 		);
@@ -178,6 +193,9 @@ public final class CudaDdaWorkerBenchmark {
 				output,
 				json(
 					worker,
+					bootProbe,
+					minimumBootInstant,
+					bootEvidence,
 					nvrtc,
 					kernel,
 					bundlePath,
@@ -194,6 +212,49 @@ public final class CudaDdaWorkerBenchmark {
 				)
 			);
 		}
+	}
+
+	private static BootEvidence probeBoot(Path probe, Duration timeout)
+			throws IOException, InterruptedException {
+		Instant observedAt = Instant.now();
+		Process process = new ProcessBuilder(probe.toString())
+			.redirectErrorStream(true)
+			.start();
+		if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
+			process.destroyForcibly();
+			process.waitFor(2, TimeUnit.SECONDS);
+			throw new IllegalStateException(
+				"system boot probe timed out"
+			);
+		}
+		String output = new String(
+			process.getInputStream().readAllBytes(),
+			StandardCharsets.US_ASCII
+		).strip();
+		if (process.exitValue() != 0 || !output.matches("[0-9]+")) {
+			throw new IllegalStateException(
+				"system boot probe failed: " + output
+			);
+		}
+		long uptimeMillis;
+		try {
+			uptimeMillis = Long.parseUnsignedLong(output);
+		} catch (NumberFormatException error) {
+			throw new IllegalStateException(
+				"system boot probe returned an invalid uptime",
+				error
+			);
+		}
+		if (uptimeMillis < 1L || uptimeMillis > observedAt.toEpochMilli()) {
+			throw new IllegalStateException(
+				"system boot probe returned an impossible uptime"
+			);
+		}
+		return new BootEvidence(
+			uptimeMillis,
+			observedAt.minusMillis(uptimeMillis),
+			observedAt
+		);
 	}
 
 	private static Path absoluteFile(String value, String label) {
@@ -576,6 +637,9 @@ public final class CudaDdaWorkerBenchmark {
 
 	private static String json(
 			Path worker,
+			Path bootProbe,
+			Instant minimumBootInstant,
+			BootEvidence bootEvidence,
 			Path nvrtc,
 			Path kernel,
 			Path bundlePath,
@@ -600,6 +664,16 @@ public final class CudaDdaWorkerBenchmark {
 			.append("  \"resident_cells\": true,\n")
 			.append("  \"minecraft_started\": false,\n")
 			.append("  \"physical_endpoint_opened\": false,\n")
+			.append("  \"boot_probe\": \"")
+			.append(escape(bootProbe.toString())).append("\",\n")
+			.append("  \"minimum_boot_instant\": \"")
+			.append(minimumBootInstant).append("\",\n")
+			.append("  \"observed_boot_instant\": \"")
+			.append(bootEvidence.estimatedBoot).append("\",\n")
+			.append("  \"observed_uptime_ms\": ")
+			.append(bootEvidence.uptimeMillis).append(",\n")
+			.append("  \"boot_observed_at\": \"")
+			.append(bootEvidence.observedAt).append("\",\n")
 			.append("  \"driver_probe\": \"")
 			.append(escape(driverProbe)).append("\",\n")
 			.append("  \"driver_version\": ")
@@ -692,6 +766,13 @@ public final class CudaDdaWorkerBenchmark {
 	}
 
 	private record FirstMaterial(boolean present, long packed) {
+	}
+
+	private record BootEvidence(
+		long uptimeMillis,
+		Instant estimatedBoot,
+		Instant observedAt
+	) {
 	}
 
 	private record BridgeInfo(
