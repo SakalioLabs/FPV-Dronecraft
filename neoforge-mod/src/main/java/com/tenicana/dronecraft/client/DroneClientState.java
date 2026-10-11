@@ -74,6 +74,7 @@ public final class DroneClientState {
 		physicalControllerPresent = DroneControllerItem.hasControllerItem(client.player);
 
 		if (isControlledDroneValid(client)) {
+			viewMode();
 			return;
 		}
 
@@ -100,9 +101,7 @@ public final class DroneClientState {
 					.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(client.player)))
 					.orElse(null);
 		}
-		if (controlledDrone == null) {
-			viewMode = DroneViewMode.LINE_OF_SIGHT;
-		}
+		viewMode();
 	}
 
 	public static DroneEntity controlledDrone() {
@@ -156,7 +155,7 @@ public final class DroneClientState {
 	}
 
 	public static boolean isFpvViewEnabled() {
-		return viewMode == DroneViewMode.FPV;
+		return viewMode() == DroneViewMode.FPV;
 	}
 
 	public static void setFpvViewEnabled(boolean enabled) {
@@ -164,15 +163,21 @@ public final class DroneClientState {
 	}
 
 	public static DroneViewMode viewMode() {
+		viewMode = viewMode.available(hasDroneCamera());
 		return viewMode;
 	}
 
 	public static void setViewMode(DroneViewMode mode) {
-		viewMode = mode == null ? DroneViewMode.LINE_OF_SIGHT : mode;
+		viewMode = (mode == null ? DroneViewMode.LINE_OF_SIGHT : mode).available(hasDroneCamera());
 	}
 
 	public static boolean isDroneViewEnabled() {
-		return viewMode.isDroneCamera();
+		return viewMode().isDroneCamera();
+	}
+
+	public static boolean hasDroneCamera() {
+		return controlledDrone != null && controlledDrone.isAlive() && !controlledDrone.isRemoved()
+				&& controlledDrone.hasCamera();
 	}
 
 	public static boolean isDroneCameraActive(Level level) {
@@ -180,7 +185,7 @@ public final class DroneClientState {
 	}
 
 	public static boolean isThirdPersonActive(Level level) {
-		return viewMode == DroneViewMode.THIRD_PERSON && isControlledDroneValid(level);
+		return viewMode() == DroneViewMode.THIRD_PERSON && isControlledDroneValid(level);
 	}
 
 	public static boolean isHudEnabled() {

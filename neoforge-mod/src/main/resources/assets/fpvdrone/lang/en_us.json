@@ -200,7 +200,7 @@
 	"item.fpvdrone.receiver": "Drone Receiver",
 	"item.fpvdrone.fpv_camera": "FPV Camera",
 	"message.fpvdrone.frame_placed": "Frame placed. Empty-hand right-click to assemble.",
-	"message.fpvdrone.assembly_incomplete": "Install all drone components before arming.",
+	"message.fpvdrone.assembly_incomplete": "Install all required flight components before arming.",
 	"message.fpvdrone.assembly_locked": "Land and disarm before assembling your drone.",
 	"message.fpvdrone.assembly_not_owner": "This drone belongs to another pilot.",
 	"screen.fpvdrone.assembly": "Drone assembly - frame installed",
@@ -211,7 +211,9 @@
 	"screen.fpvdrone.assembly_receiver": "RX",
 	"screen.fpvdrone.assembly_battery": "BAT",
 	"screen.fpvdrone.assembly_camera": "CAM",
-	"screen.fpvdrone.assembly_ready": "Complete - ready to arm",
+	"screen.fpvdrone.assembly_ready": "Ready - LOS / FPV / third person",
 	"screen.fpvdrone.assembly_incomplete": "Installed %s/%s - cannot arm",
-	"menu.fpvdrone.assembly": "Drone assembly - frame installed"
+	"menu.fpvdrone.assembly": "Drone assembly - frame installed",
+	"message.fpvdrone.camera_required": "Install a camera to use FPV or drone third-person view.",
+	"screen.fpvdrone.assembly_los_ready": "Ready for LOS - camera optional"
 }

@@ -1,5 +1,6 @@
 package com.tenicana.dronecraft.client.screen;
 
+import com.tenicana.dronecraft.assembly.DroneAssemblyInventory;
 import com.tenicana.dronecraft.menu.DroneAssemblyMenu;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -45,9 +46,14 @@ public final class DroneAssemblyScreen extends AbstractContainerScreen<DroneAsse
         }
         int installed = 0;
         for (int index = 0; index < PARTS; index++) if (menu.slots.get(index).hasItem()) installed++;
+        boolean flightReady = true;
+        for (int index = 0; index < PARTS; index++) {
+            if (index != DroneAssemblyInventory.CAMERA && !menu.slots.get(index).hasItem()) flightReady = false;
+        }
         Component status = installed == PARTS ? Component.translatable("screen.fpvdrone.assembly_ready")
+                : flightReady ? Component.translatable("screen.fpvdrone.assembly_los_ready")
                 : Component.translatable("screen.fpvdrone.assembly_incomplete", installed, PARTS);
-        graphics.text(font, status, 9, 120, installed == PARTS ? 0xFF97E6AC : 0xFFFFCC79);
+        graphics.text(font, status, 9, 120, flightReady ? 0xFF97E6AC : 0xFFFFCC79);
         graphics.text(font, playerInventoryTitle, 25, 130, 0xFFB8D6E8);
     }
 }

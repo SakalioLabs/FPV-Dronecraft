@@ -1,16 +1,29 @@
 # NeoForge version development
 
-The inventory covers 16 Minecraft releases from 1.21.1 through 26.3. The recorded all-target matrix, 1,255 native unit tests, and World 05 results are historical `0.2.0-neoforge-dev.1` migration-baseline evidence; they do not establish full `dev.2` coverage. The `0.2.0-neoforge-dev.2` exact-256 validation passed packaging, 465 adapter unit tests and 28 native-world checks; default 21.1.257 packaging/client startup also passed. See `docs/neoforge-installation.md` for the exact report paths and run UUID. All profiles remain `adapting`: full native-world and third-party functional validation currently apply only to 1.21.1. The original matrix `build/reports/neoforge-matrix/20261010-103859-388` preserves its pre-fix 26.1 client failure; that target's build/client retry passed in `build/reports/neoforge-matrix/20261010-112848-528`. The inventory records the actual passing source for each stage.
+The inventory covers 16 Minecraft releases from 1.21.1 through 26.3. The recorded all-target matrix, 1,255 native unit tests, and World 05 results are historical `0.2.0-neoforge-dev.1` migration-baseline evidence; they do not establish current-build coverage. The `0.2.0-neoforge-dev.2` exact-256 validation passed packaging, 465 adapter unit tests and 28 native-world checks; default 21.1.257 packaging/client startup also passed. See `docs/neoforge-installation.md` for the exact report paths and run UUID. All profiles remain `adapting`: full native-world and third-party functional validation currently apply only to 1.21.1. The original matrix `build/reports/neoforge-matrix/20261010-103859-388` preserves its pre-fix 26.1 client failure; that target's build/client retry passed in `build/reports/neoforge-matrix/20261010-112848-528`. The inventory records the actual passing source for each stage.
 
-`dev.3` adds native component assembly and the v2 split-part models. It uses
-13 inventory slots, a synchronized visibility mask, strict saved ItemStacks and
-server-side completeness gates. The menu has separate 26.x ContainerInput
-overlays, while the assembly screen uses the 26.x extraction API. Older targets
-reuse the existing custom item geometry loader for arbitrary part rotations.
-Current verification evidence is recorded separately in the installation notes;
-the old migration matrix does not validate these changes.
+Historical `dev.3` introduced native component assembly and the v2 split-part
+models. It uses 13 inventory slots, a synchronized visibility mask, strict saved
+ItemStacks and server-side completeness gates. The menu has separate 26.x
+ContainerInput overlays, while the assembly screen uses the 26.x extraction API.
+Older targets reuse the existing custom item geometry loader for arbitrary part
+rotations.
 
-Current `dev.3` build/package and native title/controller startup checks passed
+In `dev.4`, the required assembly is four motors, four propellers, and one each
+of an ESC, flight controller, receiver, and battery (12 pieces). The camera is
+optional: without it only line-of-sight is available; installing it unlocks
+line-of-sight → FPV → drone third-person → line-of-sight. Missing any required
+part still blocks arming. `dev.4` passed 472 adapter unit tests, 27 GameTests
+and 39 native-world checks with 18 PNG captures on 1.21.1 / NeoForge 21.1.256.
+World run `22ff5a7a-27cb-4c9d-bb6b-70e1e85ab330` additionally checks the immediate
+server camera gate and metadata-driven return to LOS without losing armed
+control or chunk tickets. Installing and ordinarily removing components use
+native menu packets; the separate mounted-camera lifecycle probe mutates only
+the camera slot on the server. Evidence is frozen in
+`../MCFPV/deliverables/camera-optional-neoforge-21.1.256-20261011/evidence`.
+Do not treat historical `dev.3` checks as evidence for this behavior.
+
+Historical `dev.3` build/package and native title/controller startup checks passed
 for all 16 pinned profiles. Evidence spans `20261011-035035-251`,
 `20261011-040319-465` and `20261011-041610-192` under
 `build/reports/neoforge-matrix`. The first two aggregates remain failed to retain
@@ -20,7 +33,9 @@ each passing stage, jar SHA-256 and fresh client run UUID in
 `multiversion-manifest.json`. The exact 21.1.256 deployment additionally passed
 469 adapter unit tests, 26 GameTests and 35 native-world observations with
 17 PNGs, including native frame assembly and missing-part arming rejection.
-Full assembly/world coverage applies only to 1.21.1; all profiles stay `adapting`.
+This is `dev.3` evidence; optional-camera `dev.4` evidence is recorded separately
+above. Full assembly/world coverage applies only to 1.21.1; all profiles
+stay `adapting`.
 
 In `dev.2`, the new `mc12101` change fixes the 1.21.1 terrain camera anchor. While FPV or third-person drone view is active, terrain-ring positioning follows the actual camera rather than the stationary local player, so the distant camera can keep terrain sections in its render area. It does not move the player body or change saved-world or chunk-generation rules. Inspection of all 16 patched target jars confirms that Minecraft 1.21.2–1.21.11 and 26.x already follow the camera for this path and do not need this hook; only the 1.21.1 profile registers it.
 

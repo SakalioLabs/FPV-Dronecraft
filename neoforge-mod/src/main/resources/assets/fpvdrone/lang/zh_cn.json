@@ -200,7 +200,7 @@
 	"item.fpvdrone.receiver": "无人机接收器",
 	"item.fpvdrone.fpv_camera": "FPV 相机",
 	"message.fpvdrone.frame_placed": "机架已放置，空手右键打开装配界面。",
-	"message.fpvdrone.assembly_incomplete": "无人机部件未装齐，无法启动。",
+	"message.fpvdrone.assembly_incomplete": "飞行必需部件未装齐，无法启动。",
 	"message.fpvdrone.assembly_locked": "请先降落并停止电机，再装拆部件。",
 	"message.fpvdrone.assembly_not_owner": "这架无人机属于其他玩家。",
 	"screen.fpvdrone.assembly": "无人机装配 · 机架已安装",
@@ -211,7 +211,9 @@
 	"screen.fpvdrone.assembly_receiver": "接收器",
 	"screen.fpvdrone.assembly_battery": "电池",
 	"screen.fpvdrone.assembly_camera": "相机",
-	"screen.fpvdrone.assembly_ready": "部件完整，可以启动",
+	"screen.fpvdrone.assembly_ready": "可飞行：目视 / FPV / 第三人称",
 	"screen.fpvdrone.assembly_incomplete": "已装 %s/%s 件，缺件禁止起飞",
-	"menu.fpvdrone.assembly": "无人机装配 · 机架已安装"
+	"menu.fpvdrone.assembly": "无人机装配 · 机架已安装",
+	"message.fpvdrone.camera_required": "请安装相机以使用 FPV 或无人机第三人称视角。",
+	"screen.fpvdrone.assembly_los_ready": "可目视飞行，装相机开启 FPV"
 }

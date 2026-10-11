@@ -136,6 +136,11 @@ public final class DroneClientControls {
 			boolean hasLinkedDrone = DroneClientState.hasControlledDrone(client);
 			if (fpvRequestedBeforeRefresh && (controlledDroneChanged || !hasLinkedDrone)) {
 				disableFpvView(client, true, true);
+			} else if (hasLinkedDrone && !DroneClientState.hasDroneCamera()
+					&& client.getCameraEntity() instanceof DroneEntity) {
+				// Losing the camera only changes the view; flight controls and their lease stay active.
+				disableFpvView(client, true, true);
+				displayMessage(client.player, Component.translatable("message.fpvdrone.camera_required"), true);
 			}
 
 			while (VIRTUAL_CONTROLLER.consumeClick()) {
@@ -150,6 +155,11 @@ public final class DroneClientControls {
 				if (!hasLinkedDrone || !DroneControlAuthority.hasControlAuthority(hasController, virtualControllerEnabled, hasLinkedDrone)) {
 					disableFpvView(client, true);
 					displayMessage(client.player, Component.translatable("message.fpvdrone.drone_view_unavailable"), true);
+					continue;
+				}
+				if (!DroneClientState.hasDroneCamera()) {
+					disableFpvView(client, true, true);
+					displayMessage(client.player, Component.translatable("message.fpvdrone.camera_required"), true);
 					continue;
 				}
 				DroneViewMode nextMode = DroneClientState.viewMode().next();
@@ -401,9 +411,7 @@ public final class DroneClientControls {
 		if (!STICK_ARM_GESTURE.update(isStickArmGesture(input))) {
 			return;
 		}
-		resetTransientControlState();
-		armed = !armed;
-		displayMessage(client.player, Component.translatable(armed ? "message.fpvdrone.armed" : "message.fpvdrone.disarmed"), true);
+		requestArmed(client, !armed, ArmSafetyCheck.Result.ok());
 	}
 
 	private static boolean isStickArmGesture(GamepadInputFrame input) {
@@ -442,6 +450,11 @@ public final class DroneClientControls {
 					: armCheck;
 			if (!safeArmCheck.allowed()) {
 				displayArmBlocked(client, safeArmCheck);
+				return;
+			}
+			DroneEntity drone = DroneClientState.controlledDrone();
+			if (drone != null && !drone.isFlightReady()) {
+				displayMessage(client.player, Component.translatable("message.fpvdrone.assembly_incomplete"), true);
 				return;
 			}
 			resetTransientControlState();

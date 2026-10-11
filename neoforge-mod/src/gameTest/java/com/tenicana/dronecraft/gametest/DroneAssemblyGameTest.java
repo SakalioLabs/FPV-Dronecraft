@@ -163,7 +163,7 @@ public final class DroneAssemblyGameTest {
 	}
 
 	@GameTest(template = "empty", templateNamespace = "fpvdrone", timeoutTicks = 60)
-	public static void every_missing_component_blocks_both_native_flight_routes(GameTestHelper helper) {
+	public static void every_missing_required_component_blocks_both_native_flight_routes(GameTestHelper helper) {
 		for (FlightModelMode mode : List.of(FlightModelMode.PLAYABLE, FlightModelMode.SIMULATION)) {
 			UUID owner = UUID.randomUUID();
 			DroneEntity drone = spawnDrone(helper, owner, mode);
@@ -171,16 +171,61 @@ public final class DroneAssemblyGameTest {
 				armDiagnostic(drone, owner);
 				assertTrue(drone.isArmed(), "complete assembly did not arm in " + mode);
 				disarm(drone, owner);
-				for (int missing = 0; missing < 13; missing++) {
+				for (int missing = 0; missing < DroneAssemblyInventory.CAMERA; missing++) {
 					ItemStack removed = drone.assemblyInventory().removeItem(missing, 1);
 					armDiagnostic(drone, owner);
 					assertTrue(!drone.isArmed(), "server armed with missing component " + missing + " in " + mode);
-					assertTrue(!drone.isAssemblyComplete() && (drone.getAssemblyMask() & (1 << missing)) == 0, "missing component did not update assembly state");
+					assertTrue(!drone.isFlightReady() && !drone.isAssemblyComplete() && (drone.getAssemblyMask() & (1 << missing)) == 0,
+							"missing required component did not update flight readiness");
 					assertTrue(drone.getControlThrottle() == 0.0f, "incomplete aircraft retained a powered throttle command in " + mode);
 					DroneControlManager.stopDiagnostic(owner);
 					DroneControlManager.clearInput(owner);
 					drone.assemblyInventory().setItem(missing, removed);
 				}
+			} finally {
+				DroneControlManager.stopDiagnostic(owner);
+				DroneControlManager.clearInput(owner);
+				drone.discard();
+			}
+		}
+		helper.succeed();
+	}
+
+	@GameTest(template = "empty", templateNamespace = "fpvdrone", timeoutTicks = 60)
+	public static void camera_optional_native_flight_remains_ready_in_both_routes(GameTestHelper helper) {
+		assertTrue(DroneAssemblyInventory.FULL_MASK == 8191 && DroneAssemblyInventory.REQUIRED_FLIGHT_MASK == 4095,
+				"camera optionality changed the thirteen-slot visual mask");
+		for (FlightModelMode mode : List.of(FlightModelMode.PLAYABLE, FlightModelMode.SIMULATION)) {
+			UUID owner = UUID.randomUUID();
+			DroneEntity drone = spawnDrone(helper, owner, mode);
+			try {
+				armDiagnostic(drone, owner);
+				assertTrue(drone.isArmed() && drone.hasCamera(), "complete camera-removal fixture did not arm in " + mode);
+				ItemStack camera = drone.assemblyInventory().removeItem(DroneAssemblyInventory.CAMERA, 1);
+				assertTrue(drone.isFlightReady() && drone.assemblyInventory().isFlightReady()
+						&& !drone.hasCamera() && !drone.isAssemblyComplete()
+						&& drone.getAssemblyMask() == DroneAssemblyInventory.REQUIRED_FLIGHT_MASK,
+						"camera removal changed required hardware readiness in " + mode);
+				assertTrue(drone.isArmed(), "optional camera removal disarmed line-of-sight flight in " + mode);
+				DroneControlManager.stopDiagnostic(owner);
+				DroneControlManager.update(owner, drone.getUUID(), new DroneInput(0.02, 0.0, 0.0, 0.0, true, true, FlightMode.ANGLE), drone.tickCount);
+				drone.tick();
+				double initialY = drone.getY();
+				for (int tick = 0; tick < 20; tick++) {
+					DroneControlManager.update(owner, drone.getUUID(), new DroneInput(1.0, 0.0, 0.0, 0.0, true, true, FlightMode.ANGLE), drone.tickCount);
+					drone.tick();
+					assertTrue(drone.isArmed() && drone.isFlightReady(), "camera-free native flight rejected live control in " + mode);
+				}
+				assertTrue(drone.getY() > initialY + 0.02, "camera-free aircraft did not lift off through native " + mode + " physics");
+				disarm(drone, owner);
+				DroneEntity reopened = restoredDrone(helper.getLevel(), save(drone));
+				assertTrue(reopened.isFlightReady() && !reopened.hasCamera() && !reopened.isAssemblyComplete()
+						&& reopened.getAssemblyMask() == DroneAssemblyInventory.REQUIRED_FLIGHT_MASK,
+						"camera-free save was refilled or lost flight readiness in " + mode);
+				drone.assemblyInventory().setItem(DroneAssemblyInventory.CAMERA, camera);
+				assertTrue(drone.hasCamera() && drone.isAssemblyComplete() && drone.isFlightReady()
+						&& drone.getAssemblyMask() == DroneAssemblyInventory.FULL_MASK,
+						"reinstalling the camera did not restore the complete visual assembly in " + mode);
 			} finally {
 				DroneControlManager.stopDiagnostic(owner);
 				DroneControlManager.clearInput(owner);

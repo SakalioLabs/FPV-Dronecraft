@@ -23,6 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import com.tenicana.dronecraft.assembly.DroneAssemblyInventory;
 import com.tenicana.dronecraft.menu.DroneAssemblyMenu;
+import com.tenicana.dronecraft.network.DroneRemoteSessions;
 import com.tenicana.dronecraft.mekanism.DronePowerTier;
 import com.tenicana.dronecraft.mekanism.DroneRadioTier;
 
@@ -4763,6 +4764,16 @@ public class DroneEntity extends Entity {
 		return level().isClientSide() ? getAssemblyMask() == DroneAssemblyInventory.FULL_MASK : assemblyInventory.isComplete();
 	}
 
+	public boolean isFlightReady() {
+		return level().isClientSide()
+				? (getAssemblyMask() & DroneAssemblyInventory.REQUIRED_FLIGHT_MASK) == DroneAssemblyInventory.REQUIRED_FLIGHT_MASK
+				: assemblyInventory.isFlightReady();
+	}
+
+	public boolean hasCamera() {
+		return (getAssemblyMask() & (1 << DroneAssemblyInventory.CAMERA)) != 0;
+	}
+
 	public boolean canPlayerModifyAssembly(Player player) {
 		return player != null && player.isAlive() && !player.isSpectator()
 				&& isAlive() && !isRemoved() && player.level() == level()
@@ -4796,7 +4807,8 @@ public class DroneEntity extends Entity {
 		entityData.set(ASSEMBLY_MASK, assemblyInventory.mask());
 		if (level().isClientSide() || assemblyRestoring) return;
 		syncAssemblyHardware();
-		if (!assemblyInventory.isComplete()) {
+		if (!hasCamera()) DroneRemoteSessions.cameraRemoved(this);
+		if (!assemblyInventory.isFlightReady()) {
 			entityData.set(ARMED, false);
 			debugFlightActiveLastTick = false;
 			UUID ownerId = getOwner();
@@ -4884,7 +4896,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private DroneInput assemblySafeInput(DroneInput input) {
-		if (isAssemblyComplete()) return input;
+		if (isFlightReady()) return input;
 		debugFlightActiveLastTick = false;
 		return new DroneInput(0.0, input.pitch(), input.roll(), input.yaw(), false, input.linkActive(), input.flightMode());
 	}

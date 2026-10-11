@@ -22,6 +22,11 @@ public enum DroneViewMode {
 		};
 	}
 
+	/** Mounted views require an installed camera; reinstating one never restores a discarded view. */
+	public DroneViewMode available(boolean cameraInstalled) {
+		return cameraInstalled ? this : LINE_OF_SIGHT;
+	}
+
 	public boolean isDroneCamera() {
 		return this != LINE_OF_SIGHT;
 	}

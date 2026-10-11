@@ -27,6 +27,7 @@ public final class DroneAssemblyInventory implements Container {
 	public static final int CAMERA = 12;
 	public static final int SLOT_COUNT = 13;
 	public static final int FULL_MASK = (1 << SLOT_COUNT) - 1;
+	public static final int REQUIRED_FLIGHT_MASK = FULL_MASK & ~(1 << CAMERA);
 
 	private final NonNullList<ItemStack> items = NonNullList.withSize(SLOT_COUNT, ItemStack.EMPTY);
 	private final Runnable changedListener;
@@ -133,6 +134,11 @@ public final class DroneAssemblyInventory implements Container {
 
 	public boolean isComplete() {
 		return mask() == FULL_MASK;
+	}
+
+	/** A camera is optional for flying the aircraft in line of sight. */
+	public boolean isFlightReady() {
+		return (mask() & REQUIRED_FLIGHT_MASK) == REQUIRED_FLIGHT_MASK;
 	}
 
 	/** Replaces all contents with the standard starter assembly and notifies once. */

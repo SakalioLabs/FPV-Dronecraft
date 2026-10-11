@@ -75,15 +75,23 @@ public final class DroneRemoteSessions {
 		Session previous = SESSIONS.get(player.getUUID());
 		boolean sameTarget = previous != null && previous.player == player && previous.drone == drone;
 		SESSIONS.put(player.getUUID(), new Session(player, drone, playerLevel(player).getServer().getTickCount(),
-				sameTarget && previous.remoteView));
+				sameTarget && previous.remoteView && drone.hasCamera()));
 	}
 
 	public static void setRemoteView(ServerPlayer player, boolean enabled) {
 		Session session = session(player);
 		if (session != null) {
-			session.remoteView = enabled;
+			session.remoteView = enabled && session.drone.hasCamera();
 		} else if (enabled) {
 			notifyEnded(player);
+		}
+	}
+
+	/** Camera removal revokes mounted views without ending the control/loading lease. */
+	public static void cameraRemoved(DroneEntity drone) {
+		if (drone == null || drone.hasCamera()) return;
+		for (Session session : SESSIONS.values()) {
+			if (session.drone == drone) session.remoteView = false;
 		}
 	}
 
@@ -155,7 +163,9 @@ public final class DroneRemoteSessions {
 			return null;
 		}
 		Session session = SESSIONS.get(player.getUUID());
-		return validSession(session, player) ? session : null;
+		if (!validSession(session, player)) return null;
+		if (!session.drone.hasCamera()) session.remoteView = false;
+		return session;
 	}
 
 	private static boolean validSession(Session session, ServerPlayer player) {

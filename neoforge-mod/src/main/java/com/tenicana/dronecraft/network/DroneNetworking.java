@@ -188,7 +188,7 @@ public final class DroneNetworking {
 			DroneRemoteSessions.setRemoteView(player, true);
 		} else {
 			DroneRemoteSessions.controlHeartbeat(player, drone);
-			DroneRemoteSessions.setRemoteView(player, true);
+			DroneRemoteSessions.setRemoteView(player, drone.hasCamera());
 		}
 	}
 
@@ -235,6 +235,9 @@ public final class DroneNetworking {
 		Entity camera = player.getCamera();
 		if (camera instanceof DroneEntity drone && !isValidFpvCameraDrone(player, drone)) {
 			restorePlayerCamera(player);
+		} else if (camera instanceof DroneEntity drone && !drone.hasCamera()) {
+			player.setCamera(player);
+			DroneRemoteSessions.setRemoteView(player, false);
 		}
 	}
 

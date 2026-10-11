@@ -10,12 +10,16 @@ Languages: [简体中文](#简体中文) | [繁體中文](#繁體中文) | [Engl
 
 Progress archive: [简体中文完整原始记录](docs/progress/progress.zh-CN.md) | [繁體中文整理版](docs/progress/progress.zh-TW.md) | [English summary](docs/progress/progress.en.md) | [日本語要約](docs/progress/progress.ja.md)
 
-The published Git tag is [v0.1.1-playtest.11-fabric](https://github.com/SakalioLabs/FPV-Dronecraft/tree/v0.1.1-playtest.11-fabric) (Fabric). NeoForge is under development at `0.2.0-neoforge-dev.3`; the tag does not contain a NeoForge build.
+The published Git tag is [v0.1.1-playtest.11-fabric](https://github.com/SakalioLabs/FPV-Dronecraft/tree/v0.1.1-playtest.11-fabric) (Fabric). NeoForge is under development at `0.2.0-neoforge-dev.4`; the tag does not contain a NeoForge build.
 
-`dev.3` adds placed bare frames, native component assembly and split-part models.
-All 16 pinned profiles passed build/package and client startup checks. Full
-assembly/world validation passed on 1.21.1 / NeoForge 21.1.256: 469 adapter unit
-tests, 26 GameTests and 35 native-world checks. See the
+`dev.3` introduced placed bare frames, native component assembly and split-part
+models. Those checks are historical `dev.3` evidence. `dev.4` makes the camera
+optional: the required build is four motors, four propellers, and one each of an
+ESC, flight controller, receiver, and battery (12 pieces total). Without a camera,
+only line-of-sight is available; installing one unlocks line-of-sight → FPV →
+third-person → line-of-sight. Missing any required part still blocks arming.
+`dev.4` passed 472 adapter unit tests, 27 GameTests and 39 native-world
+checks with 18 PNG captures on 1.21.1 / NeoForge 21.1.256. See the
 [installation and verification guide](docs/neoforge-installation.md) for scope
 and recorded evidence; the earlier `dev.1` results below remain historical.
 
@@ -26,7 +30,7 @@ FPV Dronecraft 是一个面向 Minecraft NeoForge 的多轴无人机/穿越机�
 ### 当前状态
 
 - 默认构建目标：Minecraft `1.21.1`、NeoForge `21.1.257`
-- Mod 版本：`0.2.0-neoforge-dev.3`
+- Mod 版本：`0.2.0-neoforge-dev.4`
 - 1.21.1 至 26.3 共 16 个配置已启用实际源码 overlay，全部仍处于适配中；启用不等于完整支持。
 - `dev.1` 历史迁移基线：16 个固定目标的 build/package、服务端四种飞行自测和客户端标题/模型/20 ticks smoke 均通过。15 个目标的完整记录在 `build/reports/neoforge-matrix/20261010-103859-388`；26.1 server 也在该报告通过，26.1 build/client 补跑记录在 `build/reports/neoforge-matrix/20261010-112848-528`。原 `103859-388` 总结果仍为失败，保留其修复前 26.1 client 失败记录；逐阶段最新来源见版本清单。
 - Java：1.21.x 使用 `21`；26.x 使用 `25`
@@ -50,12 +54,12 @@ FPV Dronecraft 是一个面向 Minecraft NeoForge 的多轴无人机/穿越机�
 
 1. 安装 Java `21`、Minecraft `1.21.1` 和 NeoForge `21.1.257`；此版本不需要 Fabric API。
 2. 运行 `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging`。
-3. 将 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.3.jar` 放入客户端和服务器的 `mods` 目录。
+3. 将 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.4.jar` 放入客户端和服务器的 `mods` 目录。
 4. 启动游戏，从 FPV Dronecraft 创造标签页获取无人机和遥控器物品。
 
 ### 快速开始
 
-新装配流程：放置碳纤维机架（或无人机机架），空手右键打开装配界面。装入四个电机、四副飞桨，以及各一个电调、飞控、接收器、电池和相机；缺少任意部件都无法解锁。可用 Shift 点击移入或拆出零件，拆装需着陆并上锁，只有机主可操作。模型会随装配状态显示部件。旧整机物品及旧存档保留完整装配；新增零件合成表留待生存玩法设计。完成装配后按下面步骤绑定、飞行。
+新装配流程：放置机架后空手右键打开装配界面。必需件共12件：四个电机、四副飞桨，以及各一个电调、飞控、接收器和电池；缺少任一必需件都无法解锁。相机为选装件：未安装时只能目视；装上后视角按目视→FPV→无人机第三人称→目视循环。可用 Shift 点击移入或拆出零件，拆装需着陆并上锁，只有机主可操作。模型会随装配状态显示部件。旧整机物品及旧存档保留完整装配；新增零件合成表留待生存玩法设计。完成装配后按下面步骤绑定、飞行。
 
 1. 从 FPV Dronecraft 创造标签页拿取无人机物品和遥控器。
 2. 放置无人机物品，生成未绑定的无人机。
@@ -90,7 +94,7 @@ FPV Dronecraft 是一個面向 Minecraft NeoForge 的多軸無人機/穿越機�
 ### 目前狀態
 
 - 預設建置目標：Minecraft `1.21.1`、NeoForge `21.1.257`
-- Mod 版本：`0.2.0-neoforge-dev.3`
+- Mod 版本：`0.2.0-neoforge-dev.4`
 - 1.21.1 至 26.3 共 16 個設定已啟用實際原始碼 overlay，全部仍在適配；啟用不等於完整支援。
 - `dev.1` 歷史遷移基線：16 個固定目標的 build/package、伺服器四種飛行自測與客戶端標題/模型/20 ticks smoke 均通過。15 個目標的完整記錄在 `build/reports/neoforge-matrix/20261010-103859-388`；26.1 server 也在該報告通過，26.1 build/client 補跑記錄在 `build/reports/neoforge-matrix/20261010-112848-528`。原 `103859-388` 總結果仍為失敗，保留其修復前 26.1 client 失敗記錄；逐階段最新來源見版本清單。
 - Java：1.21.x 使用 `21`；26.x 使用 `25`
@@ -115,12 +119,12 @@ FPV Dronecraft 是一個面向 Minecraft NeoForge 的多軸無人機/穿越機�
 
 1. 安裝 Java `21`、Minecraft `1.21.1` 與 NeoForge `21.1.257`；此版本不需要 Fabric API。
 2. 執行 `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging`。
-3. 將 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.3.jar` 放入客戶端與伺服器的 `mods` 目錄。
+3. 將 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.4.jar` 放入客戶端與伺服器的 `mods` 目錄。
 4. 啟動遊戲，從 FPV Dronecraft 創造分頁取得無人機與遙控器物品。
 
 ### 快速開始
 
-放置機架後，空手右鍵開啟裝配介面。安裝四個電機、四副飛槳，以及各一個電調、飛控、接收器、電池和相機；缺件無法解鎖。可用 Shift 點擊移入或拆出，需著陸並上鎖且由機主操作。模型同步顯示零件；舊整機和舊存檔保留完整裝配，新增合成表另行設計。
+放置機架後，空手右鍵開啟裝配介面。必需零件共12件：四個電機、四副螺旋槳，以及各一個電調、飛控、接收器和電池；缺少任何必需零件都無法解鎖。相機為選配：未安裝時只能目視；安裝後視角依序循環目視→FPV→無人機第三人稱→目視。機主須著陸並上鎖後，才能用 Shift 點擊安裝或拆出零件。舊整機和舊存檔保留完整裝配，新零件合成表另行設計。
 
 1. 從 FPV Dronecraft 創造分頁拿取無人機物品與遙控器。
 2. 放置無人機物品，生成未綁定的無人機。
@@ -143,7 +147,7 @@ FPV Dronecraft is a Minecraft NeoForge mod for multirotor and FPV drone simulati
 ### Status
 
 - Default build target: Minecraft `1.21.1`, NeoForge `21.1.257`
-- Mod version: `0.2.0-neoforge-dev.3`
+- Mod version: `0.2.0-neoforge-dev.4`
 - Sixteen profiles from 1.21.1 through 26.3 have active source overlays; all remain under adaptation. An active overlay does not establish support.
 - Historical `dev.1` migration baseline: build/package, four dedicated-server flight self-tests, and client title/model/20-tick smoke passed for all 16 pinned targets. Fifteen complete records are in `build/reports/neoforge-matrix/20261010-103859-388`; 26.1 server passed there, and its supplemental build/client pass is in `build/reports/neoforge-matrix/20261010-112848-528`. The original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure; per-stage latest sources are recorded in the target inventory.
 - Java 21 is used for 1.21.x and Java 25 for 26.x.
@@ -167,12 +171,12 @@ FPV Dronecraft is a Minecraft NeoForge mod for multirotor and FPV drone simulati
 
 1. Install Java `21`, Minecraft `1.21.1`, and NeoForge `21.1.257`. Fabric API is not required.
 2. Run `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging`.
-3. Install `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.3.jar` in the client and server `mods` folders.
+3. Install `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.4.jar` in the client and server `mods` folders.
 4. Launch the game and obtain the drone item and controller from the FPV Dronecraft creative tab.
 
 ### Quick Start
 
-Place a carbon frame or drone airframe, then empty-hand right-click it to open the assembly menu. Install four motors, four propellers, and one each of ESC, flight controller, receiver, battery and camera. Any missing component blocks arming at the server. Native Shift-click installs or removes components; the owner must land and disarm first. Installed parts appear on the aircraft. Legacy complete drones stay assembled; new component recipes are deferred to survival design.
+Place a carbon frame or drone airframe, then empty-hand right-click it to open the assembly menu. The 12 required pieces are four motors, four propellers, and one each of an ESC, flight controller, receiver, and battery; any missing required piece blocks arming. The camera is optional: without it, only line-of-sight is available; installing it unlocks line-of-sight → FPV → drone third-person → line-of-sight. The owner must land and disarm before using Shift-click to install or remove parts. Legacy complete drones stay assembled; new component recipes are deferred to survival design.
 
 1. Get the drone item and controller from the FPV Dronecraft creative tab.
 2. Place the drone item to spawn an unbound drone.
@@ -208,7 +212,7 @@ FPV Dronecraft は、Minecraft NeoForge 向けのマルチローター/FPV ド�
 ### 現在の状態
 
 - デフォルトのビルド対象: Minecraft `1.21.1`、NeoForge `21.1.257`
-- Mod version: `0.2.0-neoforge-dev.3`
+- Mod version: `0.2.0-neoforge-dev.4`
 - 1.21.1 から 26.3 までの16プロファイルで実際のソース overlay が有効ですが、すべて適応中です。有効化は完全なサポートを意味しません。
 - `dev.1` の履歴移行基線：16個の固定対象すべてでbuild/package、サーバー飛行テスト4種、クライアントのタイトル/モデル/20 ticks smokeが通過しました。15対象の全記録は `build/reports/neoforge-matrix/20261010-103859-388`、26.1 serverも同レポート、26.1 build/clientの補完実行は `build/reports/neoforge-matrix/20261010-112848-528` にあります。元の `103859-388` 全体は修正前26.1 client失敗を保持しているためfailedのままです。最新stageのsourceMatrixReportはtarget inventoryを参照してください。
 - Java 21 は1.21.x、Java 25 は26.xで使用します。
@@ -233,12 +237,12 @@ FPV Dronecraft は、Minecraft NeoForge 向けのマルチローター/FPV ド�
 
 1. Java `21`、Minecraft `1.21.1`、NeoForge `21.1.257` を導入します。このビルドに Fabric API は不要です。
 2. `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging` を実行します。
-3. `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.3.jar` をクライアントとサーバーの `mods` に入れます。
+3. `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.4.jar` をクライアントとサーバーの `mods` に入れます。
 4. ゲームを起動し、FPV Dronecraft のクリエイティブタブからドローンとコントローラーを入手します。
 
 ### クイックスタート
 
-機体フレームを設置し、空手で右クリックして組立画面を開きます。モーター4個、プロペラ4枚、ESC・フライトコントローラー・受信機・バッテリー・カメラ各1個が必要です。欠品時はアームできません。着陸・ディスアーム後、所有者がShiftクリックで部品を取り付け・取り外せます。旧完成機と旧セーブは完成状態を保持し、新しいレシピは今後設計します。
+機体フレームを設置し、空手で右クリックして組立画面を開きます。必須部品は計12個：モーター4個、プロペラ4枚、ESC・フライトコントローラー・受信機・バッテリー各1個です。必須部品が欠けるとアームできません。カメラは任意で、未装着時は目視のみ、装着すると目視→FPV→ドローン三人称→目視の順に切り替わります。所有者は着陸・ディスアーム後にShiftクリックで部品を取り付け・取り外せます。旧完成機と旧セーブは完成状態を保持し、新しいレシピは今後設計します。
 
 1. FPV Dronecraft のクリエイティブタブからドローンとコントローラーを入手します。
 2. ドローンアイテムを置いて、未バインドの機体を出します。

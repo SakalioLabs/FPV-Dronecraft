@@ -34,6 +34,7 @@ import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.item.DroneControllerItem;
 import com.tenicana.dronecraft.menu.DroneAssemblyMenu;
 import com.tenicana.dronecraft.network.DroneRemoteSessions;
+import com.tenicana.dronecraft.network.DroneViewPayload;
 import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.FlightMode;
 import com.tenicana.dronecraft.sim.Quaternion;
@@ -74,6 +75,7 @@ import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.RenderPlayerEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -100,7 +102,10 @@ public final class NativeClientWorldValidation {
     private static final String[] REQUIRED = {
         "native_world_ready", "unbound_controller_air_use", "two_native_survival_placements",
         "native_bare_frame_placement", "native_empty_hand_assembly_menu", "native_partial_assembly_transfer",
-        "native_incomplete_assembly_rejects_arm", "native_complete_assembly_transfer",
+        "native_incomplete_assembly_rejects_arm", "native_camera_optional_los_arm",
+        "native_missing_camera_blocks_view_cycle", "native_missing_camera_rejects_remote_payload",
+        "native_camera_removal_returns_los_without_losing_control",
+        "native_complete_assembly_transfer",
         "native_component_removal_and_reinstall", "native_complete_assembly_model",
         "plain_interaction_does_not_bind", "shift_binds_first_uuid", "shift_rebinds_exact_second_uuid",
         "bound_controller_arm_and_yaw_network", "fpv_visible_stationary_body_and_hidden_hands",
@@ -117,9 +122,11 @@ public final class NativeClientWorldValidation {
         WAIT_WORLD, SETUP, CONTROLLER_AIR, GIVE_DRONES, PLACE_FIRST, PLACE_SECOND,
         GIVE_FRAME, ASSEMBLY_PREPARE, ASSEMBLY_OPEN, ASSEMBLY_PARTIAL, ASSEMBLY_PARTIAL_BODY,
         ASSEMBLY_BIND_READY, ASSEMBLY_BIND, ASSEMBLY_BLOCKED, ASSEMBLY_REOPEN_READY,
-        ASSEMBLY_REOPEN, ASSEMBLY_COMPLETE, ASSEMBLY_REMOVE, ASSEMBLY_REINSTALL, ASSEMBLY_COMPLETE_BODY,
+        ASSEMBLY_REOPEN, ASSEMBLY_LOS_READY, ASSEMBLY_LOS_CLOSE, ASSEMBLY_LOS_EQUIP, ASSEMBLY_LOS_ARM,
+        ASSEMBLY_LOS_VIEW, ASSEMBLY_LOS_REMOTE_REQUEST, ASSEMBLY_LOS_DISARM,
+        ASSEMBLY_CAMERA_OPEN, ASSEMBLY_CAMERA_INSTALL, ASSEMBLY_COMPLETE, ASSEMBLY_REMOVE, ASSEMBLY_REINSTALL, ASSEMBLY_COMPLETE_BODY,
         GIVE_CONTROLLER, PLAIN_CLICK, SHIFT_READY, BIND_FIRST, BIND_SECOND, ARM,
-        YAW, DISARM, BODY_FPV, BODY_THIRD, BODY_LOS,
+        YAW, DISARM, BODY_FPV, CAMERA_REMOVE_ARM, CAMERA_REMOVE_SYNC, CAMERA_RESTORE, CAMERA_RESTORE_DISARM, CAMERA_RESTORE_FPV, BODY_THIRD, BODY_LOS,
         TURN_SETUP, TURN_ARM, TURN_THROTTLE, TURN_HOLD, TURN_DISARM,
         REMOTE_SETUP, REMOTE_MOVE, REMOTE_REGION, REMOTE_CROSS_ONE, REMOTE_CROSS_TWO,
         REMOTE_THIRD, REMOTE_LOS, REMOTE_REATTACH, ATTACK, FALL,
@@ -178,6 +185,7 @@ public final class NativeClientWorldValidation {
     private Vec3 originalPlayerPosition;
     private float originalHealth;
     private ItemStack boundController;
+    private ItemStack removedCamera;
     private BlockPos nearFloor, farFloor, bodyMarker, farMarker;
     private int firstChickenTick;
     private CompletableFuture<Boolean> operation;
@@ -197,7 +205,7 @@ public final class NativeClientWorldValidation {
         report.addProperty("passed", false);
         report.addProperty("started_at_utc", Instant.now().toString());
         report.addProperty("interaction_path", "native MultiPlayerGameMode useItem/useItemOn/interactAt/interact; actual Shift state and native GameRenderer pick");
-        report.addProperty("assembly_path", "Survival frame useItemOn -> empty-hand native entity interaction -> actual registered container screen and inventory click packets -> 13 individual slots -> production R arm gate; no fixture writes into the aircraft inventory");
+        report.addProperty("assembly_path", "Survival frame useItemOn -> empty-hand native entity interaction -> actual registered container screen and inventory click packets -> required-component R rejection -> camera-free R/LOS flight and B/payload rejection -> all 13 individual slots; all assembly installs use native inventory packets; separate camera-removal lifecycle probe mutates only the server camera slot");
         report.addProperty("turn_path", "production R/M/B and held keyboard controls -> production payload -> server playable quaternion -> native client camera frame");
         report.addProperty("streaming_fixture", "drone-only pose route on native DroneEntity.tick TAIL, up to 4m per tick; waits for next chunk to be loaded and entity-ticking through existing production lease; no getChunk preload or forced chunks");
         report.addProperty("body_fixture", "one initial server teleport to a temporary solid platform; normal gravity, Survival and real Husk AI; no per-tick body position writes");
@@ -397,11 +405,13 @@ public final class NativeClientWorldValidation {
                 if (!captureDone()) return;
                 DroneAssemblyMenu menu = assemblyMenu(client);
                 if (assemblyTransferIndex <= 14) {
-                    transfer(client, menu, DroneAssemblyInventory.SLOT_COUNT + assemblyTransferIndex++ - 9);
+                    int playerSlot = assemblyTransferIndex++;
+                    if (playerSlot != 12) transfer(client, menu, DroneAssemblyInventory.SLOT_COUNT + playerSlot - 9);
                     return;
                 }
-                if (record(state, targetId).assemblyMask() != 4095 || installed(menu) != 12
-                        || ((DroneEntity) clientEntity(client, targetId)).getAssemblyMask() != 4095 || !settled(8)) return;
+                int partialMask = DroneAssemblyInventory.REQUIRED_FLIGHT_MASK & ~(1 << DroneAssemblyInventory.FLIGHT_CONTROLLER);
+                if (record(state, targetId).assemblyMask() != partialMask || installed(menu) != 11
+                        || ((DroneEntity) clientEntity(client, targetId)).getAssemblyMask() != partialMask || !settled(8)) return;
                 require(menu.slots.get(12).getItem().isEmpty(), "Native transfer installed an unavailable camera");
                 check("native_partial_assembly_transfer");
                 capture(client, "assembly-partial-menu");
@@ -431,9 +441,11 @@ public final class NativeClientWorldValidation {
             }
             case ASSEMBLY_BLOCKED -> {
                 if (!settled(12)) return;
-                require(!DroneClientState.armed() && !record(state, targetId).armed() && record(state, targetId).assemblyMask() == 4095,
-                        "Production R armed an aircraft missing its camera");
+                require(!DroneClientState.armed() && !record(state, targetId).armed()
+                        && !((DroneEntity) clientEntity(client, targetId)).isFlightReady(),
+                        "Production R armed an aircraft missing its flight controller");
                 check("native_incomplete_assembly_rejects_arm");
+                boundController = client.player.getMainHandItem().copy();
                 operation = submit(client, server -> equip(player(server), ItemStack.EMPTY, ItemStack.EMPTY));
                 advance(Stage.ASSEMBLY_REOPEN_READY);
             }
@@ -443,6 +455,71 @@ public final class NativeClientWorldValidation {
                 advance(Stage.ASSEMBLY_REOPEN);
             }
             case ASSEMBLY_REOPEN -> {
+                if (!(client.screen instanceof DroneAssemblyScreen) || !settled(8)) return;
+                transfer(client, assemblyMenu(client), DroneAssemblyInventory.SLOT_COUNT + 12 - 9);
+                advance(Stage.ASSEMBLY_LOS_READY);
+            }
+            case ASSEMBLY_LOS_READY -> {
+                if (record(state, targetId).assemblyMask() != DroneAssemblyInventory.REQUIRED_FLIGHT_MASK
+                        || !((DroneEntity) clientEntity(client, targetId)).isFlightReady() || !settled(8)) return;
+                require(!((DroneEntity) clientEntity(client, targetId)).hasCamera(), "Camera-free flight fixture contains a camera");
+                capture(client, "assembly-camera-optional-menu");
+                advance(Stage.ASSEMBLY_LOS_CLOSE);
+            }
+            case ASSEMBLY_LOS_CLOSE -> {
+                if (!captureDone()) return;
+                if (client.screen != null) { client.player.closeContainer(); return; }
+                operation = submit(client, server -> equip(player(server), boundController.copy(), ItemStack.EMPTY));
+                advance(Stage.ASSEMBLY_LOS_EQUIP);
+            }
+            case ASSEMBLY_LOS_EQUIP -> {
+                if (!operationDone() || !bound(client, state, targetId) || !settled(8)) return;
+                click(GLFW.GLFW_KEY_R);
+                advance(Stage.ASSEMBLY_LOS_ARM);
+            }
+            case ASSEMBLY_LOS_ARM -> {
+                if (!record(state, targetId).armed() || !DroneClientState.armed() || !settled(12)) return;
+                require(los(client, state) && targetId.equals(state.sessionDrone()) && state.tickets() > 0,
+                        "Camera-free arming failed to retain LOS and the native control/chunk lease");
+                check("native_camera_optional_los_arm");
+                click(GLFW.GLFW_KEY_B);
+                advance(Stage.ASSEMBLY_LOS_VIEW);
+            }
+            case ASSEMBLY_LOS_VIEW -> {
+                if (!settled(12)) return;
+                require(los(client, state) && record(state, targetId).armed() && DroneClientState.armed(),
+                        "B enabled a remote camera or interrupted camera-free flight");
+                check("native_missing_camera_blocks_view_cycle");
+                PacketDistributor.sendToServer(new DroneViewPayload(true));
+                // Assert the authoritative production gate immediately, before normal LOS
+                // heartbeats can overwrite a wrongly accepted remote flag.
+                operation = submit(client, server -> {
+                    ServerPlayer pilot = player(server);
+                    DroneRemoteSessions.setRemoteView(pilot, true);
+                    require(!DroneRemoteSessions.isRemoteView(pilot) && DroneRemoteSessions.trackedDrone(pilot) == drone(server),
+                            "Authoritative remote-view gate accepted a camera-free drone or ended its control lease");
+                });
+                advance(Stage.ASSEMBLY_LOS_REMOTE_REQUEST);
+            }
+            case ASSEMBLY_LOS_REMOTE_REQUEST -> {
+                if (!operationDone() || !settled(12)) return;
+                require(los(client, state) && record(state, targetId).armed() && targetId.equals(state.sessionDrone()) && state.tickets() > 0,
+                        "Server accepted a camera-free remote request or discarded the native control/chunk lease");
+                check("native_missing_camera_rejects_remote_payload");
+                click(GLFW.GLFW_KEY_R);
+                advance(Stage.ASSEMBLY_LOS_DISARM);
+            }
+            case ASSEMBLY_LOS_DISARM -> {
+                if (record(state, targetId).armed() || DroneClientState.armed() || !settled(12)) return;
+                operation = submit(client, server -> equip(player(server), ItemStack.EMPTY, ItemStack.EMPTY));
+                advance(Stage.ASSEMBLY_CAMERA_OPEN);
+            }
+            case ASSEMBLY_CAMERA_OPEN -> {
+                if (!operationDone() || !client.player.getMainHandItem().isEmpty() || !settled(8)) return;
+                interact(client, targetId, false);
+                advance(Stage.ASSEMBLY_CAMERA_INSTALL);
+            }
+            case ASSEMBLY_CAMERA_INSTALL -> {
                 if (!(client.screen instanceof DroneAssemblyScreen) || !settled(8)) return;
                 transfer(client, assemblyMenu(client), DroneAssemblyInventory.SLOT_COUNT + 15 - 9);
                 advance(Stage.ASSEMBLY_COMPLETE);
@@ -552,6 +629,40 @@ public final class NativeClientWorldValidation {
                 require(!client.gameRenderer.getMainCamera().isDetached(), "Native FPV camera was detached");
                 check("fpv_visible_stationary_body_and_hidden_hands");
                 capture(client, "pilot-body-fpv");
+                click(GLFW.GLFW_KEY_R);
+                advance(Stage.CAMERA_REMOVE_ARM);
+            }
+            case CAMERA_REMOVE_ARM -> {
+                if (!captureDone() || !record(state, targetId).armed() || !DroneClientState.armed() || !settled(12)) return;
+                require(remote(client, state, DroneViewMode.FPV), "Camera-removal probe did not start in native FPV");
+                operation = submit(client, server -> removedCamera = drone(server).assemblyInventory().removeItem(DroneAssemblyInventory.CAMERA, 1));
+                advance(Stage.CAMERA_REMOVE_SYNC);
+            }
+            case CAMERA_REMOVE_SYNC -> {
+                if (!operationDone() || !settled(12)) return;
+                require(los(client, state) && bound(client, state, targetId) && record(state, targetId).armed()
+                        && DroneClientState.armed() && targetId.equals(state.sessionDrone()) && state.tickets() > 0
+                        && ((DroneEntity) clientEntity(client, targetId)).isFlightReady()
+                        && !((DroneEntity) clientEntity(client, targetId)).hasCamera(),
+                        "Camera metadata removal did not return to the body camera while preserving armed control/chunk lease");
+                check("native_camera_removal_returns_los_without_losing_control");
+                operation = submit(client, server -> drone(server).assemblyInventory().setItem(DroneAssemblyInventory.CAMERA, removedCamera));
+                advance(Stage.CAMERA_RESTORE);
+            }
+            case CAMERA_RESTORE -> {
+                if (!operationDone() || !((DroneEntity) clientEntity(client, targetId)).hasCamera() || !settled(12)) return;
+                require(los(client, state) && record(state, targetId).armed() && DroneClientState.armed(),
+                        "Camera reinstall unexpectedly entered remote view or changed arming");
+                click(GLFW.GLFW_KEY_R);
+                advance(Stage.CAMERA_RESTORE_DISARM);
+            }
+            case CAMERA_RESTORE_DISARM -> {
+                if (record(state, targetId).armed() || DroneClientState.armed() || !settled(12)) return;
+                click(GLFW.GLFW_KEY_B);
+                advance(Stage.CAMERA_RESTORE_FPV);
+            }
+            case CAMERA_RESTORE_FPV -> {
+                if (!remote(client, state, DroneViewMode.FPV) || !settled(12)) return;
                 click(GLFW.GLFW_KEY_B);
                 advance(Stage.BODY_THIRD);
             }

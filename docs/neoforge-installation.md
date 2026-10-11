@@ -2,7 +2,25 @@
 
 ## Current status
 
-`dev.3` adds placed bare frames, a native 13-slot assembly menu and split-part
+`dev.4` makes the camera optional for flight. Four motors, four propellers,
+ESC, flight controller, receiver and battery remain required. Without a
+camera, the drone can arm and fly in line of sight, and B stays in line of
+sight. A camera unlocks the LOS -> FPV -> drone third-person -> LOS cycle.
+Camera removal returns remote viewing to LOS while retaining the control
+lease and drone chunk updates. The server also rejects camera-free remote-view
+requests. The thirteen-slot saved inventory and split-part visibility are
+unchanged. On Minecraft 1.21.1 / NeoForge 21.1.256, `dev.4` passed 472 adapter
+unit tests, 27 GameTests, packaging and 39 native-world checks with 18 PNGs.
+Final world run: `22ff5a7a-27cb-4c9d-bb6b-70e1e85ab330`. Evidence is frozen in
+`../MCFPV/deliverables/camera-optional-neoforge-21.1.256-20261011/evidence`;
+source logs are `build/camera-optional-256-native-01.log` and
+`build/camera-optional-256-native-02.log`. The second world run adds a camera-free
+ready-menu capture and an immediate server authorization check, so ordinary LOS
+heartbeats cannot conceal an incorrectly accepted remote-view request. The
+mounted-camera removal probe changes only the server camera slot to exercise
+metadata correction while armed; native menu transfer is tested separately.
+
+Historical `dev.3` adds placed bare frames, a native 13-slot assembly menu and split-part
 models. Minecraft 1.21.1 / NeoForge 21.1.256 passed 469 adapter unit tests,
 26 GameTests, packaging and 35 native-world observations with 17 real PNGs.
 The final world run is `ecca876e-33ca-4106-8a3e-c080bfebe2fe`, with Mekanism
@@ -26,7 +44,7 @@ SHA-256 of all 16 jars. Later fixes only touched excluded newer-version
 overlays, so the earlier passing targets retain their effective source.
 Startup smoke does not exercise assembly menus or flight in those other worlds.
 
-The current NeoForge development build is `0.2.0-neoforge-dev.3`. The recorded
+The current NeoForge development build is `0.2.0-neoforge-dev.4`. The recorded
 sixteen-target matrix, 1,255 native unit tests, and World 05 validation below
 were completed on `0.2.0-neoforge-dev.1` and remain migration-baseline evidence;
 they do not establish current-build coverage. The `dev.2` Minecraft 1.21.1 /
@@ -70,7 +88,7 @@ root, build the default profile:
 ```
 
 The production jar is
-`build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.3.jar`.
+`build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.4.jar`.
 Install that target-specific jar in the `mods` folder of the client and server.
 Each Minecraft target has its own jar; do not reuse one target's jar with a
 different Minecraft version. Fabric Loader and Fabric API are not required.
@@ -101,8 +119,9 @@ Evidence is target- and stage-specific:
 
 | Stage | Current evidence |
 | --- | --- |
-| `dev.3` 1.21.1 / NeoForge 21.1.256 | 469 adapter unit tests, 26 GameTests, packaging and 35 native-world checks passed; 4 signed continuous turns and 17 PNG captures. Final world UUID: `ecca876e-33ca-4106-8a3e-c080bfebe2fe`. Frozen evidence is in the assembly runtime bundle above. |
-| `dev.3` all 16 pinned targets | Build/package and native title/controller startup smoke passed across `20261011-035035-251`, code-fix retry `20261011-040319-465` and 1.21.7 client retry `20261011-041610-192`. First and second raw aggregates remain failed; the frozen multiversion manifest maps every passing stage to its actual report. |
+| `dev.4` 1.21.1 / NeoForge 21.1.256 | 472 adapter unit tests, 27 GameTests, packaging and 39 native-world checks passed; 4 signed continuous turns and 18 PNG captures. Final world UUID: `22ff5a7a-27cb-4c9d-bb6b-70e1e85ab330`. Includes camera-free LOS, B/payload denial, camera removal preserving armed control/tickets, and explicit B after reinstall. |
+| Historical `dev.3` 1.21.1 / NeoForge 21.1.256 | 469 adapter unit tests, 26 GameTests, packaging and 35 native-world checks passed; 4 signed continuous turns and 17 PNG captures. Final world UUID: `ecca876e-33ca-4106-8a3e-c080bfebe2fe`. Frozen evidence is in the assembly runtime bundle above. |
+| Historical `dev.3` all 16 pinned targets | Build/package and native title/controller startup smoke passed across `20261011-035035-251`, code-fix retry `20261011-040319-465` and 1.21.7 client retry `20261011-041610-192`. First and second raw aggregates remain failed; the frozen multiversion manifest maps every passing stage to its actual report. |
 | Compile/package, dedicated-server flight, and client smoke | Historical `dev.1` evidence passed for all 16 pinned targets. Fifteen complete records are in `build/reports/neoforge-matrix/20261010-103859-388`; 26.1 server passed there and its supplemental build/client pass is in `build/reports/neoforge-matrix/20261010-112848-528`. The original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure. |
 | Native unit tests | Historical `dev.1` final `1.21.1` rerun passed 1,255 (520 core, 270 acoustics, 465 NeoForge), recorded in `build/mc12101-final-native-06.log` |
 | NeoForge GameTests | Historical `dev.1` evidence: 18 passed on `1.21.1` |
