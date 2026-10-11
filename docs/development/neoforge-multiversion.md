@@ -135,7 +135,12 @@ An explicit non-pinned `-PtargetNeoForge=<version>` selects a different NeoForge
 | 26.2 | 25 | `mc12111`, `mc261`, `mc262` |
 | 26.3 | 25 | `mc12111`, `mc263` |
 
-These 16 stacks are enabled for ongoing adaptation. The listed compile, packaging, and runtime passes are `dev.1` baseline evidence. Runtime and client/server behavior for `dev.2` still require separate evidence. The base implementation is the current 1.21.1 source tree.
+These 16 stacks are enabled for ongoing adaptation. Current `dev.5` build,
+packaging and native client startup evidence is recorded above, with world
+interaction checked separately on exact 1.21.1 / NeoForge 21.1.256. The `dev.1`
+server-flight and migration results remain historical baseline evidence. Passing
+one stage does not establish complete support for a target. The base
+implementation is the current 1.21.1 source tree.
 
 ## Source boundaries
 
