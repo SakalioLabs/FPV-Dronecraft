@@ -7,6 +7,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -30,6 +31,8 @@ public final class DroneItems {
 	private static final DeferredItem<Item> ESC = component("esc");
 	private static final DeferredItem<Item> FLIGHT_CONTROLLER = component("flight_controller");
 	private static final DeferredItem<Item> LIPO_BATTERY = component("lipo_battery");
+	private static final DeferredItem<Item> CARBON_PLATE = component("carbon_plate");
+	private static final DeferredItem<BlockItem> CNC_WORKSTATION = ITEMS.registerSimpleBlockItem("cnc_workstation", DroneBlocks::cncWorkstation);
 	private static final DeferredItem<DronePlacementItem> CARBON_FRAME = ITEMS.registerItem(
 			"carbon_frame", properties -> new DronePlacementItem(properties, true),
 			new Item.Properties().stacksTo(1)
@@ -64,6 +67,8 @@ public final class DroneItems {
 						output.accept(esc());
 						output.accept(flightController());
 						output.accept(lipoBattery());
+						output.accept(carbonPlate());
+						output.accept(cncWorkstation());
 						output.accept(receiver());
 						output.accept(fpvCamera());
 						output.accept(carbonFrame());
@@ -119,6 +124,10 @@ public final class DroneItems {
 	}
 
 	public static Item receiver() { return RECEIVER.get(); }
+
+	public static Item carbonPlate() { return CARBON_PLATE.get(); }
+
+	public static Item cncWorkstation() { return CNC_WORKSTATION.get(); }
 
 	public static Item fpvCamera() { return FPV_CAMERA.get(); }
 

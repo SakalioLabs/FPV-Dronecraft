@@ -23,7 +23,7 @@ class ClientTitleScreenProbeTest {
 		Path report = temporaryDirectory.resolve("nested/report.json");
 		String runId = UUID.randomUUID().toString();
 
-		ClientTitleScreenProbe.writeReport(report, runId, 20, true, true);
+		ClientTitleScreenProbe.writeReport(report, runId, 20, true, true, true);
 
 		JsonObject json = JsonParser.parseString(Files.readString(report, StandardCharsets.UTF_8)).getAsJsonObject();
 		assertEquals(1, json.get("schema_version").getAsInt());
@@ -31,6 +31,7 @@ class ClientTitleScreenProbeTest {
 		assertTrue(json.get("passed").getAsBoolean());
 		assertTrue(json.get("title_screen_ready").getAsBoolean());
 		assertTrue(json.get("controller_model_ready").getAsBoolean());
+		assertTrue(json.get("cnc_and_carbon_plate_models_ready").getAsBoolean());
 		assertEquals(20, json.get("stable_ticks").getAsInt());
 		assertFalse(Files.exists(report.resolveSibling("report.json.tmp")));
 	}
@@ -39,9 +40,18 @@ class ClientTitleScreenProbeTest {
 	void neverMarksAnIncompleteObservationAsPassing() throws Exception {
 		Path report = temporaryDirectory.resolve("report.json");
 
-		ClientTitleScreenProbe.writeReport(report, UUID.randomUUID().toString(), 19, true, true);
+		ClientTitleScreenProbe.writeReport(report, UUID.randomUUID().toString(), 19, true, true, true);
 
 		JsonObject json = JsonParser.parseString(Files.readString(report)).getAsJsonObject();
 		assertFalse(json.get("passed").getAsBoolean());
 	}
+
+    @Test
+    void missingCncModelsNeverCountAsStartupSuccess() throws Exception {
+        Path report = temporaryDirectory.resolve("missing-cnc.json");
+        ClientTitleScreenProbe.writeReport(report, UUID.randomUUID().toString(), 20, true, true, false);
+        JsonObject json = JsonParser.parseString(Files.readString(report)).getAsJsonObject();
+        assertFalse(json.get("passed").getAsBoolean());
+        assertFalse(json.get("cnc_and_carbon_plate_models_ready").getAsBoolean());
+    }
 }

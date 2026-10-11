@@ -50,7 +50,8 @@ public final class ClientTitleScreenProbe {
 		boolean titleScreenReady = client.gui.screen() instanceof TitleScreen && client.gui.overlay() == null;
 		boolean resourceReady = client.getResourceManager().getResource(CONTROLLER_MODEL).isPresent()
 				&& ClientModelReadiness.controllerModelReady(client);
-		stableTicks = titleScreenReady && resourceReady ? stableTicks + 1 : 0;
+		boolean cncReady = ClientModelReadiness.cncModelsReady(client);
+		stableTicks = titleScreenReady && resourceReady && cncReady ? stableTicks + 1 : 0;
 		if (stableTicks < REQUIRED_STABLE_TICKS && System.nanoTime() - startedAt < 180_000_000_000L) {
 			return;
 		}
@@ -58,7 +59,7 @@ public final class ClientTitleScreenProbe {
 		finished = true;
 		Path report = client.gameDirectory.toPath().resolve(REPORT_DIRECTORY).resolve(REPORT_FILE);
 		try {
-			writeReport(report, runId, stableTicks, titleScreenReady, resourceReady);
+			writeReport(report, runId, stableTicks, titleScreenReady, resourceReady, cncReady);
 			FpvDronecraftMod.LOGGER.info("FPV Dronecraft client startup evidence: {} (title={}, bakedController={}, stableTicks={})",
 					report, titleScreenReady, resourceReady, stableTicks);
 			client.stop();
@@ -69,13 +70,14 @@ public final class ClientTitleScreenProbe {
 	}
 
 	static void writeReport(Path report, String reportRunId, int reportStableTicks,
-			boolean titleScreenReady, boolean resourceReady) throws IOException {
+			boolean titleScreenReady, boolean resourceReady, boolean cncReady) throws IOException {
 		JsonObject json = new JsonObject();
 		json.addProperty("schema_version", 1);
 		json.addProperty("run_id", reportRunId);
-		json.addProperty("passed", titleScreenReady && resourceReady && reportStableTicks >= REQUIRED_STABLE_TICKS);
+		json.addProperty("passed", titleScreenReady && resourceReady && cncReady && reportStableTicks >= REQUIRED_STABLE_TICKS);
 		json.addProperty("title_screen_ready", titleScreenReady);
 		json.addProperty("controller_model_ready", resourceReady);
+		json.addProperty("cnc_and_carbon_plate_models_ready", cncReady);
 		json.addProperty("stable_ticks", reportStableTicks);
 
 		Files.createDirectories(report.getParent());

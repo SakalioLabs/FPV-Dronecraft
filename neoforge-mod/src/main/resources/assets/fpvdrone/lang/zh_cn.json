@@ -215,5 +215,14 @@
 	"screen.fpvdrone.assembly_incomplete": "已装 %s/%s 件，缺件禁止起飞",
 	"menu.fpvdrone.assembly": "无人机装配 · 机架已安装",
 	"message.fpvdrone.camera_required": "请安装相机以使用 FPV 或无人机第三人称视角。",
-	"screen.fpvdrone.assembly_los_ready": "可目视飞行，装相机开启 FPV"
+	"screen.fpvdrone.assembly_los_ready": "可目视飞行，装相机开启 FPV",
+	"block.fpvdrone.cnc_workstation": "CNC 加工机床",
+	"item.fpvdrone.cnc_workstation": "CNC 加工机床",
+	"item.fpvdrone.carbon_plate": "碳纤维板",
+	"menu.fpvdrone.cnc_workstation": "CNC 加工机床",
+	"screen.fpvdrone.cnc_recipe": "4 块碳板 → 1 个无人机机架",
+	"screen.fpvdrone.cnc_collect": "请取出加工完成的机架",
+	"screen.fpvdrone.cnc_processing": "加工中：%s%%",
+	"screen.fpvdrone.cnc_insert": "放入至少 4 块碳板开始加工",
+	"container.fpvdrone.cnc_workstation": "CNC 加工机床"
 }

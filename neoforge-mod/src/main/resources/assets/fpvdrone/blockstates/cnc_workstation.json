@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "fpvdrone:block/cnc_workstation"
+    },
+    "facing=east": {
+      "model": "fpvdrone:block/cnc_workstation"
+    },
+    "facing=south": {
+      "model": "fpvdrone:block/cnc_workstation"
+    },
+    "facing=west": {
+      "model": "fpvdrone:block/cnc_workstation"
+    }
+  }
+}

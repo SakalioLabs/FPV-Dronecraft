@@ -21,7 +21,7 @@ class TranslationCoverageTest {
 	private static final Path MODULE_ROOT = neoForgeModuleRoot();
 	private static final Path LANG_DIR = MODULE_ROOT.resolve("src/main/resources/assets/fpvdrone/lang");
 	private static final Pattern DIRECT_TRANSLATION_KEY = Pattern.compile(
-			"\"((?:item|entity|creativeTab|key|key\\.categories|message|hud|button|screen)\\.fpvdrone(?:\\.[A-Za-z0-9_]+)*)\""
+			"\"((?:item|block|container|entity|creativeTab|key|key\\.categories|message|hud|button|screen)\\.fpvdrone(?:\\.[A-Za-z0-9_]+)*)\""
 	);
 
 	@Test

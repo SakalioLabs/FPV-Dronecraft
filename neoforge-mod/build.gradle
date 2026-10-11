@@ -101,7 +101,14 @@ def requiredGameTests = [
 		"native_entity_save_preserves_partial_components_and_migrates_legacy",
 		"fe_battery_menu_and_detached_save_preserve_charge_and_launch",
 		"destruction_drops_only_installed_real_components_once",
-		"lipo_battery_native_transfer_preserves_charge_and_fresh_replacement"
+		"lipo_battery_native_transfer_preserves_charge_and_fresh_replacement",
+		"native_cnc_four_plates_complete_atomically_after_120_ticks",
+		"native_cnc_wrong_or_insufficient_material_never_processes",
+		"native_cnc_input_changes_cancel_progress_without_loss",
+		"native_cnc_blocked_output_never_overwrites_or_consumes",
+		"native_cnc_menu_transfers_preserve_full_backpacks",
+		"native_cnc_save_restores_progress_and_typed_components",
+		"native_cnc_removal_drops_inventory_once_and_facing_keeps_it"
 ] as Set
 
 neoForge {
@@ -284,7 +291,8 @@ tasks.named("runClientSmoke") {
 		if (!report.isFile()) throw new GradleException("Client startup report was not created: ${report}")
 		def evidence = new groovy.json.JsonSlurper().parse(report)
 		if (evidence.run_id != clientSmokeRunId || evidence.passed != true ||
-				evidence.title_screen_ready != true || evidence.controller_model_ready != true || evidence.stable_ticks < 20) {
+				evidence.title_screen_ready != true || evidence.controller_model_ready != true ||
+				evidence.cnc_and_carbon_plate_models_ready != true || evidence.stable_ticks < 20) {
 			throw new GradleException("Client startup evidence failed or belongs to an earlier run: ${report}")
 		}
 		logger.lifecycle("Client startup smoke passed: {}", report)
@@ -301,7 +309,7 @@ if (project.minecraft_version == "1.21.1") {
 	tasks.named("runClientWorldValidation") {
 		group = "verification"
 		timeout.set(java.time.Duration.ofMinutes(14))
-		description = "Validates native placement, binding, four signed turns, remote streaming and the physical pilot in an isolated world."
+		description = "Validates native CNC manufacturing, frame assembly, binding, four signed turns, remote streaming and the physical pilot in an isolated world."
 		doFirst { delete(clientWorldValidationReport) }
 		doLast {
 			File report = clientWorldValidationReport.get().asFile
@@ -309,6 +317,14 @@ if (project.minecraft_version == "1.21.1") {
 			def evidence = new groovy.json.JsonSlurper().parse(report)
 			def required = [
 				"native_world_ready", "unbound_controller_air_use", "two_native_survival_placements",
+				"native_cnc_survival_placement",
+				"native_empty_hand_cnc_menu",
+				"native_cnc_input_transfer_and_120_tick_four_plate_job",
+				"native_cnc_processes_with_menu_closed",
+				"native_cnc_output_blocks_extra_processing",
+				"native_cnc_native_output_transfer",
+				"native_cnc_machined_frame_placement",
+
 				"native_bare_frame_placement", "native_empty_hand_assembly_menu", "native_partial_assembly_transfer",
 				"native_incomplete_assembly_rejects_arm", "native_camera_optional_los_arm",
                 "native_missing_camera_blocks_view_cycle", "native_missing_camera_rejects_remote_payload",
@@ -340,7 +356,7 @@ if (project.minecraft_version == "1.21.1") {
 						!(it.maximum_camera_basis_error instanceof Number) || !Double.isFinite(it.maximum_camera_basis_error.doubleValue()) || it.maximum_camera_basis_error >= 0.002 ||
 						!(it.maximum_server_model_render_basis_error instanceof Number) || !Double.isFinite(it.maximum_server_model_render_basis_error.doubleValue()) || it.maximum_server_model_render_basis_error >= 0.0001
 					}) throw new GradleException("Native four-turn evidence invalid: ${report}")
-			if (!(evidence.screenshots instanceof List) || evidence.screenshots.size() != 18 || evidence.screenshots.any {
+			if (!(evidence.screenshots instanceof List) || evidence.screenshots.size() != 22 || evidence.screenshots.any {
 				it.png_verified != true || !(it.file instanceof String) || !new File(it.file).isFile()
 			}) throw new GradleException("Native world screenshot evidence incomplete: ${report}")
 			def terrainChecks = ["far_fpv_native_terrain_rendered", "far_third_person_native_terrain_rendered", "los_native_terrain_returns_to_body"] as Set

@@ -25,6 +25,7 @@ public final class FpvDronecraftMod {
 		DroneDataComponents.register(modEventBus);
 		DroneRecipeSerializers.register(modEventBus);
 		DroneItems.register(modEventBus);
+		com.tenicana.dronecraft.registry.DroneBlocks.register(modEventBus);
 		com.tenicana.dronecraft.registry.DroneMenus.register(modEventBus);
 		DroneSoundEvents.register(modEventBus);
 		modEventBus.addListener(DroneNetworking::registerPayloadHandlers);

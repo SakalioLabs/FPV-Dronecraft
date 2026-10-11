@@ -2,7 +2,36 @@
 
 ## Current status
 
-`dev.4` makes the camera optional for flight. Four motors, four propellers,
+`dev.5` adds a placed CNC workstation and carbon plate item. Four carbon plates
+produce one existing placeable bare drone frame in 120 server ticks (about six
+seconds). The machine retains inventory and progress across saves, continues
+with its menu closed while its chunk ticks, and pauses until the previous frame
+is collected. The supplied v2 machine model has separate glass and opaque passes
+and a machining animation. CNC and carbon plate crafting recipes are deferred;
+both items are in the creative tab. See the [CNC usage guide](cnc-workstation.md).
+
+On Minecraft 1.21.1 / NeoForge 21.1.256, `dev.5` passed 479 adapter unit tests,
+34 GameTests, packaging and 46 native-world checks with 22 PNGs. Final world run:
+`373ae988-6bca-47b6-971f-b5f9fc4e323c`. Frozen evidence is in
+`../MCFPV/deliverables/cnc-runtime-neoforge-20261011/evidence`; final source log
+is `build/cnc-256-native-02.log`. The new route places a real CNC, transfers
+plates through native menu packets, observes the 120-tick job and blocked output,
+takes the resulting frame, and places that exact frame as a bare drone. It also
+retains the prior assembly, camera and flight checks. The deployed jar is built
+for exact NeoForge 21.1.256; the default 21.1.257 jar is a separate artifact.
+
+All 16 pinned `dev.5` targets passed build/package and fresh native
+title/controller/CNC/carbon-plate item-model startup checks. The 1.21.1 stages
+passed in `build/reports/neoforge-matrix/20261011-065205-754`; the other 15 targets
+passed after API repairs in `build/reports/neoforge-matrix/20261011-070029-417`.
+The first raw aggregate remains failed to preserve the initial compile errors.
+Only excluded newer-version overlays changed after the passing 1.21.1 stages.
+The CNC bundle's `multiversion-manifest.json` maps every passing stage and jar
+SHA-256 to its actual report. Startup checks include baked CNC and carbon plate
+items and native renderer initialization, but do not exercise machine interaction
+or world rendering on those other versions. All profiles remain `adapting`.
+
+Historical `dev.4` makes the camera optional for flight. Four motors, four propellers,
 ESC, flight controller, receiver and battery remain required. Without a
 camera, the drone can arm and fly in line of sight, and B stays in line of
 sight. A camera unlocks the LOS -> FPV -> drone third-person -> LOS cycle.
@@ -44,7 +73,7 @@ SHA-256 of all 16 jars. Later fixes only touched excluded newer-version
 overlays, so the earlier passing targets retain their effective source.
 Startup smoke does not exercise assembly menus or flight in those other worlds.
 
-The current NeoForge development build is `0.2.0-neoforge-dev.4`. The recorded
+The current NeoForge development build is `0.2.0-neoforge-dev.5`. The recorded
 sixteen-target matrix, 1,255 native unit tests, and World 05 validation below
 were completed on `0.2.0-neoforge-dev.1` and remain migration-baseline evidence;
 they do not establish current-build coverage. The `dev.2` Minecraft 1.21.1 /
@@ -88,7 +117,7 @@ root, build the default profile:
 ```
 
 The production jar is
-`build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.4.jar`.
+`build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.5.jar`.
 Install that target-specific jar in the `mods` folder of the client and server.
 Each Minecraft target has its own jar; do not reuse one target's jar with a
 different Minecraft version. Fabric Loader and Fabric API are not required.
@@ -119,7 +148,9 @@ Evidence is target- and stage-specific:
 
 | Stage | Current evidence |
 | --- | --- |
-| `dev.4` 1.21.1 / NeoForge 21.1.256 | 472 adapter unit tests, 27 GameTests, packaging and 39 native-world checks passed; 4 signed continuous turns and 18 PNG captures. Final world UUID: `22ff5a7a-27cb-4c9d-bb6b-70e1e85ab330`. Includes camera-free LOS, B/payload denial, camera removal preserving armed control/tickets, and explicit B after reinstall. |
+| `dev.5` 1.21.1 / NeoForge 21.1.256 | 479 adapter unit tests, 34 GameTests, packaging and 46 native-world checks passed; 4 signed continuous turns and 22 PNG captures. Final world UUID: `373ae988-6bca-47b6-971f-b5f9fc4e323c`. Includes native CNC placement, menu transfers, four-plate processing, closed-menu processing, blocked output and placement of the machined frame. |
+| `dev.5` all 16 pinned targets | Build/package and fresh native title/controller/CNC/carbon-plate item-model startup passed across `20261011-065205-754` (1.21.1) and `20261011-070029-417` (15 repaired targets). The first raw aggregate remains failed; the CNC bundle maps passing stages separately. This is startup coverage, with world interaction tested separately on exact 21.1.256 only. |
+| Historical `dev.4` 1.21.1 / NeoForge 21.1.256 | 472 adapter unit tests, 27 GameTests, packaging and 39 native-world checks passed; 4 signed continuous turns and 18 PNG captures. Final world UUID: `22ff5a7a-27cb-4c9d-bb6b-70e1e85ab330`. Includes camera-free LOS, B/payload denial, camera removal preserving armed control/tickets, and explicit B after reinstall. |
 | Historical `dev.3` 1.21.1 / NeoForge 21.1.256 | 469 adapter unit tests, 26 GameTests, packaging and 35 native-world checks passed; 4 signed continuous turns and 17 PNG captures. Final world UUID: `ecca876e-33ca-4106-8a3e-c080bfebe2fe`. Frozen evidence is in the assembly runtime bundle above. |
 | Historical `dev.3` all 16 pinned targets | Build/package and native title/controller startup smoke passed across `20261011-035035-251`, code-fix retry `20261011-040319-465` and 1.21.7 client retry `20261011-041610-192`. First and second raw aggregates remain failed; the frozen multiversion manifest maps every passing stage to its actual report. |
 | Compile/package, dedicated-server flight, and client smoke | Historical `dev.1` evidence passed for all 16 pinned targets. Fifteen complete records are in `build/reports/neoforge-matrix/20261010-103859-388`; 26.1 server passed there and its supplemental build/client pass is in `build/reports/neoforge-matrix/20261010-112848-528`. The original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure. |

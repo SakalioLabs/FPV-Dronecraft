@@ -1,0 +1,175 @@
+"""Import the supplied CNC model without changing its native handedness or source assets."""
+import argparse
+import copy
+import hashlib
+import json
+import math
+from pathlib import Path
+import shutil
+
+
+ROOT = Path(__file__).resolve().parent.parent
+parser = argparse.ArgumentParser()
+parser.add_argument("source", type=Path, nargs="?", default=Path(
+    "F:/Codex-Project/MCFPV/deliverables/cnc-design-20261011/blockbench"))
+source = parser.parse_args().source
+master = source / "cnc_workstation_v2.bbmodel"
+texture = source / "cnc_workstation_v2.png"
+contract = json.loads((source / "handoff-contract.json").read_text(encoding="utf-8"))
+for path, key in ((master, "master_sha256"), (texture, "texture_sha256")):
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == contract["model"]["source_hashes"][key]
+model = json.loads(master.read_text(encoding="utf-8"))
+groups = {g["uuid"]: g for g in model["groups"]}
+cubes = {e["uuid"]: e for e in model["elements"]}
+assert len(groups) == 26 and len(cubes) == 269
+java_root = ROOT / "neoforge-mod/src/main/java/com/tenicana/dronecraft/client/render"
+resources = ROOT / "neoforge-mod/src/main/resources"
+
+
+def write(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8", newline="\n")
+
+
+def json_write(path, value):
+    write(path, json.dumps(value, ensure_ascii=False, indent=2) + "\n")
+
+
+def f(value):
+    value = round(value, 8)
+    return (str(value) if value else "0.0") + "f"
+
+
+def pose(origin, parent, rotation):
+    # Standard ModelPart adapter followed by the renderer's native XY basis conversion.
+    values = [-(origin[0] - parent[0]), -(origin[1] - parent[1]), origin[2] - parent[2],
+              -math.radians(rotation[0]), -math.radians(rotation[1]), math.radians(rotation[2])]
+    return "PartPose.offsetAndRotation(" + ", ".join(map(f, values)) + ")"
+
+
+paths = {"OPAQUE": [], "GLASS": [], "STAGES": []}
+lamp_paths = {}
+methods = []
+group_paths = {}
+lamp_variants = {}
+for state, kind in (("idle", "IDLE"), ("paused", "PAUSED"), ("complete", "COMPLETE")):
+    variant = json.loads((source / "states" / (state + ".bbmodel")).read_text(encoding="utf-8"))
+    lamp_variants[kind] = next(e for e in variant["elements"] if e["name"] == "status_light_bar")
+
+
+def cube_line(cube, group_origin, name=None):
+    origin = cube.get("origin", [0, 0, 0])
+    lower, upper = cube["from"], cube["to"]
+    box = [origin[0] - upper[0], origin[1] - upper[1], lower[2] - origin[2]]
+    dimensions = [upper[i] - lower[i] for i in range(3)]
+    uv = cube["uv_offset"]
+    assert all(float(v).is_integer() for v in uv)
+    builder = "CubeListBuilder.create().texOffs(%d, %d)" % tuple(uv)
+    if cube.get("mirror_uv"):
+        builder += ".mirror()"
+    builder += ".addBox(" + ", ".join(map(f, box + dimensions))
+    builder += ", new CubeDeformation(" + f(cube.get("inflate", 0)) + "))"
+    return '\t\tpart.addOrReplaceChild("%s", %s, %s);' % (
+        name or cube["name"], builder, pose(origin, group_origin, cube.get("rotation", [0, 0, 0])))
+
+
+def visit(node, parent_origin, chain):
+    group = groups[node["uuid"]]
+    name, origin = group["name"], group["origin"]
+    chain = chain + [name]
+    group_paths[name] = "/".join(chain)
+    lines = ['\tprivate static void add_%s(PartDefinition parent) {' % name,
+             '\t\tPartDefinition part = parent.addOrReplaceChild("%s", CubeListBuilder.create(), %s);' % (
+                 name, pose(origin, parent_origin, group.get("rotation", [0, 0, 0])))]
+    for child in node["children"]:
+        if isinstance(child, str):
+            cube = cubes[child]
+            path = "/".join(chain + [cube["name"]])
+            lines.append(cube_line(cube, origin))
+            if name == "status_light":
+                lamp_paths["PROCESSING"] = path
+                for kind, variant in lamp_variants.items():
+                    variant_name = cube["name"] + "_" + kind.lower()
+                    lines.append(cube_line(variant, origin, variant_name))
+                    lamp_paths[kind] = "/".join(chain + [variant_name])
+            elif "fixed_glass" in chain or "door_glass" in chain:
+                paths["GLASS"].append(path)
+            elif any(n.startswith("workpiece_") for n in chain):
+                paths["STAGES"].append(path)
+            else:
+                paths["OPAQUE"].append(path)
+        else:
+            child_name = groups[child["uuid"]]["name"]
+            lines.append("\t\tadd_%s(part);" % child_name)
+            visit(child, origin, chain)
+    lines += ["\t}", ""]
+    methods.append("\n".join(lines))
+
+
+for node in model["outliner"]:
+    visit(node, [0, 0, 0], [])
+header = '''package com.tenicana.dronecraft.client.render;
+
+import net.minecraft.client.model.geom.PartPose;
+import net.minecraft.client.model.geom.builders.CubeDeformation;
+import net.minecraft.client.model.geom.builders.CubeListBuilder;
+import net.minecraft.client.model.geom.builders.PartDefinition;
+
+/** Generated by tools/import-cnc-model.py; all source stages and local pivots are retained. */
+final class ImportedCncDesign {
+'''
+header += '\tstatic final String SOURCE_SHA256 = "%s";\n' % hashlib.sha256(master.read_bytes()).hexdigest()
+header += '\tstatic final String TEXTURE_SHA256 = "%s";\n' % hashlib.sha256(texture.read_bytes()).hexdigest()
+header += "\tstatic final int SOURCE_CUBE_COUNT = 269;\n\tstatic final int SOURCE_GROUP_COUNT = 26;\n"
+header += "\tstatic final int TEXTURE_WIDTH = 512;\n\tstatic final int TEXTURE_HEIGHT = 512;\n"
+for key, values in paths.items():
+    header += "\tstatic final String[] %s_CUBES = {\n" % key
+    header += "\n".join('\t\t"%s",' % v for v in values) + "\n\t};\n"
+header += "\tstatic final String[] LAMP_CUBES = {\n"
+header += "\n".join('\t\t"%s",' % lamp_paths[k] for k in ("IDLE", "PROCESSING", "PAUSED", "COMPLETE")) + "\n\t};\n"
+header += "\tprivate ImportedCncDesign() {}\n\tstatic void addTo(PartDefinition root) { add_body(root); }\n\n"
+write(java_root / "ImportedCncDesign.java", header + "\n".join(methods) + "}\n")
+
+# Preserve the unmodified master, contract and construction data, not only the static item export.
+raw = resources / "assets/fpvdrone/model_source/cnc_workstation_v2"
+raw.mkdir(parents=True, exist_ok=True)
+for name in ("cnc_workstation_v2.bbmodel", "handoff-contract.json", "construction-info.json"):
+    shutil.copyfile(source / name, raw / name)
+target_texture = resources / "assets/fpvdrone/textures/block/cnc_workstation_v2.png"
+target_texture.parent.mkdir(parents=True, exist_ok=True)
+shutil.copyfile(texture, target_texture)
+
+# The placed machine is drawn exclusively by its BER. The item retains all machine branches,
+# but an unplaced empty machine does not contain the generic demonstration metal stock.
+item = json.loads((source / "items/assets/fpvdrone/models/block/cnc_workstation_v2.json").read_text(encoding="utf-8"))
+item["elements"] = [e for e in item["elements"] if e.get("name") != "stock_blank"]
+assert len(item["elements"]) == 220
+item["render_type"] = "minecraft:translucent"
+item["credit"] = "FPV Dronecraft CNC workstation; supplied native model"
+json_write(resources / "assets/fpvdrone/models/item/cnc_workstation.json", item)
+json_write(resources / "assets/fpvdrone/items/cnc_workstation.json", {
+    "model": {"type": "minecraft:model", "model": "fpvdrone:item/cnc_workstation"}})
+json_write(resources / "assets/fpvdrone/models/block/cnc_workstation.json", {
+    "textures": {"particle": "fpvdrone:block/cnc_workstation_v2"}, "elements": []})
+json_write(resources / "assets/fpvdrone/blockstates/cnc_workstation.json", {
+    "variants": {"facing=" + direction: {"model": "fpvdrone:block/cnc_workstation"}
+                 for direction in ("north", "east", "south", "west")}})
+json_write(resources / "data/fpvdrone/loot_table/blocks/cnc_workstation.json", {
+    "type": "minecraft:block", "pools": [{"rolls": 1, "entries": [{"type": "minecraft:item",
+    "name": "fpvdrone:cnc_workstation"}], "conditions": [{"condition": "minecraft:survives_explosion"}]}]})
+legacy = copy.deepcopy(item)
+legacy.pop("format_version", None)
+legacy["loader"] = "fpvdrone:controller_elements"
+legacy["controller_elements"] = legacy.pop("elements")
+for element in legacy["controller_elements"]:
+    rotation = element.get("rotation")
+    if rotation and "axis" not in rotation:
+        axes = [(axis, rotation.get(axis, 0)) for axis in ("x", "y", "z") if rotation.get(axis, 0)]
+        assert len(axes) <= 1, "Legacy loader cannot import multiple rotation axes"
+        if axes:
+            element["rotation"] = {"origin": rotation["origin"], "axis": axes[0][0], "angle": axes[0][1]}
+        else:
+            element.pop("rotation")
+for overlay in ("mc12101", "mc1212"):
+    json_write(ROOT / ("neoforge-mod/src/compat/%s/resources/assets/fpvdrone/models/item/cnc_workstation.json" % overlay), legacy)
+print("Imported CNC: 269 source cubes + 3 prepared lamp variants; 220 empty-machine item cubes")

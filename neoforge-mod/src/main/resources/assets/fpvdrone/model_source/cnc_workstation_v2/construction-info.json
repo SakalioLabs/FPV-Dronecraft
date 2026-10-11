@@ -1,0 +1,3443 @@
+{
+  "model": "cnc_workstation_v2",
+  "element_count": 269,
+  "group_count": 26,
+  "coordinate_convention": {
+    "up": "+Y",
+    "front": "-Z",
+    "right": "-X",
+    "units_per_block": 16
+  },
+  "intended_closed_envelope": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      16,
+      16,
+      16
+    ]
+  ],
+  "materials": {
+    "0a7adcd0-de95-5f00-bd25-75ac39cc0515": "graphite",
+    "232ecf7c-c859-50da-b0c6-a5632571256a": "edge",
+    "710f38a1-86ff-5df2-988a-e04e88fb0805": "rubber",
+    "f2b8e677-8c6e-5f9e-9384-9d1f0b1b4ba2": "screw",
+    "909fd634-7b3b-5ee8-a037-cb2fc284d84f": "rubber",
+    "cb83e841-ee74-5cf4-8cee-e33677a73aaa": "screw",
+    "6aa59fdc-9a79-58cc-b60a-95c69e369e35": "rubber",
+    "ac08e3fe-c643-5b8d-ad8a-cafd07669694": "screw",
+    "2ef3419d-e2c3-5b36-aa6a-e21ca59c5e53": "rubber",
+    "ce9401b6-3073-5914-bf79-e74858d6c12b": "screw",
+    "4cd58ee3-5a3f-58f0-8fba-8b02cf1fe7ca": "panel",
+    "92138200-3470-57c4-a155-68b3f7a2114e": "black",
+    "dd456924-0147-5303-947d-77bc7d7f5501": "edge",
+    "e1ac4043-3f6d-585f-922d-61a033563353": "silver",
+    "2a7919f3-02a8-5037-81bb-7f68c8faa5be": "silver",
+    "1af8513e-84fb-5836-a2af-822090959974": "silver",
+    "903fa0da-5a65-5844-bf3a-f121a1ed33ec": "silver",
+    "c0e5cefc-5132-5ae1-83da-6c1e3bdb801e": "silver",
+    "633af880-cf16-55cd-8e0f-f34e6fec2ab1": "silver",
+    "4c91d741-b2a3-52b1-85cc-84307250f7ab": "silver",
+    "01f03f45-ebd8-50e6-9086-c5ab14800785": "silver",
+    "914ebef7-66d3-5020-aa5e-10fa575cbeb4": "silver",
+    "75fc2808-20f7-5456-a2df-6fde33ad75cb": "silver",
+    "7129ee4b-e84f-5984-8ebb-9749b485d597": "silver",
+    "61faaf79-e3fc-5ba1-b9bf-6819e440d60c": "silver",
+    "a544f69e-fd4a-5c37-a184-6f61509e6773": "silver",
+    "180c767a-628a-5f92-b4c8-a66447be5131": "silver",
+    "af8381c1-88f2-593b-b1c3-22c6e5bf87e7": "silver",
+    "a9f49b94-b90a-5fb8-91d5-5e81d859b424": "silver",
+    "08e5b5e0-2340-5a95-bf9a-282ce2cd3d4d": "gold",
+    "23beb18b-7b47-58c9-a19d-e16685562d4c": "gold",
+    "a50d3ca1-f8dd-5f19-8a29-118decb51c1a": "gold",
+    "eab2a4c0-db83-520c-b309-449676ae58ab": "gold",
+    "ef9dec64-42d1-5e8b-a661-10394f23cde0": "gold",
+    "9dbabd4b-4476-5b98-9ed2-5b881705c2c8": "gold",
+    "7db3b955-b6d0-5579-8fb6-d84212b165f3": "gold",
+    "eb5907da-f3d0-5974-982d-cda17ed6c496": "gold",
+    "74a2e703-149f-525c-be1e-b51bc8489401": "gold",
+    "6fc1df9d-a59c-5d61-b3c5-ff77a9cd97ec": "gold",
+    "c17f6913-ba20-5941-b0ae-bbb8bd1053c4": "gold",
+    "a38d5c00-0bb0-5783-8c8b-eb91e42e587e": "gold",
+    "d1d13587-93e3-53e1-ba3e-88cf058bf4ee": "gold",
+    "b3911cfa-4966-56a6-934d-6373548dbba8": "gold",
+    "7bdfdec7-8331-5d1c-ae0b-78ba2b9be98d": "gold",
+    "fd565fec-67fc-55ab-93bc-8ff3a4a782d4": "gold",
+    "bb057fb5-851d-5f24-b4e2-da533d661707": "silver_flat",
+    "55a378cc-bbf3-5f01-8c36-942d9485b1fb": "silver_flat",
+    "62d79108-33ad-53a9-acd3-1b5546a9dda4": "silver_flat",
+    "90ac2984-6d27-586c-a35c-2d3af2cc07ce": "silver_flat",
+    "c5d979ee-df2d-5683-a9cb-7e62afd349b2": "graphite_flat",
+    "94d938a1-a306-5a81-9a71-b7b208a634ef": "graphite_flat",
+    "f5bd67b4-a676-5eed-aec1-91966513bd42": "graphite_flat",
+    "55b42494-1a98-5e97-8b7f-6c02dc0106c7": "graphite_flat",
+    "1de46579-97bd-5694-9d3a-ca96634a8da1": "black",
+    "e2f7fcc1-5885-5445-b5f1-770476729caf": "black",
+    "17d10c17-2162-5016-ab67-c57b5919fcc5": "black",
+    "352c1720-882e-5277-ac79-3c94f633e10f": "black",
+    "e4d99de6-c7b3-5084-9588-1fcb407a631a": "black",
+    "f385bf2f-225e-522d-b549-d31b68a4618c": "silver",
+    "02eca03d-9629-5134-ac3d-ab41ea13cd88": "silver",
+    "27acb10c-50c9-5252-b01d-500b663cd8d9": "silver",
+    "6b7f454f-1621-5485-9a64-9fe0701fe50e": "silver",
+    "2a7585a6-125d-5619-bfdc-036b2488e0a8": "panel",
+    "e59b92dd-b9aa-5966-a9af-01ea6f2a7288": "silver",
+    "8ff82279-9cc7-5135-a509-c20455cd67da": "black",
+    "c86bf701-1a11-5706-8a21-5f5b833a2208": "edge",
+    "c7f00450-d0d0-515e-b46a-b5d7874137a9": "edge",
+    "3f3aa1ab-f0e8-554b-bd5b-51833f73221f": "edge",
+    "008c5ce4-49ca-50d1-9fcc-463eb566ab00": "edge",
+    "5dcf99e3-f7de-5750-a527-38a1ad5bee46": "edge",
+    "f12d1147-f392-5308-beea-abf668e50692": "edge",
+    "007c339d-a98f-51a7-a6ff-6484d7373fcb": "edge",
+    "13ef4231-b2da-5c83-ac43-0455b4517609": "black",
+    "450e2935-9c1c-59f1-b63a-17709a8e5385": "gold",
+    "7e8eeba0-4eae-5f7f-b1a5-5972e7dcff33": "gold",
+    "31b793ab-f2ec-519f-a3d1-e579f93bba13": "blue",
+    "c9505a66-56f8-5db6-acf5-6dbf484321c6": "black",
+    "b059c472-f70f-5a33-820c-99b30cba3a0e": "screw",
+    "d2e2bc07-db61-58e2-8ae8-de650732e598": "screw",
+    "cd0b79e5-2bb9-5d28-9593-6dfd993a1bdc": "screw",
+    "d3f35232-13e5-510f-ac72-789f9d32d38d": "screw",
+    "2c9ebb06-6535-569a-8798-0f2b67ee2138": "graphite",
+    "602b79ef-e30e-5e61-88aa-7b5c54784451": "graphite_flat",
+    "137c9f62-3ac0-5cad-8af4-9d21f08154e1": "graphite_flat",
+    "305420ac-ff1f-5186-942a-16043f1b89cf": "graphite_flat",
+    "229740c5-9b74-54a7-b2a9-7c629fae198e": "graphite_flat",
+    "05590fd0-126c-5f01-b2ca-7c40c35ed3b1": "silver_flat",
+    "dec856da-b5e7-545d-8486-6b4427f3b6cf": "silver_flat",
+    "b316d11d-1a29-5aee-8aae-0ae5ef95869d": "silver_flat",
+    "5d243365-7c5a-5082-9e8b-cfb3008cf17b": "silver_flat",
+    "d1a5c048-2ea9-537b-a615-2dac4725aba1": "edge",
+    "14628f10-6aca-54d4-8fce-1581aba507ba": "edge",
+    "061994c8-d127-5525-a045-e2ca4be5825d": "edge",
+    "adb0da09-d800-5703-a802-dfd910eea29c": "edge",
+    "c82899df-4a4e-53ac-8f94-925243f2bd7f": "edge",
+    "dddcd007-d49c-52d9-8ec7-fe916ec6b4af": "edge",
+    "75cbb90c-7a53-5523-b767-e7368401f1d2": "glass",
+    "737ded5b-b24a-5b24-acc1-4a9d19f4ec11": "edge",
+    "8734a158-3053-5474-88a4-98383b3f0912": "edge",
+    "1a0717a8-7f55-5ee8-acbf-a11e72b8d9ec": "silver",
+    "beb51be8-c8b8-5e28-9c86-956479712054": "black",
+    "02dc257d-43d2-5134-8417-e9e2e59c224e": "black",
+    "7bdc0493-cc7c-5eee-a069-a4803728d2ff": "black",
+    "9450016c-f916-5d43-a6ba-0b23e0394976": "black",
+    "26a99c9c-033a-55bc-b103-e6f81f97e2e6": "black",
+    "b613300a-243d-5c83-8d7c-b946a8bb8906": "black",
+    "e082f46c-2a63-5ecf-9b31-4e710c8f8d6c": "glass",
+    "a68841f5-7df2-5896-aca8-5b65887e03d3": "glass",
+    "c4aac0b0-b1af-59d4-89a3-d1eb481478d6": "glass",
+    "d519f2a3-10a2-53b8-b3a5-a605b2a42ad3": "edge",
+    "ab3b2312-7e7f-5893-a7c0-6c7c0384cc82": "edge",
+    "5f5c5a77-d804-527b-9309-a1a2087ae979": "edge",
+    "eb481f6d-2c6c-5d9f-9cff-5b7838361beb": "edge",
+    "bd8c86d4-dbe1-57ed-b6be-4de252977518": "edge",
+    "b33dc3c1-39e3-5b87-b96c-9d5e268ec4db": "edge",
+    "dc806f0d-54b3-5cc1-af4f-14bb36571df8": "edge",
+    "3325bb30-d0e1-5ed9-929b-81e8be884ba1": "edge",
+    "68590d30-0289-5532-a248-5a4540e55236": "silver",
+    "2a7cdb89-c389-5157-9844-6c86f77c9a52": "edge",
+    "2cfce9cd-8e8b-5241-b1c8-09b15f50b1de": "edge",
+    "566f7777-9fb8-5198-aff4-715f4b6a2bfc": "graphite",
+    "b72694dc-871e-57eb-a7f8-62e0ec4ee0af": "edge",
+    "6541cd21-9181-586d-9de6-aa877a859ff2": "panel",
+    "c2705c37-7244-579b-bdda-8c5054aaf35f": "gold",
+    "63c2dbbd-7000-5175-aa05-da15c545dbc8": "edge",
+    "63da5788-a493-52c4-bb94-10cacdeb885b": "screen",
+    "d340f6ac-4938-5f67-b893-55d45a939174": "cyan",
+    "222fb4b9-3442-5c75-9142-62992bb5f99e": "blue",
+    "9988f654-33b5-522d-b8d9-3d386bf8407b": "cyan",
+    "46c1ccd5-8339-5b46-b17e-a0d4ee841313": "cyan",
+    "35e6bbe0-7268-5a60-88d7-06bf4a6f8715": "cyan",
+    "9349b468-f92e-5f49-ae6f-f458147642a1": "cyan",
+    "b394dd85-e0d4-5b22-ac90-e71970f41a5d": "cyan",
+    "8bd11fd1-6e57-57ad-91ff-e6f2d83dd80e": "cyan",
+    "f549e3f6-2c8f-58b0-b170-6383b4138234": "lamp_amber",
+    "81dda497-0289-5f89-bef8-9de42a0e2b91": "gold",
+    "7962fc1a-249f-5e41-a701-972c3f347ac8": "red",
+    "2ef888ff-7aa1-5512-892d-8e95ade3c728": "edge",
+    "7588ee9e-1fb0-5a23-99a4-154f7562e567": "black",
+    "55993d5f-7de5-5cc9-910d-992189bc43aa": "silver_flat",
+    "6287d968-29f7-579c-bb56-d5104a0f5526": "edge",
+    "41302e12-020e-5ae6-9467-bf0680ffe015": "black",
+    "14d5c277-fec0-572c-bc4c-48a6d4b3b6d7": "silver_flat",
+    "ac732ea8-e6ee-5d15-8b4b-b97daf2da2b2": "panel",
+    "24adb1db-41dc-5dbc-9cf8-972766592164": "black",
+    "4033d06f-5f4f-566b-80d3-b819cedc5896": "edge",
+    "8bed0299-39bb-5c38-b10a-67e1f77e01f0": "edge",
+    "dc5957b3-824b-5c5e-84d2-91144be3f64c": "edge",
+    "42f1b443-a3cb-5fef-8408-ca9880beae97": "edge",
+    "39bc11b4-bb91-5f82-95ef-38fe12192261": "edge",
+    "60eb3058-af8f-5285-b2a0-32cb4ece80db": "edge",
+    "5956c1c5-81e7-5eb6-814c-3b5e3da85719": "edge",
+    "739e00f2-7912-5403-a7da-8e5944a6220e": "graphite",
+    "49fd57aa-f1dc-5474-8e68-86b310ca6499": "graphite",
+    "cda9410a-d407-549d-9387-5cd3938c5b99": "silver_flat",
+    "dac58857-5fd7-59ea-8d67-cfe92d7223b0": "edge",
+    "e04e6122-e5b7-504a-ac93-de8aef6b97bb": "edge",
+    "7b197dfe-7618-5436-a0dd-e3f461f0330b": "silver_flat",
+    "38ca45e4-8802-5da8-a199-025d803ddb5e": "edge",
+    "686335ae-3a66-5731-be9c-5fbe6ded6123": "edge",
+    "1bb475b2-49d0-535c-92a6-2177f59cf4da": "graphite",
+    "99a6f3eb-36ce-5713-b364-ba53bbf02f51": "edge",
+    "0dca4695-3774-5c9d-9456-b80f1d2cf61e": "silver",
+    "5670a358-8c9a-5906-b0f7-576d11c27b85": "silver",
+    "630e94f8-e212-55de-aee1-26b5e46dfde2": "silver",
+    "a8052f26-a14c-5698-9e9e-07473cde79be": "silver",
+    "0f08f03a-9cc0-5a00-ac4d-f8899a617444": "graphite",
+    "386f1787-d264-577d-a02c-00cd3fd1fae4": "silver",
+    "e4de5fe8-f697-59d3-bd7c-bab00779bfb3": "screw",
+    "592aeeda-b950-5bac-8c4e-86226054bf8f": "silver",
+    "3118907c-9e13-5c7f-9b8f-64e08f873c85": "edge",
+    "3c3b17bc-a526-5452-8e57-2361fb861785": "edge_flat",
+    "e25294e3-33f8-5ad5-a59f-1ba42e120143": "edge_flat",
+    "d2de3569-e8d1-5d75-9cd4-4b263b54a63f": "edge_flat",
+    "b58d9a89-f66e-53e9-9393-cfdb705f0f8a": "edge_flat",
+    "34266805-16b9-5fd0-86ba-49fc182f3de8": "silver",
+    "dc505bb1-1906-525b-958d-f25a8b428db3": "silver",
+    "5d97db27-7550-5f7d-a7ac-691004c6c1b6": "black",
+    "cf5ba156-b46d-5c84-9a3f-c28575c44861": "silver",
+    "7af504c1-ba7e-5d98-ba9f-47d0362224b7": "black",
+    "eaf98313-1301-5b31-b3e0-eff79d1f83b2": "graphite",
+    "d2a87a5a-ca3b-546d-b082-9fb12edad6d3": "stock",
+    "0214b946-1e02-5d6e-b593-57380d714c43": "stock_flat",
+    "e5a5c915-b810-58a6-8a8e-87463fc86a27": "stock_flat",
+    "96a7672f-016b-5b4d-938a-9b6fc17f99a2": "stock_flat",
+    "18739eec-9d8a-591f-a1e3-e358be7cf89b": "stock_flat",
+    "27f3f4c5-39d0-5a4d-874f-bf0f9415dbd0": "stock_flat",
+    "b1752f43-7f06-5362-be7b-601557edf8e1": "stock_flat",
+    "03bc339b-8b26-5949-82b4-2fad638e7a27": "stock_flat",
+    "e48e256a-7fcb-5f15-ab93-bdf8e27ef039": "stock_flat",
+    "583fea48-8d87-5c86-b9f1-6b07c468c5f6": "stock_flat",
+    "2005faa6-9fd7-565f-a881-1a6140e74f48": "stock_flat",
+    "37b90811-f3c2-5396-9372-ae29a3c35d77": "stock_flat",
+    "57fa33ef-1671-5d99-a87c-0c72497fc46e": "stock_flat",
+    "582234e3-c8df-502c-bdc9-5d7a1e3373cb": "stock_flat",
+    "fd1bc118-b4e0-5fe2-a266-dcfecf3fb434": "stock_flat",
+    "3207ff57-2602-591c-a87f-cb78889b65fa": "stock_flat",
+    "77b426b6-33f5-524d-a251-d5de160b93fe": "stock_flat",
+    "58e23309-6aed-50e5-aad8-b5db106f5a0c": "stock_flat",
+    "154513eb-744c-568d-a8de-ab29f047f4ba": "stock_flat",
+    "426163fa-2329-5195-b8fc-ad3bd96f7d13": "stock_flat",
+    "10758bb4-7c2b-5c7d-9c92-8a6037d1654d": "stock_flat",
+    "14e6121f-1784-5728-aef5-977b5a40f9a3": "stock_flat",
+    "a5c95c04-eaac-5100-8201-d172806674b0": "stock_flat",
+    "387a4383-c26e-5479-84e0-764f4c02da3b": "stock_flat",
+    "9c8e194b-e0d1-5390-a400-dfe338de6af7": "stock_flat",
+    "aeb76704-3788-504d-a65a-be011eda1e25": "stock_flat",
+    "cb3431ae-3484-50c6-886a-cce77d6041af": "stock_flat",
+    "dff01159-198d-518a-9e9e-54e013fc9a73": "stock_flat",
+    "49aae082-31ec-59be-b99a-c4006df06d54": "stock_flat",
+    "8f29674d-4eb6-5155-864d-2e0ca4426716": "stock_flat",
+    "104c7978-93c6-5d83-ba46-b6a793395d79": "stock_flat",
+    "759748e5-45e0-58bf-8651-bd9d48e86bad": "stock_flat",
+    "2c07878c-3184-5244-8184-cba6e75b744f": "stock_flat",
+    "98917a7d-dffc-5373-acac-48f1077feacf": "stock_flat",
+    "8d038a63-031b-51f6-a120-c9f090090cfe": "stock_flat",
+    "75cdbc2e-3c89-57c8-b53f-1c3866a0b070": "stock_flat",
+    "ddd296fb-fa85-50a5-b2ef-284f78be8af7": "stock_flat",
+    "aa39227e-9d6d-5cef-bd15-e7b1d6f89a37": "stock_flat",
+    "82697b8b-8848-572e-9541-8ca44576095f": "stock_flat",
+    "f6644e2d-0b3e-537d-98d5-736bc125262f": "stock_flat",
+    "24a0e50b-d69d-5978-b454-f9f3330ccf32": "stock_flat",
+    "c7d45fae-5cd7-59a4-aff5-9f08925487e3": "stock_flat",
+    "59f37327-a227-5335-8633-dba5103799ac": "stock_flat",
+    "944263a2-9bb6-5fa0-847d-10936a184573": "stock_flat",
+    "69c5fc3b-1e97-536e-b3a0-73bd2f158ea1": "stock_flat",
+    "4ad0e104-ac23-51a6-8654-0567183f2633": "screw",
+    "ee7387a9-5070-5e24-a6ec-97a7748ed47b": "screw",
+    "752154b7-8b0e-5ab7-ae84-d40d67dd0e11": "screw",
+    "ca72d21e-5fcf-5771-aac8-038ad79530f7": "screw",
+    "ba22d4e5-3550-5aae-ba73-a88ccc40f596": "graphite",
+    "e6a122fa-8c66-588f-a6b3-7fa9836b2b2d": "edge",
+    "fe877f30-6f15-5b98-9c46-d5c6d0db12ea": "silver_flat",
+    "3f3a146f-0290-5583-9a7f-d1f588bb1745": "silver_flat",
+    "915e04db-8ab1-5fb0-980f-05f55307ff00": "silver_flat",
+    "bf743555-7717-52a6-884b-02999151636a": "silver_flat",
+    "710a7651-771e-570a-b71b-4634db562654": "graphite_flat",
+    "52eb9d63-9e10-5e25-8f10-825f349068f6": "graphite_flat",
+    "63c38b84-a6cc-509e-9f20-d2a6a0729975": "graphite_flat",
+    "b07430c7-ea2c-5326-957e-bc1965ac17a5": "graphite_flat",
+    "2b6344d3-e0da-58e5-afaa-52085e5547af": "edge_flat",
+    "7cf57b51-9880-57bf-bc45-ea572a8f8c5d": "edge_flat",
+    "0cb96d8b-33be-56de-9356-9c3e326c5645": "edge_flat",
+    "abae6423-1713-56b5-b794-8b46420871f1": "edge_flat",
+    "11218989-540d-5cbe-ab28-2e2098e609fc": "gold_flat",
+    "0d236400-a227-50ce-8f99-753da3633c7d": "gold_flat",
+    "afba0640-2102-54ef-973b-f42b0c0c0fa0": "silver_flat",
+    "a053be8a-759f-5e71-90b2-b2efb33fe39d": "silver_flat",
+    "d6c2f817-6b78-57a2-b42f-d2f51aea7697": "silver_flat",
+    "5744df69-d027-573d-86ee-65040014bc52": "silver_flat",
+    "007f4744-22a0-5777-a157-e4d5bd56aaaa": "graphite",
+    "15c9b0f9-5df4-5687-a2b9-02394967c0ad": "edge",
+    "753d16ed-71a1-51bb-9711-fce0bf0ca893": "silver_flat",
+    "79b15fe1-d486-51ef-ba88-ca49c7813141": "gold_flat",
+    "deb4035b-45fa-5e4c-9a3a-7c38d833b393": "edge",
+    "342e81ae-0953-5fa3-a3d9-febae6863ab0": "silver_flat",
+    "5e014b21-0774-5794-a854-a2bdedaab841": "gold_flat",
+    "f889be16-0ac4-5350-9ccb-060999959fcb": "edge",
+    "cd423b9b-36d7-5f3b-ad71-ff81a32abdfb": "silver_flat",
+    "69bf8851-cc3e-5b70-914b-a9995f6f7f95": "gold_flat",
+    "9d712e16-6624-54c0-bd62-e214e37c0983": "edge",
+    "eed65bc2-327e-5eda-8618-696132b74e6f": "silver_flat",
+    "2454a30e-c724-569b-8834-5da39f49cd21": "gold_flat",
+    "9828ffa8-701f-5f0c-b14d-4e1ab8806d0b": "edge",
+    "7bb518ed-0661-56a2-9586-58d74930fcd3": "silver_flat",
+    "549ca224-5c64-5bae-93c3-2fd3f32c59ce": "gold_flat",
+    "677bf998-7178-5b60-b075-60f080c624d9": "edge",
+    "7a941863-6b10-5b49-9fb2-135f65b07b11": "silver_flat",
+    "ca08fbf6-b9e1-542b-95eb-4902977a2b44": "gold_flat"
+  },
+  "groups": [
+    {
+      "name": "body",
+      "uuid": "b2883c64-d2f7-5a04-a056-363535bb5c82",
+      "pivot": [
+        8,
+        0,
+        8
+      ]
+    },
+    {
+      "name": "base",
+      "uuid": "13b5b395-8279-557b-a47c-87326fddb1b0",
+      "pivot": [
+        16,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "chip_drawer",
+      "uuid": "ddff7753-919b-51af-a4d4-a60d2e308b4b",
+      "pivot": [
+        8,
+        1.65,
+        0.78
+      ]
+    },
+    {
+      "name": "housing",
+      "uuid": "fbb83996-0121-569d-9996-635952cb59f2",
+      "pivot": [
+        16,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "fixed_glass",
+      "uuid": "5b7e262f-1f18-5b92-8318-b14791392977",
+      "pivot": [
+        16,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "observation_door",
+      "uuid": "37153711-e703-568f-ad40-5142348db780",
+      "pivot": [
+        9.85,
+        8.95,
+        7.7
+      ]
+    },
+    {
+      "name": "door_glass",
+      "uuid": "4b033706-c3ce-55dd-95a7-97cfaee09a9d",
+      "pivot": [
+        9.85,
+        8.95,
+        7.7
+      ]
+    },
+    {
+      "name": "control_console",
+      "uuid": "58a19449-82ba-50c9-bf7f-a20d63b26339",
+      "pivot": [
+        16,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "progress_fill",
+      "uuid": "fda56ad3-be4f-58a3-a9c2-37bec128bfac",
+      "pivot": [
+        3.4499999999999993,
+        12.75,
+        0.79
+      ]
+    },
+    {
+      "name": "status_light",
+      "uuid": "5bfc06c6-8709-5a0d-810b-0a68b4091000",
+      "pivot": [
+        2.5500000000000007,
+        10.9,
+        1.01
+      ]
+    },
+    {
+      "name": "left_mechanism",
+      "uuid": "c0927af8-587f-5a01-adf4-a4d7c7d8539e",
+      "pivot": [
+        16,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "left_stage_feed",
+      "uuid": "2a2cb6f6-9c7e-5b27-932d-51b69689026e",
+      "pivot": [
+        12.5,
+        7.0,
+        7.7
+      ]
+    },
+    {
+      "name": "left_stage_vertical",
+      "uuid": "ea9193b9-a77c-56b0-bd08-cf8d7b3edeb7",
+      "pivot": [
+        12.5,
+        7.0,
+        7.7
+      ]
+    },
+    {
+      "name": "left_stage_depth",
+      "uuid": "0cd9d7a9-f54e-504c-9b3f-8d0ee06cb71c",
+      "pivot": [
+        12.5,
+        7.0,
+        7.7
+      ]
+    },
+    {
+      "name": "tilt_joint",
+      "uuid": "3022010d-801f-52ed-b25e-1b5b80dcc1a4",
+      "pivot": [
+        12.5,
+        7.0,
+        7.7
+      ]
+    },
+    {
+      "name": "rotary_holder",
+      "uuid": "7d8b22f1-db2a-5c55-ac18-fac8111f0f91",
+      "pivot": [
+        11.27,
+        8.5,
+        7.7
+      ]
+    },
+    {
+      "name": "workholding_clamp",
+      "uuid": "1ee8a762-3ae3-5f6d-9765-b0e106993564",
+      "pivot": [
+        11.27,
+        8.5,
+        7.7
+      ]
+    },
+    {
+      "name": "workpiece",
+      "uuid": "e90cc36a-aafc-5498-8a4f-6b40e2caf306",
+      "pivot": [
+        11.27,
+        8.5,
+        7.7
+      ]
+    },
+    {
+      "name": "workpiece_0_blank",
+      "uuid": "85aa924c-7fbd-5f2a-94e7-56f4527b1d6b",
+      "pivot": [
+        11.27,
+        8.5,
+        7.7
+      ]
+    },
+    {
+      "name": "workpiece_1_rough",
+      "uuid": "a7bed068-09cc-5fab-82fe-c1012afcfbb1",
+      "pivot": [
+        11.27,
+        8.5,
+        7.7
+      ]
+    },
+    {
+      "name": "workpiece_2_semi",
+      "uuid": "bc8c3305-50ed-5f97-ab43-8d5befcc4a62",
+      "pivot": [
+        11.27,
+        8.5,
+        7.7
+      ]
+    },
+    {
+      "name": "workpiece_3_finishing",
+      "uuid": "cff3cfc0-b3ff-5c28-8f6c-03f1cccb709f",
+      "pivot": [
+        11.27,
+        8.5,
+        7.7
+      ]
+    },
+    {
+      "name": "workpiece_4_finished",
+      "uuid": "108ca8d7-cdf3-536b-9c22-b8f6169fb452",
+      "pivot": [
+        11.27,
+        8.5,
+        7.7
+      ]
+    },
+    {
+      "name": "right_spindle_mount",
+      "uuid": "02029156-61d5-55c1-97a0-30ff16719c53",
+      "pivot": [
+        5.949999999999999,
+        8.5,
+        7.7
+      ]
+    },
+    {
+      "name": "spindle_tool",
+      "uuid": "e9b63016-f7b0-52ae-a12c-cf8b924955a4",
+      "pivot": [
+        7.789999999999999,
+        8.5,
+        7.7
+      ]
+    },
+    {
+      "name": "tool_rack",
+      "uuid": "f7803937-11d5-5a2c-abac-2dc857de42f2",
+      "pivot": [
+        10.3,
+        12.5,
+        10.8
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "index": 0,
+      "group": "workpiece_0_blank",
+      "uuid": "85aa924c-7fbd-5f2a-94e7-56f4527b1d6b",
+      "element_uuids": [
+        "d2a87a5a-ca3b-546d-b082-9fb12edad6d3"
+      ]
+    },
+    {
+      "index": 1,
+      "group": "workpiece_1_rough",
+      "uuid": "a7bed068-09cc-5fab-82fe-c1012afcfbb1",
+      "element_uuids": [
+        "0214b946-1e02-5d6e-b593-57380d714c43",
+        "e5a5c915-b810-58a6-8a8e-87463fc86a27",
+        "96a7672f-016b-5b4d-938a-9b6fc17f99a2",
+        "18739eec-9d8a-591f-a1e3-e358be7cf89b"
+      ]
+    },
+    {
+      "index": 2,
+      "group": "workpiece_2_semi",
+      "uuid": "bc8c3305-50ed-5f97-ab43-8d5befcc4a62",
+      "element_uuids": [
+        "27f3f4c5-39d0-5a4d-874f-bf0f9415dbd0",
+        "b1752f43-7f06-5362-be7b-601557edf8e1",
+        "03bc339b-8b26-5949-82b4-2fad638e7a27",
+        "e48e256a-7fcb-5f15-ab93-bdf8e27ef039",
+        "583fea48-8d87-5c86-b9f1-6b07c468c5f6",
+        "2005faa6-9fd7-565f-a881-1a6140e74f48",
+        "37b90811-f3c2-5396-9372-ae29a3c35d77",
+        "57fa33ef-1671-5d99-a87c-0c72497fc46e"
+      ]
+    },
+    {
+      "index": 3,
+      "group": "workpiece_3_finishing",
+      "uuid": "cff3cfc0-b3ff-5c28-8f6c-03f1cccb709f",
+      "element_uuids": [
+        "582234e3-c8df-502c-bdc9-5d7a1e3373cb",
+        "fd1bc118-b4e0-5fe2-a266-dcfecf3fb434",
+        "3207ff57-2602-591c-a87f-cb78889b65fa",
+        "77b426b6-33f5-524d-a251-d5de160b93fe",
+        "58e23309-6aed-50e5-aad8-b5db106f5a0c",
+        "154513eb-744c-568d-a8de-ab29f047f4ba",
+        "426163fa-2329-5195-b8fc-ad3bd96f7d13",
+        "10758bb4-7c2b-5c7d-9c92-8a6037d1654d",
+        "14e6121f-1784-5728-aef5-977b5a40f9a3",
+        "a5c95c04-eaac-5100-8201-d172806674b0",
+        "387a4383-c26e-5479-84e0-764f4c02da3b",
+        "9c8e194b-e0d1-5390-a400-dfe338de6af7",
+        "aeb76704-3788-504d-a65a-be011eda1e25",
+        "cb3431ae-3484-50c6-886a-cce77d6041af",
+        "dff01159-198d-518a-9e9e-54e013fc9a73",
+        "49aae082-31ec-59be-b99a-c4006df06d54"
+      ]
+    },
+    {
+      "index": 4,
+      "group": "workpiece_4_finished",
+      "uuid": "108ca8d7-cdf3-536b-9c22-b8f6169fb452",
+      "element_uuids": [
+        "8f29674d-4eb6-5155-864d-2e0ca4426716",
+        "104c7978-93c6-5d83-ba46-b6a793395d79",
+        "759748e5-45e0-58bf-8651-bd9d48e86bad",
+        "2c07878c-3184-5244-8184-cba6e75b744f",
+        "98917a7d-dffc-5373-acac-48f1077feacf",
+        "8d038a63-031b-51f6-a120-c9f090090cfe",
+        "75cdbc2e-3c89-57c8-b53f-1c3866a0b070",
+        "ddd296fb-fa85-50a5-b2ef-284f78be8af7",
+        "aa39227e-9d6d-5cef-bd15-e7b1d6f89a37",
+        "82697b8b-8848-572e-9541-8ca44576095f",
+        "f6644e2d-0b3e-537d-98d5-736bc125262f",
+        "24a0e50b-d69d-5978-b454-f9f3330ccf32",
+        "c7d45fae-5cd7-59a4-aff5-9f08925487e3",
+        "59f37327-a227-5335-8633-dba5103799ac",
+        "944263a2-9bb6-5fa0-847d-10936a184573",
+        "69c5fc3b-1e97-536e-b3a0-73bd2f158ea1",
+        "4ad0e104-ac23-51a6-8654-0567183f2633",
+        "ee7387a9-5070-5e24-a6ec-97a7748ed47b",
+        "752154b7-8b0e-5ab7-ae84-d40d67dd0e11",
+        "ca72d21e-5fcf-5771-aac8-038ad79530f7"
+      ]
+    }
+  ],
+  "texture": {
+    "uv_size": [
+      512,
+      512
+    ],
+    "pixels": [
+      2048,
+      2048
+    ],
+    "glass_alpha": 22
+  },
+  "uv_allocations": [
+    {
+      "uuid": "0a7adcd0-de95-5f00-bd25-75ac39cc0515",
+      "material": "graphite",
+      "uv_offset": [
+        2,
+        2
+      ],
+      "width": 59,
+      "height": 17
+    },
+    {
+      "uuid": "232ecf7c-c859-50da-b0c6-a5632571256a",
+      "material": "edge",
+      "uv_offset": [
+        63,
+        2
+      ],
+      "width": 62,
+      "height": 17
+    },
+    {
+      "uuid": "710f38a1-86ff-5df2-988a-e04e88fb0805",
+      "material": "rubber",
+      "uv_offset": [
+        127,
+        2
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "f2b8e677-8c6e-5f9e-9384-9d1f0b1b4ba2",
+      "material": "screw",
+      "uv_offset": [
+        135,
+        2
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "909fd634-7b3b-5ee8-a037-cb2fc284d84f",
+      "material": "rubber",
+      "uv_offset": [
+        142,
+        2
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "cb83e841-ee74-5cf4-8cee-e33677a73aaa",
+      "material": "screw",
+      "uv_offset": [
+        150,
+        2
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "6aa59fdc-9a79-58cc-b60a-95c69e369e35",
+      "material": "rubber",
+      "uv_offset": [
+        157,
+        2
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "ac08e3fe-c643-5b8d-ad8a-cafd07669694",
+      "material": "screw",
+      "uv_offset": [
+        165,
+        2
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "2ef3419d-e2c3-5b36-aa6a-e21ca59c5e53",
+      "material": "rubber",
+      "uv_offset": [
+        172,
+        2
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "ce9401b6-3073-5914-bf79-e74858d6c12b",
+      "material": "screw",
+      "uv_offset": [
+        180,
+        2
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "4cd58ee3-5a3f-58f0-8fba-8b02cf1fe7ca",
+      "material": "panel",
+      "uv_offset": [
+        187,
+        2
+      ],
+      "width": 31,
+      "height": 4
+    },
+    {
+      "uuid": "92138200-3470-57c4-a155-68b3f7a2114e",
+      "material": "black",
+      "uv_offset": [
+        220,
+        2
+      ],
+      "width": 9,
+      "height": 3
+    },
+    {
+      "uuid": "dd456924-0147-5303-947d-77bc7d7f5501",
+      "material": "edge",
+      "uv_offset": [
+        231,
+        2
+      ],
+      "width": 9,
+      "height": 3
+    },
+    {
+      "uuid": "e1ac4043-3f6d-585f-922d-61a033563353",
+      "material": "silver",
+      "uv_offset": [
+        242,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "2a7919f3-02a8-5037-81bb-7f68c8faa5be",
+      "material": "silver",
+      "uv_offset": [
+        256,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "1af8513e-84fb-5836-a2af-822090959974",
+      "material": "silver",
+      "uv_offset": [
+        270,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "903fa0da-5a65-5844-bf3a-f121a1ed33ec",
+      "material": "silver",
+      "uv_offset": [
+        284,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "c0e5cefc-5132-5ae1-83da-6c1e3bdb801e",
+      "material": "silver",
+      "uv_offset": [
+        298,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "633af880-cf16-55cd-8e0f-f34e6fec2ab1",
+      "material": "silver",
+      "uv_offset": [
+        312,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "4c91d741-b2a3-52b1-85cc-84307250f7ab",
+      "material": "silver",
+      "uv_offset": [
+        326,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "01f03f45-ebd8-50e6-9086-c5ab14800785",
+      "material": "silver",
+      "uv_offset": [
+        340,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "914ebef7-66d3-5020-aa5e-10fa575cbeb4",
+      "material": "silver",
+      "uv_offset": [
+        354,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "75fc2808-20f7-5456-a2df-6fde33ad75cb",
+      "material": "silver",
+      "uv_offset": [
+        368,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "7129ee4b-e84f-5984-8ebb-9749b485d597",
+      "material": "silver",
+      "uv_offset": [
+        382,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "61faaf79-e3fc-5ba1-b9bf-6819e440d60c",
+      "material": "silver",
+      "uv_offset": [
+        396,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "a544f69e-fd4a-5c37-a184-6f61509e6773",
+      "material": "silver",
+      "uv_offset": [
+        410,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "180c767a-628a-5f92-b4c8-a66447be5131",
+      "material": "silver",
+      "uv_offset": [
+        424,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "af8381c1-88f2-593b-b1c3-22c6e5bf87e7",
+      "material": "silver",
+      "uv_offset": [
+        438,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "a9f49b94-b90a-5fb8-91d5-5e81d859b424",
+      "material": "silver",
+      "uv_offset": [
+        452,
+        2
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "08e5b5e0-2340-5a95-bf9a-282ce2cd3d4d",
+      "material": "gold",
+      "uv_offset": [
+        466,
+        2
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "23beb18b-7b47-58c9-a19d-e16685562d4c",
+      "material": "gold",
+      "uv_offset": [
+        481,
+        2
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "a50d3ca1-f8dd-5f19-8a29-118decb51c1a",
+      "material": "gold",
+      "uv_offset": [
+        496,
+        2
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "eab2a4c0-db83-520c-b309-449676ae58ab",
+      "material": "gold",
+      "uv_offset": [
+        2,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "ef9dec64-42d1-5e8b-a661-10394f23cde0",
+      "material": "gold",
+      "uv_offset": [
+        17,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "9dbabd4b-4476-5b98-9ed2-5b881705c2c8",
+      "material": "gold",
+      "uv_offset": [
+        32,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "7db3b955-b6d0-5579-8fb6-d84212b165f3",
+      "material": "gold",
+      "uv_offset": [
+        47,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "eb5907da-f3d0-5974-982d-cda17ed6c496",
+      "material": "gold",
+      "uv_offset": [
+        62,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "74a2e703-149f-525c-be1e-b51bc8489401",
+      "material": "gold",
+      "uv_offset": [
+        77,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "6fc1df9d-a59c-5d61-b3c5-ff77a9cd97ec",
+      "material": "gold",
+      "uv_offset": [
+        92,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "c17f6913-ba20-5941-b0ae-bbb8bd1053c4",
+      "material": "gold",
+      "uv_offset": [
+        107,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "a38d5c00-0bb0-5783-8c8b-eb91e42e587e",
+      "material": "gold",
+      "uv_offset": [
+        122,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "d1d13587-93e3-53e1-ba3e-88cf058bf4ee",
+      "material": "gold",
+      "uv_offset": [
+        137,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "b3911cfa-4966-56a6-934d-6373548dbba8",
+      "material": "gold",
+      "uv_offset": [
+        152,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "7bdfdec7-8331-5d1c-ae0b-78ba2b9be98d",
+      "material": "gold",
+      "uv_offset": [
+        167,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "fd565fec-67fc-55ab-93bc-8ff3a4a782d4",
+      "material": "gold",
+      "uv_offset": [
+        182,
+        21
+      ],
+      "width": 13,
+      "height": 3
+    },
+    {
+      "uuid": "bb057fb5-851d-5f24-b4e2-da533d661707",
+      "material": "silver_flat",
+      "uv_offset": [
+        197,
+        21
+      ],
+      "width": 33,
+      "height": 7
+    },
+    {
+      "uuid": "55a378cc-bbf3-5f01-8c36-942d9485b1fb",
+      "material": "silver_flat",
+      "uv_offset": [
+        232,
+        21
+      ],
+      "width": 33,
+      "height": 7
+    },
+    {
+      "uuid": "62d79108-33ad-53a9-acd3-1b5546a9dda4",
+      "material": "silver_flat",
+      "uv_offset": [
+        267,
+        21
+      ],
+      "width": 33,
+      "height": 7
+    },
+    {
+      "uuid": "90ac2984-6d27-586c-a35c-2d3af2cc07ce",
+      "material": "silver_flat",
+      "uv_offset": [
+        302,
+        21
+      ],
+      "width": 33,
+      "height": 7
+    },
+    {
+      "uuid": "c5d979ee-df2d-5683-a9cb-7e62afd349b2",
+      "material": "graphite_flat",
+      "uv_offset": [
+        337,
+        21
+      ],
+      "width": 15,
+      "height": 4
+    },
+    {
+      "uuid": "94d938a1-a306-5a81-9a71-b7b208a634ef",
+      "material": "graphite_flat",
+      "uv_offset": [
+        354,
+        21
+      ],
+      "width": 15,
+      "height": 4
+    },
+    {
+      "uuid": "f5bd67b4-a676-5eed-aec1-91966513bd42",
+      "material": "graphite_flat",
+      "uv_offset": [
+        371,
+        21
+      ],
+      "width": 15,
+      "height": 4
+    },
+    {
+      "uuid": "55b42494-1a98-5e97-8b7f-6c02dc0106c7",
+      "material": "graphite_flat",
+      "uv_offset": [
+        388,
+        21
+      ],
+      "width": 15,
+      "height": 4
+    },
+    {
+      "uuid": "1de46579-97bd-5694-9d3a-ca96634a8da1",
+      "material": "black",
+      "uv_offset": [
+        405,
+        21
+      ],
+      "width": 10,
+      "height": 3
+    },
+    {
+      "uuid": "e2f7fcc1-5885-5445-b5f1-770476729caf",
+      "material": "black",
+      "uv_offset": [
+        417,
+        21
+      ],
+      "width": 10,
+      "height": 3
+    },
+    {
+      "uuid": "17d10c17-2162-5016-ab67-c57b5919fcc5",
+      "material": "black",
+      "uv_offset": [
+        429,
+        21
+      ],
+      "width": 10,
+      "height": 3
+    },
+    {
+      "uuid": "352c1720-882e-5277-ac79-3c94f633e10f",
+      "material": "black",
+      "uv_offset": [
+        441,
+        21
+      ],
+      "width": 10,
+      "height": 3
+    },
+    {
+      "uuid": "e4d99de6-c7b3-5084-9588-1fcb407a631a",
+      "material": "black",
+      "uv_offset": [
+        453,
+        21
+      ],
+      "width": 10,
+      "height": 3
+    },
+    {
+      "uuid": "f385bf2f-225e-522d-b549-d31b68a4618c",
+      "material": "silver",
+      "uv_offset": [
+        465,
+        21
+      ],
+      "width": 13,
+      "height": 13
+    },
+    {
+      "uuid": "02eca03d-9629-5134-ac3d-ab41ea13cd88",
+      "material": "silver",
+      "uv_offset": [
+        480,
+        21
+      ],
+      "width": 13,
+      "height": 13
+    },
+    {
+      "uuid": "27acb10c-50c9-5252-b01d-500b663cd8d9",
+      "material": "silver",
+      "uv_offset": [
+        495,
+        21
+      ],
+      "width": 13,
+      "height": 13
+    },
+    {
+      "uuid": "6b7f454f-1621-5485-9a64-9fe0701fe50e",
+      "material": "silver",
+      "uv_offset": [
+        2,
+        36
+      ],
+      "width": 13,
+      "height": 13
+    },
+    {
+      "uuid": "2a7585a6-125d-5619-bfdc-036b2488e0a8",
+      "material": "panel",
+      "uv_offset": [
+        17,
+        36
+      ],
+      "width": 32,
+      "height": 14
+    },
+    {
+      "uuid": "e59b92dd-b9aa-5966-a9af-01ea6f2a7288",
+      "material": "silver",
+      "uv_offset": [
+        51,
+        36
+      ],
+      "width": 19,
+      "height": 10
+    },
+    {
+      "uuid": "8ff82279-9cc7-5135-a509-c20455cd67da",
+      "material": "black",
+      "uv_offset": [
+        72,
+        36
+      ],
+      "width": 13,
+      "height": 6
+    },
+    {
+      "uuid": "c86bf701-1a11-5706-8a21-5f5b833a2208",
+      "material": "edge",
+      "uv_offset": [
+        87,
+        36
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "c7f00450-d0d0-515e-b46a-b5d7874137a9",
+      "material": "edge",
+      "uv_offset": [
+        101,
+        36
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "3f3aa1ab-f0e8-554b-bd5b-51833f73221f",
+      "material": "edge",
+      "uv_offset": [
+        115,
+        36
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "008c5ce4-49ca-50d1-9fcc-463eb566ab00",
+      "material": "edge",
+      "uv_offset": [
+        129,
+        36
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "5dcf99e3-f7de-5750-a527-38a1ad5bee46",
+      "material": "edge",
+      "uv_offset": [
+        143,
+        36
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "f12d1147-f392-5308-beea-abf668e50692",
+      "material": "edge",
+      "uv_offset": [
+        157,
+        36
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "007c339d-a98f-51a7-a6ff-6484d7373fcb",
+      "material": "edge",
+      "uv_offset": [
+        171,
+        36
+      ],
+      "width": 8,
+      "height": 4
+    },
+    {
+      "uuid": "13ef4231-b2da-5c83-ac43-0455b4517609",
+      "material": "black",
+      "uv_offset": [
+        181,
+        36
+      ],
+      "width": 7,
+      "height": 3
+    },
+    {
+      "uuid": "450e2935-9c1c-59f1-b63a-17709a8e5385",
+      "material": "gold",
+      "uv_offset": [
+        190,
+        36
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "7e8eeba0-4eae-5f7f-b1a5-5972e7dcff33",
+      "material": "gold",
+      "uv_offset": [
+        197,
+        36
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "31b793ab-f2ec-519f-a3d1-e579f93bba13",
+      "material": "blue",
+      "uv_offset": [
+        204,
+        36
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "c9505a66-56f8-5db6-acf5-6dbf484321c6",
+      "material": "black",
+      "uv_offset": [
+        212,
+        36
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "b059c472-f70f-5a33-820c-99b30cba3a0e",
+      "material": "screw",
+      "uv_offset": [
+        219,
+        36
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "d2e2bc07-db61-58e2-8ae8-de650732e598",
+      "material": "screw",
+      "uv_offset": [
+        226,
+        36
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "cd0b79e5-2bb9-5d28-9593-6dfd993a1bdc",
+      "material": "screw",
+      "uv_offset": [
+        233,
+        36
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "d3f35232-13e5-510f-ac72-789f9d32d38d",
+      "material": "screw",
+      "uv_offset": [
+        240,
+        36
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "2c9ebb06-6535-569a-8798-0f2b67ee2138",
+      "material": "graphite",
+      "uv_offset": [
+        247,
+        36
+      ],
+      "width": 14,
+      "height": 17
+    },
+    {
+      "uuid": "602b79ef-e30e-5e61-88aa-7b5c54784451",
+      "material": "graphite_flat",
+      "uv_offset": [
+        263,
+        36
+      ],
+      "width": 29,
+      "height": 6
+    },
+    {
+      "uuid": "137c9f62-3ac0-5cad-8af4-9d21f08154e1",
+      "material": "graphite_flat",
+      "uv_offset": [
+        294,
+        36
+      ],
+      "width": 29,
+      "height": 6
+    },
+    {
+      "uuid": "305420ac-ff1f-5186-942a-16043f1b89cf",
+      "material": "graphite_flat",
+      "uv_offset": [
+        325,
+        36
+      ],
+      "width": 29,
+      "height": 6
+    },
+    {
+      "uuid": "229740c5-9b74-54a7-b2a9-7c629fae198e",
+      "material": "graphite_flat",
+      "uv_offset": [
+        356,
+        36
+      ],
+      "width": 29,
+      "height": 6
+    },
+    {
+      "uuid": "05590fd0-126c-5f01-b2ca-7c40c35ed3b1",
+      "material": "silver_flat",
+      "uv_offset": [
+        387,
+        36
+      ],
+      "width": 29,
+      "height": 6
+    },
+    {
+      "uuid": "dec856da-b5e7-545d-8486-6b4427f3b6cf",
+      "material": "silver_flat",
+      "uv_offset": [
+        418,
+        36
+      ],
+      "width": 29,
+      "height": 6
+    },
+    {
+      "uuid": "b316d11d-1a29-5aee-8aae-0ae5ef95869d",
+      "material": "silver_flat",
+      "uv_offset": [
+        449,
+        36
+      ],
+      "width": 29,
+      "height": 6
+    },
+    {
+      "uuid": "5d243365-7c5a-5082-9e8b-cfb3008cf17b",
+      "material": "silver_flat",
+      "uv_offset": [
+        480,
+        36
+      ],
+      "width": 29,
+      "height": 6
+    },
+    {
+      "uuid": "d1a5c048-2ea9-537b-a615-2dac4725aba1",
+      "material": "edge",
+      "uv_offset": [
+        2,
+        55
+      ],
+      "width": 18,
+      "height": 3
+    },
+    {
+      "uuid": "14628f10-6aca-54d4-8fce-1581aba507ba",
+      "material": "edge",
+      "uv_offset": [
+        22,
+        55
+      ],
+      "width": 19,
+      "height": 3
+    },
+    {
+      "uuid": "061994c8-d127-5525-a045-e2ca4be5825d",
+      "material": "edge",
+      "uv_offset": [
+        43,
+        55
+      ],
+      "width": 19,
+      "height": 3
+    },
+    {
+      "uuid": "adb0da09-d800-5703-a802-dfd910eea29c",
+      "material": "edge",
+      "uv_offset": [
+        64,
+        55
+      ],
+      "width": 19,
+      "height": 3
+    },
+    {
+      "uuid": "c82899df-4a4e-53ac-8f94-925243f2bd7f",
+      "material": "edge",
+      "uv_offset": [
+        85,
+        55
+      ],
+      "width": 19,
+      "height": 3
+    },
+    {
+      "uuid": "dddcd007-d49c-52d9-8ec7-fe916ec6b4af",
+      "material": "edge",
+      "uv_offset": [
+        106,
+        55
+      ],
+      "width": 16,
+      "height": 3
+    },
+    {
+      "uuid": "75cbb90c-7a53-5523-b767-e7368401f1d2",
+      "material": "glass",
+      "uv_offset": [
+        124,
+        55
+      ],
+      "width": 13,
+      "height": 13
+    },
+    {
+      "uuid": "737ded5b-b24a-5b24-acc1-4a9d19f4ec11",
+      "material": "edge",
+      "uv_offset": [
+        139,
+        55
+      ],
+      "width": 5,
+      "height": 13
+    },
+    {
+      "uuid": "8734a158-3053-5474-88a4-98383b3f0912",
+      "material": "edge",
+      "uv_offset": [
+        146,
+        55
+      ],
+      "width": 5,
+      "height": 13
+    },
+    {
+      "uuid": "1a0717a8-7f55-5ee8-acbf-a11e72b8d9ec",
+      "material": "silver",
+      "uv_offset": [
+        153,
+        55
+      ],
+      "width": 6,
+      "height": 13
+    },
+    {
+      "uuid": "beb51be8-c8b8-5e28-9c86-956479712054",
+      "material": "black",
+      "uv_offset": [
+        161,
+        55
+      ],
+      "width": 6,
+      "height": 4
+    },
+    {
+      "uuid": "02dc257d-43d2-5134-8417-e9e2e59c224e",
+      "material": "black",
+      "uv_offset": [
+        169,
+        55
+      ],
+      "width": 6,
+      "height": 4
+    },
+    {
+      "uuid": "7bdc0493-cc7c-5eee-a069-a4803728d2ff",
+      "material": "black",
+      "uv_offset": [
+        177,
+        55
+      ],
+      "width": 6,
+      "height": 4
+    },
+    {
+      "uuid": "9450016c-f916-5d43-a6ba-0b23e0394976",
+      "material": "black",
+      "uv_offset": [
+        185,
+        55
+      ],
+      "width": 6,
+      "height": 4
+    },
+    {
+      "uuid": "26a99c9c-033a-55bc-b103-e6f81f97e2e6",
+      "material": "black",
+      "uv_offset": [
+        193,
+        55
+      ],
+      "width": 6,
+      "height": 4
+    },
+    {
+      "uuid": "b613300a-243d-5c83-8d7c-b946a8bb8906",
+      "material": "black",
+      "uv_offset": [
+        201,
+        55
+      ],
+      "width": 6,
+      "height": 4
+    },
+    {
+      "uuid": "e082f46c-2a63-5ecf-9b31-4e710c8f8d6c",
+      "material": "glass",
+      "uv_offset": [
+        209,
+        55
+      ],
+      "width": 12,
+      "height": 12
+    },
+    {
+      "uuid": "a68841f5-7df2-5896-aca8-5b65887e03d3",
+      "material": "glass",
+      "uv_offset": [
+        223,
+        55
+      ],
+      "width": 12,
+      "height": 12
+    },
+    {
+      "uuid": "c4aac0b0-b1af-59d4-89a3-d1eb481478d6",
+      "material": "glass",
+      "uv_offset": [
+        237,
+        55
+      ],
+      "width": 12,
+      "height": 12
+    },
+    {
+      "uuid": "d519f2a3-10a2-53b8-b3a5-a605b2a42ad3",
+      "material": "edge",
+      "uv_offset": [
+        251,
+        55
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "ab3b2312-7e7f-5893-a7c0-6c7c0384cc82",
+      "material": "edge",
+      "uv_offset": [
+        265,
+        55
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "5f5c5a77-d804-527b-9309-a1a2087ae979",
+      "material": "edge",
+      "uv_offset": [
+        279,
+        55
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "eb481f6d-2c6c-5d9f-9cff-5b7838361beb",
+      "material": "edge",
+      "uv_offset": [
+        293,
+        55
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "bd8c86d4-dbe1-57ed-b6be-4de252977518",
+      "material": "edge",
+      "uv_offset": [
+        307,
+        55
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "b33dc3c1-39e3-5b87-b96c-9d5e268ec4db",
+      "material": "edge",
+      "uv_offset": [
+        321,
+        55
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "dc806f0d-54b3-5cc1-af4f-14bb36571df8",
+      "material": "edge",
+      "uv_offset": [
+        335,
+        55
+      ],
+      "width": 5,
+      "height": 13
+    },
+    {
+      "uuid": "3325bb30-d0e1-5ed9-929b-81e8be884ba1",
+      "material": "edge",
+      "uv_offset": [
+        342,
+        55
+      ],
+      "width": 5,
+      "height": 13
+    },
+    {
+      "uuid": "68590d30-0289-5532-a248-5a4540e55236",
+      "material": "silver",
+      "uv_offset": [
+        349,
+        55
+      ],
+      "width": 5,
+      "height": 5
+    },
+    {
+      "uuid": "2a7cdb89-c389-5157-9844-6c86f77c9a52",
+      "material": "edge",
+      "uv_offset": [
+        356,
+        55
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "2cfce9cd-8e8b-5241-b1c8-09b15f50b1de",
+      "material": "edge",
+      "uv_offset": [
+        363,
+        55
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "566f7777-9fb8-5198-aff4-715f4b6a2bfc",
+      "material": "graphite",
+      "uv_offset": [
+        370,
+        55
+      ],
+      "width": 33,
+      "height": 25
+    },
+    {
+      "uuid": "b72694dc-871e-57eb-a7f8-62e0ec4ee0af",
+      "material": "edge",
+      "uv_offset": [
+        405,
+        55
+      ],
+      "width": 36,
+      "height": 15
+    },
+    {
+      "uuid": "6541cd21-9181-586d-9de6-aa877a859ff2",
+      "material": "panel",
+      "uv_offset": [
+        443,
+        55
+      ],
+      "width": 10,
+      "height": 14
+    },
+    {
+      "uuid": "c2705c37-7244-579b-bdda-8c5054aaf35f",
+      "material": "gold",
+      "uv_offset": [
+        455,
+        55
+      ],
+      "width": 11,
+      "height": 3
+    },
+    {
+      "uuid": "63c2dbbd-7000-5175-aa05-da15c545dbc8",
+      "material": "edge",
+      "uv_offset": [
+        468,
+        55
+      ],
+      "width": 10,
+      "height": 5
+    },
+    {
+      "uuid": "63da5788-a493-52c4-bb94-10cacdeb885b",
+      "material": "screen",
+      "uv_offset": [
+        480,
+        55
+      ],
+      "width": 9,
+      "height": 5
+    },
+    {
+      "uuid": "d340f6ac-4938-5f67-b893-55d45a939174",
+      "material": "cyan",
+      "uv_offset": [
+        491,
+        55
+      ],
+      "width": 8,
+      "height": 3
+    },
+    {
+      "uuid": "222fb4b9-3442-5c75-9142-62992bb5f99e",
+      "material": "blue",
+      "uv_offset": [
+        501,
+        55
+      ],
+      "width": 8,
+      "height": 3
+    },
+    {
+      "uuid": "9988f654-33b5-522d-b8d9-3d386bf8407b",
+      "material": "cyan",
+      "uv_offset": [
+        2,
+        82
+      ],
+      "width": 8,
+      "height": 3
+    },
+    {
+      "uuid": "46c1ccd5-8339-5b46-b17e-a0d4ee841313",
+      "material": "cyan",
+      "uv_offset": [
+        12,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "35e6bbe0-7268-5a60-88d7-06bf4a6f8715",
+      "material": "cyan",
+      "uv_offset": [
+        19,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "9349b468-f92e-5f49-ae6f-f458147642a1",
+      "material": "cyan",
+      "uv_offset": [
+        26,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "b394dd85-e0d4-5b22-ac90-e71970f41a5d",
+      "material": "cyan",
+      "uv_offset": [
+        33,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "8bd11fd1-6e57-57ad-91ff-e6f2d83dd80e",
+      "material": "cyan",
+      "uv_offset": [
+        40,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "f549e3f6-2c8f-58b0-b170-6383b4138234",
+      "material": "lamp_amber",
+      "uv_offset": [
+        47,
+        82
+      ],
+      "width": 9,
+      "height": 3
+    },
+    {
+      "uuid": "81dda497-0289-5f89-bef8-9de42a0e2b91",
+      "material": "gold",
+      "uv_offset": [
+        58,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "7962fc1a-249f-5e41-a701-972c3f347ac8",
+      "material": "red",
+      "uv_offset": [
+        66,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "2ef888ff-7aa1-5512-892d-8e95ade3c728",
+      "material": "edge",
+      "uv_offset": [
+        74,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "7588ee9e-1fb0-5a23-99a4-154f7562e567",
+      "material": "black",
+      "uv_offset": [
+        82,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "55993d5f-7de5-5cc9-910d-992189bc43aa",
+      "material": "silver_flat",
+      "uv_offset": [
+        89,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "6287d968-29f7-579c-bb56-d5104a0f5526",
+      "material": "edge",
+      "uv_offset": [
+        96,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "41302e12-020e-5ae6-9467-bf0680ffe015",
+      "material": "black",
+      "uv_offset": [
+        104,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "14d5c277-fec0-572c-bc4c-48a6d4b3b6d7",
+      "material": "silver_flat",
+      "uv_offset": [
+        111,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "ac732ea8-e6ee-5d15-8b4b-b97daf2da2b2",
+      "material": "panel",
+      "uv_offset": [
+        118,
+        82
+      ],
+      "width": 22,
+      "height": 21
+    },
+    {
+      "uuid": "24adb1db-41dc-5dbc-9cf8-972766592164",
+      "material": "black",
+      "uv_offset": [
+        142,
+        82
+      ],
+      "width": 8,
+      "height": 7
+    },
+    {
+      "uuid": "4033d06f-5f4f-566b-80d3-b819cedc5896",
+      "material": "edge",
+      "uv_offset": [
+        152,
+        82
+      ],
+      "width": 8,
+      "height": 4
+    },
+    {
+      "uuid": "8bed0299-39bb-5c38-b10a-67e1f77e01f0",
+      "material": "edge",
+      "uv_offset": [
+        162,
+        82
+      ],
+      "width": 8,
+      "height": 4
+    },
+    {
+      "uuid": "dc5957b3-824b-5c5e-84d2-91144be3f64c",
+      "material": "edge",
+      "uv_offset": [
+        172,
+        82
+      ],
+      "width": 8,
+      "height": 4
+    },
+    {
+      "uuid": "42f1b443-a3cb-5fef-8408-ca9880beae97",
+      "material": "edge",
+      "uv_offset": [
+        182,
+        82
+      ],
+      "width": 8,
+      "height": 4
+    },
+    {
+      "uuid": "39bc11b4-bb91-5f82-95ef-38fe12192261",
+      "material": "edge",
+      "uv_offset": [
+        192,
+        82
+      ],
+      "width": 8,
+      "height": 4
+    },
+    {
+      "uuid": "60eb3058-af8f-5285-b2a0-32cb4ece80db",
+      "material": "edge",
+      "uv_offset": [
+        202,
+        82
+      ],
+      "width": 8,
+      "height": 4
+    },
+    {
+      "uuid": "5956c1c5-81e7-5eb6-814c-3b5e3da85719",
+      "material": "edge",
+      "uv_offset": [
+        212,
+        82
+      ],
+      "width": 8,
+      "height": 8
+    },
+    {
+      "uuid": "739e00f2-7912-5403-a7da-8e5944a6220e",
+      "material": "graphite",
+      "uv_offset": [
+        222,
+        82
+      ],
+      "width": 10,
+      "height": 4
+    },
+    {
+      "uuid": "49fd57aa-f1dc-5474-8e68-86b310ca6499",
+      "material": "graphite",
+      "uv_offset": [
+        234,
+        82
+      ],
+      "width": 10,
+      "height": 4
+    },
+    {
+      "uuid": "cda9410a-d407-549d-9387-5cd3938c5b99",
+      "material": "silver_flat",
+      "uv_offset": [
+        246,
+        82
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "dac58857-5fd7-59ea-8d67-cfe92d7223b0",
+      "material": "edge",
+      "uv_offset": [
+        260,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "e04e6122-e5b7-504a-ac93-de8aef6b97bb",
+      "material": "edge",
+      "uv_offset": [
+        267,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "7b197dfe-7618-5436-a0dd-e3f461f0330b",
+      "material": "silver_flat",
+      "uv_offset": [
+        274,
+        82
+      ],
+      "width": 12,
+      "height": 3
+    },
+    {
+      "uuid": "38ca45e4-8802-5da8-a199-025d803ddb5e",
+      "material": "edge",
+      "uv_offset": [
+        288,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "686335ae-3a66-5731-be9c-5fbe6ded6123",
+      "material": "edge",
+      "uv_offset": [
+        295,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "1bb475b2-49d0-535c-92a6-2177f59cf4da",
+      "material": "graphite",
+      "uv_offset": [
+        302,
+        82
+      ],
+      "width": 11,
+      "height": 8
+    },
+    {
+      "uuid": "99a6f3eb-36ce-5713-b364-ba53bbf02f51",
+      "material": "edge",
+      "uv_offset": [
+        315,
+        82
+      ],
+      "width": 9,
+      "height": 8
+    },
+    {
+      "uuid": "0dca4695-3774-5c9d-9456-b80f1d2cf61e",
+      "material": "silver",
+      "uv_offset": [
+        326,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "5670a358-8c9a-5906-b0f7-576d11c27b85",
+      "material": "silver",
+      "uv_offset": [
+        334,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "630e94f8-e212-55de-aee1-26b5e46dfde2",
+      "material": "silver",
+      "uv_offset": [
+        342,
+        82
+      ],
+      "width": 5,
+      "height": 6
+    },
+    {
+      "uuid": "a8052f26-a14c-5698-9e9e-07473cde79be",
+      "material": "silver",
+      "uv_offset": [
+        349,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "0f08f03a-9cc0-5a00-ac4d-f8899a617444",
+      "material": "graphite",
+      "uv_offset": [
+        356,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "386f1787-d264-577d-a02c-00cd3fd1fae4",
+      "material": "silver",
+      "uv_offset": [
+        364,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "e4de5fe8-f697-59d3-bd7c-bab00779bfb3",
+      "material": "screw",
+      "uv_offset": [
+        372,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "592aeeda-b950-5bac-8c4e-86226054bf8f",
+      "material": "silver",
+      "uv_offset": [
+        379,
+        82
+      ],
+      "width": 6,
+      "height": 4
+    },
+    {
+      "uuid": "3118907c-9e13-5c7f-9b8f-64e08f873c85",
+      "material": "edge",
+      "uv_offset": [
+        387,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "3c3b17bc-a526-5452-8e57-2361fb861785",
+      "material": "edge_flat",
+      "uv_offset": [
+        394,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "e25294e3-33f8-5ad5-a59f-1ba42e120143",
+      "material": "edge_flat",
+      "uv_offset": [
+        401,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "d2de3569-e8d1-5d75-9cd4-4b263b54a63f",
+      "material": "edge_flat",
+      "uv_offset": [
+        408,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "b58d9a89-f66e-53e9-9393-cfdb705f0f8a",
+      "material": "edge_flat",
+      "uv_offset": [
+        415,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "34266805-16b9-5fd0-86ba-49fc182f3de8",
+      "material": "silver",
+      "uv_offset": [
+        422,
+        82
+      ],
+      "width": 7,
+      "height": 5
+    },
+    {
+      "uuid": "dc505bb1-1906-525b-958d-f25a8b428db3",
+      "material": "silver",
+      "uv_offset": [
+        431,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "5d97db27-7550-5f7d-a7ac-691004c6c1b6",
+      "material": "black",
+      "uv_offset": [
+        438,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "cf5ba156-b46d-5c84-9a3f-c28575c44861",
+      "material": "silver",
+      "uv_offset": [
+        445,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "7af504c1-ba7e-5d98-ba9f-47d0362224b7",
+      "material": "black",
+      "uv_offset": [
+        452,
+        82
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "eaf98313-1301-5b31-b3e0-eff79d1f83b2",
+      "material": "graphite",
+      "uv_offset": [
+        459,
+        82
+      ],
+      "width": 7,
+      "height": 3
+    },
+    {
+      "uuid": "d2a87a5a-ca3b-546d-b082-9fb12edad6d3",
+      "material": "stock",
+      "uv_offset": [
+        468,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "0214b946-1e02-5d6e-b593-57380d714c43",
+      "material": "stock_flat",
+      "uv_offset": [
+        476,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "e5a5c915-b810-58a6-8a8e-87463fc86a27",
+      "material": "stock_flat",
+      "uv_offset": [
+        484,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "96a7672f-016b-5b4d-938a-9b6fc17f99a2",
+      "material": "stock_flat",
+      "uv_offset": [
+        492,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "18739eec-9d8a-591f-a1e3-e358be7cf89b",
+      "material": "stock_flat",
+      "uv_offset": [
+        500,
+        82
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "27f3f4c5-39d0-5a4d-874f-bf0f9415dbd0",
+      "material": "stock_flat",
+      "uv_offset": [
+        2,
+        105
+      ],
+      "width": 5,
+      "height": 4
+    },
+    {
+      "uuid": "b1752f43-7f06-5362-be7b-601557edf8e1",
+      "material": "stock_flat",
+      "uv_offset": [
+        9,
+        105
+      ],
+      "width": 5,
+      "height": 4
+    },
+    {
+      "uuid": "03bc339b-8b26-5949-82b4-2fad638e7a27",
+      "material": "stock_flat",
+      "uv_offset": [
+        16,
+        105
+      ],
+      "width": 5,
+      "height": 4
+    },
+    {
+      "uuid": "e48e256a-7fcb-5f15-ab93-bdf8e27ef039",
+      "material": "stock_flat",
+      "uv_offset": [
+        23,
+        105
+      ],
+      "width": 5,
+      "height": 4
+    },
+    {
+      "uuid": "583fea48-8d87-5c86-b9f1-6b07c468c5f6",
+      "material": "stock_flat",
+      "uv_offset": [
+        30,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "2005faa6-9fd7-565f-a881-1a6140e74f48",
+      "material": "stock_flat",
+      "uv_offset": [
+        38,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "37b90811-f3c2-5396-9372-ae29a3c35d77",
+      "material": "stock_flat",
+      "uv_offset": [
+        46,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "57fa33ef-1671-5d99-a87c-0c72497fc46e",
+      "material": "stock_flat",
+      "uv_offset": [
+        54,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "582234e3-c8df-502c-bdc9-5d7a1e3373cb",
+      "material": "stock_flat",
+      "uv_offset": [
+        62,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "fd1bc118-b4e0-5fe2-a266-dcfecf3fb434",
+      "material": "stock_flat",
+      "uv_offset": [
+        69,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "3207ff57-2602-591c-a87f-cb78889b65fa",
+      "material": "stock_flat",
+      "uv_offset": [
+        76,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "77b426b6-33f5-524d-a251-d5de160b93fe",
+      "material": "stock_flat",
+      "uv_offset": [
+        83,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "58e23309-6aed-50e5-aad8-b5db106f5a0c",
+      "material": "stock_flat",
+      "uv_offset": [
+        90,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "154513eb-744c-568d-a8de-ab29f047f4ba",
+      "material": "stock_flat",
+      "uv_offset": [
+        97,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "426163fa-2329-5195-b8fc-ad3bd96f7d13",
+      "material": "stock_flat",
+      "uv_offset": [
+        104,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "10758bb4-7c2b-5c7d-9c92-8a6037d1654d",
+      "material": "stock_flat",
+      "uv_offset": [
+        111,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "14e6121f-1784-5728-aef5-977b5a40f9a3",
+      "material": "stock_flat",
+      "uv_offset": [
+        118,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "a5c95c04-eaac-5100-8201-d172806674b0",
+      "material": "stock_flat",
+      "uv_offset": [
+        126,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "387a4383-c26e-5479-84e0-764f4c02da3b",
+      "material": "stock_flat",
+      "uv_offset": [
+        134,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "9c8e194b-e0d1-5390-a400-dfe338de6af7",
+      "material": "stock_flat",
+      "uv_offset": [
+        142,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "aeb76704-3788-504d-a65a-be011eda1e25",
+      "material": "stock_flat",
+      "uv_offset": [
+        150,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "cb3431ae-3484-50c6-886a-cce77d6041af",
+      "material": "stock_flat",
+      "uv_offset": [
+        158,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "dff01159-198d-518a-9e9e-54e013fc9a73",
+      "material": "stock_flat",
+      "uv_offset": [
+        166,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "49aae082-31ec-59be-b99a-c4006df06d54",
+      "material": "stock_flat",
+      "uv_offset": [
+        174,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "8f29674d-4eb6-5155-864d-2e0ca4426716",
+      "material": "stock_flat",
+      "uv_offset": [
+        182,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "104c7978-93c6-5d83-ba46-b6a793395d79",
+      "material": "stock_flat",
+      "uv_offset": [
+        189,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "759748e5-45e0-58bf-8651-bd9d48e86bad",
+      "material": "stock_flat",
+      "uv_offset": [
+        196,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "2c07878c-3184-5244-8184-cba6e75b744f",
+      "material": "stock_flat",
+      "uv_offset": [
+        203,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "98917a7d-dffc-5373-acac-48f1077feacf",
+      "material": "stock_flat",
+      "uv_offset": [
+        210,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "8d038a63-031b-51f6-a120-c9f090090cfe",
+      "material": "stock_flat",
+      "uv_offset": [
+        217,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "75cdbc2e-3c89-57c8-b53f-1c3866a0b070",
+      "material": "stock_flat",
+      "uv_offset": [
+        224,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "ddd296fb-fa85-50a5-b2ef-284f78be8af7",
+      "material": "stock_flat",
+      "uv_offset": [
+        231,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "aa39227e-9d6d-5cef-bd15-e7b1d6f89a37",
+      "material": "stock_flat",
+      "uv_offset": [
+        238,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "82697b8b-8848-572e-9541-8ca44576095f",
+      "material": "stock_flat",
+      "uv_offset": [
+        246,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "f6644e2d-0b3e-537d-98d5-736bc125262f",
+      "material": "stock_flat",
+      "uv_offset": [
+        254,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "24a0e50b-d69d-5978-b454-f9f3330ccf32",
+      "material": "stock_flat",
+      "uv_offset": [
+        262,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "c7d45fae-5cd7-59a4-aff5-9f08925487e3",
+      "material": "stock_flat",
+      "uv_offset": [
+        270,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "59f37327-a227-5335-8633-dba5103799ac",
+      "material": "stock_flat",
+      "uv_offset": [
+        278,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "944263a2-9bb6-5fa0-847d-10936a184573",
+      "material": "stock_flat",
+      "uv_offset": [
+        286,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "69c5fc3b-1e97-536e-b3a0-73bd2f158ea1",
+      "material": "stock_flat",
+      "uv_offset": [
+        294,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "4ad0e104-ac23-51a6-8654-0567183f2633",
+      "material": "screw",
+      "uv_offset": [
+        302,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "ee7387a9-5070-5e24-a6ec-97a7748ed47b",
+      "material": "screw",
+      "uv_offset": [
+        309,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "752154b7-8b0e-5ab7-ae84-d40d67dd0e11",
+      "material": "screw",
+      "uv_offset": [
+        316,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "ca72d21e-5fcf-5771-aac8-038ad79530f7",
+      "material": "screw",
+      "uv_offset": [
+        323,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "ba22d4e5-3550-5aae-ba73-a88ccc40f596",
+      "material": "graphite",
+      "uv_offset": [
+        330,
+        105
+      ],
+      "width": 7,
+      "height": 6
+    },
+    {
+      "uuid": "e6a122fa-8c66-588f-a6b3-7fa9836b2b2d",
+      "material": "edge",
+      "uv_offset": [
+        339,
+        105
+      ],
+      "width": 5,
+      "height": 5
+    },
+    {
+      "uuid": "fe877f30-6f15-5b98-9c46-d5c6d0db12ea",
+      "material": "silver_flat",
+      "uv_offset": [
+        346,
+        105
+      ],
+      "width": 7,
+      "height": 4
+    },
+    {
+      "uuid": "3f3a146f-0290-5583-9a7f-d1f588bb1745",
+      "material": "silver_flat",
+      "uv_offset": [
+        355,
+        105
+      ],
+      "width": 7,
+      "height": 4
+    },
+    {
+      "uuid": "915e04db-8ab1-5fb0-980f-05f55307ff00",
+      "material": "silver_flat",
+      "uv_offset": [
+        364,
+        105
+      ],
+      "width": 7,
+      "height": 4
+    },
+    {
+      "uuid": "bf743555-7717-52a6-884b-02999151636a",
+      "material": "silver_flat",
+      "uv_offset": [
+        373,
+        105
+      ],
+      "width": 7,
+      "height": 4
+    },
+    {
+      "uuid": "710a7651-771e-570a-b71b-4634db562654",
+      "material": "graphite_flat",
+      "uv_offset": [
+        382,
+        105
+      ],
+      "width": 6,
+      "height": 5
+    },
+    {
+      "uuid": "52eb9d63-9e10-5e25-8f10-825f349068f6",
+      "material": "graphite_flat",
+      "uv_offset": [
+        390,
+        105
+      ],
+      "width": 6,
+      "height": 5
+    },
+    {
+      "uuid": "63c38b84-a6cc-509e-9f20-d2a6a0729975",
+      "material": "graphite_flat",
+      "uv_offset": [
+        398,
+        105
+      ],
+      "width": 6,
+      "height": 5
+    },
+    {
+      "uuid": "b07430c7-ea2c-5326-957e-bc1965ac17a5",
+      "material": "graphite_flat",
+      "uv_offset": [
+        406,
+        105
+      ],
+      "width": 6,
+      "height": 5
+    },
+    {
+      "uuid": "2b6344d3-e0da-58e5-afaa-52085e5547af",
+      "material": "edge_flat",
+      "uv_offset": [
+        414,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "7cf57b51-9880-57bf-bc45-ea572a8f8c5d",
+      "material": "edge_flat",
+      "uv_offset": [
+        421,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "0cb96d8b-33be-56de-9356-9c3e326c5645",
+      "material": "edge_flat",
+      "uv_offset": [
+        428,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "abae6423-1713-56b5-b794-8b46420871f1",
+      "material": "edge_flat",
+      "uv_offset": [
+        435,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "11218989-540d-5cbe-ab28-2e2098e609fc",
+      "material": "gold_flat",
+      "uv_offset": [
+        442,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "0d236400-a227-50ce-8f99-753da3633c7d",
+      "material": "gold_flat",
+      "uv_offset": [
+        450,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "afba0640-2102-54ef-973b-f42b0c0c0fa0",
+      "material": "silver_flat",
+      "uv_offset": [
+        457,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "a053be8a-759f-5e71-90b2-b2efb33fe39d",
+      "material": "silver_flat",
+      "uv_offset": [
+        465,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "d6c2f817-6b78-57a2-b42f-d2f51aea7697",
+      "material": "silver_flat",
+      "uv_offset": [
+        473,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "5744df69-d027-573d-86ee-65040014bc52",
+      "material": "silver_flat",
+      "uv_offset": [
+        481,
+        105
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "007f4744-22a0-5777-a157-e4d5bd56aaaa",
+      "material": "graphite",
+      "uv_offset": [
+        489,
+        105
+      ],
+      "width": 14,
+      "height": 3
+    },
+    {
+      "uuid": "15c9b0f9-5df4-5687-a2b9-02394967c0ad",
+      "material": "edge",
+      "uv_offset": [
+        505,
+        105
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "753d16ed-71a1-51bb-9711-fce0bf0ca893",
+      "material": "silver_flat",
+      "uv_offset": [
+        2,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "79b15fe1-d486-51ef-ba88-ca49c7813141",
+      "material": "gold_flat",
+      "uv_offset": [
+        9,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "deb4035b-45fa-5e4c-9a3a-7c38d833b393",
+      "material": "edge",
+      "uv_offset": [
+        16,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "342e81ae-0953-5fa3-a3d9-febae6863ab0",
+      "material": "silver_flat",
+      "uv_offset": [
+        23,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "5e014b21-0774-5794-a854-a2bdedaab841",
+      "material": "gold_flat",
+      "uv_offset": [
+        30,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "f889be16-0ac4-5350-9ccb-060999959fcb",
+      "material": "edge",
+      "uv_offset": [
+        37,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "cd423b9b-36d7-5f3b-ad71-ff81a32abdfb",
+      "material": "silver_flat",
+      "uv_offset": [
+        44,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "69bf8851-cc3e-5b70-914b-a9995f6f7f95",
+      "material": "gold_flat",
+      "uv_offset": [
+        51,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "9d712e16-6624-54c0-bd62-e214e37c0983",
+      "material": "edge",
+      "uv_offset": [
+        58,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "eed65bc2-327e-5eda-8618-696132b74e6f",
+      "material": "silver_flat",
+      "uv_offset": [
+        65,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "2454a30e-c724-569b-8834-5da39f49cd21",
+      "material": "gold_flat",
+      "uv_offset": [
+        72,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "9828ffa8-701f-5f0c-b14d-4e1ab8806d0b",
+      "material": "edge",
+      "uv_offset": [
+        79,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "7bb518ed-0661-56a2-9586-58d74930fcd3",
+      "material": "silver_flat",
+      "uv_offset": [
+        86,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "549ca224-5c64-5bae-93c3-2fd3f32c59ce",
+      "material": "gold_flat",
+      "uv_offset": [
+        93,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "677bf998-7178-5b60-b075-60f080c624d9",
+      "material": "edge",
+      "uv_offset": [
+        100,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "7a941863-6b10-5b49-9fb2-135f65b07b11",
+      "material": "silver_flat",
+      "uv_offset": [
+        107,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "ca08fbf6-b9e1-542b-95eb-4902977a2b44",
+      "material": "gold_flat",
+      "uv_offset": [
+        114,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "f549e3f6-2c8f-58b0-b170-6383b4138234",
+      "material": "lamp_idle",
+      "uv_offset": [
+        121,
+        113
+      ],
+      "width": 9,
+      "height": 3
+    },
+    {
+      "uuid": "f549e3f6-2c8f-58b0-b170-6383b4138234",
+      "material": "lamp_amber",
+      "uv_offset": [
+        132,
+        113
+      ],
+      "width": 9,
+      "height": 3
+    },
+    {
+      "uuid": "f549e3f6-2c8f-58b0-b170-6383b4138234",
+      "material": "lamp_green",
+      "uv_offset": [
+        143,
+        113
+      ],
+      "width": 9,
+      "height": 3
+    },
+    {
+      "uuid": "f549e3f6-2c8f-58b0-b170-6383b4138234",
+      "material": "lamp_red",
+      "uv_offset": [
+        154,
+        113
+      ],
+      "width": 9,
+      "height": 3
+    },
+    {
+      "uuid": "9988f654-33b5-522d-b8d9-3d386bf8407b",
+      "material": "cyan",
+      "uv_offset": [
+        165,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    },
+    {
+      "uuid": "9988f654-33b5-522d-b8d9-3d386bf8407b",
+      "material": "cyan",
+      "uv_offset": [
+        172,
+        113
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "9988f654-33b5-522d-b8d9-3d386bf8407b",
+      "material": "cyan",
+      "uv_offset": [
+        180,
+        113
+      ],
+      "width": 8,
+      "height": 3
+    },
+    {
+      "uuid": "9988f654-33b5-522d-b8d9-3d386bf8407b",
+      "material": "cyan",
+      "uv_offset": [
+        190,
+        113
+      ],
+      "width": 6,
+      "height": 3
+    },
+    {
+      "uuid": "9988f654-33b5-522d-b8d9-3d386bf8407b",
+      "material": "cyan",
+      "uv_offset": [
+        198,
+        113
+      ],
+      "width": 5,
+      "height": 3
+    }
+  ],
+  "preview_states": {
+    "idle": {
+      "stage": null,
+      "lamp": "lamp_idle",
+      "door": 0
+    },
+    "machining": {
+      "stage": 1,
+      "lamp": "lamp_amber",
+      "door": 0
+    },
+    "complete": {
+      "stage": 4,
+      "lamp": "lamp_green",
+      "door": 0
+    },
+    "paused": {
+      "stage": 2,
+      "lamp": "lamp_red",
+      "door": 0
+    },
+    "door_open": {
+      "stage": null,
+      "lamp": "lamp_idle",
+      "door": -100
+    }
+  },
+  "preview_animations": [
+    "cnc_cycle_preview",
+    "door_open_preview",
+    "chip_drawer_preview"
+  ],
+  "machine_semantics": "Left side-wall-mounted linear stages + cantilever tilt/rotary fixture, no work-holder floor base or pillar; fixed right horizontal spindle, cutting bit axis X.",
+  "status": "Model assets only; runtime CNC block/entity, recipes and synchronization not implemented."
+}

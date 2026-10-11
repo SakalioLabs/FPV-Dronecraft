@@ -22,4 +22,18 @@ public final class ClientModelReadiness {
                 ItemDisplayContext.GUI, false, null, null, 0);
         return !state.isEmpty();
     }
+
+    public static boolean cncModelsReady(Minecraft client) {
+        return itemReady(client, "cnc_workstation", DroneItems.cncWorkstation())
+                && itemReady(client, "carbon_plate", DroneItems.carbonPlate());
+    }
+
+    private static boolean itemReady(Minecraft client, String path, net.minecraft.world.item.Item item) {
+        var model = client.getModelManager().getItemModel(ResourceLocation.fromNamespaceAndPath(FpvDronecraftMod.MOD_ID, path));
+        if (model == null || model instanceof MissingItemModel) return false;
+        ItemStackRenderState state = new ItemStackRenderState();
+        client.getItemModelResolver().updateForTopItem(state, new ItemStack(item),
+                ItemDisplayContext.GUI, false, null, null, 0);
+        return !state.isEmpty();
+    }
 }

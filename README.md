@@ -10,9 +10,23 @@ Languages: [简体中文](#简体中文) | [繁體中文](#繁體中文) | [Engl
 
 Progress archive: [简体中文完整原始记录](docs/progress/progress.zh-CN.md) | [繁體中文整理版](docs/progress/progress.zh-TW.md) | [English summary](docs/progress/progress.en.md) | [日本語要約](docs/progress/progress.ja.md)
 
-The published Git tag is [v0.1.1-playtest.11-fabric](https://github.com/SakalioLabs/FPV-Dronecraft/tree/v0.1.1-playtest.11-fabric) (Fabric). NeoForge is under development at `0.2.0-neoforge-dev.4`; the tag does not contain a NeoForge build.
+The published Git tag is [v0.1.1-playtest.11-fabric](https://github.com/SakalioLabs/FPV-Dronecraft/tree/v0.1.1-playtest.11-fabric) (Fabric). NeoForge is under development at `0.2.0-neoforge-dev.5`; the tag does not contain a NeoForge build.
 
-`dev.3` introduced placed bare frames, native component assembly and split-part
+`dev.5` adds the placed CNC workstation: insert four carbon plates to manufacture
+one placeable bare drone frame in 120 server ticks (about six seconds). The native
+menu, saved progress, split opaque/glass model and server-driven machining animation
+are available; carbon plate and workstation crafting recipes are deferred. Both
+items appear in the creative tab. See the [CNC usage guide](docs/cnc-workstation.md).
+
+The exact 1.21.1 / NeoForge 21.1.256 `dev.5` build passed 479 adapter unit tests,
+34 GameTests and 46 native-world checks with 22 PNGs, including the native CNC
+job and placement of its output frame. See the
+[installation and verification guide](docs/neoforge-installation.md) for evidence.
+All 16 pinned `dev.5` targets also passed build/package and fresh native
+title/controller/CNC/carbon-plate model startup checks. World interaction and
+machining coverage applies to the exact 1.21.1 / NeoForge 21.1.256 build.
+
+Historical `dev.3` introduced placed bare frames, native component assembly and split-part
 models. Those checks are historical `dev.3` evidence. `dev.4` makes the camera
 optional: the required build is four motors, four propellers, and one each of an
 ESC, flight controller, receiver, and battery (12 pieces total). Without a camera,
@@ -30,7 +44,7 @@ FPV Dronecraft 是一个面向 Minecraft NeoForge 的多轴无人机/穿越机�
 ### 当前状态
 
 - 默认构建目标：Minecraft `1.21.1`、NeoForge `21.1.257`
-- Mod 版本：`0.2.0-neoforge-dev.4`
+- Mod 版本：`0.2.0-neoforge-dev.5`
 - 1.21.1 至 26.3 共 16 个配置已启用实际源码 overlay，全部仍处于适配中；启用不等于完整支持。
 - `dev.1` 历史迁移基线：16 个固定目标的 build/package、服务端四种飞行自测和客户端标题/模型/20 ticks smoke 均通过。15 个目标的完整记录在 `build/reports/neoforge-matrix/20261010-103859-388`；26.1 server 也在该报告通过，26.1 build/client 补跑记录在 `build/reports/neoforge-matrix/20261010-112848-528`。原 `103859-388` 总结果仍为失败，保留其修复前 26.1 client 失败记录；逐阶段最新来源见版本清单。
 - Java：1.21.x 使用 `21`；26.x 使用 `25`
@@ -54,7 +68,7 @@ FPV Dronecraft 是一个面向 Minecraft NeoForge 的多轴无人机/穿越机�
 
 1. 安装 Java `21`、Minecraft `1.21.1` 和 NeoForge `21.1.257`；此版本不需要 Fabric API。
 2. 运行 `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging`。
-3. 将 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.4.jar` 放入客户端和服务器的 `mods` 目录。
+3. 将 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.5.jar` 放入客户端和服务器的 `mods` 目录。
 4. 启动游戏，从 FPV Dronecraft 创造标签页获取无人机和遥控器物品。
 
 ### 快速开始
@@ -94,7 +108,7 @@ FPV Dronecraft 是一個面向 Minecraft NeoForge 的多軸無人機/穿越機�
 ### 目前狀態
 
 - 預設建置目標：Minecraft `1.21.1`、NeoForge `21.1.257`
-- Mod 版本：`0.2.0-neoforge-dev.4`
+- Mod 版本：`0.2.0-neoforge-dev.5`
 - 1.21.1 至 26.3 共 16 個設定已啟用實際原始碼 overlay，全部仍在適配；啟用不等於完整支援。
 - `dev.1` 歷史遷移基線：16 個固定目標的 build/package、伺服器四種飛行自測與客戶端標題/模型/20 ticks smoke 均通過。15 個目標的完整記錄在 `build/reports/neoforge-matrix/20261010-103859-388`；26.1 server 也在該報告通過，26.1 build/client 補跑記錄在 `build/reports/neoforge-matrix/20261010-112848-528`。原 `103859-388` 總結果仍為失敗，保留其修復前 26.1 client 失敗記錄；逐階段最新來源見版本清單。
 - Java：1.21.x 使用 `21`；26.x 使用 `25`
@@ -119,7 +133,7 @@ FPV Dronecraft 是一個面向 Minecraft NeoForge 的多軸無人機/穿越機�
 
 1. 安裝 Java `21`、Minecraft `1.21.1` 與 NeoForge `21.1.257`；此版本不需要 Fabric API。
 2. 執行 `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging`。
-3. 將 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.4.jar` 放入客戶端與伺服器的 `mods` 目錄。
+3. 將 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.5.jar` 放入客戶端與伺服器的 `mods` 目錄。
 4. 啟動遊戲，從 FPV Dronecraft 創造分頁取得無人機與遙控器物品。
 
 ### 快速開始
@@ -147,7 +161,7 @@ FPV Dronecraft is a Minecraft NeoForge mod for multirotor and FPV drone simulati
 ### Status
 
 - Default build target: Minecraft `1.21.1`, NeoForge `21.1.257`
-- Mod version: `0.2.0-neoforge-dev.4`
+- Mod version: `0.2.0-neoforge-dev.5`
 - Sixteen profiles from 1.21.1 through 26.3 have active source overlays; all remain under adaptation. An active overlay does not establish support.
 - Historical `dev.1` migration baseline: build/package, four dedicated-server flight self-tests, and client title/model/20-tick smoke passed for all 16 pinned targets. Fifteen complete records are in `build/reports/neoforge-matrix/20261010-103859-388`; 26.1 server passed there, and its supplemental build/client pass is in `build/reports/neoforge-matrix/20261010-112848-528`. The original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure; per-stage latest sources are recorded in the target inventory.
 - Java 21 is used for 1.21.x and Java 25 for 26.x.
@@ -171,7 +185,7 @@ FPV Dronecraft is a Minecraft NeoForge mod for multirotor and FPV drone simulati
 
 1. Install Java `21`, Minecraft `1.21.1`, and NeoForge `21.1.257`. Fabric API is not required.
 2. Run `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging`.
-3. Install `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.4.jar` in the client and server `mods` folders.
+3. Install `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.5.jar` in the client and server `mods` folders.
 4. Launch the game and obtain the drone item and controller from the FPV Dronecraft creative tab.
 
 ### Quick Start
@@ -212,7 +226,7 @@ FPV Dronecraft は、Minecraft NeoForge 向けのマルチローター/FPV ド�
 ### 現在の状態
 
 - デフォルトのビルド対象: Minecraft `1.21.1`、NeoForge `21.1.257`
-- Mod version: `0.2.0-neoforge-dev.4`
+- Mod version: `0.2.0-neoforge-dev.5`
 - 1.21.1 から 26.3 までの16プロファイルで実際のソース overlay が有効ですが、すべて適応中です。有効化は完全なサポートを意味しません。
 - `dev.1` の履歴移行基線：16個の固定対象すべてでbuild/package、サーバー飛行テスト4種、クライアントのタイトル/モデル/20 ticks smokeが通過しました。15対象の全記録は `build/reports/neoforge-matrix/20261010-103859-388`、26.1 serverも同レポート、26.1 build/clientの補完実行は `build/reports/neoforge-matrix/20261010-112848-528` にあります。元の `103859-388` 全体は修正前26.1 client失敗を保持しているためfailedのままです。最新stageのsourceMatrixReportはtarget inventoryを参照してください。
 - Java 21 は1.21.x、Java 25 は26.xで使用します。
@@ -237,7 +251,7 @@ FPV Dronecraft は、Minecraft NeoForge 向けのマルチローター/FPV ド�
 
 1. Java `21`、Minecraft `1.21.1`、NeoForge `21.1.257` を導入します。このビルドに Fabric API は不要です。
 2. `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging` を実行します。
-3. `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.4.jar` をクライアントとサーバーの `mods` に入れます。
+3. `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.5.jar` をクライアントとサーバーの `mods` に入れます。
 4. ゲームを起動し、FPV Dronecraft のクリエイティブタブからドローンとコントローラーを入手します。
 
 ### クイックスタート

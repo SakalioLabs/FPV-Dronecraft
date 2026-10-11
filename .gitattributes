@@ -1,0 +1,2 @@
+# Preserve the supplied CNC source files byte-for-byte against their hash contract.
+neoforge-mod/src/main/resources/assets/fpvdrone/model_source/cnc_workstation_v2/** -text

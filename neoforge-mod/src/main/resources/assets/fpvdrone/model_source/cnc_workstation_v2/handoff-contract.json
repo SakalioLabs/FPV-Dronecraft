@@ -1,0 +1,599 @@
+{
+  "contract_version": "1.0",
+  "artifact": "cnc_workstation_v2",
+  "handoff_kind": "model_only",
+  "paths": {
+    "master": "cnc_workstation_v2.bbmodel",
+    "texture": "cnc_workstation_v2.png",
+    "construction_metadata": "construction-info.json",
+    "validation_report": "validation-report.json",
+    "item_preview_directory": "items/",
+    "previews": [
+      "previews/assembled.png",
+      "previews/machining.gif",
+      "previews/complete.png",
+      "previews/door_open.png"
+    ],
+    "state_previews": [
+      "states/idle.bbmodel",
+      "states/door_open.bbmodel",
+      "states/machining.bbmodel",
+      "states/paused.bbmodel",
+      "states/complete.bbmodel"
+    ]
+  },
+  "model": {
+    "element_count": 269,
+    "group_count": 26,
+    "units_per_block": 16,
+    "native_closed_envelope": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        16,
+        16,
+        16
+      ]
+    ],
+    "native_visible_bounds": [
+      [
+        0.7,
+        0.175,
+        0.54
+      ],
+      [
+        15.3,
+        15.4575,
+        15.4
+      ]
+    ],
+    "unit_note": "16 model units = 1 Minecraft block",
+    "source_hashes": {
+      "master_sha256": "1b69b8f1f1fc44bc95dec88cb177b7095811f36b2e08dbe7508fced0717e49e4",
+      "texture_sha256": "6d6249d64a2c2131b1237df8f2f05f5841599fc69c95aac555ecf3e0a54529e4"
+    },
+    "machine_semantics": "Left side-wall fixed anchor + cantilever rail + moving depth slide; no floor base or pillar under left workholder. Fixed right horizontal spindle; cutting bit axis X, points +X from right fixture toward left in front view."
+  },
+  "coordinates": {
+    "source": "Blockbench native model coordinates",
+    "up": "+Y",
+    "front": "-Z",
+    "viewer_right": "-X",
+    "viewer_right_reflection": "already baked into model; do not reflect again",
+    "adapter": {
+      "flip_y": "modded_entity",
+      "apply_flip_y_exactly_once": true,
+      "pivot_conversion": "convert absolute native group pivots to parent-relative pivots",
+      "animation_values": "local deltas",
+      "note": "Absolute pivots in this contract come from construction-info.json. Convert them to parent-relative pivots; interpret animation keyframes as local deltas. Apply modded_entity flip_y once and do not repeat the already baked left-right reflection."
+    }
+  },
+  "runtime": {
+    "state_groups_mutually_exclusive": true,
+    "visibility_selects_geometry_only": true,
+    "visibility_is_not_draw_order": true,
+    "opaque_body": "render direct static elements once; do not also traverse dynamic descendants in the static pass",
+    "static_direct_element_groups": ["base", "housing", "control_console", "left_mechanism", "right_spindle_mount", "tool_rack"],
+    "dynamic_branch_roots": ["chip_drawer", "observation_door", "progress_fill", "status_light", "left_stage_feed", "spindle_tool"],
+    "animated_groups": "apply runtime matrices and draw animated group geometry",
+    "translucent_groups": [
+      {
+        "name": "fixed_glass",
+        "alpha_values": [
+          22,
+          39
+        ],
+        "alpha_roles": [
+          "main_glass",
+          "highlight"
+        ]
+      },
+      {
+        "name": "door_glass",
+        "alpha_values": [
+          22,
+          39
+        ],
+        "alpha_roles": [
+          "main_glass",
+          "highlight"
+        ]
+      }
+    ],
+    "translucent_handling": "render separately with alpha; confirm blend mode, backface and material behavior in engine",
+    "dynamic_materials": {
+      "status_light": "select prepared color/UV variants or runtime material; master preview is amber, machining amber, paused red, complete green, idle/door_open dim",
+      "progress_fill": "master static preview is full width; cnc_cycle_preview begins near 12%; idle/door_open fixture previews show approximately 8%, which is not a progress policy",
+      "stage_geometry": "native preview-cycle effects do not switch workpiece stage groups"
+    }
+  },
+  "geometry_conversion": {
+    "negative_inflate": "preserve deformation or bake effective bounds as from-inflate and to+inflate before each cube's pivot rotation; never drop inflate",
+    "uv_logical_size": [512, 512],
+    "texture_pixel_size": [2048, 2048],
+    "uv_note": "UVs are logical atlas coordinates, not PNG pixel coordinates; Java block/item export normalizes them to 0..16",
+    "hidden_stage_note": "keep all five stage meshes in runtime assets; choose visibility per recipe state, not permanently at import time",
+    "flip_y_scope": "use the modded_entity exporter conversion once when adapting to its +Y-down output; a direct renderer using native +Y-up coordinates should not add another Y flip"
+  },
+  "workpiece_stages": [
+    {
+      "index": 0,
+      "group": "workpiece_0_blank",
+      "uuid": "85aa924c-7fbd-5f2a-94e7-56f4527b1d6b",
+      "label": "毛坯",
+      "native_cycle_default": true
+    },
+    {
+      "index": 1,
+      "group": "workpiece_1_rough",
+      "uuid": "a7bed068-09cc-5fab-82fe-c1012afcfbb1",
+      "label": "粗加工"
+    },
+    {
+      "index": 2,
+      "group": "workpiece_2_semi",
+      "uuid": "bc8c3305-50ed-5f97-ab43-8d5befcc4a62",
+      "label": "半精加工"
+    },
+    {
+      "index": 3,
+      "group": "workpiece_3_finishing",
+      "uuid": "cff3cfc0-b3ff-5c28-8f6c-03f1cccb709f",
+      "label": "精加工"
+    },
+    {
+      "index": 4,
+      "group": "workpiece_4_finished",
+      "uuid": "108ca8d7-cdf3-536b-9c22-b8f6169fb452",
+      "label": "成品"
+    }
+  ],
+  "recommended_progress_bands": {
+    "status": "illustrative_only_not_recipe_policy",
+    "bands": [
+      {
+        "min": 0.0,
+        "max_exclusive": 0.2,
+        "stage": 0
+      },
+      {
+        "min": 0.2,
+        "max_exclusive": 0.4,
+        "stage": 1
+      },
+      {
+        "min": 0.4,
+        "max_exclusive": 0.65,
+        "stage": 2
+      },
+      {
+        "min": 0.65,
+        "max_exclusive": 0.9,
+        "stage": 3
+      },
+      {
+        "min": 0.9,
+        "max_inclusive": 1.0,
+        "stage": 4
+      }
+    ]
+  },
+  "states": [
+    {
+      "name": "master",
+      "stage": 0,
+      "progress_bar_width": 1.0,
+      "lamp": "amber",
+      "workpiece": "workpiece_0_blank",
+      "recipe_progress": null
+    },
+    {
+      "name": "idle",
+      "stage": null,
+      "progress_bar_width": 0.08,
+      "progress_is_placeholder": true,
+      "lamp": "dim_idle",
+      "fixture": true
+    },
+    {
+      "name": "door_open",
+      "stage": null,
+      "progress_bar_width": 0.08,
+      "progress_is_placeholder": true,
+      "lamp": "dim_idle",
+      "fixture": true,
+      "door_rotation_y_degrees": -100
+    },
+    {
+      "name": "machining",
+      "stage": 1,
+      "lamp": "amber",
+      "cycle_preview_progress_bar_start": 0.12,
+      "progress": 0.55,
+      "progress_bar_width": 0.55
+    },
+    {
+      "name": "paused",
+      "stage": 2,
+      "lamp": "red",
+      "progress": 0.4,
+      "progress_bar_width": 0.4
+    },
+    {
+      "name": "complete",
+      "stage": 4,
+      "progress_bar_width": 1.0,
+      "lamp": "green",
+      "progress": 1.0
+    }
+  ],
+  "preview_animations": [
+    {
+      "name": "cnc_cycle_preview",
+      "duration_seconds": 6.0,
+      "loop": "loop",
+      "keyframes": 64,
+      "drives": [
+        "left_stage_feed",
+        "left_stage_vertical",
+        "left_stage_depth",
+        "tilt_joint",
+        "rotary_holder",
+        "spindle_tool",
+        "progress_fill"
+      ],
+      "motion_notes": [
+        "进给沿-X",
+        "holder绕X旋转",
+        "刀具绕X旋转",
+        "进度条缩放"
+      ]
+    },
+    {
+      "name": "door_open_preview",
+      "duration_seconds": 1.5,
+      "loop": "once",
+      "keyframes": 2,
+      "drives": [
+        "observation_door"
+      ],
+      "motion_notes": [
+        "门绕Y轴约-100度"
+      ]
+    },
+    {
+      "name": "chip_drawer_preview",
+      "duration_seconds": 1.0,
+      "loop": "once",
+      "keyframes": 2,
+      "drives": [
+        "chip_drawer"
+      ],
+      "motion_notes": [
+        "抽屉沿Z轴移动约-0.4模型单位（0.025 Minecraft方块）"
+      ]
+    }
+  ],
+  "group_contract": [
+    {
+      "name": "body",
+      "uuid": "b2883c64-d2f7-5a04-a056-363535bb5c82",
+      "pivot_native": [
+        8,
+        0,
+        8
+      ],
+      "role": "模型根组"
+    },
+    {
+      "name": "base",
+      "uuid": "13b5b395-8279-557b-a47c-87326fddb1b0",
+      "pivot_native": [
+        16,
+        0,
+        0
+      ],
+      "role": "固定底座"
+    },
+    {
+      "name": "chip_drawer",
+      "uuid": "ddff7753-919b-51af-a4d4-a60d2e308b4b",
+      "pivot_native": [
+        8,
+        1.65,
+        0.78
+      ],
+      "role": "可滑动抽屉"
+    },
+    {
+      "name": "housing",
+      "uuid": "fbb83996-0121-569d-9996-635952cb59f2",
+      "pivot_native": [
+        16,
+        0,
+        0
+      ],
+      "role": "固定外壳"
+    },
+    {
+      "name": "fixed_glass",
+      "uuid": "5b7e262f-1f18-5b92-8318-b14791392977",
+      "pivot_native": [
+        16,
+        0,
+        0
+      ],
+      "role": "固定透明观察窗"
+    },
+    {
+      "name": "observation_door",
+      "uuid": "37153711-e703-568f-ad40-5142348db780",
+      "pivot_native": [
+        9.85,
+        8.95,
+        7.7
+      ],
+      "role": "铰链观察门"
+    },
+    {
+      "name": "door_glass",
+      "uuid": "4b033706-c3ce-55dd-95a7-97cfaee09a9d",
+      "pivot_native": [
+        9.85,
+        8.95,
+        7.7
+      ],
+      "role": "随门移动的透明玻璃"
+    },
+    {
+      "name": "control_console",
+      "uuid": "58a19449-82ba-50c9-bf7f-a20d63b26339",
+      "pivot_native": [
+        16,
+        0,
+        0
+      ],
+      "role": "固定控制台"
+    },
+    {
+      "name": "progress_fill",
+      "uuid": "fda56ad3-be4f-58a3-a9c2-37bec128bfac",
+      "pivot_native": [
+        3.4499999999999993,
+        12.75,
+        0.79
+      ],
+      "role": "进度条填充"
+    },
+    {
+      "name": "status_light",
+      "uuid": "5bfc06c6-8709-5a0d-810b-0a68b4091000",
+      "pivot_native": [
+        2.5500000000000007,
+        10.9,
+        1.01
+      ],
+      "role": "状态指示灯"
+    },
+    {
+      "name": "left_mechanism",
+      "uuid": "c0927af8-587f-5a01-adf4-a4d7c7d8539e",
+      "pivot_native": [
+        16,
+        0,
+        0
+      ],
+      "role": "左侧加工机构总成"
+    },
+    {
+      "name": "left_stage_feed",
+      "uuid": "2a2cb6f6-9c7e-5b27-932d-51b69689026e",
+      "pivot_native": [
+        12.5,
+        7.0,
+        7.7
+      ],
+      "role": "进给轴（沿-X朝工件）"
+    },
+    {
+      "name": "left_stage_vertical",
+      "uuid": "ea9193b9-a77c-56b0-bd08-cf8d7b3edeb7",
+      "pivot_native": [
+        12.5,
+        7.0,
+        7.7
+      ],
+      "role": "升降轴"
+    },
+    {
+      "name": "left_stage_depth",
+      "uuid": "0cd9d7a9-f54e-504c-9b3f-8d0ee06cb71c",
+      "pivot_native": [
+        12.5,
+        7.0,
+        7.7
+      ],
+      "role": "深度轴"
+    },
+    {
+      "name": "tilt_joint",
+      "uuid": "3022010d-801f-52ed-b25e-1b5b80dcc1a4",
+      "pivot_native": [
+        12.5,
+        7.0,
+        7.7
+      ],
+      "role": "倾斜关节"
+    },
+    {
+      "name": "rotary_holder",
+      "uuid": "7d8b22f1-db2a-5c55-ac18-fac8111f0f91",
+      "pivot_native": [
+        11.27,
+        8.5,
+        7.7
+      ],
+      "role": "旋转夹持座"
+    },
+    {
+      "name": "workholding_clamp",
+      "uuid": "1ee8a762-3ae3-5f6d-9765-b0e106993564",
+      "pivot_native": [
+        11.27,
+        8.5,
+        7.7
+      ],
+      "role": "工件夹具"
+    },
+    {
+      "name": "workpiece",
+      "uuid": "e90cc36a-aafc-5498-8a4f-6b40e2caf306",
+      "pivot_native": [
+        11.27,
+        8.5,
+        7.7
+      ],
+      "role": "工件阶段容器"
+    },
+    {
+      "name": "workpiece_0_blank",
+      "uuid": "85aa924c-7fbd-5f2a-94e7-56f4527b1d6b",
+      "pivot_native": [
+        11.27,
+        8.5,
+        7.7
+      ],
+      "role": "工件阶段0：毛坯"
+    },
+    {
+      "name": "workpiece_1_rough",
+      "uuid": "a7bed068-09cc-5fab-82fe-c1012afcfbb1",
+      "pivot_native": [
+        11.27,
+        8.5,
+        7.7
+      ],
+      "role": "工件阶段1：粗加工"
+    },
+    {
+      "name": "workpiece_2_semi",
+      "uuid": "bc8c3305-50ed-5f97-ab43-8d5befcc4a62",
+      "pivot_native": [
+        11.27,
+        8.5,
+        7.7
+      ],
+      "role": "工件阶段2：半精加工"
+    },
+    {
+      "name": "workpiece_3_finishing",
+      "uuid": "cff3cfc0-b3ff-5c28-8f6c-03f1cccb709f",
+      "pivot_native": [
+        11.27,
+        8.5,
+        7.7
+      ],
+      "role": "工件阶段3：精加工"
+    },
+    {
+      "name": "workpiece_4_finished",
+      "uuid": "108ca8d7-cdf3-536b-9c22-b8f6169fb452",
+      "pivot_native": [
+        11.27,
+        8.5,
+        7.7
+      ],
+      "role": "工件阶段4：成品"
+    },
+    {
+      "name": "right_spindle_mount",
+      "uuid": "02029156-61d5-55c1-97a0-30ff16719c53",
+      "pivot_native": [
+        5.949999999999999,
+        8.5,
+        7.7
+      ],
+      "role": "右侧主轴支架"
+    },
+    {
+      "name": "spindle_tool",
+      "uuid": "e9b63016-f7b0-52ae-a12c-cf8b924955a4",
+      "pivot_native": [
+        7.789999999999999,
+        8.5,
+        7.7
+      ],
+      "role": "主轴与刀具"
+    },
+    {
+      "name": "tool_rack",
+      "uuid": "f7803937-11d5-5a2c-abac-2dc857de42f2",
+      "pivot_native": [
+        10.3,
+        12.5,
+        10.8
+      ],
+      "role": "刀具架"
+    }
+  ],
+  "workpiece_asset": {
+    "finished_example": "generic metal flanged socket",
+    "custom_recipe_output_can_replace_example": true,
+    "stage_geometry_selection": "select exactly one workpiece stage group for a production state"
+  },
+  "item_preview": {
+    "target_java_format": "1.21.11",
+    "exported_cubes": 221,
+    "exported_groups": 22,
+    "visible_stage": "workpiece_0_blank",
+    "source_cubes": 269,
+    "omitted_alternate_stage_cubes": 48,
+    "has_native_animation": false,
+    "minecraft_client_tested": false,
+    "paths": [
+      "items/README.md",
+      "items/item-export-info.json",
+      "items/cnc_workstation_v2.bbmodel",
+      "items/assets/fpvdrone/models/block/cnc_workstation_v2.json",
+      "items/assets/fpvdrone/models/item/cnc_workstation_v2.json",
+      "items/assets/fpvdrone/items/cnc_workstation_v2.json",
+      "items/assets/fpvdrone/textures/block/cnc_workstation_v2.png"
+    ],
+    "excluded_cubes": 48,
+    "exported_faces": 1326,
+    "rotated_cubes": 69,
+    "baked_inflate_cubes": 215,
+    "master_sha256": "1b69b8f1f1fc44bc95dec88cb177b7095811f36b2e08dbe7508fced0717e49e4",
+    "texture_sha256": "6d6249d64a2c2131b1237df8f2f05f5841599fc69c95aac555ecf3e0a54529e4"
+  },
+  "validation": {
+    "report": "validation-report.json",
+    "status": "latest offline model/build audit only; not tested in Minecraft client",
+    "errors": 0,
+    "warnings": 0,
+    "checked_faces": 9684,
+    "all_reported_states_inside_0_16": true,
+    "sample_clearance_right_tool_to_clamp": 0.86323,
+    "clearance_units": "native model units; conservative inflated-AABB estimate",
+    "side_mount_geometric_joins": 7,
+    "obsolete_floor_pillar_names_found": 0,
+    "animation_samples": {
+      "cnc_cycle_preview": 43,
+      "door_open_preview": 21,
+      "chip_drawer_preview": 21
+    }
+  },
+  "limitations": [
+    "Animations are visual prototypes; no machining simulation, Minecraft registration, or runtime implementation is included.",
+    "Dynamic mesh rendering, blend mode, culling/backface behavior, and modded_entity transforms require engine-side verification.",
+    "The current Native preview animation does not switch workpiece stage groups.",
+    "The 8% idle and door-open progress bar is a fixture placeholder; master preview bar is full width and cycle preview begins near 12%."
+  ],
+  "design_reference": [
+    "https://www.xhorse3d.com/product-xmachine",
+    "https://www.xhorse3d.com/product-xmachine/video"
+  ]
+}

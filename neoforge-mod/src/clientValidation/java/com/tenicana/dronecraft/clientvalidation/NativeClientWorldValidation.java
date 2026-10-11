@@ -27,15 +27,19 @@ import com.tenicana.dronecraft.camera.DroneViewMode;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.control.DroneClientControls;
 import com.tenicana.dronecraft.client.screen.DroneAssemblyScreen;
+import com.tenicana.dronecraft.client.screen.CncWorkstationScreen;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.clientvalidation.mixin.TerrainRenderProbeAccess;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.item.DroneControllerItem;
 import com.tenicana.dronecraft.menu.DroneAssemblyMenu;
+import com.tenicana.dronecraft.menu.CncWorkstationMenu;
+import com.tenicana.dronecraft.machine.CncWorkstationBlockEntity;
 import com.tenicana.dronecraft.network.DroneRemoteSessions;
 import com.tenicana.dronecraft.network.DroneViewPayload;
 import com.tenicana.dronecraft.registry.DroneItems;
+import com.tenicana.dronecraft.registry.DroneBlocks;
 import com.tenicana.dronecraft.sim.FlightMode;
 import com.tenicana.dronecraft.sim.Quaternion;
 import net.minecraft.client.Camera;
@@ -101,6 +105,9 @@ public final class NativeClientWorldValidation {
     private static final String[] TURN_NAMES = {"positive_pitch", "negative_pitch", "positive_roll", "negative_roll"};
     private static final String[] REQUIRED = {
         "native_world_ready", "unbound_controller_air_use", "two_native_survival_placements",
+        "native_cnc_survival_placement", "native_empty_hand_cnc_menu",
+        "native_cnc_input_transfer_and_120_tick_four_plate_job", "native_cnc_processes_with_menu_closed",
+        "native_cnc_output_blocks_extra_processing", "native_cnc_native_output_transfer", "native_cnc_machined_frame_placement",
         "native_bare_frame_placement", "native_empty_hand_assembly_menu", "native_partial_assembly_transfer",
         "native_incomplete_assembly_rejects_arm", "native_camera_optional_los_arm",
         "native_missing_camera_blocks_view_cycle", "native_missing_camera_rejects_remote_payload",
@@ -120,6 +127,9 @@ public final class NativeClientWorldValidation {
     };
     private enum Stage {
         WAIT_WORLD, SETUP, CONTROLLER_AIR, GIVE_DRONES, PLACE_FIRST, PLACE_SECOND,
+        CNC_GIVE, CNC_PLACE, CNC_IDLE, CNC_OPEN, CNC_INPUT, CNC_PROCESSING, CNC_CLOSE,
+        CNC_WORLD_CUTTING, CNC_WAIT_COMPLETION, CNC_REOPEN, CNC_FINISHED_MENU,
+        CNC_TAKE_REMAINING_INPUT, CNC_TAKE_OUTPUT, CNC_FRAME_READY,
         GIVE_FRAME, ASSEMBLY_PREPARE, ASSEMBLY_OPEN, ASSEMBLY_PARTIAL, ASSEMBLY_PARTIAL_BODY,
         ASSEMBLY_BIND_READY, ASSEMBLY_BIND, ASSEMBLY_BLOCKED, ASSEMBLY_REOPEN_READY,
         ASSEMBLY_REOPEN, ASSEMBLY_LOS_READY, ASSEMBLY_LOS_CLOSE, ASSEMBLY_LOS_EQUIP, ASSEMBLY_LOS_ARM,
@@ -144,11 +154,13 @@ public final class NativeClientWorldValidation {
     private final JsonArray observations = new JsonArray();
     private final JsonArray routeObservations = new JsonArray();
     private final JsonArray terrainObservations = new JsonArray();
+    private final JsonArray cncObservations = new JsonArray();
     private final Map<BlockPos, BlockState> originalBlocks = new LinkedHashMap<>();
     private final List<BlockPos> platform = new ArrayList<>();
     private final Map<String, Float> originalCameraSettings = new LinkedHashMap<>();
     private final List<ItemStack> originalInventory = new ArrayList<>();
     private volatile Snapshot snapshot;
+    private volatile CncRecord cncRecord;
     private volatile UUID ownerId, firstId, targetId, chickenId, huskId;
     private volatile Vec3 bodyHome, droneFixture, routeDestination, farHome;
     private volatile boolean fixturePose, fixtureRestored, stoppedClean, mobDamageObserved;
@@ -161,6 +173,9 @@ public final class NativeClientWorldValidation {
     private long stageStarted = startedAt;
     private int stageTick, worldStableTicks;
     private int assemblyTransferIndex;
+    // Written only by the native server tick observation; they never advance or mutate the machine.
+    private int cncFirstProcessingTick = -1, cncFirstCompletionTick = -1, cncCompletedJobs;
+    private int cncProcessingTicksWithMenuClosed, cncOutputBlockedTicks, cncPreviousOutputCount;
     private volatile int routeCompletedTick, turnIndex;
     private long frames, bodyRenders, handsCalls;
     private int terrainFrames;
@@ -181,12 +196,14 @@ public final class NativeClientWorldValidation {
     private Difficulty originalDifficulty;
     private boolean originalDifficultyLocked, originalFlying, originalNoGravity;
     private int originalFood;
+    private int originalSelectedSlot;
     private float originalSaturation;
     private Vec3 originalPlayerPosition;
     private float originalHealth;
     private ItemStack boundController;
     private ItemStack removedCamera;
     private BlockPos nearFloor, farFloor, bodyMarker, farMarker;
+    private volatile BlockPos cncFloor, cncPosition;
     private int firstChickenTick;
     private CompletableFuture<Boolean> operation;
     private CompletableFuture<JsonObject> capture;
@@ -206,6 +223,7 @@ public final class NativeClientWorldValidation {
         report.addProperty("started_at_utc", Instant.now().toString());
         report.addProperty("interaction_path", "native MultiPlayerGameMode useItem/useItemOn/interactAt/interact; actual Shift state and native GameRenderer pick");
         report.addProperty("assembly_path", "Survival frame useItemOn -> empty-hand native entity interaction -> actual registered container screen and inventory click packets -> required-component R rejection -> camera-free R/LOS flight and B/payload rejection -> all 13 individual slots; all assembly installs use native inventory packets; separate camera-removal lifecycle probe mutates only the server camera slot");
+        report.addProperty("cnc_path", "Survival block-item useItemOn -> empty-hand native block interaction -> actual registered CNC screen and QUICK_MOVE packets load 8 plates -> server-only 120-tick job consumes exactly 4 -> closed GUI world animation and output-full pause -> native remaining-input/output transfers -> place the actual manufactured frame from the player's inventory; no frame fixture grant");
         report.addProperty("turn_path", "production R/M/B and held keyboard controls -> production payload -> server playable quaternion -> native client camera frame");
         report.addProperty("streaming_fixture", "drone-only pose route on native DroneEntity.tick TAIL, up to 4m per tick; waits for next chunk to be loaded and entity-ticking through existing production lease; no getChunk preload or forced chunks");
         report.addProperty("body_fixture", "one initial server teleport to a temporary solid platform; normal gravity, Survival and real Husk AI; no per-tick body position writes");
@@ -217,6 +235,7 @@ public final class NativeClientWorldValidation {
         report.add("observations", observations);
         report.add("route_observations", routeObservations);
         report.add("terrain_observations", terrainObservations);
+        report.add("cnc_observations", cncObservations);
     }
 
     public void clientTick(ClientTickEvent.Post event) {
@@ -246,7 +265,8 @@ public final class NativeClientWorldValidation {
                 return;
             }
             require(snapshot != null, "Native server observation disappeared before " + stage);
-            if (client.getOverlay() != null || client.screen != null && !(client.screen instanceof DroneAssemblyScreen)) return;
+            if (client.getOverlay() != null || client.screen != null
+                    && !(client.screen instanceof DroneAssemblyScreen) && !(client.screen instanceof CncWorkstationScreen)) return;
             Snapshot state = snapshot;
             require(state.nativeCameraSelf(), "Server camera moved from the actual pilot at " + stage);
             if (stage.ordinal() >= Stage.ARM.ordinal() && stage.ordinal() < Stage.ATTACK.ordinal()) {
@@ -304,12 +324,15 @@ public final class NativeClientWorldValidation {
             originalNoGravity = player.isNoGravity();
             originalFood = player.getFoodData().getFoodLevel();
             originalSaturation = player.getFoodData().getSaturationLevel();
+            originalSelectedSlot = player.getInventory().selected;
             for (int i = 0; i < player.getInventory().getContainerSize(); i++) originalInventory.add(player.getInventory().getItem(i).copy());
             int x = player.blockPosition().getX() + 24, z = player.blockPosition().getZ() + 24;
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) + 6;
             bodyHome = new Vec3(x + 0.5, y, z + 0.5);
             nearFloor = BlockPos.containing(bodyHome).offset(1, -1, 0);
             farFloor = BlockPos.containing(bodyHome).offset(2, -1, 1);
+            cncFloor = BlockPos.containing(bodyHome).offset(0, -1, 2);
+            cncPosition = cncFloor.above();
             for (int dx = -6; dx <= 6; dx++) for (int dz = -6; dz <= 6; dz++) {
                 BlockPos floor = BlockPos.containing(bodyHome).offset(dx, -1, dz);
                 platform.add(floor);
@@ -355,11 +378,154 @@ public final class NativeClientWorldValidation {
                 if (state.drones().size() != 1 || !client.player.getMainHandItem().isEmpty() || !settled(8)) return;
                 firstId = state.drones().getFirst().id();
                 require(state.drones().getFirst().owner() == null && !state.drones().getFirst().armed(), "Native placement auto-bound or armed the first drone");
-                operation = submit(client, server -> equip(player(server), new ItemStack(DroneItems.carbonFrame()), ItemStack.EMPTY));
+                operation = submit(client, server -> {
+                    ServerPlayer pilot = player(server);
+                    require(inventoryCount(pilot, DroneItems.carbonFrame()) == 0
+                            && inventoryCount(pilot, DroneItems.carbonPlate()) == 0, "CNC fixture already contains plate or frame items");
+                    pilot.getInventory().setItem(9, new ItemStack(DroneItems.carbonPlate(), 8));
+                    equip(pilot, new ItemStack(DroneItems.cncWorkstation()), ItemStack.EMPTY);
+                });
+                advance(Stage.CNC_GIVE);
+            }
+            case CNC_GIVE -> {
+                if (!operationDone() || !held(client, DroneItems.cncWorkstation(), 1)
+                        || client.player.getInventory().getItem(9).getCount() != 8 || !settled(8)) return;
+                place(client, cncFloor);
+                advance(Stage.CNC_PLACE);
+            }
+            case CNC_PLACE -> {
+                CncRecord cnc = cncRecord;
+                if (cnc == null || !cnc.present() || !client.player.getMainHandItem().isEmpty()
+                        || !client.level.getBlockState(cncPosition).is(DroneBlocks.cncWorkstation()) || !settled(8)) return;
+                require(cnc.progress() == 0 && cnc.inputCount() == 0 && cnc.outputCount() == 0
+                        && cnc.playerPlateCount() == 8 && cnc.playerFrameCount() == 0
+                        && client.level.getBlockEntity(cncPosition) instanceof CncWorkstationBlockEntity,
+                        "Native CNC placement was not an empty Survival machine with one consumed block item");
+                check("native_cnc_survival_placement");
+                lookAt(client, Vec3.atCenterOf(cncPosition));
+                capture(client, "cnc-workstation-idle");
+                advance(Stage.CNC_IDLE);
+            }
+            case CNC_IDLE -> {
+                if (!captureDone()) return;
+                openCnc(client);
+                advance(Stage.CNC_OPEN);
+            }
+            case CNC_OPEN -> {
+                if (!(client.screen instanceof CncWorkstationScreen) || !settled(8)) return;
+                CncWorkstationMenu menu = cncMenu(client);
+                require(menu.slots.size() == 38 && menu.slots.get(0).getItem().isEmpty()
+                        && menu.slots.get(1).getItem().isEmpty() && menu.getProgress() == 0
+                        && menu.getProcessingTicks() == 120 && menu.stillValid(client.player), "Native empty CNC menu is invalid");
+                check("native_empty_hand_cnc_menu");
+                // Machine slots 0/1 are followed by the native player inventory, starting at player slot 9.
+                client.gameMode.handleInventoryMouseClick(menu.containerId, 2, 0, ClickType.QUICK_MOVE, client.player);
+                advance(Stage.CNC_INPUT);
+            }
+            case CNC_INPUT -> {
+                CncRecord cnc = cncRecord;
+                CncWorkstationMenu menu = cncMenu(client);
+                if (cnc == null || cnc.progress() < 8 || menu.getProgress() < 8 || !settled(8)) return;
+                require(cnc.inputPlate() && cnc.inputCount() == 8 && cnc.outputCount() == 0
+                        && cnc.playerPlateCount() == 0 && cnc.playerFrameCount() == 0
+                        && menu.slots.get(0).getItem().is(DroneItems.carbonPlate())
+                        && menu.slots.get(0).getItem().getCount() == 8 && menu.slots.get(1).getItem().isEmpty(),
+                        "Native input click did not transfer the actual eight plates or granted an early frame");
+                capture(client, "cnc-processing-menu");
+                advance(Stage.CNC_PROCESSING);
+            }
+            case CNC_PROCESSING -> {
+                if (!captureDone()) return;
+                require(cncRecord != null && cncRecord.progress() > 0 && cncRecord.outputCount() == 0,
+                        "CNC finished before the native menu-closed processing probe");
+                client.player.closeContainer();
+                advance(Stage.CNC_CLOSE);
+            }
+            case CNC_CLOSE -> {
+                CncRecord cnc = cncRecord;
+                if (client.screen != null || cnc == null || cnc.menuOpen() || !settled(8)
+                        || !(client.level.getBlockEntity(cncPosition) instanceof CncWorkstationBlockEntity clientMachine)
+                        || clientMachine.getProgress() <= 0 || !clientMachine.getItem(0).is(DroneItems.carbonPlate())) return;
+                require(cnc.progress() > 0 && cnc.outputCount() == 0, "Closing the native menu ended or completed the CNC job early");
+                lookAt(client, Vec3.atCenterOf(cncPosition));
+                capture(client, "cnc-cutting-world");
+                advance(Stage.CNC_WORLD_CUTTING);
+            }
+            case CNC_WORLD_CUTTING -> {
+                if (!captureDone()) return;
+                advance(Stage.CNC_WAIT_COMPLETION);
+            }
+            case CNC_WAIT_COMPLETION -> {
+                CncRecord cnc = cncRecord;
+                if (cnc == null || cnc.firstCompletionTick() < 0 || cnc.outputBlockedTicks() < 125) return;
+                require(cnc.processingTicks() == 120 && cnc.firstCompletionTick() - cnc.firstProcessingTick() + 1 == 120
+                        && cnc.inputPlate() && cnc.inputCount() == 4 && cnc.outputFrame() && cnc.outputCount() == 1
+                        && cnc.playerPlateCount() == 0 && cnc.playerFrameCount() == 0 && cnc.completedJobs() == 1,
+                        "CNC did not finish one exact 120-tick four-plate job with one existing carbon frame");
+                check("native_cnc_input_transfer_and_120_tick_four_plate_job");
+                require(cnc.processingTicksWithMenuClosed() >= 30, "CNC did not advance substantially while its native menu was closed");
+                check("native_cnc_processes_with_menu_closed");
+                require(cnc.progress() == 0 && cnc.completedJobs() == 1 && cnc.outputBlockedTicks() >= 125,
+                        "Full CNC output slot allowed another job or consumed the remaining four plates");
+                check("native_cnc_output_blocks_extra_processing");
+                openCnc(client);
+                advance(Stage.CNC_REOPEN);
+            }
+            case CNC_REOPEN -> {
+                if (!(client.screen instanceof CncWorkstationScreen) || !settled(8)) return;
+                CncWorkstationMenu menu = cncMenu(client);
+                if (menu.slots.get(0).getItem().getCount() != 4 || !menu.slots.get(1).getItem().is(DroneItems.carbonFrame())) return;
+                require(menu.slots.get(1).getItem().getCount() == 1 && menu.getProgress() == 0,
+                        "Reopened native CNC menu lost its one completed output or paused state");
+                capture(client, "cnc-finished-menu");
+                advance(Stage.CNC_FINISHED_MENU);
+            }
+            case CNC_FINISHED_MENU -> {
+                if (!captureDone()) return;
+                CncWorkstationMenu menu = cncMenu(client);
+                // Return unused stock before clearing the output, so no second cycle can start.
+                client.gameMode.handleInventoryMouseClick(menu.containerId, 0, 0, ClickType.QUICK_MOVE, client.player);
+                advance(Stage.CNC_TAKE_REMAINING_INPUT);
+            }
+            case CNC_TAKE_REMAINING_INPUT -> {
+                CncRecord cnc = cncRecord;
+                CncWorkstationMenu menu = cncMenu(client);
+                if (cnc == null || cnc.inputCount() != 0 || cnc.playerPlateCount() != 4
+                        || !menu.slots.get(0).getItem().isEmpty() || !settled(8)) return;
+                require(cnc.outputFrame() && cnc.outputCount() == 1 && cnc.completedJobs() == 1,
+                        "Native remaining-input transfer consumed, duplicated, or lost the finished frame");
+                client.gameMode.handleInventoryMouseClick(menu.containerId, 1, 0, ClickType.QUICK_MOVE, client.player);
+                advance(Stage.CNC_TAKE_OUTPUT);
+            }
+            case CNC_TAKE_OUTPUT -> {
+                CncRecord cnc = cncRecord;
+                CncWorkstationMenu menu = cncMenu(client);
+                if (cnc == null || cnc.outputCount() != 0 || cnc.playerFrameCount() != 1
+                        || !menu.slots.get(1).getItem().isEmpty() || !settled(8)) return;
+                require(cnc.inputCount() == 0 && cnc.progress() == 0 && cnc.playerPlateCount() == 4
+                        && cnc.completedJobs() == 1 && inventoryCount(client.player, DroneItems.carbonFrame()) == 1,
+                        "Native output transfer lost or duplicated the actual manufactured frame");
+                check("native_cnc_native_output_transfer");
+                client.player.closeContainer();
+                advance(Stage.CNC_FRAME_READY);
+            }
+            case CNC_FRAME_READY -> {
+                if (client.screen != null || !settled(8)) return;
+                int actualFrameSlot = -1;
+                for (int index = 0; index < 9; index++) if (client.player.getInventory().getItem(index).is(DroneItems.carbonFrame())) {
+                    require(actualFrameSlot == -1, "CNC output occupies multiple hotbar slots");
+                    actualFrameSlot = index;
+                }
+                require(actualFrameSlot >= 0 && inventoryCount(client.player, DroneItems.carbonFrame()) == 1,
+                        "Native QUICK_MOVE did not put its one physical frame into the player's hotbar");
+                client.player.getInventory().selected = actualFrameSlot;
+                report.addProperty("cnc_manufactured_frame_hotbar_slot", actualFrameSlot);
                 advance(Stage.GIVE_FRAME);
             }
             case GIVE_FRAME -> {
-                if (!operationDone() || !held(client, DroneItems.carbonFrame(), 1) || !settled(8)) return;
+                if (!held(client, DroneItems.carbonFrame(), 1) || !settled(8)) return;
+                require(cncRecord != null && cncRecord.playerFrameCount() == 1 && cncRecord.completedJobs() == 1,
+                        "The second aircraft frame did not come from the observed CNC output");
                 place(client, farFloor);
                 advance(Stage.PLACE_SECOND);
             }
@@ -372,6 +538,9 @@ public final class NativeClientWorldValidation {
                         "Native bare frame was assembled, armed, or controller-bound during placement");
                 check("two_native_survival_placements");
                 check("native_bare_frame_placement");
+                require(cncRecord != null && cncRecord.playerFrameCount() == 0 && cncRecord.completedJobs() == 1,
+                        "Native bare-frame placement did not consume the one manufactured frame");
+                check("native_cnc_machined_frame_placement");
                 capture(client, "assembly-bare-frame");
                 operation = submit(client, server -> {
                     ServerPlayer player = player(server);
@@ -942,11 +1111,48 @@ public final class NativeClientWorldValidation {
             DroneEntity tracked = DroneRemoteSessions.trackedDrone(player);
             boolean loaded = drone != null && level.getChunkSource().hasChunk(drone.chunkPosition().x, drone.chunkPosition().z);
             boolean ticking = drone != null && level.getChunkSource().chunkMap.getDistanceManager().inEntityTickingRange(drone.chunkPosition().toLong());
+            observeCnc(server, player, level);
             snapshot = new Snapshot(server.getTickCount(), player.position(), player.getHealth(), player.isAlive(), player.isShiftKeyDown(), player.getCamera() == player,
                     DroneControllerItem.boundDroneId(player), tracked == null ? null : tracked.getUUID(), DroneRemoteSessions.isRemoteView(player),
                     DroneRemoteSessions.sessionCount(server), DroneRemoteSessions.ticketCount(level), List.copyOf(records),
                     drone == null ? null : drone.position(), loaded, ticking, chicken == null ? -1 : chicken.tickCount);
         } catch (Throwable failure) { asynchronousFailure = "Server observation failed at " + stage + ": " + failure; }
+    }
+
+    /** Read-only observation of the actual block-entity ticker, container and native player's inventory. */
+    private void observeCnc(MinecraftServer server, ServerPlayer player, ServerLevel level) {
+        if (cncPosition == null) return;
+        CncWorkstationBlockEntity machine = level.getBlockEntity(cncPosition) instanceof CncWorkstationBlockEntity found ? found : null;
+        int tick = server.getTickCount();
+        int input = machine == null ? 0 : machine.getItem(0).getCount();
+        int output = machine == null ? 0 : machine.getItem(1).getCount();
+        int progress = machine == null ? 0 : machine.getProgress();
+        boolean inputPlate = machine != null && machine.getItem(0).is(DroneItems.carbonPlate());
+        boolean outputFrame = machine != null && machine.getItem(1).is(DroneItems.carbonFrame());
+        boolean menuOpen = player.containerMenu instanceof CncWorkstationMenu menu && menu.machine() == machine;
+        if (progress > 0) {
+            if (cncFirstProcessingTick < 0) cncFirstProcessingTick = tick - progress + 1;
+            if (cncCompletedJobs == 0) require(inputPlate && input == 8 && output == 0
+                    && progress == tick - cncFirstProcessingTick + 1, "Native CNC job reset, skipped progress, or consumed stock before its final tick");
+            if (!menuOpen) cncProcessingTicksWithMenuClosed++;
+        }
+        if (outputFrame && output > 0 && cncPreviousOutputCount == 0) {
+            cncCompletedJobs++;
+            if (cncFirstCompletionTick < 0) cncFirstCompletionTick = tick;
+        }
+        if (outputFrame && output == 1 && inputPlate && input == 4 && progress == 0) cncOutputBlockedTicks++;
+        cncPreviousOutputCount = output;
+        CncRecord previous = cncRecord;
+        cncRecord = new CncRecord(tick, machine != null, progress, machine == null ? 120 : machine.getProcessingTicks(),
+                machine == null ? -1 : machine.getWorkpieceStage(), input, inputPlate, output, outputFrame,
+                inventoryCount(player, DroneItems.carbonPlate()), inventoryCount(player, DroneItems.carbonFrame()), menuOpen,
+                cncFirstProcessingTick, cncFirstCompletionTick, cncCompletedJobs, cncProcessingTicksWithMenuClosed, cncOutputBlockedTicks);
+        if (previous == null || previous.present() != cncRecord.present() || previous.inputCount() != input
+                || previous.outputCount() != output || previous.menuOpen() != menuOpen
+                || previous.playerFrameCount() != cncRecord.playerFrameCount() || progress > 0 && progress % 10 == 0
+                || cncOutputBlockedTicks == 125) {
+            synchronized (cncObservations) { cncObservations.add(cncEvidence(cncRecord)); }
+        }
     }
 
     private void validateTurn(DroneEntity drone) {
@@ -1141,9 +1347,12 @@ public final class NativeClientWorldValidation {
         if (stage == Stage.DISCONNECT) require(player != null, "Player was removed before native fixture inventory restoration");
         ServerLevel level = player == null ? server.overworld() : player.serverLevel();
         discard(server, targetId); discard(server, firstId); discard(server, chickenId); discard(server, huskId);
+        // Drain only the disposable fixture before native block removal can drop its remaining stock.
+        if (cncPosition != null && level.getBlockEntity(cncPosition) instanceof CncWorkstationBlockEntity machine) machine.clearContent();
         originalBlocks.forEach((position, block) -> level.setBlock(position, block, 3));
         if (player != null) {
             for (int i = 0; i < originalInventory.size(); i++) player.getInventory().setItem(i, originalInventory.get(i).copy());
+            player.getInventory().selected = originalSelectedSlot;
             player.setGameMode(originalGameType);
             player.setHealth(originalHealth);
             player.setNoGravity(originalNoGravity);
@@ -1208,6 +1417,15 @@ public final class NativeClientWorldValidation {
         evidence.addProperty("drone_chunk_loaded", snapshot.loaded());
         evidence.addProperty("drone_chunk_entity_ticking", snapshot.ticking());
         evidence.addProperty("body_displacement_meters", snapshot.body().distanceTo(bodyHome));
+        if (cncRecord != null && name.startsWith("cnc-")) evidence.add("cnc_server", cncEvidence(cncRecord));
+        if (name.startsWith("cnc-") && client.level.getBlockEntity(cncPosition) instanceof CncWorkstationBlockEntity machine) {
+            JsonObject nativeMachine = new JsonObject();
+            nativeMachine.addProperty("progress", machine.getProgress());
+            nativeMachine.addProperty("workpiece_stage", machine.getWorkpieceStage());
+            nativeMachine.addProperty("input_count", machine.getItem(0).getCount());
+            nativeMachine.addProperty("output_count", machine.getItem(1).getCount());
+            evidence.add("cnc_native_client_block_entity", nativeMachine);
+        }
         CompletableFuture<String> saved = new CompletableFuture<>();
         int width = client.getMainRenderTarget().width, height = client.getMainRenderTarget().height;
         capture = saved.orTimeout(20, TimeUnit.SECONDS).thenApplyAsync(message -> {
@@ -1259,7 +1477,9 @@ public final class NativeClientWorldValidation {
             Files.createDirectories(reportPath.getParent());
             Path temporary = reportPath.resolveSibling(reportPath.getFileName() + ".tmp");
             String json;
-            synchronized (routeObservations) { json = new GsonBuilder().setPrettyPrinting().create().toJson(report); }
+            synchronized (routeObservations) {
+                synchronized (cncObservations) { json = new GsonBuilder().setPrettyPrinting().create().toJson(report); }
+            }
             Files.writeString(temporary, json + System.lineSeparator(), StandardCharsets.UTF_8);
             Files.move(temporary, reportPath, StandardCopyOption.REPLACE_EXISTING);
             FpvDronecraftMod.LOGGER.info("Native client world validation {}: {}", report.get("passed"), reportPath);
@@ -1331,6 +1551,21 @@ public final class NativeClientWorldValidation {
                 "Native registered assembly screen/menu is missing at " + stage);
         DroneAssemblyMenu menu = (DroneAssemblyMenu) client.player.containerMenu;
         require(menu.drone() != null && targetId.equals(menu.drone().getUUID()), "Assembly menu is attached to the wrong aircraft");
+        return menu;
+    }
+    private void openCnc(Minecraft client) {
+        require(client.player.getMainHandItem().isEmpty() && !client.player.isShiftKeyDown(), "Native CNC opening needs an empty, unshifted hand");
+        lookAt(client, Vec3.atCenterOf(cncPosition));
+        client.gameRenderer.pick(1);
+        require(client.hitResult instanceof BlockHitResult hit && hit.getBlockPos().equals(cncPosition),
+                "Native empty-hand raycast missed the placed CNC: " + client.hitResult);
+        client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, (BlockHitResult) client.hitResult);
+    }
+    private CncWorkstationMenu cncMenu(Minecraft client) {
+        require(client.screen instanceof CncWorkstationScreen && client.player.containerMenu instanceof CncWorkstationMenu,
+                "Native registered CNC screen/menu is missing at " + stage);
+        CncWorkstationMenu menu = (CncWorkstationMenu) client.player.containerMenu;
+        require(menu.machine() != null && menu.machine().getBlockPos().equals(cncPosition), "Native CNC menu is attached to the wrong placed machine");
         return menu;
     }
     private static int installed(DroneAssemblyMenu menu) {
@@ -1408,6 +1643,8 @@ public final class NativeClientWorldValidation {
             observation.add("physical_player_position", vector(snapshot.body()));
             if (snapshot.dronePosition() != null) observation.add("server_drone_position", vector(snapshot.dronePosition()));
         }
+        if (cncRecord != null && (name.startsWith("native_cnc") || name.equals("native_empty_hand_cnc_menu")))
+            observation.add("cnc_server", cncEvidence(cncRecord));
         if (client.player != null) {
             observation.add("client_physical_player_position", vector(client.player.position()));
             observation.addProperty("client_camera_is_player", client.getCameraEntity() == client.player);
@@ -1421,6 +1658,37 @@ public final class NativeClientWorldValidation {
         observations.add(observation);
     }
     private static JsonArray vector(Vec3 value) { JsonArray result = new JsonArray(); result.add(value.x); result.add(value.y); result.add(value.z); return result; }
+    private static int inventoryCount(net.minecraft.world.entity.player.Player player, net.minecraft.world.item.Item item) {
+        int count = 0;
+        for (int index = 0; index < player.getInventory().getContainerSize(); index++) {
+            ItemStack stack = player.getInventory().getItem(index);
+            if (stack.is(item)) count += stack.getCount();
+        }
+        return count;
+    }
+    private static JsonObject cncEvidence(CncRecord cnc) {
+        JsonObject result = new JsonObject();
+        result.addProperty("server_tick", cnc.tick());
+        result.addProperty("native_block_entity_present", cnc.present());
+        result.addProperty("progress", cnc.progress());
+        result.addProperty("processing_ticks", cnc.processingTicks());
+        result.addProperty("workpiece_stage", cnc.workpieceStage());
+        result.addProperty("input_count", cnc.inputCount());
+        result.addProperty("input_is_carbon_plate", cnc.inputPlate());
+        result.addProperty("output_count", cnc.outputCount());
+        result.addProperty("output_is_existing_carbon_frame", cnc.outputFrame());
+        result.addProperty("actual_player_plate_count", cnc.playerPlateCount());
+        result.addProperty("actual_player_frame_count", cnc.playerFrameCount());
+        result.addProperty("native_server_cnc_menu_open", cnc.menuOpen());
+        result.addProperty("first_processing_server_tick", cnc.firstProcessingTick());
+        result.addProperty("first_completion_server_tick", cnc.firstCompletionTick());
+        result.addProperty("observed_processing_duration_ticks", cnc.firstCompletionTick() < 0 || cnc.firstProcessingTick() < 0
+                ? -1 : cnc.firstCompletionTick() - cnc.firstProcessingTick() + 1);
+        result.addProperty("completed_jobs", cnc.completedJobs());
+        result.addProperty("processing_ticks_with_menu_closed", cnc.processingTicksWithMenuClosed());
+        result.addProperty("full_output_pause_ticks", cnc.outputBlockedTicks());
+        return result;
+    }
     private static void click(int key) { KeyMapping.click(InputConstants.Type.KEYSYM.getOrCreate(key)); }
     private static void key(int key, boolean down) { KeyMapping.set(InputConstants.Type.KEYSYM.getOrCreate(key), down); }
     private static void releaseKeys(Minecraft client) {
@@ -1435,6 +1703,10 @@ public final class NativeClientWorldValidation {
     }
     private static void require(boolean condition, String message) { if (!condition) throw new IllegalStateException(message); }
     private record DroneRecord(UUID id, UUID owner, Vec3 position, boolean armed, float yawInput, int assemblyMask) { }
+    private record CncRecord(int tick, boolean present, int progress, int processingTicks, int workpieceStage,
+            int inputCount, boolean inputPlate, int outputCount, boolean outputFrame, int playerPlateCount,
+            int playerFrameCount, boolean menuOpen, int firstProcessingTick, int firstCompletionTick,
+            int completedJobs, int processingTicksWithMenuClosed, int outputBlockedTicks) { }
     private record Snapshot(int tick, Vec3 body, float health, boolean alive, boolean shift, boolean nativeCameraSelf,
             UUID binding, UUID sessionDrone, boolean remote, int sessions, int tickets, List<DroneRecord> drones,
             Vec3 dronePosition, boolean loaded, boolean ticking, int chickenTick) { }

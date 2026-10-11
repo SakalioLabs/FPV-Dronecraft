@@ -1,5 +1,28 @@
 # NeoForge version development
 
+`dev.5` adds the placed CNC block/entity, two-slot native container and carbon
+plate icon. Its exact Minecraft 1.21.1 / NeoForge 21.1.256 build passed 479 adapter
+unit tests, 34 GameTests and 46 native-world checks with 22 PNGs, including a real
+120-tick four-plate job, native output transfer and machined-frame placement.
+Final run: `373ae988-6bca-47b6-971f-b5f9fc4e323c`; frozen evidence is in
+`../MCFPV/deliverables/cnc-runtime-neoforge-20261011/evidence`.
+The CNC uses version overlays for block registration, removal/drop hooks,
+native save formats, render submission and 26.x menu/screen extraction. Its
+shared server inventory owns material consumption and processing progress.
+
+All 16 pinned `dev.5` profiles passed build/package and fresh native
+title/controller/CNC/carbon-plate item-model startup checks. The passing 1.21.1
+stages are in `build/reports/neoforge-matrix/20261011-065205-754`; the other
+15 profiles passed in `build/reports/neoforge-matrix/20261011-070029-417`.
+The first aggregate retains the initial compile failures; only newer-version
+overlays changed afterward, preserving the passing 1.21.1 effective source.
+API differences include the 1.21.2 facing property and registration overload,
+1.21.4 render shape, 1.21.11/26.x render factories, 26.x screen extraction
+signature, and 26.3 pose rotation. The frozen CNC bundle maps each passing
+stage, fresh client run UUID and artifact SHA-256 in `multiversion-manifest.json`.
+Native machine interaction and machining/world rendering are covered only by
+the exact 1.21.1 / NeoForge 21.1.256 run; all profiles remain `adapting`.
+
 The inventory covers 16 Minecraft releases from 1.21.1 through 26.3. The recorded all-target matrix, 1,255 native unit tests, and World 05 results are historical `0.2.0-neoforge-dev.1` migration-baseline evidence; they do not establish current-build coverage. The `0.2.0-neoforge-dev.2` exact-256 validation passed packaging, 465 adapter unit tests and 28 native-world checks; default 21.1.257 packaging/client startup also passed. See `docs/neoforge-installation.md` for the exact report paths and run UUID. All profiles remain `adapting`: full native-world and third-party functional validation currently apply only to 1.21.1. The original matrix `build/reports/neoforge-matrix/20261010-103859-388` preserves its pre-fix 26.1 client failure; that target's build/client retry passed in `build/reports/neoforge-matrix/20261010-112848-528`. The inventory records the actual passing source for each stage.
 
 Historical `dev.3` introduced native component assembly and the v2 split-part
@@ -9,7 +32,7 @@ ContainerInput overlays, while the assembly screen uses the 26.x extraction API.
 Older targets reuse the existing custom item geometry loader for arbitrary part
 rotations.
 
-In `dev.4`, the required assembly is four motors, four propellers, and one each
+In historical `dev.4`, the required assembly is four motors, four propellers, and one each
 of an ESC, flight controller, receiver, and battery (12 pieces). The camera is
 optional: without it only line-of-sight is available; installing it unlocks
 line-of-sight → FPV → drone third-person → line-of-sight. Missing any required

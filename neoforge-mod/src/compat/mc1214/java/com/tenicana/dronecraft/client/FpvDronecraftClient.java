@@ -40,10 +40,10 @@ public final class FpvDronecraftClient {
    FpvDronecraftMod.LOGGER.info("FPV Dronecraft NeoForge client adapter initialized");
   });
  }
- @SubscribeEvent public static void assemblyScreen(RegisterMenuScreensEvent event) { event.register(com.tenicana.dronecraft.registry.DroneMenus.ASSEMBLY.get(),com.tenicana.dronecraft.client.screen.DroneAssemblyScreen::new); }
+ @SubscribeEvent public static void assemblyScreen(RegisterMenuScreensEvent event) { event.register(com.tenicana.dronecraft.registry.DroneMenus.ASSEMBLY.get(),com.tenicana.dronecraft.client.screen.DroneAssemblyScreen::new);event.register(com.tenicana.dronecraft.registry.DroneMenus.CNC_WORKSTATION.get(),com.tenicana.dronecraft.client.screen.CncWorkstationScreen::new); }
  @SubscribeEvent public static void keys(RegisterKeyMappingsEvent event) { DroneClientControls.registerKeyMappings(event); }
- @SubscribeEvent public static void layers(EntityRenderersEvent.RegisterLayerDefinitions event) { DroneModelLayers.registerLayerDefinitions(event); }
- @SubscribeEvent public static void renderers(EntityRenderersEvent.RegisterRenderers event) { event.registerEntityRenderer(DroneEntityTypes.drone(),DroneEntityRenderer::new); }
+ @SubscribeEvent public static void layers(EntityRenderersEvent.RegisterLayerDefinitions event) { DroneModelLayers.registerLayerDefinitions(event);com.tenicana.dronecraft.client.render.CncModelLayers.registerLayerDefinitions(event); }
+ @SubscribeEvent public static void renderers(EntityRenderersEvent.RegisterRenderers event) { event.registerEntityRenderer(DroneEntityTypes.drone(),DroneEntityRenderer::new);event.registerBlockEntityRenderer(com.tenicana.dronecraft.registry.DroneBlocks.CNC_WORKSTATION_ENTITY.get(),com.tenicana.dronecraft.client.render.CncWorkstationRenderer::new); }
  @SubscribeEvent public static void geometry(ModelEvent.RegisterLoaders event) {
   event.register(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(MOD_ID,"controller_elements"),new ControllerElementsLoader());
  }
