@@ -19,8 +19,15 @@ import com.tenicana.dronecraft.registry.DroneDataComponents;
 public final class DronePlacementItem extends Item {
 	private static final double GROUND_CLEARANCE_METERS = 0.04;
 
+	private final boolean bareFrame;
+
 	public DronePlacementItem(Properties properties) {
+		this(properties, false);
+	}
+
+	public DronePlacementItem(Properties properties, boolean bareFrame) {
 		super(properties);
+		this.bareFrame = bareFrame;
 	}
 
 	@Override
@@ -48,6 +55,10 @@ public final class DronePlacementItem extends Item {
 			return failed(level, player);
 		}
 		if (!level.isClientSide()) {
+			if (bareFrame) {
+				drone.resetAssemblyToBareFrame();
+				drone.setOwner(player.getUUID());
+			}
 			var loadout = context.getItemInHand().get(DroneDataComponents.DRONE_LOADOUT.get());
 			if (loadout != null) {
 				drone.configureMekanismLoadout(loadout);
@@ -59,7 +70,7 @@ public final class DronePlacementItem extends Item {
 				context.getItemInHand().shrink(1);
 			}
 			player.inventoryMenu.broadcastChanges();
-			player.displayClientMessage(Component.translatable("message.fpvdrone.placed_unbound"), true);
+			player.displayClientMessage(Component.translatable(bareFrame ? "message.fpvdrone.frame_placed" : "message.fpvdrone.placed_unbound"), true);
 		}
 		return InteractionResult.SUCCESS;
 	}

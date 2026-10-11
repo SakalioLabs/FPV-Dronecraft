@@ -196,5 +196,22 @@
 	"message.fpvdrone.quantum_source_missing": "Drone deployed, but no Quantum Entangloporter was found within 8 blocks.",
 	"hud.fpvdrone.range_value": "RNG %1$sm / %2$sm",
 	"hud.fpvdrone.quantum_link": "Q-LINK",
-	"hud.fpvdrone.fe_charge_value": "FE %s"
+	"hud.fpvdrone.fe_charge_value": "FE %s",
+	"item.fpvdrone.receiver": "Drone Receiver",
+	"item.fpvdrone.fpv_camera": "FPV Camera",
+	"message.fpvdrone.frame_placed": "Frame placed. Empty-hand right-click to assemble.",
+	"message.fpvdrone.assembly_incomplete": "Install all drone components before arming.",
+	"message.fpvdrone.assembly_locked": "Land and disarm before assembling your drone.",
+	"message.fpvdrone.assembly_not_owner": "This drone belongs to another pilot.",
+	"screen.fpvdrone.assembly": "Drone assembly - frame installed",
+	"screen.fpvdrone.assembly_motors": "Motors x4",
+	"screen.fpvdrone.assembly_propellers": "Propellers x4",
+	"screen.fpvdrone.assembly_esc": "ESC",
+	"screen.fpvdrone.assembly_flight_controller": "FC",
+	"screen.fpvdrone.assembly_receiver": "RX",
+	"screen.fpvdrone.assembly_battery": "BAT",
+	"screen.fpvdrone.assembly_camera": "CAM",
+	"screen.fpvdrone.assembly_ready": "Complete - ready to arm",
+	"screen.fpvdrone.assembly_incomplete": "Installed %s/%s - cannot arm",
+	"menu.fpvdrone.assembly": "Drone assembly - frame installed"
 }

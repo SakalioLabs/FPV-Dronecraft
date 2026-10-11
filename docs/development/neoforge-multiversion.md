@@ -2,6 +2,26 @@
 
 The inventory covers 16 Minecraft releases from 1.21.1 through 26.3. The recorded all-target matrix, 1,255 native unit tests, and World 05 results are historical `0.2.0-neoforge-dev.1` migration-baseline evidence; they do not establish full `dev.2` coverage. The `0.2.0-neoforge-dev.2` exact-256 validation passed packaging, 465 adapter unit tests and 28 native-world checks; default 21.1.257 packaging/client startup also passed. See `docs/neoforge-installation.md` for the exact report paths and run UUID. All profiles remain `adapting`: full native-world and third-party functional validation currently apply only to 1.21.1. The original matrix `build/reports/neoforge-matrix/20261010-103859-388` preserves its pre-fix 26.1 client failure; that target's build/client retry passed in `build/reports/neoforge-matrix/20261010-112848-528`. The inventory records the actual passing source for each stage.
 
+`dev.3` adds native component assembly and the v2 split-part models. It uses
+13 inventory slots, a synchronized visibility mask, strict saved ItemStacks and
+server-side completeness gates. The menu has separate 26.x ContainerInput
+overlays, while the assembly screen uses the 26.x extraction API. Older targets
+reuse the existing custom item geometry loader for arbitrary part rotations.
+Current verification evidence is recorded separately in the installation notes;
+the old migration matrix does not validate these changes.
+
+Current `dev.3` build/package and native title/controller startup checks passed
+for all 16 pinned profiles. Evidence spans `20261011-035035-251`,
+`20261011-040319-465` and `20261011-041610-192` under
+`build/reports/neoforge-matrix`. The first two aggregates remain failed to retain
+the initial compile errors and a dependency-download TLS interruption; the
+final 1.21.7 client retry passed. The frozen assembly runtime bundle records
+each passing stage, jar SHA-256 and fresh client run UUID in
+`multiversion-manifest.json`. The exact 21.1.256 deployment additionally passed
+469 adapter unit tests, 26 GameTests and 35 native-world observations with
+17 PNGs, including native frame assembly and missing-part arming rejection.
+Full assembly/world coverage applies only to 1.21.1; all profiles stay `adapting`.
+
 In `dev.2`, the new `mc12101` change fixes the 1.21.1 terrain camera anchor. While FPV or third-person drone view is active, terrain-ring positioning follows the actual camera rather than the stationary local player, so the distant camera can keep terrain sections in its render area. It does not move the player body or change saved-world or chunk-generation rules. Inspection of all 16 patched target jars confirms that Minecraft 1.21.2–1.21.11 and 26.x already follow the camera for this path and do not need this hook; only the 1.21.1 profile registers it.
 
 The extended native route still uses a paced drone pose fixture that waits for
@@ -144,13 +164,13 @@ The actual native integrated-world validator is also 1.21.1-only:
 
 It records native item placement, binding/ownership, four signed continuous turns
 over 720 degrees, FPV/third-person/LOS body and camera behavior, remote chunk
-streaming, damage and disconnect cleanup, and 11 verified screenshots. Its
+streaming, native component assembly, damage and disconnect cleanup, and 17 verified screenshots. Its
 Gradle task has a 14-minute external timeout; internally it allows 12 minutes
 total, 4 minutes for world startup, and 60 seconds for each later stage. World
 `dev.1` run 05 passed on `1.21.1` only: all 25 required observations, four signed turns
 over 720 degrees, and 11 real PNG captures; report UUID is
 `f7d2c17a-da69-4a12-8d9f-36b4a1ef0b5d` at
-`build/targets/1.21.1/neoforge-mod/run-client-validation/fpvdrone-client-validation/report.json`.
+`../MCFPV/deliverables/neoforge-multiversion-20261010/evidence/1.21.1/native-world-report.json`.
 It covers native placement, pilot body rendering/hidden hands, a paced 640 m
 server-pose fixture using the actual lease, Husk damage/fall, and lease
 expiry/reconnect/disconnect cleanup. The 640 m pose fixture is server-driven and

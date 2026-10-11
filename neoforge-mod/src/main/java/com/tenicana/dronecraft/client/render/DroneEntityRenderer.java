@@ -24,6 +24,7 @@ public class DroneEntityRenderer extends EntityRenderer<DroneEntity> {
   state.yawRadians=entity.getInterpolatedRenderYawRadians(tickProgress);
   state.rollRadians=entity.getInterpolatedRenderRollRadians(tickProgress);
   state.motorPower=entity.getMotorPower();
+  state.assemblyMask=entity.getAssemblyMask();
   RotorLayoutRenderCache.Snapshot layout=rotorLayouts.get(entity.getRotorLayout());state.rotorCount=layout.rotorCount();
   for (int i=0;i<RotorLayoutCodec.MAX_RENDER_ROTORS;i++) {
    state.rotorRpm[i]=i<entity.getRotorCount()?entity.getMotorRpm(i):0.0f;

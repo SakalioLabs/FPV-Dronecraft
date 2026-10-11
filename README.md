@@ -10,7 +10,14 @@ Languages: [简体中文](#简体中文) | [繁體中文](#繁體中文) | [Engl
 
 Progress archive: [简体中文完整原始记录](docs/progress/progress.zh-CN.md) | [繁體中文整理版](docs/progress/progress.zh-TW.md) | [English summary](docs/progress/progress.en.md) | [日本語要約](docs/progress/progress.ja.md)
 
-The published Git tag is [v0.1.1-playtest.11-fabric](https://github.com/SakalioLabs/FPV-Dronecraft/tree/v0.1.1-playtest.11-fabric) (Fabric). NeoForge is under development at `0.2.0-neoforge-dev.1`; the tag does not contain a NeoForge build.
+The published Git tag is [v0.1.1-playtest.11-fabric](https://github.com/SakalioLabs/FPV-Dronecraft/tree/v0.1.1-playtest.11-fabric) (Fabric). NeoForge is under development at `0.2.0-neoforge-dev.3`; the tag does not contain a NeoForge build.
+
+`dev.3` adds placed bare frames, native component assembly and split-part models.
+All 16 pinned profiles passed build/package and client startup checks. Full
+assembly/world validation passed on 1.21.1 / NeoForge 21.1.256: 469 adapter unit
+tests, 26 GameTests and 35 native-world checks. See the
+[installation and verification guide](docs/neoforge-installation.md) for scope
+and recorded evidence; the earlier `dev.1` results below remain historical.
 
 ## 简体中文
 
@@ -19,9 +26,9 @@ FPV Dronecraft 是一个面向 Minecraft NeoForge 的多轴无人机/穿越机�
 ### 当前状态
 
 - 默认构建目标：Minecraft `1.21.1`、NeoForge `21.1.257`
-- Mod 版本：`0.2.0-neoforge-dev.1`
+- Mod 版本：`0.2.0-neoforge-dev.3`
 - 1.21.1 至 26.3 共 16 个配置已启用实际源码 overlay，全部仍处于适配中；启用不等于完整支持。
-- 最终逐目标状态：16 个固定目标的 build/package、服务端四种飞行自测和客户端标题/模型/20 ticks smoke 均通过。15 个目标的完整记录在 `build/reports/neoforge-matrix/20261010-103859-388`；26.1 server 也在该报告通过，26.1 build/client 补跑记录在 `build/reports/neoforge-matrix/20261010-112848-528`。原 `103859-388` 总结果仍为失败，保留其修复前 26.1 client 失败记录；逐阶段最新来源见版本清单。
+- `dev.1` 历史迁移基线：16 个固定目标的 build/package、服务端四种飞行自测和客户端标题/模型/20 ticks smoke 均通过。15 个目标的完整记录在 `build/reports/neoforge-matrix/20261010-103859-388`；26.1 server 也在该报告通过，26.1 build/client 补跑记录在 `build/reports/neoforge-matrix/20261010-112848-528`。原 `103859-388` 总结果仍为失败，保留其修复前 26.1 client 失败记录；逐阶段最新来源见版本清单。
 - Java：1.21.x 使用 `21`；26.x 使用 `25`
 - 已发布的 Git tag `v0.1.1-playtest.11-fabric` 对应 Fabric 版本
 
@@ -43,10 +50,12 @@ FPV Dronecraft 是一个面向 Minecraft NeoForge 的多轴无人机/穿越机�
 
 1. 安装 Java `21`、Minecraft `1.21.1` 和 NeoForge `21.1.257`；此版本不需要 Fabric API。
 2. 运行 `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging`。
-3. 将 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.1.jar` 放入客户端和服务器的 `mods` 目录。
+3. 将 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.3.jar` 放入客户端和服务器的 `mods` 目录。
 4. 启动游戏，从 FPV Dronecraft 创造标签页获取无人机和遥控器物品。
 
 ### 快速开始
+
+新装配流程：放置碳纤维机架（或无人机机架），空手右键打开装配界面。装入四个电机、四副飞桨，以及各一个电调、飞控、接收器、电池和相机；缺少任意部件都无法解锁。可用 Shift 点击移入或拆出零件，拆装需着陆并上锁，只有机主可操作。模型会随装配状态显示部件。旧整机物品及旧存档保留完整装配；新增零件合成表留待生存玩法设计。完成装配后按下面步骤绑定、飞行。
 
 1. 从 FPV Dronecraft 创造标签页拿取无人机物品和遥控器。
 2. 放置无人机物品，生成未绑定的无人机。
@@ -59,7 +68,7 @@ FPV Dronecraft 是一个面向 Minecraft NeoForge 的多轴无人机/穿越机�
 
 - `/fpvdrone status` 查看当前绑定无人机状态。
 - `/fpvdiag start|status|stop` 录制可复现诊断 trace。
-- 验证基线（仅 `1.21.1`）：单元测试 1,255 项通过（core 520、acoustics 270、NeoForge 465），记录于 `build/mc12101-final-native-06.log`；18 项 GameTest 和生产整合 13 项通过。四种专用服务器飞行自测与客户端 startup/model smoke 已在全部 16 个固定目标通过；World05 仅 `1.21.1`，通过 25 项检查、4 次超过 720°连续转向并保存 11 张 PNG。硬件控制器、死亡及存档重开仍待测。多版本逐阶段报告见上；原始 `103859-388` 总结果仍失败，26.1 补跑全通过。
+- `dev.1` 验证基线（仅 `1.21.1`）：单元测试 1,255 项通过（core 520、acoustics 270、NeoForge 465），记录于 `build/mc12101-final-native-06.log`；18 项 GameTest 和生产整合 13 项通过。四种专用服务器飞行自测与客户端 startup/model smoke 已在全部 16 个固定目标通过；World05 仅 `1.21.1`，通过 25 项检查、4 次超过 720°连续转向并保存 11 张 PNG。硬件控制器、死亡及存档重开仍待测。多版本逐阶段报告见上；原始 `103859-388` 总结果仍失败，26.1 补跑全通过。
 - 生产服务器实际安装 Mekanism `10.7.19.85` 与 A4MC `0.2.1` 后，13 项功能整合检查全部通过（仅 `1.21.1`）：观察到真实 FE 传输 200、空电池 NBT 经重载和 tick 后仍为 0，以及可信的原生 GAMEPLAY_SERVER_ONLY 流且 freshness 为 0。
 
 ### 文档
@@ -81,9 +90,9 @@ FPV Dronecraft 是一個面向 Minecraft NeoForge 的多軸無人機/穿越機�
 ### 目前狀態
 
 - 預設建置目標：Minecraft `1.21.1`、NeoForge `21.1.257`
-- Mod 版本：`0.2.0-neoforge-dev.1`
+- Mod 版本：`0.2.0-neoforge-dev.3`
 - 1.21.1 至 26.3 共 16 個設定已啟用實際原始碼 overlay，全部仍在適配；啟用不等於完整支援。
-- 最終逐目標狀態：16 個固定目標的 build/package、伺服器四種飛行自測與客戶端標題/模型/20 ticks smoke 均通過。15 個目標的完整記錄在 `build/reports/neoforge-matrix/20261010-103859-388`；26.1 server 也在該報告通過，26.1 build/client 補跑記錄在 `build/reports/neoforge-matrix/20261010-112848-528`。原 `103859-388` 總結果仍為失敗，保留其修復前 26.1 client 失敗記錄；逐階段最新來源見版本清單。
+- `dev.1` 歷史遷移基線：16 個固定目標的 build/package、伺服器四種飛行自測與客戶端標題/模型/20 ticks smoke 均通過。15 個目標的完整記錄在 `build/reports/neoforge-matrix/20261010-103859-388`；26.1 server 也在該報告通過，26.1 build/client 補跑記錄在 `build/reports/neoforge-matrix/20261010-112848-528`。原 `103859-388` 總結果仍為失敗，保留其修復前 26.1 client 失敗記錄；逐階段最新來源見版本清單。
 - Java：1.21.x 使用 `21`；26.x 使用 `25`
 - 已發布的 Git tag `v0.1.1-playtest.11-fabric` 對應 Fabric 版本
 
@@ -99,17 +108,19 @@ FPV Dronecraft 是一個面向 Minecraft NeoForge 的多軸無人機/穿越機�
 - 伺服器命令支援生成、修復、預設、環境擾動、blackbox 和診斷 trace。
 - 修改全域除錯、故障、環境與調參狀態的命令需要 GameMaster 權限；狀態查詢和一般預設選擇不需要提權。
 - 可選 Mekanism 整合提供 Forge Energy、四個等級、量子供能和條件配方；並顯示影格、GPU 和存檔耗時遙測。
-- 驗證基線（僅 `1.21.1`）：單元測試 1,255 項通過（core 520、acoustics 270、NeoForge 465），記錄於 `build/mc12101-final-native-06.log`；18 項 GameTest 和生產整合 13 項通過。四種專用伺服器飛行自測與客戶端 startup/model smoke 已在全部 16 個固定目標通過；World05 僅 `1.21.1`，通過 25 項檢查、4 次超過 720°連續轉向並保存 11 張 PNG。硬體控制器、死亡及存檔重開仍待測。多版本逐階段報告見上；原始 `103859-388` 總結果仍失敗，26.1 補跑全通過。
+- `dev.1` 驗證基線（僅 `1.21.1`）：單元測試 1,255 項通過（core 520、acoustics 270、NeoForge 465），記錄於 `build/mc12101-final-native-06.log`；18 項 GameTest 和生產整合 13 項通過。四種專用伺服器飛行自測與客戶端 startup/model smoke 已在全部 16 個固定目標通過；World05 僅 `1.21.1`，通過 25 項檢查、4 次超過 720°連續轉向並保存 11 張 PNG。硬體控制器、死亡及存檔重開仍待測。多版本逐階段報告見上；原始 `103859-388` 總結果仍失敗，26.1 補跑全通過。
 - 生產伺服器實際安裝 Mekanism `10.7.19.85` 與 A4MC `0.2.1` 後，13 項功能整合檢查全部通過（僅 `1.21.1`）：觀察到實際 FE 傳輸 200、空電池 NBT 經重載和 tick 後仍為 0，以及可信的原生 GAMEPLAY_SERVER_ONLY 流且 freshness 為 0。
 
 ### 安裝
 
 1. 安裝 Java `21`、Minecraft `1.21.1` 與 NeoForge `21.1.257`；此版本不需要 Fabric API。
 2. 執行 `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging`。
-3. 將 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.1.jar` 放入客戶端與伺服器的 `mods` 目錄。
+3. 將 `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.3.jar` 放入客戶端與伺服器的 `mods` 目錄。
 4. 啟動遊戲，從 FPV Dronecraft 創造分頁取得無人機與遙控器物品。
 
 ### 快速開始
+
+放置機架後，空手右鍵開啟裝配介面。安裝四個電機、四副飛槳，以及各一個電調、飛控、接收器、電池和相機；缺件無法解鎖。可用 Shift 點擊移入或拆出，需著陸並上鎖且由機主操作。模型同步顯示零件；舊整機和舊存檔保留完整裝配，新增合成表另行設計。
 
 1. 從 FPV Dronecraft 創造分頁拿取無人機物品與遙控器。
 2. 放置無人機物品，生成未綁定的無人機。
@@ -132,9 +143,9 @@ FPV Dronecraft is a Minecraft NeoForge mod for multirotor and FPV drone simulati
 ### Status
 
 - Default build target: Minecraft `1.21.1`, NeoForge `21.1.257`
-- Mod version: `0.2.0-neoforge-dev.1`
+- Mod version: `0.2.0-neoforge-dev.3`
 - Sixteen profiles from 1.21.1 through 26.3 have active source overlays; all remain under adaptation. An active overlay does not establish support.
-- Final per-target status: build/package, four dedicated-server flight self-tests, and client title/model/20-tick smoke passed for all 16 pinned targets. Fifteen complete records are in `build/reports/neoforge-matrix/20261010-103859-388`; 26.1 server passed there, and its supplemental build/client pass is in `build/reports/neoforge-matrix/20261010-112848-528`. The original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure; per-stage latest sources are recorded in the target inventory.
+- Historical `dev.1` migration baseline: build/package, four dedicated-server flight self-tests, and client title/model/20-tick smoke passed for all 16 pinned targets. Fifteen complete records are in `build/reports/neoforge-matrix/20261010-103859-388`; 26.1 server passed there, and its supplemental build/client pass is in `build/reports/neoforge-matrix/20261010-112848-528`. The original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure; per-stage latest sources are recorded in the target inventory.
 - Java 21 is used for 1.21.x and Java 25 for 26.x.
 - The published Git tag [`v0.1.1-playtest.11-fabric`](https://github.com/SakalioLabs/FPV-Dronecraft/tree/v0.1.1-playtest.11-fabric) is the Fabric build.
 
@@ -156,10 +167,12 @@ FPV Dronecraft is a Minecraft NeoForge mod for multirotor and FPV drone simulati
 
 1. Install Java `21`, Minecraft `1.21.1`, and NeoForge `21.1.257`. Fabric API is not required.
 2. Run `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging`.
-3. Install `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.1.jar` in the client and server `mods` folders.
+3. Install `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.3.jar` in the client and server `mods` folders.
 4. Launch the game and obtain the drone item and controller from the FPV Dronecraft creative tab.
 
 ### Quick Start
+
+Place a carbon frame or drone airframe, then empty-hand right-click it to open the assembly menu. Install four motors, four propellers, and one each of ESC, flight controller, receiver, battery and camera. Any missing component blocks arming at the server. Native Shift-click installs or removes components; the owner must land and disarm first. Installed parts appear on the aircraft. Legacy complete drones stay assembled; new component recipes are deferred to survival design.
 
 1. Get the drone item and controller from the FPV Dronecraft creative tab.
 2. Place the drone item to spawn an unbound drone.
@@ -173,7 +186,7 @@ FPV Dronecraft is a Minecraft NeoForge mod for multirotor and FPV drone simulati
 - `/fpvdrone status` shows the linked drone state.
 - `/fpvdiag start|status|stop` records reproducible diagnostic traces.
 - The NeoForge jar JarJar-bundles three libraries: both project core jars and MixinExtras NeoForge `0.5.5`, which supplies expression hooks on older NeoForge versions.
-- Verification baseline (1.21.1 only): 1,255 unit tests passed (520 core, 270 acoustics, 465 NeoForge), recorded in `build/mc12101-final-native-06.log`, with 18 GameTests and 13 production integration checks. Four dedicated-server flight self-tests and client startup/model smoke passed for all 16 pinned targets. Native-world run 05 passed on 1.21.1 only: 25 checks, four continuous signed turns over 720 degrees, and 11 real PNG captures. It covers native placement, pilot-body rendering/hidden hands, a paced 640 m server-pose fixture through the actual lease (not a complete pilot-stick route), Husk damage/fall, and lease/reconnect/disconnect cleanup. Death, save/reopen, and hardware tests remain outstanding. Per-stage reports are listed above; the original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure, while the supplemental 26.1 build/client run passed.
+- Historical `dev.1` verification baseline (1.21.1 only): 1,255 unit tests passed (520 core, 270 acoustics, 465 NeoForge), recorded in `build/mc12101-final-native-06.log`, with 18 GameTests and 13 production integration checks. Four dedicated-server flight self-tests and client startup/model smoke passed for all 16 pinned targets. Native-world run 05 passed on 1.21.1 only: 25 checks, four continuous signed turns over 720 degrees, and 11 real PNG captures. It covers native placement, pilot-body rendering/hidden hands, a paced 640 m server-pose fixture through the actual lease (not a complete pilot-stick route), Husk damage/fall, and lease/reconnect/disconnect cleanup. Death, save/reopen, and hardware tests remain outstanding. Per-stage reports are listed above; the original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure, while the supplemental 26.1 build/client run passed.
 - A production server with Mekanism `10.7.19.85` and A4MC `0.2.1` passed all 13 functional integration checks on 1.21.1. Evidence includes actual FE transfer of 200, an empty battery remaining at 0 after NBT reload and tick, and a trusted native `GAMEPLAY_SERVER_ONLY` flow with freshness 0.
 
 ### Docs
@@ -195,9 +208,9 @@ FPV Dronecraft は、Minecraft NeoForge 向けのマルチローター/FPV ド�
 ### 現在の状態
 
 - デフォルトのビルド対象: Minecraft `1.21.1`、NeoForge `21.1.257`
-- Mod version: `0.2.0-neoforge-dev.1`
+- Mod version: `0.2.0-neoforge-dev.3`
 - 1.21.1 から 26.3 までの16プロファイルで実際のソース overlay が有効ですが、すべて適応中です。有効化は完全なサポートを意味しません。
-- 最終の対象別状態：16個の固定対象すべてでbuild/package、サーバー飛行テスト4種、クライアントのタイトル/モデル/20 ticks smokeが通過しました。15対象の全記録は `build/reports/neoforge-matrix/20261010-103859-388`、26.1 serverも同レポート、26.1 build/clientの補完実行は `build/reports/neoforge-matrix/20261010-112848-528` にあります。元の `103859-388` 全体は修正前26.1 client失敗を保持しているためfailedのままです。最新stageのsourceMatrixReportはtarget inventoryを参照してください。
+- `dev.1` の履歴移行基線：16個の固定対象すべてでbuild/package、サーバー飛行テスト4種、クライアントのタイトル/モデル/20 ticks smokeが通過しました。15対象の全記録は `build/reports/neoforge-matrix/20261010-103859-388`、26.1 serverも同レポート、26.1 build/clientの補完実行は `build/reports/neoforge-matrix/20261010-112848-528` にあります。元の `103859-388` 全体は修正前26.1 client失敗を保持しているためfailedのままです。最新stageのsourceMatrixReportはtarget inventoryを参照してください。
 - Java 21 は1.21.x、Java 25 は26.xで使用します。
 - 公開済み Git tag `v0.1.1-playtest.11-fabric` は Fabric 版です。
 
@@ -213,17 +226,19 @@ FPV Dronecraft は、Minecraft NeoForge 向けのマルチローター/FPV ド�
 - サーバーコマンドで生成、修理、プリセット、環境オーバーライド、blackbox、診断 trace を扱えます。
 - グローバルなデバッグ、故障、環境、チューニング状態を変更するコマンドには GameMaster 権限が必要です。状態確認と通常のプリセット選択は一般ユーザーも利用できます。
 - Mekanism 連携は任意で、Forge Energy、4段階、量子供給、条件付きレシピを提供します。フレーム、GPU、保存時間のテレメトリーも表示します。
-- 検証基線（`1.21.1` のみ）：単体テスト1,255件（core 520、acoustics 270、NeoForge 465）が通過し、`build/mc12101-final-native-06.log` に記録されています。GameTest 18件と本番統合13項目も通過しました。サーバー飛行テスト4種とクライアントstartup/model smokeは16個すべての固定対象で通過しました。ネイティブワールド run 05は `1.21.1` のみで必須25チェック、720°を超える連続旋回4回、実PNG 11枚を確認しました。死亡、保存/再開、ハードウェア検証は未実施です。逐stageレポートは上記の通りで、元の `103859-388` は修正前26.1 client失敗を保持するためfailedです。
+- `dev.1` の検証基線（`1.21.1` のみ）：単体テスト1,255件（core 520、acoustics 270、NeoForge 465）が通過し、`build/mc12101-final-native-06.log` に記録されています。GameTest 18件と本番統合13項目も通過しました。サーバー飛行テスト4種とクライアントstartup/model smokeは16個すべての固定対象で通過しました。ネイティブワールド run 05は `1.21.1` のみで必須25チェック、720°を超える連続旋回4回、実PNG 11枚を確認しました。死亡、保存/再開、ハードウェア検証は未実施です。逐stageレポートは上記の通りで、元の `103859-388` は修正前26.1 client失敗を保持するためfailedです。
 - Mekanism `10.7.19.85` と A4MC `0.2.1` を実際に導入した本番サーバーで、`1.21.1` の機能統合チェック13項目すべてが通過しました。実FE転送200、NBT再読込とtick後も空バッテリー0、freshness 0 の信頼済みネイティブ `GAMEPLAY_SERVER_ONLY` フローを確認しました。
 
 ### インストール
 
 1. Java `21`、Minecraft `1.21.1`、NeoForge `21.1.257` を導入します。このビルドに Fabric API は不要です。
 2. `./gradlew.bat --no-daemon -PtargetMinecraft=1.21.1 :neoforge-mod:verifyNeoForgePackaging` を実行します。
-3. `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.1.jar` をクライアントとサーバーの `mods` に入れます。
+3. `build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.3.jar` をクライアントとサーバーの `mods` に入れます。
 4. ゲームを起動し、FPV Dronecraft のクリエイティブタブからドローンとコントローラーを入手します。
 
 ### クイックスタート
+
+機体フレームを設置し、空手で右クリックして組立画面を開きます。モーター4個、プロペラ4枚、ESC・フライトコントローラー・受信機・バッテリー・カメラ各1個が必要です。欠品時はアームできません。着陸・ディスアーム後、所有者がShiftクリックで部品を取り付け・取り外せます。旧完成機と旧セーブは完成状態を保持し、新しいレシピは今後設計します。
 
 1. FPV Dronecraft のクリエイティブタブからドローンとコントローラーを入手します。
 2. ドローンアイテムを置いて、未バインドの機体を出します。

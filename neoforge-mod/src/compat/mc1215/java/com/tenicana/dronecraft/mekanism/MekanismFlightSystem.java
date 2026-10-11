@@ -19,6 +19,7 @@ public final class MekanismFlightSystem {
 	private static final String QUANTUM_ENTANGLOPORTER_ID = "mekanism:quantum_entangloporter";
 
 	private boolean configured;
+	private boolean assemblyHardwareDetached;
 	private DroneLoadout loadout = DroneLoadout.BASIC;
 	private long storedEnergyFe;
 	private Vec3 launchPosition = Vec3.ZERO;
@@ -36,6 +37,7 @@ public final class MekanismFlightSystem {
 
 	void configure(DroneLoadout newLoadout, String dimension, Vec3 position, BlockPos source) {
 		configured = true;
+		assemblyHardwareDetached = false;
 		loadout = newLoadout == null ? DroneLoadout.BASIC : newLoadout;
 		storedEnergyFe = loadout.powerTier().capacityFe();
 		launchPosition = position;
@@ -82,6 +84,27 @@ public final class MekanismFlightSystem {
 				distanceFromLaunchMeters, loadout.radioTier().rangeMeters());
 	}
 
+	/** Replacing hardware retains the launch link and uses the battery item's saved energy. */
+	public void replaceAssemblyHardware(DronePowerTier power, DroneRadioTier radio, long energyFe, Level level, Vec3 position) {
+		if (power == null) {
+			assemblyHardwareDetached |= configured;
+			configured = false;
+			storedEnergyFe = 0L;
+			quantumActive = false;
+			return;
+		}
+		DroneRadioTier selectedRadio = radio == null ? DroneRadioTier.BASIC : radio;
+		if (!configured && !assemblyHardwareDetached) {
+			configure(new DroneLoadout(power, selectedRadio, false), level, position);
+		} else {
+			loadout = new DroneLoadout(power, selectedRadio, loadout.quantumLink());
+		}
+		configured = true;
+		assemblyHardwareDetached = false;
+		storedEnergyFe = Math.max(0L, Math.min(power.capacityFe(), energyFe));
+		quantumActive = false;
+	}
+
 	public boolean configured() {
 		return configured;
 	}
@@ -117,7 +140,8 @@ public final class MekanismFlightSystem {
 
 	public void save(CompoundTag output) {
 		output.putBoolean("mek_configured", configured);
-		if (!configured) {
+		output.putBoolean("mek_assembly_hardware_detached", assemblyHardwareDetached);
+		if (!configured && !assemblyHardwareDetached) {
 			return;
 		}
 		output.putString("mek_power_tier", loadout.powerTier().getSerializedName());
@@ -138,6 +162,7 @@ public final class MekanismFlightSystem {
 	/** Loading never refills the battery or searches for a replacement quantum source. */
 	public void load(CompoundTag input) {
 		configured = input.getBooleanOr("mek_configured", false);
+		assemblyHardwareDetached = !configured && input.getBooleanOr("mek_assembly_hardware_detached", false);
 		loadout = DroneLoadout.BASIC;
 		storedEnergyFe = 0L;
 		launchPosition = Vec3.ZERO;
@@ -145,7 +170,7 @@ public final class MekanismFlightSystem {
 		quantumSource = null;
 		quantumActive = false;
 		distanceFromLaunchMeters = 0.0;
-		if (!configured) {
+		if (!configured && !assemblyHardwareDetached) {
 			return;
 		}
 		loadout = new DroneLoadout(DronePowerTier.byName(input.getStringOr("mek_power_tier", "")),

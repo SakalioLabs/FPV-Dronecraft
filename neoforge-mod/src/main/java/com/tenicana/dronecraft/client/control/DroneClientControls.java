@@ -440,6 +440,11 @@ public final class DroneClientControls {
 				displayArmBlocked(client, safeArmCheck);
 				return;
 			}
+			DroneEntity drone = DroneClientState.controlledDrone();
+			if (drone != null && !drone.isAssemblyComplete()) {
+				client.player.displayClientMessage(Component.translatable("message.fpvdrone.assembly_incomplete"), true);
+				return;
+			}
 			resetTransientControlState();
 			armed = true;
 			client.player.displayClientMessage(Component.translatable("message.fpvdrone.armed"), true);

@@ -11,6 +11,21 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import com.google.gson.JsonParser;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.JsonOps;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.TagParser;
+import net.minecraft.resources.RegistryOps;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
+import com.tenicana.dronecraft.assembly.DroneAssemblyInventory;
+import com.tenicana.dronecraft.menu.DroneAssemblyMenu;
+import com.tenicana.dronecraft.mekanism.DronePowerTier;
+import com.tenicana.dronecraft.mekanism.DroneRadioTier;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -87,6 +102,14 @@ import com.tenicana.dronecraft.sound.DroneSoundPhysics;
 
 public class DroneEntity extends Entity {
 	private final MekanismFlightSystem mekanismFlightSystem = new MekanismFlightSystem();
+
+	private boolean assemblyRestoring;
+	private boolean assemblyDropsHandled;
+	private ItemStack lastAssemblyBattery = ItemStack.EMPTY;
+	private final DroneAssemblyInventory assemblyInventory = new DroneAssemblyInventory(this::onAssemblyChanged, this::beforeAssemblyChanged);
+	private static final String ASSEMBLY_ENERGY_KEY = "fpvdrone_energy_fe";
+	private static final String ASSEMBLY_LIPO_KEY = "fpvdrone_lipo_state";
+
 	private static final EntityDataAccessor<Boolean> MEK_CONFIGURED = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.BOOLEAN);
 	private static final EntityDataAccessor<Boolean> MEK_QUANTUM_ACTIVE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.BOOLEAN);
 	private static final EntityDataAccessor<Float> MEK_CHARGE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -119,6 +142,7 @@ public class DroneEntity extends Entity {
 	private static final double ROTOR_DISK_SURFACE_CENTER_WEIGHT = 0.36;
 	private static final double ROTOR_DISK_SURFACE_CARDINAL_WEIGHT = 0.11;
 	private static final double ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT = 0.05;
+	private static final EntityDataAccessor<Integer> ASSEMBLY_MASK = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<Boolean> ARMED = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.BOOLEAN);
 	private static final EntityDataAccessor<Integer> FLIGHT_MODE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<Float> PITCH = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -465,6 +489,10 @@ public class DroneEntity extends Entity {
 		super(entityType, level);
 		setNoGravity(true);
 		selectFixedFlightModel();
+		assemblyRestoring = true;
+		try { assemblyInventory.fillPrototype(); }
+		finally { assemblyRestoring = false; }
+		lastAssemblyBattery = assemblyInventory.getItem(DroneAssemblyInventory.BATTERY);
 	}
 
 	@Override
@@ -504,6 +532,7 @@ public class DroneEntity extends Entity {
 
 	@Override
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
+		builder.define(ASSEMBLY_MASK, DroneAssemblyInventory.FULL_MASK);
 		builder.define(MEK_CONFIGURED, false);
 		builder.define(MEK_QUANTUM_ACTIVE, false);
 		builder.define(MEK_CHARGE, 1.0f);
@@ -731,6 +760,7 @@ public class DroneEntity extends Entity {
 			if (rawInput == null) {
 				rawInput = stableIdleInput();
 			}
+			rawInput = assemblySafeInput(rawInput);
 			MekanismFlightSystem.FlightStatus powerStatus = mekanismFlightSystem.update(level(), position(), rawInput);
 			if (mekanismFlightSystem.configured()) {
 				syncMekanismTelemetry();
@@ -877,6 +907,7 @@ public class DroneEntity extends Entity {
 		frameHealth = Math.max(0.0, frameHealth - amount * 0.08);
 		updateDamageSyncedState();
 		if (frameHealth <= 0.0) {
+			dropAssemblyOnDestruction();
 			discard();
 		}
 		return true;
@@ -887,7 +918,7 @@ public class DroneEntity extends Entity {
 	private static final float DEBUG_FAILSAFE_SETTLED_VERTICAL_SPEED = 0.08f;
 
 	private void applyDebugFlight(DroneInput input, boolean failsafeDamping) {
-		DroneInput normalizedInput = input == null ? stableIdleInput() : input.normalized();
+		DroneInput normalizedInput = assemblySafeInput(input == null ? stableIdleInput() : input.normalized());
 		FlightStepResult result = stepPlayableFlightModel(normalizedInput, failsafeDamping);
 		syncPlayableDebugFields(result);
 		Vec3 worldVelocity = result.nextState().velocityWorldMetersPerSecond();
@@ -3993,6 +4024,24 @@ public class DroneEntity extends Entity {
 
 	@Override
 	public InteractionResult interact(Player player, InteractionHand hand, net.minecraft.world.phys.Vec3 hitPosition) {
+
+		if (hand == InteractionHand.MAIN_HAND && player.getItemInHand(hand).isEmpty()) {
+			if (!canPlayerModifyAssembly(player)) {
+				if (!level().isClientSide() && player instanceof ServerPlayer serverPlayer) {
+					serverPlayer.sendOverlayMessage(Component.translatable(
+							hasOwner() && !isOwnedBy(player.getUUID()) ? "message.fpvdrone.assembly_not_owner" : "message.fpvdrone.assembly_locked"));
+				}
+				return InteractionResult.FAIL;
+			}
+			if (player instanceof ServerPlayer serverPlayer) {
+				if (!hasOwner()) setOwner(player.getUUID());
+				serverPlayer.openMenu(new SimpleMenuProvider(
+						(id, inventory, viewer) -> new DroneAssemblyMenu(id, inventory, this),
+						Component.translatable("menu.fpvdrone.assembly")), data -> data.writeVarInt(getId()));
+			}
+			return InteractionResult.SUCCESS;
+		}
+
 		if (!player.getItemInHand(hand).is(DroneItems.droneController())) {
 			return super.interact(player, hand, hitPosition);
 		}
@@ -4011,6 +4060,7 @@ public class DroneEntity extends Entity {
 	protected void addAdditionalSaveData(ValueOutput tag) {
 		mekanismFlightSystem.save(tag);
 		DroneSaveData output = new DroneSaveData(tag);
+		saveAssembly(output);
 		if (owner != null) {
 			output.putString("owner", owner.toString());
 		}
@@ -4064,6 +4114,7 @@ public class DroneEntity extends Entity {
 		simulationRuntime.setBatteryAmpSecondsConsumed(input.getDoubleOr("battery_amp_seconds_consumed", 0.0));
 		simulationRuntime.setBatteryEquivalentCycles(input.getDoubleOr("battery_equivalent_cycles", 0.0));
 		loadBatteryTransientState(input);
+		loadAssembly(input);
 		loadPowertrainThermalState(input);
 		loadRotorDynamicState(input);
 		loadAerodynamicTransientState(input);
@@ -4652,7 +4703,229 @@ public class DroneEntity extends Entity {
 	public void configureMekanismLoadout(DroneLoadout loadout) {
 		if (!level().isClientSide() && !mekanismFlightSystem.configured()) {
 			mekanismFlightSystem.configure(loadout, level(), position());
+			DroneLoadout selected = mekanismFlightSystem.loadout();
+			assemblyRestoring = true;
+			try {
+				assemblyInventory.setItem(DroneAssemblyInventory.BATTERY, new ItemStack(DroneItems.powerModule(selected.powerTier())));
+				assemblyInventory.setItem(DroneAssemblyInventory.RECEIVER, new ItemStack(DroneItems.radioModule(selected.radioTier())));
+			} finally { assemblyRestoring = false; }
+			lastAssemblyBattery = assemblyInventory.getItem(DroneAssemblyInventory.BATTERY);
+			prepareAssemblyTransfer();
 			syncMekanismTelemetry();
+		}
+	}
+
+	public DroneAssemblyInventory assemblyInventory() { return assemblyInventory; }
+
+	public int getAssemblyMask() { return entityData.get(ASSEMBLY_MASK); }
+
+	public boolean isAssemblyComplete() {
+		return level().isClientSide() ? getAssemblyMask() == DroneAssemblyInventory.FULL_MASK : assemblyInventory.isComplete();
+	}
+
+	public boolean canPlayerModifyAssembly(Player player) {
+		return player != null && player.isAlive() && !player.isSpectator()
+				&& isAlive() && !isRemoved() && player.level() == level()
+				&& player.distanceToSqr(this) <= 64.0 && (!hasOwner() || isOwnedBy(player.getUUID()))
+				&& !isArmed() && isNearGroundLocked();
+	}
+
+	public void resetAssemblyToBareFrame() {
+		assemblyRestoring = true;
+		try { assemblyInventory.clearContent(); }
+		finally { assemblyRestoring = false; }
+		lastAssemblyBattery = ItemStack.EMPTY;
+		onAssemblyChanged();
+	}
+
+	/** Saves charge before native slot transfers mutate their live source stack. */
+	public void prepareAssemblyTransfer() {
+		if (level().isClientSide() || assemblyRestoring) return;
+		ItemStack battery = assemblyInventory.getItem(DroneAssemblyInventory.BATTERY);
+		if (battery.is(DroneItems.lipoBattery())) {
+			writeAssemblyLipoState(battery);
+		} else if (!battery.isEmpty() && mekanismFlightSystem.configured()) {
+			CustomData.update(DataComponents.CUSTOM_DATA, battery,
+					tag -> tag.putString(ASSEMBLY_ENERGY_KEY, Long.toString(mekanismFlightSystem.storedEnergyFe())));
+		}
+	}
+
+	private void beforeAssemblyChanged() { prepareAssemblyTransfer(); }
+
+	private void onAssemblyChanged() {
+		entityData.set(ASSEMBLY_MASK, assemblyInventory.mask());
+		if (level().isClientSide() || assemblyRestoring) return;
+		syncAssemblyHardware();
+		if (!assemblyInventory.isComplete()) {
+			entityData.set(ARMED, false);
+			debugFlightActiveLastTick = false;
+			UUID ownerId = getOwner();
+			if (ownerId != null) DroneControlManager.clearInput(ownerId);
+		}
+	}
+
+	private void syncAssemblyHardware() {
+		ItemStack battery = assemblyInventory.getItem(DroneAssemblyInventory.BATTERY);
+		DronePowerTier power = DroneItems.powerTier(battery);
+		DroneRadioTier radio = DroneItems.radioTier(assemblyInventory.getItem(DroneAssemblyInventory.RECEIVER));
+		if (radio == null) radio = DroneRadioTier.BASIC;
+		long energy = power == null ? 0L
+				: battery == lastAssemblyBattery && mekanismFlightSystem.configured()
+						? mekanismFlightSystem.storedEnergyFe() : assemblyBatteryEnergy(battery, power.capacityFe());
+		mekanismFlightSystem.replaceAssemblyHardware(power, radio, energy, level(), position());
+		if (battery.is(DroneItems.lipoBattery()) && battery != lastAssemblyBattery) restoreAssemblyLipoState(battery);
+		lastAssemblyBattery = battery;
+		prepareAssemblyTransfer();
+		syncMekanismTelemetry();
+	}
+
+	private void writeAssemblyLipoState(ItemStack battery) {
+		SimulationFlightRuntime.PersistenceState state = simulationRuntime.persistenceStateSnapshot();
+		CustomData.update(DataComponents.CUSTOM_DATA, battery, tag -> {
+			CompoundTag charge = new CompoundTag();
+			charge.putDouble("amp_seconds_consumed", state.batteryAmpSecondsConsumed());
+			charge.putDouble("equivalent_cycles", state.batteryEquivalentCycles());
+			charge.putDouble("slow_polarization_v", state.batterySlowPolarizationVoltage());
+			charge.putDouble("temperature_c", state.batteryTemperatureCelsius());
+			charge.putDouble("cooling_factor", state.batteryCoolingFactor());
+			charge.putDouble("thermal_limit", state.batteryThermalLimit());
+			tag.put(ASSEMBLY_LIPO_KEY, charge);
+		});
+	}
+
+	private void restoreAssemblyLipoState(ItemStack battery) {
+		CustomData data = battery.get(DataComponents.CUSTOM_DATA);
+		double consumed = 0.0, cycles = 0.0, polarization = 0.0, temperature = 25.0, cooling = 1.0, thermal = 1.0;
+		if (data != null && data.contains(ASSEMBLY_LIPO_KEY)) {
+			try {
+				Map<String, Double> charge = Codec.unboundedMap(Codec.STRING, Codec.DOUBLE)
+						.fieldOf(ASSEMBLY_LIPO_KEY).codec().parse(NbtOps.INSTANCE, data.copyTag()).getOrThrow();
+				consumed = assemblyLipoValue(charge, "amp_seconds_consumed");
+				cycles = assemblyLipoValue(charge, "equivalent_cycles");
+				polarization = assemblyLipoValue(charge, "slow_polarization_v");
+				temperature = assemblyLipoValue(charge, "temperature_c");
+				cooling = assemblyLipoValue(charge, "cooling_factor");
+				thermal = assemblyLipoValue(charge, "thermal_limit");
+				if (consumed < 0.0 || cycles < 0.0 || polarization < 0.0 || cooling <= 0.0 || thermal < 0.0 || thermal > 1.0) {
+					throw new IllegalArgumentException("Invalid saved LiPo state");
+				}
+			} catch (RuntimeException invalid) {
+				// Corrupt physical batteries must not become fresh batteries during installation.
+				consumed = simulationRuntime.flightModelConfig().batteryCapacityAmpHours() * 3600.0;
+				cycles = 0.0;
+				polarization = 0.0;
+				temperature = 25.0;
+				cooling = 1.0;
+				thermal = 1.0;
+				FpvDronecraftMod.LOGGER.warn("Invalid assembly LiPo state; treating the battery as empty", invalid);
+			}
+		}
+		simulationRuntime.setBatteryAmpSecondsConsumed(consumed);
+		simulationRuntime.setBatteryEquivalentCycles(cycles);
+		simulationRuntime.restoreBatteryTransientState(polarization, temperature, cooling, thermal);
+	}
+
+	private static double assemblyLipoValue(Map<String, Double> charge, String key) {
+		Double value = charge.get(key);
+		if (value == null || !Double.isFinite(value)) throw new IllegalArgumentException("Invalid LiPo field: " + key);
+		return value;
+	}
+
+	private static long assemblyBatteryEnergy(ItemStack battery, long fallback) {
+		CustomData data = battery.get(DataComponents.CUSTOM_DATA);
+		if (data == null || !data.contains(ASSEMBLY_ENERGY_KEY)) return fallback;
+		try {
+			String encoded = Codec.STRING.fieldOf(ASSEMBLY_ENERGY_KEY).codec().parse(NbtOps.INSTANCE, data.copyTag()).getOrThrow();
+			return Math.max(0L, Long.parseLong(encoded));
+		} catch (RuntimeException invalid) {
+			FpvDronecraftMod.LOGGER.warn("Invalid assembly battery energy; treating the battery as empty", invalid);
+			return 0L;
+		}
+	}
+
+	private DroneInput assemblySafeInput(DroneInput input) {
+		if (isAssemblyComplete()) return input;
+		debugFlightActiveLastTick = false;
+		return new DroneInput(0.0, input.pitch(), input.roll(), input.yaw(), false, input.linkActive(), input.flightMode());
+	}
+
+	private void saveAssembly(DroneSaveData output) {
+		prepareAssemblyTransfer();
+		output.putDouble("assembly_schema", 2.0);
+		try {
+			// JSON erases NBT numeric and array types inside arbitrary item components.
+			CompoundTag encoded = new CompoundTag();
+			encoded.put("items", ItemStack.OPTIONAL_CODEC.listOf()
+					.encodeStart(RegistryOps.create(NbtOps.INSTANCE, level().registryAccess()), assemblyInventory.contentsSnapshot())
+					.getOrThrow());
+			output.putString("assembly_items", encoded.toString());
+		} catch (RuntimeException invalid) {
+			output.putString("assembly_items", "{items:[]}");
+			FpvDronecraftMod.LOGGER.error("Could not save drone assembly {}", getUUID(), invalid);
+		}
+	}
+
+	private List<ItemStack> decodeAssemblyItems(String encoded) {
+		// Retain compatibility with the schema-1 JSON written during assembly development.
+		if (encoded.stripLeading().startsWith("[")) {
+			return ItemStack.OPTIONAL_CODEC.listOf()
+					.parse(RegistryOps.create(JsonOps.INSTANCE, level().registryAccess()), JsonParser.parseString(encoded)).getOrThrow();
+		}
+		try {
+			CompoundTag wrapped = TagParser.parseCompoundFully(encoded);
+			var items = wrapped.get("items");
+			if (items == null) throw new IllegalArgumentException("Missing saved assembly items");
+			return ItemStack.OPTIONAL_CODEC.listOf()
+					.parse(RegistryOps.create(NbtOps.INSTANCE, level().registryAccess()), items).getOrThrow();
+		} catch (com.mojang.brigadier.exceptions.CommandSyntaxException invalid) {
+			throw new IllegalArgumentException("Invalid saved assembly SNBT", invalid);
+		}
+	}
+
+	private void loadAssembly(DroneSaveData input) {
+		boolean legacy = input.getString("assembly_items").isEmpty()
+				&& !Double.isFinite(input.getDoubleOr("assembly_schema", Double.NaN));
+		assemblyRestoring = true;
+		try {
+			if (legacy) {
+				assemblyInventory.fillPrototype();
+				if (mekanismFlightSystem.configured()) {
+					DroneLoadout loadout = mekanismFlightSystem.loadout();
+					ItemStack battery = new ItemStack(DroneItems.powerModule(loadout.powerTier()));
+					CustomData.update(DataComponents.CUSTOM_DATA, battery,
+							tag -> tag.putString(ASSEMBLY_ENERGY_KEY, Long.toString(mekanismFlightSystem.storedEnergyFe())));
+					assemblyInventory.setItem(DroneAssemblyInventory.BATTERY, battery);
+					assemblyInventory.setItem(DroneAssemblyInventory.RECEIVER, new ItemStack(DroneItems.radioModule(loadout.radioTier())));
+				}
+			} else {
+				String encoded = input.getString("assembly_items").orElseThrow();
+				assemblyInventory.loadContents(decodeAssemblyItems(encoded));
+			}
+		} catch (RuntimeException invalid) {
+			assemblyInventory.clearContent();
+			FpvDronecraftMod.LOGGER.warn("Invalid saved drone assembly {}; keeping the bare frame", getUUID(), invalid);
+		} finally {
+			assemblyRestoring = false;
+		}
+		if (legacy && assemblyInventory.getItem(DroneAssemblyInventory.BATTERY).is(DroneItems.lipoBattery())) {
+			// Entity battery fields have already been restored; migrate their charge into the physical item.
+			writeAssemblyLipoState(assemblyInventory.getItem(DroneAssemblyInventory.BATTERY));
+		}
+		lastAssemblyBattery = ItemStack.EMPTY;
+		// Stored item charge is authoritative; loading never refills an installed module.
+		onAssemblyChanged();
+	}
+
+	private void dropAssemblyOnDestruction() {
+		if (level().isClientSide() || assemblyDropsHandled) return;
+		assemblyDropsHandled = true;
+		prepareAssemblyTransfer();
+		List<ItemStack> dropped = assemblyInventory.contentsSnapshot();
+		assemblyRestoring = true;
+		try { assemblyInventory.clearContent(); }
+		finally { assemblyRestoring = false; }
+		for (ItemStack stack : dropped) {
+			if (!stack.isEmpty()) spawnAtLocation((ServerLevel) level(), stack);
 		}
 	}
 

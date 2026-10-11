@@ -19,6 +19,7 @@ public final class FpvDronecraftGameTestMod {
    event.register(DroneFlightGameTest.class);
    event.register(DroneControllerItemGameTest.class);
    event.register(MekanismAssemblyGameTest.class);
+			event.register(DroneAssemblyGameTest.class);
   });
  }
 }

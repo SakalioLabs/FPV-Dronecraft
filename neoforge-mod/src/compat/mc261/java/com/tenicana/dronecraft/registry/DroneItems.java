@@ -30,8 +30,16 @@ public final class DroneItems {
 	private static final DeferredItem<Item> ESC = component("esc");
 	private static final DeferredItem<Item> FLIGHT_CONTROLLER = component("flight_controller");
 	private static final DeferredItem<Item> LIPO_BATTERY = component("lipo_battery");
-	private static final DeferredItem<Item> CARBON_FRAME = component("carbon_frame");
-	private static final DeferredItem<Item> DRONE_AIRFRAME = component("drone_airframe");
+	private static final DeferredItem<DronePlacementItem> CARBON_FRAME = ITEMS.registerItem(
+			"carbon_frame", properties -> new DronePlacementItem(properties, true),
+			() -> new Item.Properties().stacksTo(1)
+	);
+	private static final DeferredItem<Item> RECEIVER = component("receiver");
+	private static final DeferredItem<Item> FPV_CAMERA = component("fpv_camera");
+	private static final DeferredItem<DronePlacementItem> DRONE_AIRFRAME = ITEMS.registerItem(
+			"drone_airframe", properties -> new DronePlacementItem(properties, true),
+			() -> new Item.Properties().stacksTo(1)
+	);
 	private static final Map<DronePowerTier, DeferredItem<Item>> POWER_MODULES = new EnumMap<>(DronePowerTier.class);
 	private static final Map<DroneRadioTier, DeferredItem<Item>> RADIO_MODULES = new EnumMap<>(DroneRadioTier.class);
 	private static final DeferredItem<Item> QUANTUM_LINK_MODULE = component("quantum_link_module");
@@ -56,6 +64,8 @@ public final class DroneItems {
 						output.accept(esc());
 						output.accept(flightController());
 						output.accept(lipoBattery());
+						output.accept(receiver());
+						output.accept(fpvCamera());
 						output.accept(carbonFrame());
 						output.accept(droneAirframe());
 						POWER_MODULES.values().forEach(item -> output.accept(item.get()));
@@ -107,6 +117,10 @@ public final class DroneItems {
 	public static Item lipoBattery() {
 		return LIPO_BATTERY.get();
 	}
+
+	public static Item receiver() { return RECEIVER.get(); }
+
+	public static Item fpvCamera() { return FPV_CAMERA.get(); }
 
 	public static Item carbonFrame() {
 		return CARBON_FRAME.get();

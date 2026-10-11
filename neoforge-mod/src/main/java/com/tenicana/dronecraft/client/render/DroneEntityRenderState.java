@@ -10,6 +10,7 @@ public class DroneEntityRenderState  {
 	public float rollRadians;
 	public float motorPower;
 	public int rotorCount = 4;
+	public int assemblyMask = 0x1FFF;
 	public final float[] rotorRpm = new float[RotorLayoutCodec.MAX_RENDER_ROTORS];
 	public final float[] rotorXModelUnits = new float[RotorLayoutCodec.MAX_RENDER_ROTORS];
 	public final float[] rotorYModelUnits = new float[RotorLayoutCodec.MAX_RENDER_ROTORS];

@@ -2,10 +2,34 @@
 
 ## Current status
 
-The current NeoForge development build is `0.2.0-neoforge-dev.2`. The recorded
+`dev.3` adds placed bare frames, a native 13-slot assembly menu and split-part
+models. Minecraft 1.21.1 / NeoForge 21.1.256 passed 469 adapter unit tests,
+26 GameTests, packaging and 35 native-world observations with 17 real PNGs.
+The final world run is `ecca876e-33ca-4106-8a3e-c080bfebe2fe`, with Mekanism
+`10.7.19.85` and Aerodynamics4MC `0.2.1` installed. Its evidence is frozen in
+`../MCFPV/deliverables/drone-assembly-runtime-neoforge-21.1.256-20261011/evidence`;
+the source validation log is `build/assembly-256-native-final-03.log`.
+GameTests cover native menu transfer, ownership and flight locks, every missing
+component, typed ItemStack save/reload, ordinary LiPo and FE battery state, and
+ordinary damage destruction drops. Native-world observations additionally
+exercise the actual empty-hand interaction, registered screen and client/server
+inventory click packets, followed by production arming and flight controls.
+
+All 16 pinned `dev.3` targets passed build/package and native title/controller
+startup smoke across `build/reports/neoforge-matrix/20261011-035035-251`,
+`20261011-040319-465` and `20261011-041610-192`. The first aggregate remains
+failed to preserve missing-import and 26.x message-API errors; the second
+remains failed to preserve the 1.21.7 dependency-download TLS interruption.
+The third is the successful 1.21.7 client-only retry. The assembly bundle's
+`multiversion-manifest.json` records the passing source for each stage and the
+SHA-256 of all 16 jars. Later fixes only touched excluded newer-version
+overlays, so the earlier passing targets retain their effective source.
+Startup smoke does not exercise assembly menus or flight in those other worlds.
+
+The current NeoForge development build is `0.2.0-neoforge-dev.3`. The recorded
 sixteen-target matrix, 1,255 native unit tests, and World 05 validation below
 were completed on `0.2.0-neoforge-dev.1` and remain migration-baseline evidence;
-they do not establish full `dev.2` coverage. The `dev.2` Minecraft 1.21.1 /
+they do not establish current-build coverage. The `dev.2` Minecraft 1.21.1 /
 NeoForge 21.1.256 deployment passed packaging, 465 adapter unit tests and 28
 native-world checks with Mekanism and A4MC installed, using view/simulation
 distance 12. Native rendering observations found 41 nonempty visible sections
@@ -13,7 +37,7 @@ near the FPV camera 637 meters from the pilot, 43 in third-person 675 meters
 away, and terrain around the body again after LOS switching. Run
 `f1d140f6-48a4-4470-aeba-9aeeb8907901` is recorded in
 `build/remote-terrain-256-validation.log` and
-`build/deployment-neoforge-21.1.256/targets/1.21.1/neoforge-mod/run-client-validation/fpvdrone-client-validation/report.json`.
+`../MCFPV/deliverables/remote-terrain-fix-neoforge-21.1.256-20261011/evidence/native-world-report.json`.
 Default 21.1.257 packaging and client startup also passed in
 `build/remote-terrain-257-default-validation.log`. The 1.21.2 overlay also passed
 packaging without the 1.21.1-only hook in
@@ -46,7 +70,7 @@ root, build the default profile:
 ```
 
 The production jar is
-`build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.2.jar`.
+`build/targets/1.21.1/neoforge-mod/libs/fpv-dronecraft-neoforge-mc1.21.1-0.2.0-neoforge-dev.3.jar`.
 Install that target-specific jar in the `mods` folder of the client and server.
 Each Minecraft target has its own jar; do not reuse one target's jar with a
 different Minecraft version. Fabric Loader and Fabric API are not required.
@@ -77,6 +101,8 @@ Evidence is target- and stage-specific:
 
 | Stage | Current evidence |
 | --- | --- |
+| `dev.3` 1.21.1 / NeoForge 21.1.256 | 469 adapter unit tests, 26 GameTests, packaging and 35 native-world checks passed; 4 signed continuous turns and 17 PNG captures. Final world UUID: `ecca876e-33ca-4106-8a3e-c080bfebe2fe`. Frozen evidence is in the assembly runtime bundle above. |
+| `dev.3` all 16 pinned targets | Build/package and native title/controller startup smoke passed across `20261011-035035-251`, code-fix retry `20261011-040319-465` and 1.21.7 client retry `20261011-041610-192`. First and second raw aggregates remain failed; the frozen multiversion manifest maps every passing stage to its actual report. |
 | Compile/package, dedicated-server flight, and client smoke | Historical `dev.1` evidence passed for all 16 pinned targets. Fifteen complete records are in `build/reports/neoforge-matrix/20261010-103859-388`; 26.1 server passed there and its supplemental build/client pass is in `build/reports/neoforge-matrix/20261010-112848-528`. The original `103859-388` aggregate remains failed because it preserves the pre-fix 26.1 client failure. |
 | Native unit tests | Historical `dev.1` final `1.21.1` rerun passed 1,255 (520 core, 270 acoustics, 465 NeoForge), recorded in `build/mc12101-final-native-06.log` |
 | NeoForge GameTests | Historical `dev.1` evidence: 18 passed on `1.21.1` |
@@ -109,12 +135,32 @@ performance telemetry reports frame, GPU, and save timing.
 
 Mekanism integration is optional and exposes public Forge Energy support, four
 tiers, quantum supply, and conditioned recipes. A production server with
-Mekanism `10.7.19.85` and A4MC `0.2.1` installed passed all 13 functional
+Mekanism `10.7.19.85` and A4MC `0.2.1` installed passed all 13 historical `dev.1` functional
 integration checks for Minecraft `1.21.1`. The report observed real FE transfer
 of 200, an empty battery remaining at 0 after NBT reload and tick, and a trusted
 native `GAMEPLAY_SERVER_ONLY` A4MC flow with freshness age 0. These integration
 results apply to the tested 1.21.1 jars and do not establish native-world
 validation or support for other targets.
+
+## Component assembly
+
+Place `carbon_frame` or `drone_airframe` on a supported surface. The frame belongs
+to its placer and starts with 13 empty slots. Empty-hand right-click opens the
+native assembly container: four `brushless_motor`, four `propeller`, and one
+each of `esc`, `flight_controller`, `receiver`, `lipo_battery` and `fpv_camera`.
+Native pickup, drag and Shift-click transfer actual inventory items, with one
+item per typed slot. Only the owner can edit a landed, disarmed aircraft within
+8 meters. A missing component blocks both normal and diagnostic flight input
+at the server. The model follows the synchronized installed-part mask.
+
+Existing tiered power/radio modules also fit their corresponding slots. FE
+charge stays with the physical battery when removed; ordinary LiPo stacks
+also carry depletion, cycle count and battery temperature/transient state. Reinstalling it, changing
+the receiver or saving/reloading does not refill it. Existing complete-drone
+items, debug spawns and worlds without assembly data migrate to a complete
+assembly. New partial assemblies persist their exact ItemStacks and components.
+The existing complete-drone recipes are preserved; new survival component
+recipes and ingredient balance will be designed separately.
 
 ## Development checks
 
@@ -142,14 +188,15 @@ validation world. The Gradle task has an external 4-minute timeout. The
 ```
 
 It exercises native placement/binding, four signed turns of at least 720°,
-camera/body views, chunk streaming, pilot damage, cleanup, and 11 verified
+camera/body views, native frame/component assembly, missing-part arming rejection,
+chunk streaming, pilot damage, cleanup, and 17 verified
 screenshots. Its Gradle task has a 14-minute external timeout; internally it
 allows 12 minutes total, 4 minutes for world startup, and 60 seconds for each
 later stage. Historical `dev.1` World run 05 passed on `1.21.1` only: all 25
 required observations,
 four signed continuous turns over 720°, and 11 real PNG captures; report UUID is
 `f7d2c17a-da69-4a12-8d9f-36b4a1ef0b5d` at
-`build/targets/1.21.1/neoforge-mod/run-client-validation/fpvdrone-client-validation/report.json`.
+`../MCFPV/deliverables/neoforge-multiversion-20261010/evidence/1.21.1/native-world-report.json`.
 It covers native placement, pilot-body rendering and hidden hands, a paced
 640 m server-pose fixture through the actual lease, Husk damage/fall, and lease
 expiry/reconnect/disconnect cleanup. The 640 m fixture is server-driven, not a

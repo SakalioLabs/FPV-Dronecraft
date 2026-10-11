@@ -196,5 +196,22 @@
 	"message.fpvdrone.quantum_source_missing": "无人机已部署，但 8 格范围内未找到量子纠缠传送器。",
 	"hud.fpvdrone.range_value": "距离 %1$s米 / %2$s米",
 	"hud.fpvdrone.quantum_link": "量子链路",
-	"hud.fpvdrone.fe_charge_value": "FE 电量 %s"
+	"hud.fpvdrone.fe_charge_value": "FE 电量 %s",
+	"item.fpvdrone.receiver": "无人机接收器",
+	"item.fpvdrone.fpv_camera": "FPV 相机",
+	"message.fpvdrone.frame_placed": "机架已放置，空手右键打开装配界面。",
+	"message.fpvdrone.assembly_incomplete": "无人机部件未装齐，无法启动。",
+	"message.fpvdrone.assembly_locked": "请先降落并停止电机，再装拆部件。",
+	"message.fpvdrone.assembly_not_owner": "这架无人机属于其他玩家。",
+	"screen.fpvdrone.assembly": "无人机装配 · 机架已安装",
+	"screen.fpvdrone.assembly_motors": "电机 ×4",
+	"screen.fpvdrone.assembly_propellers": "飞桨 ×4",
+	"screen.fpvdrone.assembly_esc": "电调",
+	"screen.fpvdrone.assembly_flight_controller": "飞控",
+	"screen.fpvdrone.assembly_receiver": "接收器",
+	"screen.fpvdrone.assembly_battery": "电池",
+	"screen.fpvdrone.assembly_camera": "相机",
+	"screen.fpvdrone.assembly_ready": "部件完整，可以启动",
+	"screen.fpvdrone.assembly_incomplete": "已装 %s/%s 件，缺件禁止起飞",
+	"menu.fpvdrone.assembly": "无人机装配 · 机架已安装"
 }

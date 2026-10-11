@@ -40,6 +40,7 @@ public final class FpvDronecraftClient {
    FpvDronecraftMod.LOGGER.info("FPV Dronecraft NeoForge client adapter initialized");
   });
  }
+ @SubscribeEvent public static void assemblyScreen(RegisterMenuScreensEvent event) { event.register(com.tenicana.dronecraft.registry.DroneMenus.ASSEMBLY.get(),com.tenicana.dronecraft.client.screen.DroneAssemblyScreen::new); }
  @SubscribeEvent public static void keys(RegisterKeyMappingsEvent event) { DroneClientControls.registerKeyMappings(event); }
  @SubscribeEvent public static void layers(EntityRenderersEvent.RegisterLayerDefinitions event) { DroneModelLayers.registerLayerDefinitions(event); }
  @SubscribeEvent public static void renderers(EntityRenderersEvent.RegisterRenderers event) { event.registerEntityRenderer(DroneEntityTypes.drone(),DroneEntityRenderer::new); }

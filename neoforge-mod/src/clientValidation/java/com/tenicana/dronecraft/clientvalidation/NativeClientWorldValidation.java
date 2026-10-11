@@ -22,14 +22,17 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.tenicana.dronecraft.FpvDronecraftMod;
+import com.tenicana.dronecraft.assembly.DroneAssemblyInventory;
 import com.tenicana.dronecraft.camera.DroneViewMode;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.control.DroneClientControls;
+import com.tenicana.dronecraft.client.screen.DroneAssemblyScreen;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.clientvalidation.mixin.TerrainRenderProbeAccess;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.item.DroneControllerItem;
+import com.tenicana.dronecraft.menu.DroneAssemblyMenu;
 import com.tenicana.dronecraft.network.DroneRemoteSessions;
 import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.FlightMode;
@@ -56,6 +59,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Husk;
 import net.minecraft.world.entity.animal.Chicken;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
@@ -95,6 +99,9 @@ public final class NativeClientWorldValidation {
     private static final String[] TURN_NAMES = {"positive_pitch", "negative_pitch", "positive_roll", "negative_roll"};
     private static final String[] REQUIRED = {
         "native_world_ready", "unbound_controller_air_use", "two_native_survival_placements",
+        "native_bare_frame_placement", "native_empty_hand_assembly_menu", "native_partial_assembly_transfer",
+        "native_incomplete_assembly_rejects_arm", "native_complete_assembly_transfer",
+        "native_component_removal_and_reinstall", "native_complete_assembly_model",
         "plain_interaction_does_not_bind", "shift_binds_first_uuid", "shift_rebinds_exact_second_uuid",
         "bound_controller_arm_and_yaw_network", "fpv_visible_stationary_body_and_hidden_hands",
         "third_person_visible_stationary_body_and_hidden_hands", "los_restores_native_hands",
@@ -108,6 +115,9 @@ public final class NativeClientWorldValidation {
     };
     private enum Stage {
         WAIT_WORLD, SETUP, CONTROLLER_AIR, GIVE_DRONES, PLACE_FIRST, PLACE_SECOND,
+        GIVE_FRAME, ASSEMBLY_PREPARE, ASSEMBLY_OPEN, ASSEMBLY_PARTIAL, ASSEMBLY_PARTIAL_BODY,
+        ASSEMBLY_BIND_READY, ASSEMBLY_BIND, ASSEMBLY_BLOCKED, ASSEMBLY_REOPEN_READY,
+        ASSEMBLY_REOPEN, ASSEMBLY_COMPLETE, ASSEMBLY_REMOVE, ASSEMBLY_REINSTALL, ASSEMBLY_COMPLETE_BODY,
         GIVE_CONTROLLER, PLAIN_CLICK, SHIFT_READY, BIND_FIRST, BIND_SECOND, ARM,
         YAW, DISARM, BODY_FPV, BODY_THIRD, BODY_LOS,
         TURN_SETUP, TURN_ARM, TURN_THROTTLE, TURN_HOLD, TURN_DISARM,
@@ -143,6 +153,7 @@ public final class NativeClientWorldValidation {
     private volatile Stage stage = Stage.WAIT_WORLD;
     private long stageStarted = startedAt;
     private int stageTick, worldStableTicks;
+    private int assemblyTransferIndex;
     private volatile int routeCompletedTick, turnIndex;
     private long frames, bodyRenders, handsCalls;
     private int terrainFrames;
@@ -186,6 +197,7 @@ public final class NativeClientWorldValidation {
         report.addProperty("passed", false);
         report.addProperty("started_at_utc", Instant.now().toString());
         report.addProperty("interaction_path", "native MultiPlayerGameMode useItem/useItemOn/interactAt/interact; actual Shift state and native GameRenderer pick");
+        report.addProperty("assembly_path", "Survival frame useItemOn -> empty-hand native entity interaction -> actual registered container screen and inventory click packets -> 13 individual slots -> production R arm gate; no fixture writes into the aircraft inventory");
         report.addProperty("turn_path", "production R/M/B and held keyboard controls -> production payload -> server playable quaternion -> native client camera frame");
         report.addProperty("streaming_fixture", "drone-only pose route on native DroneEntity.tick TAIL, up to 4m per tick; waits for next chunk to be loaded and entity-ticking through existing production lease; no getChunk preload or forced chunks");
         report.addProperty("body_fixture", "one initial server teleport to a temporary solid platform; normal gravity, Survival and real Husk AI; no per-tick body position writes");
@@ -226,7 +238,7 @@ public final class NativeClientWorldValidation {
                 return;
             }
             require(snapshot != null, "Native server observation disappeared before " + stage);
-            if (client.getOverlay() != null || client.screen != null) return;
+            if (client.getOverlay() != null || client.screen != null && !(client.screen instanceof DroneAssemblyScreen)) return;
             Snapshot state = snapshot;
             require(state.nativeCameraSelf(), "Server camera moved from the actual pilot at " + stage);
             if (stage.ordinal() >= Stage.ARM.ordinal() && stage.ordinal() < Stage.ATTACK.ordinal()) {
@@ -327,27 +339,158 @@ public final class NativeClientWorldValidation {
                 if (!settled(12)) return;
                 require(state.drones().isEmpty() && state.binding() == null, "Unbound controller air use spawned or bound a drone");
                 check("unbound_controller_air_use");
-                operation = submit(client, server -> equip(player(server), new ItemStack(DroneItems.drone(), 2), ItemStack.EMPTY));
+                operation = submit(client, server -> equip(player(server), new ItemStack(DroneItems.drone()), ItemStack.EMPTY));
                 advance(Stage.GIVE_DRONES);
             }
-            case GIVE_DRONES -> { if (operationDone() && held(client, DroneItems.drone(), 2)) { place(client, nearFloor); advance(Stage.PLACE_FIRST); } }
+            case GIVE_DRONES -> { if (operationDone() && held(client, DroneItems.drone(), 1)) { place(client, nearFloor); advance(Stage.PLACE_FIRST); } }
             case PLACE_FIRST -> {
-                if (state.drones().size() != 1 || !held(client, DroneItems.drone(), 1) || !settled(8)) return;
+                if (state.drones().size() != 1 || !client.player.getMainHandItem().isEmpty() || !settled(8)) return;
                 firstId = state.drones().getFirst().id();
                 require(state.drones().getFirst().owner() == null && !state.drones().getFirst().armed(), "Native placement auto-bound or armed the first drone");
+                operation = submit(client, server -> equip(player(server), new ItemStack(DroneItems.carbonFrame()), ItemStack.EMPTY));
+                advance(Stage.GIVE_FRAME);
+            }
+            case GIVE_FRAME -> {
+                if (!operationDone() || !held(client, DroneItems.carbonFrame(), 1) || !settled(8)) return;
                 place(client, farFloor);
                 advance(Stage.PLACE_SECOND);
             }
             case PLACE_SECOND -> {
                 if (state.drones().size() != 2 || !client.player.getMainHandItem().isEmpty() || !settled(8)) return;
                 targetId = state.drones().stream().filter(drone -> !drone.id().equals(firstId)).findFirst().orElseThrow().id();
-                require(state.drones().stream().allMatch(drone -> drone.owner() == null && !drone.armed()), "Second native placement inherited ownership or arming");
+                require(record(state, firstId).owner() == null && ownerId.equals(record(state, targetId).owner())
+                        && record(state, targetId).assemblyMask() == 0 && !record(state, targetId).armed()
+                        && ((DroneEntity) clientEntity(client, targetId)).getAssemblyMask() == 0 && state.binding() == null,
+                        "Native bare frame was assembled, armed, or controller-bound during placement");
                 check("two_native_survival_placements");
+                check("native_bare_frame_placement");
+                capture(client, "assembly-bare-frame");
+                operation = submit(client, server -> {
+                    ServerPlayer player = player(server);
+                    player.getInventory().setItem(9, new ItemStack(DroneItems.brushlessMotor(), 4));
+                    player.getInventory().setItem(10, new ItemStack(DroneItems.propeller(), 4));
+                    player.getInventory().setItem(11, new ItemStack(DroneItems.esc()));
+                    player.getInventory().setItem(12, new ItemStack(DroneItems.flightController()));
+                    player.getInventory().setItem(13, new ItemStack(DroneItems.receiver()));
+                    player.getInventory().setItem(14, new ItemStack(DroneItems.lipoBattery()));
+                    player.getInventory().setItem(15, new ItemStack(DroneItems.fpvCamera()));
+                    equip(player, ItemStack.EMPTY, ItemStack.EMPTY);
+                });
+                advance(Stage.ASSEMBLY_PREPARE);
+            }
+            case ASSEMBLY_PREPARE -> {
+                if (!captureDone() || !operationDone() || !settled(8)
+                        || client.player.getInventory().getItem(9).getCount() != 4) return;
+                interact(client, targetId, false);
+                advance(Stage.ASSEMBLY_OPEN);
+            }
+            case ASSEMBLY_OPEN -> {
+                if (!(client.screen instanceof DroneAssemblyScreen) || !settled(8)) return;
+                DroneAssemblyMenu menu = assemblyMenu(client);
+                require(menu.slots.size() == 49 && installed(menu) == 0 && menu.stillValid(client.player), "Native empty-hand assembly menu is invalid");
+                check("native_empty_hand_assembly_menu");
+                capture(client, "assembly-empty-menu");
+                assemblyTransferIndex = 9;
+                advance(Stage.ASSEMBLY_PARTIAL);
+            }
+            case ASSEMBLY_PARTIAL -> {
+                if (!captureDone()) return;
+                DroneAssemblyMenu menu = assemblyMenu(client);
+                if (assemblyTransferIndex <= 14) {
+                    transfer(client, menu, DroneAssemblyInventory.SLOT_COUNT + assemblyTransferIndex++ - 9);
+                    return;
+                }
+                if (record(state, targetId).assemblyMask() != 4095 || installed(menu) != 12
+                        || ((DroneEntity) clientEntity(client, targetId)).getAssemblyMask() != 4095 || !settled(8)) return;
+                require(menu.slots.get(12).getItem().isEmpty(), "Native transfer installed an unavailable camera");
+                check("native_partial_assembly_transfer");
+                capture(client, "assembly-partial-menu");
+                advance(Stage.ASSEMBLY_PARTIAL_BODY);
+            }
+            case ASSEMBLY_PARTIAL_BODY -> {
+                if (!captureDone()) return;
+                if (client.screen != null) { client.player.closeContainer(); return; }
+                if (!settled(12)) return;
+                lookAt(client, clientEntity(client, targetId).getBoundingBox().getCenter());
+                capture(client, "assembly-partial-frame");
+                operation = submit(client, server -> equip(player(server), new ItemStack(DroneItems.droneController()), ItemStack.EMPTY));
+                client.options.keyShift.setDown(true);
+                advance(Stage.ASSEMBLY_BIND_READY);
+            }
+            case ASSEMBLY_BIND_READY -> {
+                if (!captureDone() || !operationDone() || !held(client, DroneItems.droneController(), 1)
+                        || !client.player.isShiftKeyDown() || !state.shift() || !settled(8)) return;
+                interact(client, targetId, true);
+                advance(Stage.ASSEMBLY_BIND);
+            }
+            case ASSEMBLY_BIND -> {
+                if (!bound(client, state, targetId) || !settled(8)) return;
+                client.options.keyShift.setDown(false);
+                click(GLFW.GLFW_KEY_R);
+                advance(Stage.ASSEMBLY_BLOCKED);
+            }
+            case ASSEMBLY_BLOCKED -> {
+                if (!settled(12)) return;
+                require(!DroneClientState.armed() && !record(state, targetId).armed() && record(state, targetId).assemblyMask() == 4095,
+                        "Production R armed an aircraft missing its camera");
+                check("native_incomplete_assembly_rejects_arm");
+                operation = submit(client, server -> equip(player(server), ItemStack.EMPTY, ItemStack.EMPTY));
+                advance(Stage.ASSEMBLY_REOPEN_READY);
+            }
+            case ASSEMBLY_REOPEN_READY -> {
+                if (!operationDone() || !client.player.getMainHandItem().isEmpty() || state.shift() || !settled(8)) return;
+                interact(client, targetId, false);
+                advance(Stage.ASSEMBLY_REOPEN);
+            }
+            case ASSEMBLY_REOPEN -> {
+                if (!(client.screen instanceof DroneAssemblyScreen) || !settled(8)) return;
+                transfer(client, assemblyMenu(client), DroneAssemblyInventory.SLOT_COUNT + 15 - 9);
+                advance(Stage.ASSEMBLY_COMPLETE);
+            }
+            case ASSEMBLY_COMPLETE -> {
+                DroneAssemblyMenu menu = assemblyMenu(client);
+                if (record(state, targetId).assemblyMask() != DroneAssemblyInventory.FULL_MASK || installed(menu) != 13
+                        || !((DroneEntity) clientEntity(client, targetId)).isAssemblyComplete() || !settled(8)) return;
+                require(menu.slots.subList(0, 13).stream().allMatch(slot -> slot.getItem().getCount() == 1), "Assembly slots contain multiple physical components");
+                check("native_complete_assembly_transfer");
+                capture(client, "assembly-complete-menu");
+                advance(Stage.ASSEMBLY_REMOVE);
+            }
+            case ASSEMBLY_REMOVE -> {
+                if (!captureDone()) return;
+                transfer(client, assemblyMenu(client), DroneAssemblyInventory.CAMERA);
+                advance(Stage.ASSEMBLY_REINSTALL);
+            }
+            case ASSEMBLY_REINSTALL -> {
+                DroneAssemblyMenu menu = assemblyMenu(client);
+                if (assemblyTransferIndex == -1) {
+                    if (record(state, targetId).assemblyMask() != DroneAssemblyInventory.FULL_MASK || installed(menu) != 13 || !settled(8)) return;
+                    check("native_component_removal_and_reinstall");
+                    advance(Stage.ASSEMBLY_COMPLETE_BODY);
+                    return;
+                }
+                if (record(state, targetId).assemblyMask() != 4095 || installed(menu) != 12 || !settled(8)) return;
+                int cameraSlot = -1, cameras = 0;
+                for (int index = 13; index < menu.slots.size(); index++) if (menu.slots.get(index).getItem().is(DroneItems.fpvCamera())) {
+                    cameraSlot = index;
+                    cameras += menu.slots.get(index).getItem().getCount();
+                }
+                require(cameraSlot >= 0 && cameras == 1, "Removing a component lost or duplicated its physical item");
+                transfer(client, menu, cameraSlot);
+                assemblyTransferIndex = -1;
+            }
+            case ASSEMBLY_COMPLETE_BODY -> {
+                if (client.screen != null) { client.player.closeContainer(); return; }
+                if (!settled(12)) return;
+                require(((DroneEntity) clientEntity(client, targetId)).isAssemblyComplete() && !record(state, targetId).armed(), "Assembled world model lost its synchronized state");
+                check("native_complete_assembly_model");
+                lookAt(client, clientEntity(client, targetId).getBoundingBox().getCenter());
+                capture(client, "assembly-complete-frame");
                 operation = submit(client, server -> equip(player(server), new ItemStack(DroneItems.droneController()), new ItemStack(Items.SHIELD)));
                 advance(Stage.GIVE_CONTROLLER);
             }
             case GIVE_CONTROLLER -> {
-                if (!operationDone() || !held(client, DroneItems.droneController(), 1) || !settled(8)) return;
+                if (!captureDone() || !operationDone() || !held(client, DroneItems.droneController(), 1) || !settled(8)) return;
                 interact(client, targetId, false);
                 advance(Stage.PLAIN_CLICK);
             }
@@ -355,7 +498,7 @@ public final class NativeClientWorldValidation {
                 if (!settled(12)) return;
                 require(state.binding() == null && DroneControllerItem.boundDroneId(client.player) == null,
                         "Plain entity interaction bound a controller");
-                require(state.drones().stream().allMatch(drone -> drone.owner() == null), "Plain entity interaction assigned an owner");
+                require(record(state, firstId).owner() == null && ownerId.equals(record(state, targetId).owner()), "Plain entity interaction changed frame ownership");
                 check("plain_interaction_does_not_bind");
                 client.options.keyShift.setDown(true);
                 advance(Stage.SHIFT_READY);
@@ -679,7 +822,7 @@ public final class NativeClientWorldValidation {
             List<DroneRecord> records = new ArrayList<>();
             for (Entity entity : level.getAllEntities()) if (entity instanceof DroneEntity current
                     && (targetId == null && current.position().distanceTo(bodyHome) < 12 || current.getUUID().equals(firstId) || current.getUUID().equals(targetId))) {
-                records.add(new DroneRecord(current.getUUID(), current.getOwner(), current.position(), current.isArmed(), current.getControlYaw()));
+                records.add(new DroneRecord(current.getUUID(), current.getOwner(), current.position(), current.isArmed(), current.getControlYaw(), current.getAssemblyMask()));
             }
             if (stage == Stage.TURN_HOLD && drone != null && drone.isArmed() && drone.tickCount > previousTurnDroneTick) {
                 validateTurn(drone);
@@ -1072,6 +1215,21 @@ public final class NativeClientWorldValidation {
                 "Native placement raycast missed the supported target block: " + client.hitResult);
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, (BlockHitResult) client.hitResult);
     }
+    private DroneAssemblyMenu assemblyMenu(Minecraft client) {
+        require(client.screen instanceof DroneAssemblyScreen && client.player.containerMenu instanceof DroneAssemblyMenu,
+                "Native registered assembly screen/menu is missing at " + stage);
+        DroneAssemblyMenu menu = (DroneAssemblyMenu) client.player.containerMenu;
+        require(menu.drone() != null && targetId.equals(menu.drone().getUUID()), "Assembly menu is attached to the wrong aircraft");
+        return menu;
+    }
+    private static int installed(DroneAssemblyMenu menu) {
+        int result = 0;
+        for (int index = 0; index < DroneAssemblyInventory.SLOT_COUNT; index++) if (menu.slots.get(index).hasItem()) result++;
+        return result;
+    }
+    private static void transfer(Minecraft client, DroneAssemblyMenu menu, int slotIndex) {
+        client.gameMode.handleInventoryMouseClick(menu.containerId, slotIndex, 0, ClickType.QUICK_MOVE, client.player);
+    }
     private void interact(Minecraft client, UUID id, boolean shifted) {
         Entity entity = clientEntity(client, id);
         require(entity instanceof DroneEntity && client.player.isShiftKeyDown() == shifted, "Native entity interaction has the wrong target or Shift state");
@@ -1165,7 +1323,7 @@ public final class NativeClientWorldValidation {
         catch (ReflectiveOperationException failure) { throw new IllegalStateException("Native pose fixture accessor is unavailable", failure); }
     }
     private static void require(boolean condition, String message) { if (!condition) throw new IllegalStateException(message); }
-    private record DroneRecord(UUID id, UUID owner, Vec3 position, boolean armed, float yawInput) { }
+    private record DroneRecord(UUID id, UUID owner, Vec3 position, boolean armed, float yawInput, int assemblyMask) { }
     private record Snapshot(int tick, Vec3 body, float health, boolean alive, boolean shift, boolean nativeCameraSelf,
             UUID binding, UUID sessionDrone, boolean remote, int sessions, int tickets, List<DroneRecord> drones,
             Vec3 dronePosition, boolean loaded, boolean ticking, int chickenTick) { }
